@@ -1,4 +1,8 @@
-﻿# Sistema de Gestao de Pacientes (Enfermagem + ACS)
+﻿## Desenvolvimento
+
+Branch principal de desenvolvimento: `dev`.
+
+# Sistema de Gestao de Pacientes (Enfermagem + ACS)
 
 MVP inicial para:
 - Cadastro de pacientes
