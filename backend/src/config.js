@@ -1,3 +1,4 @@
+// Copyright (c) 2026 Vitras. Todos os direitos reservados.
 const IS_PROD = String(process.env.NODE_ENV || "").trim().toLowerCase() === "production";
 const PORT = process.env.PORT || 3001;
 const JWT_SECRET = String(process.env.JWT_SECRET || "").trim() || "dev-only-jwt-secret-change-me";

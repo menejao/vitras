@@ -1,3 +1,4 @@
+// Copyright (c) 2026 Vitras. Todos os direitos reservados.
 import app from "./app.js";
 import { PORT } from "./config.js";
 import { migrateLegacyPlaintextPasswords, alignJoaoTeamOnStartup } from "./services/startup.js";

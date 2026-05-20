@@ -1,4 +1,5 @@
-﻿import { useEffect, useMemo, useRef, useState } from "react";
+﻿// Copyright (c) 2026 Vitras. Todos os direitos reservados.
+import { useEffect, useMemo, useRef, useState } from "react";
 import { readUiState, writeLS } from "./utils/storage";
 import { UI_STATE_KEY } from "./config/constants";
 import { isReceptionist, isAdmin, canWriteRecords } from "./utils/roles";

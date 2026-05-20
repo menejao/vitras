@@ -1,102 +1,76 @@
-backend/node_modules
-*.log
-Thumbs.db
-backend-dotnet/**/bin/
-backend-dotnet/**/obj/
-.dotnet/
-.nuget/
-.nuget/packages/
-.nuget/config/
-.nuget/NuGet.Config
-.nuget/NuGet/
-.nuget/NuGet/*
-.nuget/*
-.appdata/
-.tmp/
-NuGet/
-
-# Node / Frontend
-node_modules/
-frontend-react/node_modules/
-frontend-react/dist/
-frontend-react/.npm-cache/
-.npm-cache/
-
-# Deploy / local tooling
-.wrangler/
-frontend-react/.wrangler/
-
-# Environment files (keep only examples in git)
-.env
-.env.*
-!.env.example
-frontend-react/.env
-frontend-react/.env.*
-!frontend-react/.env.example
-backend/data/dev-db*.json
-
-# Local archives and temp artifacts
-*.zip
-*.rar
-.tmp-dotnet-out.log
-.tmp-dotnet-err.log
-
-
-# dependencies
+# ─── Dependências ────────────────────────────────────────────────────────────
 node_modules/
 
-# builds
+# ─── Build ───────────────────────────────────────────────────────────────────
 dist/
 build/
 coverage/
 
-# envs
+# ─── Variáveis de ambiente (manter apenas .env.example no git) ───────────────
 .env
 .env.*
 !.env.example
+backend/.env
+backend/.env.*
+!backend/.env.example
+frontend-react/.env
+frontend-react/.env.*
+!frontend-react/.env.example
 
-# logs
+# ─── Banco de dados local (modo dev JSON) ────────────────────────────────────
+backend/data/*.json
+backend/data/*.bak
+
+# ─── Ferramentas de deploy / tooling local ───────────────────────────────────
+.wrangler/
+frontend-react/.wrangler/
+.vite/
+
+# ─── Logs ────────────────────────────────────────────────────────────────────
 *.log
 npm-debug.log*
 yarn-debug.log*
 pnpm-debug.log*
 
-# temp
+# ─── Arquivos temporários ─────────────────────────────────────────────────────
 .tmp/
 .cache/
 temp/
 tmp/
 
-# backups
+# ─── Backups e dumps ─────────────────────────────────────────────────────────
 *.zip
+*.rar
 *.bak
 *.old
 *.dump
 
-# vscode
-.vscode/
+# ─── Testes / relatórios ─────────────────────────────────────────────────────
+playwright-report/
+test-results/
 
-# os
+# ─── IDEs ────────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+
+# ─── Sistema Operacional ─────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
 
-# runtime
+# ─── Runtime ─────────────────────────────────────────────────────────────────
 pids
 *.pid
 *.seed
 
-# local db
-backend/data/*.json
-backend/data/*.bak
+# ─── Claude Code (configurações locais do desenvolvedor) ─────────────────────
+.claude/
 
-# dotnet
+# ─── Legado .NET (projeto anterior removido) ─────────────────────────────────
+backend-dotnet/
+.appdata/
+.dotnet/
+.nuget/
 bin/
 obj/
-
-# vite
-.vite/
-
-# testing
-playwright-report/
-test-results/
-.claude/
+NuGet/
+*.tmp-dotnet-*

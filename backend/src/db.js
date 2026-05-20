@@ -1,3 +1,4 @@
+// Copyright (c) 2026 Vitras. Todos os direitos reservados.
 import fs from "node:fs/promises";
 import path from "node:path";
 import crypto from "node:crypto";
