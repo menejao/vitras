@@ -1,0 +1,13 @@
+/* 01-tokens/radii.css
+   Raios de borda padronizados.
+*/
+
+:root {
+  --r-xs:   4px;   /* inputs pequenos, chips */
+  --r-sm:   6px;   /* botões compactos, badges */
+  --r-md:   8px;   /* botões · inputs · padrão */
+  --r-lg:   12px;  /* cards · padrão */
+  --r-xl:   16px;  /* hero · modais */
+  --r-2xl:  20px;  /* superfícies grandes */
+  --r-pill: 999px; /* avatares · dot · toggles */
+}

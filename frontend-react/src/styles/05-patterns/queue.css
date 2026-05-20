@@ -1,0 +1,303 @@
+/* 05-patterns/queue.css
+   Layout e componentes da tela de Fila de Atendimento.
+*/
+
+.queue-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.queue-page > .page-header,
+.queue-page > .hero {
+  margin: var(--s-6) var(--s-6) 0;
+}
+
+.queue-hero-search {
+  width: min(420px, 100%);
+}
+
+.queue-hero-search .input {
+  width: 100%;
+}
+
+/* ── KPIs ───────────────────────────────────────────────── */
+.queue-kpis {
+  display: flex;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-6);
+  flex-shrink: 0;
+  align-items: flex-start;
+}
+
+.queue-kpis .kpi {
+  flex: 1 1 120px;
+}
+
+.queue-kpis__clear-btn {
+  align-self: center;
+}
+
+/* ── Lista de fila ──────────────────────────────────────── */
+.queue-list {
+  flex: 1;
+  overflow: auto;
+  padding: 0 var(--s-6) var(--s-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  min-height: 0;
+}
+
+/* ── Card de entrada na fila ────────────────────────────── */
+.queue-entry {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-md);
+  background: var(--qe-bg, var(--surface));
+  border: 1px solid var(--qe-bd, var(--border));
+  transition: opacity var(--d-fast);
+}
+
+/* Priority variants via CSS custom properties */
+.queue-entry--urgent   { --qe-color: var(--danger);     --qe-bg: var(--danger-soft);  --qe-bd: var(--danger-bd); }
+.queue-entry--elderly  { --qe-color: var(--warning);    --qe-bg: var(--warning-soft); --qe-bd: var(--warning-bd); }
+.queue-entry--pregnant { --qe-color: var(--accent-text); --qe-bg: var(--accent-soft); --qe-bd: var(--accent-soft-2); }
+.queue-entry--child    { --qe-color: var(--info);       --qe-bg: var(--info-soft);    --qe-bd: var(--info-bd); }
+.queue-entry--normal   { --qe-color: var(--text-muted); --qe-bg: var(--surface-2);   --qe-bd: var(--border); }
+
+.queue-entry--done { opacity: .65; --qe-bg: var(--surface-2); --qe-bd: var(--border); --qe-color: var(--text-dim); }
+
+.queue-entry__rank {
+  width: 26px; height: 26px;
+  border-radius: var(--r-pill);
+  background: var(--qe-bd, var(--border));
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  font: 800 var(--t-xs) var(--font-sans);
+  color: var(--qe-color, var(--text-dim));
+}
+
+.queue-entry--done .queue-entry__rank {
+  background: var(--border);
+  color: var(--text-dim);
+}
+
+.queue-entry__copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.queue-entry__name {
+  font: 700 var(--t-base) var(--font-sans);
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.queue-entry--done .queue-entry__name { color: var(--text-dim); }
+
+.queue-entry__meta {
+  font: 400 var(--t-xs) var(--font-sans);
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+
+.queue-entry__badges {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  flex-wrap: wrap;
+  margin-top: var(--s-1);
+}
+
+/* ── Badges de prioridade/tipo na fila ──────────────────── */
+.queue-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 var(--s-2);
+  border-radius: var(--r-pill);
+  border: 1px solid var(--qe-bd, var(--border));
+  background: var(--qe-bg, var(--surface-2));
+  color: var(--qe-color, var(--text-muted));
+  font: 700 var(--t-xs) var(--font-sans);
+  white-space: nowrap;
+}
+
+.queue-badge--spontaneous {
+  background: var(--warning-soft);
+  border-color: var(--warning-bd);
+  color: var(--warning);
+}
+
+.queue-badge--scheduled {
+  background: var(--info-soft);
+  border-color: var(--info-bd);
+  color: var(--info);
+}
+
+.queue-badge--waiting {
+  background: var(--info-soft);
+  border-color: var(--info-bd);
+  color: var(--info);
+}
+
+.queue-badge--triage {
+  background: var(--warning-soft);
+  border-color: var(--warning-bd);
+  color: var(--warning);
+}
+
+/* ── Ações da entrada ───────────────────────────────────── */
+.queue-entry__actions {
+  display: flex;
+  gap: var(--s-1);
+  flex-shrink: 0;
+}
+
+/* ── Paciente selecionado no formulário ─────────────────── */
+.queue-selected-pat {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-soft-2);
+  border-radius: var(--r-md);
+  margin-top: var(--s-2);
+}
+
+.queue-selected-pat__avatar {
+  width: 36px; height: 36px;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  font: 700 var(--t-base) var(--font-sans);
+  color: var(--text-on-accent);
+}
+
+.queue-selected-pat__name {
+  font: 700 var(--t-base) var(--font-sans);
+  color: var(--accent-text);
+}
+
+.queue-selected-pat__agenda {
+  font: 400 var(--t-xs) var(--font-sans);
+  color: var(--accent-text);
+  margin-top: 2px;
+  opacity: .85;
+}
+
+.queue-selected-pat__copy {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ── Toggle de escolha (tipo/destino) ───────────────────── */
+.queue-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s-2);
+}
+
+.queue-toggle-btn {
+  padding: var(--s-3);
+  border-radius: var(--r-md);
+  border: 2px solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color var(--d-fast), background var(--d-fast);
+}
+
+.queue-toggle-btn.is-active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.queue-toggle-btn__label {
+  font: 700 var(--t-sm) var(--font-sans);
+  color: var(--text);
+}
+
+.queue-toggle-btn.is-active .queue-toggle-btn__label {
+  color: var(--accent-text);
+}
+
+.queue-toggle-btn__desc {
+  font: 400 var(--t-xs) var(--font-sans);
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+
+/* ── Aviso de tipo de demanda ───────────────────────────── */
+.queue-demand-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-2);
+  padding: var(--s-3);
+  border-radius: var(--r-md);
+  font: 400 var(--t-xs) var(--font-sans);
+}
+
+.queue-demand-notice--scheduled {
+  background: var(--info-soft);
+  border: 1px solid var(--info-bd);
+  color: var(--info);
+}
+
+.queue-demand-notice--spontaneous {
+  background: var(--warning-soft);
+  border: 1px solid var(--warning-bd);
+  color: var(--warning);
+}
+
+.queue-demand-notice__icon {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+/* ── Footer do formulário ───────────────────────────────── */
+.queue-form-footer {
+  display: flex;
+  gap: var(--s-2);
+  margin-top: var(--s-2);
+}
+
+.queue-form-footer .btn {
+  flex: 1;
+}
+
+/* ── Seção de detalhe do formulário ─────────────────────── */
+.queue-form-section {
+  padding-bottom: var(--s-4);
+  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: var(--s-3);
+}
+
+.queue-form-section:last-of-type {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.queue-form-section__title {
+  font: 700 var(--t-sm) var(--font-sans);
+  color: var(--text);
+  margin: 0 0 var(--s-3);
+}
+
+.queue-form-section__title--accent {
+  color: var(--accent-text);
+}
+
+@media (max-width: 640px) {
+  .queue-page > .page-header,
+  .queue-page > .hero,
+  .queue-kpis,
+  .queue-list { padding-left: var(--s-4); padding-right: var(--s-4); }
+}

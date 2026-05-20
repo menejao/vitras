@@ -1,0 +1,14 @@
+/* 01-tokens/z-index.css
+   Camadas de empilhamento. Toda referência a z-index deve usar
+   estes tokens — nunca números mágicos no componente.
+*/
+
+:root {
+  --z-base:     0;
+  --z-sticky:   200;     /* sidebar fixa, topbar */
+  --z-dropdown: 300;     /* dropdowns, popovers */
+  --z-overlay:  800;     /* backdrop de modal */
+  --z-modal:    900;     /* modal */
+  --z-toast:    1000;    /* toasts e notificações */
+  --z-tooltip:  1100;    /* tooltips ficam por cima de tudo */
+}

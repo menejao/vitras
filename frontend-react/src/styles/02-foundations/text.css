@@ -1,0 +1,24 @@
+/* 02-foundations/text.css
+   Tokens semânticos de cor de texto.
+
+   Hierarquia:
+     --text           principal (slate-900)
+     --text-muted     secundário, labels (slate-600)
+     --text-dim       auxiliar, placeholders, captions (slate-400)
+     --text-subtle    desativado, separadores (slate-300)
+     --text-on-accent texto sobre fundo accent (branco)
+     --text-on-navy   texto sobre fundo navy (branco)
+*/
+
+:root {
+  --text:           #0F172A;
+  --text-muted:     #475569;
+  --text-dim:       #94A3B8;
+  --text-subtle:    #CBD5E1;
+  --text-on-accent: #FFFFFF;
+  --text-on-navy:   #FFFFFF;
+
+  /* Texto em superfície navy (hero, sidebar) — variantes opacas */
+  --text-on-navy-muted: rgba(255,255,255,.70);
+  --text-on-navy-dim:   rgba(255,255,255,.55);
+}

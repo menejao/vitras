@@ -1,0 +1,28 @@
+/* 04-components/alert.css
+   Mensagens em linha. Persistentes (não somem sozinhas).
+   Para feedback pontual usar toast (lib separada).
+
+   Markup:
+     <div class="alert alert--success">
+       <Icon name="check"/>
+       <div><strong>Salvo</strong> · às 14:23.</div>
+     </div>
+*/
+
+.alert {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+  padding: 12px 14px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font: 400 var(--t-base) var(--font-sans);
+  color: var(--text);
+}
+.alert strong { color: inherit; font-weight: 600; }
+
+.alert--success { background: var(--success-soft); border-color: var(--success-bd); color: var(--success); }
+.alert--warning { background: var(--warning-soft); border-color: var(--warning-bd); color: var(--warning); }
+.alert--danger  { background: var(--danger-soft);  border-color: var(--danger-bd);  color: var(--danger); }
+.alert--info    { background: var(--info-soft);    border-color: var(--info-bd);    color: var(--info); }

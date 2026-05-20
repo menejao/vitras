@@ -1,0 +1,80 @@
+/* 04-components/table.css
+   Tabela densa enterprise. Linha clicável com hover. Header em
+   surface-2. Linha selecionada em accent-soft.
+
+   Markup:
+     <table class="table">
+       <thead><tr><th>…</th></tr></thead>
+       <tbody>
+         <tr><td>…</td></tr>
+         <tr class="is-selected"><td>…</td></tr>
+       </tbody>
+     </table>
+
+   Variants:
+     .table--dense    linhas mais finas (9px)
+     .table--striped  zebra opcional
+*/
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font: 400 var(--t-base) var(--font-sans);
+  font-feature-settings: var(--font-feat);
+}
+
+.table th {
+  text-align: left;
+  font: 500 10.5px var(--font-sans);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-2);
+  white-space: nowrap;
+}
+
+.table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text);
+  vertical-align: middle;
+}
+
+.table tr:hover td     { background: var(--surface-hover); cursor: pointer; }
+.table tr:last-child td { border-bottom: 0; }
+.table tr.is-selected td { background: var(--accent-soft); }
+
+.table--dense td   { padding: 9px 14px; }
+.table--striped tbody tr:nth-child(odd) td { background: var(--surface-2); }
+.table--striped tbody tr:nth-child(odd):hover td { background: var(--surface-hover); }
+
+/* Helper: número monospaced tabular */
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--t-base);
+  font-weight: 500;
+}
+
+/* Table wrapper para scroll horizontal em mobile */
+.table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+}
+.table-wrap .table th { border-radius: 0; }
+
+/* Paginação */
+.table-pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-5);
+  border-top: 1px solid var(--border-subtle);
+  font-size: var(--t-sm);
+  color: var(--text-muted);
+}

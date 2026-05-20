@@ -1,0 +1,388 @@
+/* 05-patterns/pharmacy.css
+   Layout e componentes da tela de Farmácia UBS.
+*/
+
+.pharmacy-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.pharmacy-page > .page-header {
+  margin: var(--s-6) var(--s-6) 0;
+}
+
+/* ── Session info in header ─────────────────────────────────── */
+.pharma-session {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.pharma-session__info { text-align: right; }
+
+.pharma-session__name {
+  font: 700 var(--t-sm) var(--font-sans);
+  color: var(--accent-text);
+}
+
+.pharma-session__sub {
+  font: 400 var(--t-xs) var(--font-sans);
+  color: var(--text-dim);
+}
+
+/* ── KPI row ────────────────────────────────────────────────── */
+.pharma-kpis {
+  display: flex;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-6);
+  flex-wrap: wrap;
+}
+
+.pharma-kpis .kpi { flex: 1 1 130px; }
+
+.kpi__icon {
+  font-size: var(--t-lg);
+  line-height: 1;
+  margin-bottom: var(--s-1);
+}
+
+/* ── Main body ──────────────────────────────────────────────── */
+.pharma-body {
+  flex: 1;
+  overflow: auto;
+  padding: var(--s-4) var(--s-6) var(--s-6);
+}
+
+/* ── Toolbar ────────────────────────────────────────────────── */
+.pharma-toolbar {
+  display: flex;
+  gap: var(--s-2);
+  margin-bottom: var(--s-4);
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.pharma-search {
+  position: relative;
+  flex: 1 1 200px;
+}
+
+
+/* Filter toggle active state — scoped to pharmacy page to avoid bleeding into sidebar nav */
+.pharmacy-page .btn--ghost.is-active {
+  background: var(--warning-soft);
+  border-color: var(--warning-bd);
+  color: var(--warning);
+}
+
+/* ── Stock status dot ───────────────────────────────────────── */
+.pharma-dot {
+  display: inline-block;
+  width: 10px; height: 10px;
+  border-radius: var(--r-pill);
+  background: var(--success);
+}
+.pharma-dot--low  { background: var(--warning); }
+.pharma-dot--zero { background: var(--danger); }
+
+/* ── Stock quantity pill ────────────────────────────────────── */
+.pharma-qty {
+  font: 700 var(--t-sm) var(--font-sans);
+  padding: 1px var(--s-2);
+  border-radius: var(--r-pill);
+  border: 1px solid var(--success-bd);
+  background: var(--success-soft);
+  color: var(--success);
+  display: inline-block;
+}
+.pharma-qty--low  { background: var(--warning-soft); border-color: var(--warning-bd); color: var(--warning); }
+.pharma-qty--zero { background: var(--danger-soft);  border-color: var(--danger-bd);  color: var(--danger); }
+
+/* ── Category badge ─────────────────────────────────────────── */
+.pharma-cat {
+  font: 400 var(--t-xs) var(--font-sans);
+  padding: 1px var(--s-2);
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+/* ── Log type badge ─────────────────────────────────────────── */
+.pharma-log-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 var(--s-2);
+  border-radius: var(--r-pill);
+  font: 700 var(--t-xs) var(--font-sans);
+  white-space: nowrap;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+
+.pharma-log-badge--dispensa { background: var(--info-soft);    border-color: var(--info-bd);       color: var(--info); }
+.pharma-log-badge--ajuste   { background: var(--warning-soft); border-color: var(--warning-bd);    color: var(--warning); }
+.pharma-log-badge--cadastro { background: var(--success-soft); border-color: var(--success-bd);    color: var(--success); }
+.pharma-log-badge--edicao   { background: var(--accent-soft);  border-color: var(--accent-soft-2); color: var(--accent-text); }
+
+/* ── ANVISA / auth notices ──────────────────────────────────── */
+.pharma-anvisa-notice {
+  display: flex;
+  gap: var(--s-2);
+  align-items: flex-start;
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-md);
+  font: 400 var(--t-xs) var(--font-sans);
+  background: var(--warning-soft);
+  border: 1px solid var(--warning-bd);
+  color: var(--warning);
+  margin-bottom: var(--s-4);
+}
+
+.pharma-auth-notice {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin-top: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-md);
+  font: 400 var(--t-sm) var(--font-sans);
+  background: var(--warning-soft);
+  border: 1px solid var(--warning-bd);
+  color: var(--warning);
+}
+
+/* ── Modal: item info block ─────────────────────────────────── */
+.pharma-modal-item {
+  padding: var(--s-3) var(--s-4);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-soft-2);
+  border-radius: var(--r-md);
+  margin-bottom: var(--s-3);
+}
+.pharma-modal-item__name {
+  font: 700 var(--t-base) var(--font-sans);
+  color: var(--accent-text);
+}
+.pharma-modal-item__meta {
+  font: 400 var(--t-xs) var(--font-sans);
+  color: var(--accent-text);
+  opacity: .85;
+  margin-top: 2px;
+}
+
+/* ── Modal: section title within form ───────────────────────── */
+.pharma-form-section {
+  font: 700 var(--t-xs) var(--font-sans);
+  color: var(--accent-text);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  padding: var(--s-2) 0 var(--s-1);
+  grid-column: span 2;
+}
+
+/* ── Modal: password confirm label ─────────────────────────── */
+.pharma-pw-label {
+  font: 700 var(--t-sm) var(--font-sans);
+  color: var(--text);
+}
+
+/* ── Login modal brand block ────────────────────────────────── */
+.pharma-login-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.pharma-login-brand__icon {
+  width: 34px; height: 34px;
+  border-radius: var(--r-md);
+  background: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-on-accent);
+  flex-shrink: 0;
+}
+
+.pharma-login-brand__title {
+  font: 700 var(--t-base) var(--font-sans);
+  color: var(--text);
+}
+
+.pharma-login-brand__sub {
+  font: 400 var(--t-xs) var(--font-sans);
+  color: var(--text-dim);
+}
+
+/* ── Patient card modal content ─────────────────────────────── */
+.pharma-pat-card {
+  background: var(--surface-2);
+  border-radius: var(--r-md);
+  padding: var(--s-6);
+  line-height: 1.6;
+}
+
+.pharma-pat-card__header {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  border-bottom: 2px solid var(--accent);
+  padding-bottom: var(--s-4);
+  margin-bottom: var(--s-4);
+}
+
+.pharma-pat-card__name {
+  font: 800 var(--t-lg) var(--font-sans);
+  color: var(--text);
+}
+
+.pharma-pat-card__meta-row {
+  font: 400 var(--t-xs) var(--font-sans);
+  color: var(--text-muted);
+  margin-top: var(--s-1);
+  display: flex;
+  gap: var(--s-4);
+  flex-wrap: wrap;
+}
+
+.pharma-pat-card__aside {
+  text-align: right;
+  font: 400 var(--t-xs) var(--font-sans);
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+
+.pharma-pat-card__aside-cat {
+  font: 700 var(--t-sm) var(--font-sans);
+  color: var(--accent-text);
+  margin-bottom: 2px;
+}
+
+.pharma-pat-card__aside-ig {
+  font: 600 var(--t-xs) var(--font-sans);
+  color: var(--accent-text);
+}
+
+.pharma-pat-card__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s-4);
+  margin-bottom: var(--s-4);
+}
+
+.pharma-pat-card__section-title {
+  font: 700 var(--t-xs) var(--font-sans);
+  color: var(--accent-text);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  margin-bottom: var(--s-2);
+}
+
+.pharma-pat-card__section-body {
+  font: 400 var(--t-sm) var(--font-sans);
+  color: var(--text-muted);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+.pharma-pat-card__allergy {
+  font: 600 var(--t-sm) var(--font-sans);
+  color: var(--danger);
+}
+
+.pharma-pat-card__no-data { color: var(--text-dim); }
+
+.pharma-pat-card__meds {
+  padding: var(--s-3) var(--s-4);
+  background: var(--warning-soft);
+  border: 1px solid var(--warning-bd);
+  border-radius: var(--r-md);
+  margin-bottom: var(--s-4);
+}
+
+.pharma-pat-card__meds-title {
+  font: 700 var(--t-xs) var(--font-sans);
+  color: var(--warning);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  margin-bottom: var(--s-1);
+}
+
+.pharma-pat-card__meds-body {
+  font: 400 var(--t-sm) var(--font-sans);
+  color: var(--text);
+  white-space: pre-wrap;
+}
+
+.pharma-pat-card__vaccines { margin-bottom: var(--s-4); }
+
+.pharma-pat-card__vacc-title {
+  font: 700 var(--t-xs) var(--font-sans);
+  color: var(--accent-text);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  margin-bottom: var(--s-2);
+}
+
+.pharma-pat-card__vacc-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-1);
+}
+
+.pharma-pat-card__vacc-pill {
+  font: 600 var(--t-xs) var(--font-sans);
+  padding: 2px var(--s-2);
+  border-radius: var(--r-pill);
+  background: var(--success-soft);
+  color: var(--success);
+  border: 1px solid var(--success-bd);
+}
+
+.pharma-pat-card__vacc-more { font: 400 var(--t-xs) var(--font-sans); color: var(--text-dim); }
+
+.pharma-pat-card__pregnancy {
+  padding: var(--s-3) var(--s-4);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-soft-2);
+  border-radius: var(--r-md);
+  margin-bottom: var(--s-4);
+}
+
+.pharma-pat-card__pregnancy-title {
+  font: 700 var(--t-xs) var(--font-sans);
+  color: var(--accent-text);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  margin-bottom: var(--s-1);
+}
+
+.pharma-pat-card__pregnancy-data {
+  display: flex;
+  gap: var(--s-6);
+  font: 400 var(--t-sm) var(--font-sans);
+  color: var(--accent-text);
+  flex-wrap: wrap;
+}
+
+.pharma-pat-card__footer {
+  border-top: 1px solid var(--border);
+  padding-top: var(--s-3);
+  display: flex;
+  justify-content: space-between;
+  font: 400 var(--t-xs) var(--font-sans);
+  color: var(--text-dim);
+}
+
+@media (max-width: 640px) {
+  .pharmacy-page > .page-header,
+  .pharma-kpis,
+  .pharma-body { padding-left: var(--s-4); padding-right: var(--s-4); }
+  .pharma-pat-card__grid { grid-template-columns: 1fr; }
+}

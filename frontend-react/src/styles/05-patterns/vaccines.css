@@ -1,0 +1,436 @@
+/* 05-patterns/vaccines.css
+   Layout e componentes da tela de Carteira de Vacinas.
+*/
+
+.vaccines-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.vaccines-page > .page-header {
+  margin: var(--s-6) var(--s-6) 0;
+}
+
+/* ── Team indicator badge (Equipe Rosa etc) ────────────────── */
+.vacc-team-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 var(--s-2);
+  margin-left: var(--s-2);
+  border-radius: var(--r-pill);
+  font: 700 var(--t-xs) var(--font-sans);
+  letter-spacing: .04em;
+  background: var(--danger-soft);
+  border: 1px solid var(--danger-bd);
+  color: var(--danger);
+  vertical-align: middle;
+}
+
+/* ── Two-column layout ─────────────────────────────────────── */
+.vaccines-layout {
+  display: flex;
+  gap: var(--s-5);
+  padding: var(--s-3) var(--s-6) var(--s-6);
+  flex: 1;
+  align-items: flex-start;
+  min-height: 0;
+}
+
+/* ── Patient list panel ────────────────────────────────────── */
+.vacc-panel { flex: 0 0 300px; min-width: 0; }
+
+.vacc-panel__search {
+  padding: var(--s-2) var(--s-3);
+  border-bottom: 1px solid var(--border);
+}
+
+.vacc-panel__list { max-height: 72vh; overflow-y: auto; }
+
+.vacc-panel__empty {
+  padding: var(--s-6);
+  text-align: center;
+  color: var(--text-dim);
+  font: 400 var(--t-sm) var(--font-sans);
+}
+
+/* ── Patient row ───────────────────────────────────────────── */
+.vacc-pat {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  width: 100%;
+  padding: var(--s-2) var(--s-3);
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  border-left: 3px solid transparent;
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--d-fast);
+  color: var(--text);
+}
+
+.vacc-pat:hover               { background: var(--surface-2); }
+.vacc-pat.is-active           { background: var(--accent-soft); border-left-color: var(--accent); }
+
+.vacc-pat__copy               { flex: 1; min-width: 0; }
+
+.vacc-pat__name {
+  font: 600 var(--t-sm) var(--font-sans);
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.vacc-pat.is-active .vacc-pat__name { color: var(--accent-text); }
+
+.vacc-pat__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  margin-top: 2px;
+  flex-wrap: nowrap;
+}
+
+.vacc-pat__age {
+  font: 400 var(--t-xs) var(--font-sans);
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+
+.vacc-pat__chevron {
+  color: var(--text-dim);
+  flex-shrink: 0;
+  transition: transform var(--d-fast);
+}
+.vacc-pat.is-active .vacc-pat__chevron { color: var(--accent); transform: rotate(90deg); }
+
+/* ── Age-group badge ───────────────────────────────────────── */
+.vg-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: 18px;
+  padding: 0 var(--s-2);
+  border-radius: var(--r-pill);
+  font: 700 var(--t-xs) var(--font-sans);
+  white-space: nowrap;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-muted);
+}
+
+.vg-badge--crianca      { background: var(--info-soft);    border-color: var(--info-bd);       color: var(--info); }
+.vg-badge--adolescente  { background: var(--success-soft); border-color: var(--success-bd);    color: var(--success); }
+.vg-badge--adulto       { background: var(--accent-soft);  border-color: var(--accent-soft-2); color: var(--accent-text); }
+.vg-badge--gestante     { background: var(--danger-soft);  border-color: var(--danger-bd);     color: var(--danger); }
+.vg-badge--idoso        { background: var(--warning-soft); border-color: var(--warning-bd);    color: var(--warning); }
+
+.vg-badge__range { font-weight: 400; opacity: .8; }
+
+/* ── Vaccine card layout ───────────────────────────────────── */
+.vacc-main { flex: 1; min-width: 0; }
+
+.vacc-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--s-20) var(--s-8);
+  color: var(--text-dim);
+  text-align: center;
+  gap: var(--s-4);
+}
+.vacc-empty__icon  { opacity: .2; }
+.vacc-empty__label { font: 400 var(--t-base) var(--font-sans); }
+
+/* ── Card header ───────────────────────────────────────────── */
+.vacc-card-head {
+  padding: var(--s-4);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+}
+
+.vacc-card-head__info { display: flex; align-items: center; gap: var(--s-3); }
+
+.vacc-card-head__name {
+  font: 700 var(--t-md) var(--font-sans);
+  color: var(--text);
+}
+
+.vacc-card-head__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin-top: var(--s-1);
+  flex-wrap: wrap;
+}
+
+.vacc-card-head__birthdate {
+  font: 400 var(--t-xs) var(--font-sans);
+  color: var(--text-dim);
+}
+
+/* ── Pending/ok status pill ────────────────────────────────── */
+.vacc-status {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 var(--s-2);
+  border-radius: var(--r-pill);
+  font: 600 var(--t-xs) var(--font-sans);
+  background: var(--warning-soft);
+  border: 1px solid var(--warning-bd);
+  color: var(--warning);
+}
+.vacc-status--ok {
+  background: var(--success-soft);
+  border-color: var(--success-bd);
+  color: var(--success);
+}
+
+/* ── Apply form zone ───────────────────────────────────────── */
+.vacc-apply-zone {
+  padding: var(--s-4);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-2);
+}
+.vacc-apply-zone__title {
+  font: 700 var(--t-sm) var(--font-sans);
+  color: var(--text);
+  margin: 0 0 var(--s-3);
+}
+
+/* ── Vaccine list body ─────────────────────────────────────── */
+.vacc-body {
+  padding: var(--s-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-6);
+}
+
+/* ── Calendar section header ───────────────────────────────── */
+.vacc-section-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin-bottom: var(--s-3);
+  padding-bottom: var(--s-2);
+  border-bottom: 1px solid var(--border);
+  color: var(--accent-text);
+}
+
+.vacc-section-head__title {
+  font: 700 var(--t-sm) var(--font-sans);
+  color: var(--accent-text);
+}
+
+.vacc-section-head__legend {
+  margin-left: auto;
+  display: flex;
+  gap: var(--s-1);
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+/* ── Condition section ─────────────────────────────────────── */
+.vacc-cond-section {
+  padding-top: var(--s-3);
+  border-top: 2px dashed var(--border);
+}
+
+.vacc-cond-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin-bottom: var(--s-3);
+  color: var(--danger);
+}
+
+.vacc-cond-head__title {
+  font: 700 var(--t-sm) var(--font-sans);
+  color: var(--danger);
+}
+
+.vacc-cond-head__note {
+  font: 400 var(--t-xs) var(--font-sans);
+  color: var(--text-dim);
+  margin: 0 0 var(--s-2);
+  line-height: 1.5;
+}
+
+/* ── Age-group sub-header ──────────────────────────────────── */
+.vacc-group { margin-bottom: var(--s-4); }
+
+.vacc-group__header {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  height: 22px;
+  padding: 0 var(--s-2);
+  border-radius: var(--r-pill);
+  font: 700 var(--t-xs) var(--font-sans);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  margin-bottom: var(--s-2);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-muted);
+}
+
+.vacc-group__list { display: flex; flex-direction: column; gap: var(--s-1); }
+
+/* ── Vaccine row ───────────────────────────────────────────── */
+.vacc-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-md);
+  background: var(--warning-soft);
+  border: 1px solid var(--warning-bd);
+}
+
+.vacc-row--done  { background: var(--surface-2); border-color: var(--border); }
+.vacc-row--cond  { background: var(--danger-soft); border-color: var(--danger-bd); }
+
+.vacc-row__left  { display: flex; align-items: center; gap: var(--s-2); min-width: 0; }
+
+.vacc-row__icon-wrap {
+  width: 24px; height: 24px;
+  border-radius: var(--r-pill);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--warning-soft);
+  border: 1px solid var(--warning-bd);
+  color: var(--warning);
+}
+.vacc-row--done .vacc-row__icon-wrap  { background: var(--success-soft); border-color: var(--success-bd); color: var(--success); }
+.vacc-row--cond .vacc-row__icon-wrap  { background: var(--danger-soft);  border-color: var(--danger-bd);  color: var(--danger); }
+
+.vacc-row__name {
+  font: 600 var(--t-sm) var(--font-sans);
+  color: var(--warning);
+}
+.vacc-row--done .vacc-row__name { color: var(--text); }
+.vacc-row--cond .vacc-row__name { color: var(--danger); }
+
+.vacc-row__dose {
+  font: 400 var(--t-xs) var(--font-sans);
+  color: var(--warning);
+  opacity: .85;
+}
+.vacc-row--done .vacc-row__dose { color: var(--text-dim); opacity: 1; }
+.vacc-row--cond .vacc-row__dose { color: var(--danger); }
+
+.vacc-row__right { flex-shrink: 0; }
+
+.vacc-row__date {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.vacc-row__date-pill {
+  font: 600 var(--t-xs) var(--font-mono);
+  color: var(--success);
+  background: var(--success-soft);
+  padding: 1px var(--s-2);
+  border-radius: var(--r-pill);
+  border: 1px solid var(--success-bd);
+}
+
+.vacc-row__date-by {
+  font: 400 var(--t-xs) var(--font-sans);
+  color: var(--text-dim);
+}
+
+.vacc-row__pending-pill {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 var(--s-2);
+  border-radius: var(--r-pill);
+  font: 600 var(--t-xs) var(--font-sans);
+  background: var(--warning-soft);
+  color: var(--warning);
+  border: 1px solid var(--warning-bd);
+}
+.vacc-row--cond .vacc-row__pending-pill {
+  background: var(--danger-soft);
+  color: var(--danger);
+  border-color: var(--danger-bd);
+}
+
+/* ── Warning notice ────────────────────────────────────────── */
+.vacc-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-2);
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-md);
+  font: 400 var(--t-xs) var(--font-sans);
+  background: var(--warning-soft);
+  border: 1px solid var(--warning-bd);
+  color: var(--warning);
+}
+.vacc-notice__icon  { font-size: var(--t-md); flex-shrink: 0; }
+.vacc-notice__title { font: 700 var(--t-sm) var(--font-sans); margin-bottom: var(--s-1); }
+
+/* ── Extra records ─────────────────────────────────────────── */
+.vacc-extra { padding-top: var(--s-3); border-top: 1px solid var(--border); }
+
+.vacc-extra__title {
+  font: 700 var(--t-xs) var(--font-sans);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  margin: 0 0 var(--s-2);
+}
+
+.vacc-extra__list { display: flex; flex-direction: column; gap: var(--s-1); }
+
+.vacc-extra__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--s-2) var(--s-3);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+}
+
+.vacc-extra__name { font: 500 var(--t-sm) var(--font-sans); color: var(--text); }
+.vacc-extra__date { font: 400 var(--t-xs) var(--font-mono); color: var(--text-dim); }
+
+/* ── Loading / no-data ─────────────────────────────────────── */
+.vacc-loading {
+  padding: var(--s-8);
+  text-align: center;
+  color: var(--text-dim);
+  font: 400 var(--t-sm) var(--font-sans);
+}
+
+.vacc-no-data {
+  color: var(--text-dim);
+  font: 400 var(--t-sm) var(--font-sans);
+  text-align: center;
+  padding: var(--s-4) 0;
+}
+
+@media (max-width: 768px) {
+  .vaccines-layout      { flex-direction: column; padding: var(--s-3) var(--s-4) var(--s-4); }
+  .vacc-panel           { flex: none; width: 100%; }
+  .vacc-panel__list     { max-height: 40vh; }
+}

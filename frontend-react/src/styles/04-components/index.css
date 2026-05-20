@@ -1,0 +1,16 @@
+/* 04-components/index.css */
+
+@import './button.css';
+@import './input.css';
+@import './checkbox.css';
+@import './tabs.css';
+@import './card.css';
+@import './badge.css';
+@import './table.css';
+@import './nav.css';
+@import './avatar.css';
+@import './modal.css';
+@import './alert.css';
+@import './hero.css';
+@import './utilities.css';
+@import './select-datepicker.css';

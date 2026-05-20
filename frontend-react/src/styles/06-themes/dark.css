@@ -1,0 +1,117 @@
+/* 06-themes/dark.css
+   Tema dark · OPCIONAL · alternativa premium derivada.
+   Override seletivo de tokens semânticos para inverter
+   o sistema. Componentes seguem o mesmo CSS, sem duplicação.
+
+   Ativação:
+     <html data-theme="dark">
+
+   Não force dark mode com prefers-color-scheme. O usuário
+   decide via toggle de UI (persistido em localStorage).
+*/
+
+[data-theme="dark"] {
+  /* ── Surfaces ──────────────────────────────────────────── */
+  --bg: #060D15;
+  --bg-soft:
+    radial-gradient(60% 50% at 18% 0%,  rgba(20,184,166,.10), transparent 60%),
+    radial-gradient(45% 45% at 92% 100%, rgba(34,211,238,.05), transparent 70%),
+    linear-gradient(180deg, #08121C 0%, #050B12 100%);
+
+  --surface:        rgba(255,255,255,.025);
+  --surface-2:      rgba(255,255,255,.045);
+  --surface-3:      rgba(255,255,255,.065);
+  --surface-hover:  rgba(255,255,255,.055);
+  --surface-active: rgba(20,184,166,.08);
+  --overlay:        rgba(6,13,21,.78);
+
+  --surface-solid:    #0E1822;
+  --surface-2-solid:  #131F2B;
+  --surface-3-solid:  #1A2734;
+
+  /* ── Borders ───────────────────────────────────────────── */
+  --border:         rgba(255,255,255,.08);
+  --border-strong:  rgba(255,255,255,.14);
+  --border-subtle:  rgba(255,255,255,.05);
+  --border-accent:  rgba(94,234,212,.50);
+
+  /* ── Text ──────────────────────────────────────────────── */
+  --text:           #F0F6FB;
+  --text-muted:     #9BB0C3;
+  --text-dim:       #6A7E91;
+  --text-subtle:    #4C5D6F;
+  --text-on-accent: #042320;
+
+  /* ── Accent (vibra mais no dark) ───────────────────────── */
+  --accent:         var(--teal-400);
+  --accent-hover:   var(--teal-300);
+  --accent-2:       var(--teal-500);
+  --accent-soft:    rgba(94,234,212,.10);
+  --accent-soft-2:  rgba(94,234,212,.20);
+  --accent-glow:    rgba(94,234,212,.28);
+  --accent-text:    var(--teal-300);
+  --accent-grad:    linear-gradient(135deg, #5EEAD4 0%, #2DD4BF 45%, #22D3EE 100%);
+
+  /* ── Status (soft em rgba para combinar com transparência) ─ */
+  --success-soft: rgba(74,222,128,.14);
+  --warning-soft: rgba(251,191,36,.14);
+  --danger-soft:  rgba(248,113,113,.14);
+  --info-soft:    rgba(96,165,250,.14);
+  --success-bd:   rgba(74,222,128,.18);
+  --warning-bd:   rgba(251,191,36,.20);
+  --danger-bd:    rgba(248,113,113,.18);
+  --info-bd:      rgba(96,165,250,.18);
+
+  /* ── Sidebar (mais integrada com o body dark) ─────────── */
+  --sidebar-bg:           #060D15;
+  --sidebar-bg-2:         #0B1726;
+
+  /* ── Shadows + focus ───────────────────────────────────── */
+  --shadow-xs: 0 1px 2px rgba(0,0,0,.5);
+  --shadow-sm: 0 4px 10px rgba(0,0,0,.4);
+  --shadow-md: 0 10px 28px rgba(0,0,0,.42), 0 0 0 1px rgba(255,255,255,.04);
+  --shadow-lg: 0 28px 72px rgba(0,0,0,.5), 0 0 40px rgba(94,234,212,.05);
+  --shadow-glow: 0 0 24px rgba(94,234,212,.28);
+
+  --focus-ring: 0 0 0 3px rgba(94,234,212,.26), 0 0 18px rgba(94,234,212,.18);
+}
+
+/* ── Overrides componente-específicos em dark ─────────────
+   Onde light usa shadow e borda definida, dark usa glass discreto.
+*/
+[data-theme="dark"] .card {
+  box-shadow: none;
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+}
+[data-theme="dark"] .card:hover { box-shadow: var(--shadow-sm); }
+
+[data-theme="dark"] .input {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+[data-theme="dark"] .btn--primary {
+  background: var(--accent-grad);
+}
+[data-theme="dark"] .btn--primary:hover {
+  filter: brightness(1.06);
+  box-shadow: var(--shadow-glow);
+}
+
+[data-theme="dark"] .btn--secondary {
+  box-shadow: none;
+}
+
+/* Tabela: separadores mais discretos no dark */
+[data-theme="dark"] .table th { background: rgba(255,255,255,.03); }
+
+/* Modal: opaque background no dark (glass não funciona sobre overlay) */
+[data-theme="dark"] .modal {
+  background: var(--surface-solid);
+}
+
+/* Hero kicker ganha um pulso de glow extra no dark */
+[data-theme="dark"] .hero__kicker {
+  text-shadow: 0 0 18px rgba(94,234,212,.25);
+}

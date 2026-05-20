@@ -1,0 +1,47 @@
+name: Git Snapshot
+
+on:
+  schedule:
+    - cron: "0 3 * * *"   # 00h BRT (UTC-3)
+    - cron: "0 15 * * *"  # 12h BRT (UTC-3)
+  workflow_dispatch:
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create snapshot branch
+        run: |
+          LABEL=$(TZ="America/Sao_Paulo" date +'%Y-%m-%d-%Hh')
+          BRANCH="snapshot/auto-${LABEL}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git push origin "$BRANCH"
+          echo "Created branch: $BRANCH"
+
+      - name: Prune old snapshots (keep last 30)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BRANCHES=$(git ls-remote --heads origin 'refs/heads/snapshot/auto-*' \
+            | awk '{print $2}' \
+            | sed 's|refs/heads/||' \
+            | sort)
+          COUNT=$(echo "$BRANCHES" | wc -l)
+          KEEP=30
+          if [ "$COUNT" -gt "$KEEP" ]; then
+            DELETE=$(echo "$BRANCHES" | head -n $(( COUNT - KEEP )))
+            for B in $DELETE; do
+              git push origin --delete "$B"
+              echo "Deleted old snapshot: $B"
+            done
+          fi

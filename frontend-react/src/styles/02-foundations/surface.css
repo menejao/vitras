@@ -1,0 +1,40 @@
+/* 02-foundations/surface.css
+   Tokens semânticos de superfície e borda. Light é o default;
+   dark é override em 06-themes/dark.css.
+
+   Hierarquia de superfície:
+     --bg            fundo da aplicação
+     --surface       cards, painéis elevados (1º nível)
+     --surface-2     hover, linhas zebradas (2º nível)
+     --surface-3     active, filtros aplicados (3º nível)
+     --surface-active  superfície selecionada/com accent
+     --overlay       backdrop de modais
+*/
+
+:root {
+  /* Surfaces */
+  --bg:              #F8FAFC;
+  --bg-soft:         #F8FAFC;   /* sem glow em light · usado por body */
+  --surface:         #FFFFFF;
+  --surface-2:       #F8FAFC;
+  --surface-3:       #F1F5F9;
+  --surface-hover:   #F1F5F9;
+  --surface-active:  #ECF7F5;
+  --overlay:         rgba(15,23,42,.48);
+
+  /* Variantes opacas (usadas quando glass não puder ser aplicado) */
+  --surface-solid:    #FFFFFF;
+  --surface-2-solid:  #F8FAFC;
+  --surface-3-solid:  #F1F5F9;
+
+  /* Borders */
+  --border:         #E2E8F0;
+  --border-strong:  #CBD5E1;   /* hover de cards e inputs */
+  --border-subtle:  #F1F5F9;   /* linhas internas, dividers */
+  --border-accent:  #14B8A6;   /* foco e seleção */
+
+  /* Navy institucional (sidebar, hero, auth) */
+  --navy:    #0F172A;
+  --navy-2:  #1E293B;
+  --navy-3:  #334155;
+}

@@ -1,0 +1,29 @@
+{
+  "url": "https://gestaopacientes.meneguccijao.workers.dev",
+  "steps": [
+    {
+      "name": "workspace_initial",
+      "visible": false,
+      "selectedSummary": false,
+      "heroHasBigCards": false
+    },
+    {
+      "name": "workspace_after_open",
+      "visible": true
+    },
+    {
+      "name": "workspace_after_close",
+      "visible": false
+    },
+    {
+      "name": "view_modal",
+      "saveButtonVisible": false
+    },
+    {
+      "name": "deactivate_result",
+      "justificationError": true,
+      "csrfError": false,
+      "modalStillOpen": false
+    }
+  ]
+}

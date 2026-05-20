@@ -1,0 +1,130 @@
+/* 05-patterns/esus.css */
+
+/* ── Header ───────────────────────────────────────────────────── */
+.esus-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--s-4);
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+
+.esus-header__title {
+  font: 700 var(--t-sm) var(--font-sans);
+  color: var(--text);
+  margin: 0;
+}
+
+.esus-header__sub {
+  font: 400 var(--t-xs) var(--font-sans);
+  color: var(--text-dim);
+  margin: 2px 0 0;
+}
+
+.esus-header__actions { display: flex; gap: var(--s-1); }
+
+/* ── Sections wrapper ─────────────────────────────────────────── */
+.esus-sections {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+/* ── Section card header ──────────────────────────────────────── */
+.esus-section-header {
+  padding: var(--s-2) var(--s-4);
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  border-bottom: 1px solid var(--border);
+}
+
+.esus-section-header--fci    { background: var(--info-soft);    border-bottom-color: var(--info-bd);    }
+.esus-section-header--fai    { background: var(--success-soft); border-bottom-color: var(--success-bd); }
+.esus-section-header--equipe { background: var(--accent-soft);  border-bottom-color: var(--accent-soft-2); }
+.esus-section-header--farm   { background: var(--warning-soft); border-bottom-color: var(--warning-bd); }
+
+.esus-section-header__title { font: 700 var(--t-xs) var(--font-sans); }
+.esus-section-header--fci    .esus-section-header__title { color: var(--info); }
+.esus-section-header--fai    .esus-section-header__title { color: var(--success); }
+.esus-section-header--equipe .esus-section-header__title { color: var(--accent-text); }
+.esus-section-header--farm   .esus-section-header__title { color: var(--warning); }
+
+.esus-section-header__sub {
+  font: 400 var(--t-xs) var(--font-sans);
+  margin-left: auto;
+  opacity: .7;
+}
+.esus-section-header--fci    .esus-section-header__sub { color: var(--info); }
+.esus-section-header--fai    .esus-section-header__sub { color: var(--success); }
+.esus-section-header--equipe .esus-section-header__sub { color: var(--accent-text); }
+.esus-section-header--farm   .esus-section-header__sub { color: var(--warning); }
+
+/* ── Table ────────────────────────────────────────────────────── */
+.esus-table { width: 100%; border-collapse: collapse; }
+
+.esus-table__td-label {
+  padding: var(--s-2) var(--s-3);
+  font: 400 var(--t-xs) var(--font-sans);
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+}
+
+.esus-table__td-code {
+  padding: var(--s-2) var(--s-3);
+  font: 400 var(--t-xs) var(--font-mono);
+  color: var(--text-dim);
+  border-bottom: 1px solid var(--border);
+}
+
+.esus-table__td-value {
+  padding: var(--s-2) var(--s-3);
+  font: 700 var(--t-md) var(--font-sans);
+  color: var(--accent-text);
+  border-bottom: 1px solid var(--border);
+  text-align: center;
+}
+
+.esus-table__td-copy {
+  padding: var(--s-2) var(--s-3);
+  border-bottom: 1px solid var(--border);
+}
+
+.esus-table__td-hint {
+  padding: var(--s-2) var(--s-3);
+  font: 400 var(--t-xs) var(--font-sans);
+  color: var(--text-dim);
+  border-bottom: 1px solid var(--border);
+}
+
+/* ── Copy button ──────────────────────────────────────────────── */
+.esus-copy-btn {
+  font: 600 var(--t-xs) var(--font-sans);
+  padding: 2px var(--s-2);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: all .15s;
+}
+
+.esus-copy-btn.is-copied {
+  background: var(--success-soft);
+  border-color: var(--success-bd);
+  color: var(--success);
+}
+
+/* ── Footer notice ────────────────────────────────────────────── */
+.esus-notice {
+  padding: var(--s-3) var(--s-4);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  font: 400 var(--t-xs) var(--font-sans);
+  color: var(--text-dim);
+  line-height: 1.6;
+}
+
+.esus-notice strong { color: var(--text-muted); }

@@ -1,0 +1,194 @@
+/* 05-patterns/documents.css
+   Documentos clínicos: atestado, declaração de comparecimento.
+   Projetados para impressão e PDF — @media print incluso.
+*/
+
+.modal--wide { max-width: 640px; }
+
+/* ── Document body ─────────────────────────────────────────────── */
+.doc-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-5);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: var(--s-6);
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+/* ── Header (org + title) ──────────────────────────────────────── */
+.doc-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s-4);
+  padding-bottom: var(--s-4);
+  border-bottom: 2px solid var(--border-strong);
+}
+
+.doc-header__logo {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.doc-header__org {
+  font: 700 var(--t-base) var(--font-sans);
+  color: var(--text);
+  letter-spacing: var(--ls-snug);
+}
+
+.doc-header__city {
+  font: 400 var(--t-xs) var(--font-sans);
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.doc-header__title {
+  font: 800 var(--t-sm) var(--font-sans);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--accent-text);
+  text-align: right;
+  border: 1.5px solid var(--accent);
+  padding: var(--s-1) var(--s-3);
+  border-radius: var(--r-md);
+  background: var(--accent-soft);
+  flex-shrink: 0;
+}
+
+/* ── Section + fields ──────────────────────────────────────────── */
+.doc-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.doc-text {
+  font-size: .9rem;
+  line-height: 1.85;
+  color: var(--text);
+  margin: 0;
+}
+
+.doc-text--muted {
+  color: var(--text-muted);
+  font-size: .82rem;
+}
+
+.doc-fill {
+  display: inline-block;
+  border-bottom: 1px solid var(--text);
+  min-width: 80px;
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+.doc-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s-3);
+  padding: var(--s-4);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+}
+
+.doc-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.doc-field--wide {
+  grid-column: 1 / -1;
+}
+
+.doc-field__label {
+  font: 600 .7rem var(--font-sans);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.doc-field__value {
+  font: 400 var(--t-sm) var(--font-sans);
+  color: var(--text);
+  border-bottom: 1px solid var(--border-strong);
+  padding-bottom: 4px;
+  min-height: 1.6rem;
+}
+
+/* ── Footer + signature ────────────────────────────────────────── */
+.doc-footer {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--s-4);
+  padding-top: var(--s-4);
+  border-top: 1px solid var(--border);
+}
+
+.doc-footer__place {
+  font: 400 var(--t-sm) var(--font-sans);
+  color: var(--text-muted);
+  flex: 1;
+}
+
+.doc-signature {
+  text-align: center;
+  min-width: 200px;
+}
+
+.doc-signature__line {
+  border-top: 1px solid var(--text);
+  margin-bottom: var(--s-2);
+}
+
+.doc-signature__name {
+  font: 700 var(--t-sm) var(--font-sans);
+  color: var(--text);
+}
+
+.doc-signature__council {
+  font: 500 var(--t-xs) var(--font-sans);
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.doc-signature__role {
+  font: 400 var(--t-xs) var(--font-sans);
+  color: var(--text-dim);
+  margin-top: 1px;
+}
+
+/* ── Print overrides ───────────────────────────────────────────── */
+@media print {
+  .modal-backdrop,
+  .modal,
+  .modal__header,
+  .modal__footer { all: unset; }
+
+  body > *:not(#print-doc) { display: none !important; }
+
+  #print-doc {
+    display: block !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    background: white !important;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 11pt;
+    line-height: 1.8;
+    color: #000;
+  }
+
+  .doc-header__title {
+    border: 1px solid #000 !important;
+    background: transparent !important;
+    color: #000 !important;
+  }
+
+  .doc-fill { color: #444; }
+}

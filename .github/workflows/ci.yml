@@ -1,0 +1,86 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend-test:
+    name: Backend tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline
+
+      - name: Run integration tests
+        run: npm test
+        env:
+          NODE_ENV: test
+          JWT_SECRET: ci-test-jwt-secret-not-for-production
+          DATA_ENCRYPTION_KEY: ci-test-enc-key-32-bytes-padding0
+          COUNCIL_VERIFY_MODE: off
+          REQUEST_LOG_ENABLED: "false"
+          BACKUP_EXPORT_KEY: ci-test-backup-key-for-integration
+
+  frontend-build:
+    name: Frontend build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend-react
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: frontend-react/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline
+
+      - name: Build
+        run: npm run build
+        env:
+          VITE_API_URL: https://api.vitras.com.br
+
+  security-check:
+    name: No secrets in git
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for hardcoded secrets
+        run: |
+          # Fail if any .js/.ts file contains raw secret values (not process.env references)
+          if git grep -rn \
+            -e 'JWT_SECRET\s*=' \
+            -e 'DATA_ENCRYPTION_KEY\s*=' \
+            -e 'DATABASE_URL\s*=' \
+            -e 'BACKUP_EXPORT_KEY\s*=' \
+            -- '*.js' '*.ts' '*.mjs' '*.cjs' | \
+            grep -v 'process\.env\.' | \
+            grep -v '\.test\.' | \
+            grep -v 'test/' | \
+            grep -v '# '; then
+            echo "::error::Possible hardcoded secret found — review above matches"
+            exit 1
+          fi
+          echo "No hardcoded secrets detected"

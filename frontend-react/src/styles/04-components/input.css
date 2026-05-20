@@ -1,0 +1,116 @@
+/* 04-components/input.css
+   Inputs, fields, labels, hints, errors.
+
+   Markup:
+     <div class="field">
+       <label class="field__label">Nome</label>
+       <div class="input"><input placeholder="…"/></div>
+       <span class="field__hint">Texto auxiliar</span>
+     </div>
+
+   Inputs com ícone / suffix:
+     <div class="input">
+       <i class="input__icon">…</i>
+       <input/>
+       <span class="input__suffix">mmHg</span>
+       <span class="input__kbd">⌘K</span>
+     </div>
+*/
+
+.field {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.field__label {
+  font: 500 var(--t-sm) var(--font-sans);
+  color: var(--text-muted);
+}
+.field__hint   { font: 400 var(--t-xs) var(--font-sans); color: var(--text-dim); }
+.field__error  { font: 500 var(--t-xs) var(--font-sans); color: var(--danger); }
+
+.input {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  height: 34px;
+  padding: 0 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  color: var(--text);
+  font: 400 var(--t-base) var(--font-sans);
+  font-feature-settings: var(--font-feat);
+  width: 100%;
+  overflow: hidden;
+  transition:
+    border-color var(--d-fast),
+    background   var(--d-fast),
+    box-shadow   var(--d-base);
+}
+.input:hover { border-color: var(--border-strong); }
+.input:focus-within {
+  border-color: var(--border-accent);
+  box-shadow: var(--focus-ring);
+}
+
+.input--error              { border-color: var(--danger); }
+.input--error:focus-within { box-shadow: 0 0 0 3px rgba(220,38,38,.16); }
+
+.input--disabled, .input[disabled] {
+  opacity: .55;
+  pointer-events: none;
+  background: var(--surface-2);
+}
+
+.input input,
+.input select,
+.input textarea {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: 0;
+  outline: none;
+  color: inherit;
+  font: inherit;
+  -webkit-appearance: none;
+  appearance: none;
+}
+/* autofill: overlay background to hide browser chrome lines */
+.input input:-webkit-autofill,
+.input input:-webkit-autofill:hover,
+.input input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 40px var(--surface) inset;
+  -webkit-text-fill-color: var(--text);
+  caret-color: var(--text);
+  transition: background-color 9999s ease-in-out 0s;
+}
+/* cancel the global :focus-visible box-shadow — the outer .input handles the ring */
+.input input:focus-visible,
+.input select:focus-visible,
+.input textarea:focus-visible {
+  box-shadow: none;
+}
+.input input::placeholder { color: var(--text-dim); }
+
+.input__icon   { color: var(--text-dim); display: inline-flex; flex: 0 0 auto; }
+.input__suffix { font: 500 var(--t-xs) var(--font-mono); color: var(--text-dim); flex: 0 0 auto; }
+.input__kbd {
+  font: 500 10px var(--font-mono);
+  color: var(--text-dim);
+  padding: 1px 5px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--surface-2);
+}
+
+/* Textarea: input vira altura auto */
+textarea.input {
+  height: auto;
+  padding: 10px 12px;
+  min-height: 72px;
+  resize: vertical;
+}
+
+/* AppSelect replaces native <select>. This rule kept for legacy fallbacks. */

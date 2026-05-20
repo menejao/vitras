@@ -1,0 +1,84 @@
+/* 05-patterns/form.css
+   Layouts e helpers para formulários complexos. Usa .field e
+   .input de 04-components.
+
+   Markup:
+     <form class="form">
+       <div class="form__section">
+         <header class="form__section-header">
+           <h3>Dados pessoais</h3>
+           <p>Campos obrigatórios com asterisco.</p>
+         </header>
+         <div class="field-grid">
+           <div class="field">…</div>
+           <div class="field field--span-2">…</div>
+         </div>
+       </div>
+       <footer class="form__footer">…</footer>
+     </form>
+*/
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-5);
+}
+
+.form__section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-xs);
+}
+.form__section-header {
+  padding: var(--s-4) var(--s-5);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.form__section-header h3 {
+  font: 600 var(--t-xl) var(--font-sans);
+  letter-spacing: var(--ls-snug);
+  color: var(--text);
+}
+.form__section-header p {
+  margin-top: 4px;
+  font-size: var(--t-sm);
+  color: var(--text-muted);
+}
+.form__section-body {
+  padding: var(--s-5);
+}
+.form__footer {
+  padding: var(--s-3) var(--s-5);
+  border-top: 1px solid var(--border-subtle);
+  background: var(--surface-2);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+/* Field grid · 2 colunas com span helpers */
+.field-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s-3);
+  padding: var(--s-5);
+}
+.field-grid--no-pad { padding: 0; }
+.field--span-2 { grid-column: 1 / -1; }
+
+@media (max-width: 640px) {
+  .field-grid { grid-template-columns: 1fr; }
+  .field--span-2 { grid-column: auto; }
+}
+
+/* Inline form (cadastros rápidos) */
+.inline-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-3);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+}

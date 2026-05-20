@@ -1,0 +1,273 @@
+/* ════════════════════════════════════════════════════════════════
+   AppSelect — custom dropdown
+   Width sync via position: relative on .field + left/right: 0
+════════════════════════════════════════════════════════════════ */
+
+.asel__trigger {
+  cursor: pointer;
+  user-select: none;
+  justify-content: space-between;
+  padding-right: 10px;
+}
+.asel__trigger:focus-visible {
+  outline: none;
+  border-color: var(--border-accent);
+  box-shadow: var(--focus-ring);
+}
+.asel__trigger--open {
+  border-color: var(--border-accent);
+  box-shadow: var(--focus-ring);
+}
+.asel__trigger.input--disabled {
+  cursor: not-allowed;
+  opacity: .5;
+}
+
+.asel__value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.asel__placeholder {
+  flex: 1;
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.asel__chevron {
+  color: var(--text-dim);
+  flex-shrink: 0;
+  margin-left: 6px;
+  display: inline-flex;
+  align-items: center;
+  transition: transform var(--d-fast);
+}
+.asel__chevron--open { transform: rotate(180deg); }
+
+/* Dropdown panel — left:0; right:0 makes it same width as .field */
+.asel__dropdown {
+  position: absolute;
+  top: calc(100% + 3px);
+  left: 0;
+  right: 0;
+  z-index: var(--z-dropdown);
+  background: var(--surface-solid);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-lg);
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  max-height: 264px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  animation: asel-in var(--d-fast) var(--ease-out);
+}
+@keyframes asel-in {
+  from { opacity: 0; transform: translateY(-5px) scale(.99); }
+  to   { opacity: 1; transform: translateY(0)    scale(1);   }
+}
+.asel__dropdown::-webkit-scrollbar        { width: 4px; }
+.asel__dropdown::-webkit-scrollbar-track  { background: transparent; }
+.asel__dropdown::-webkit-scrollbar-thumb  { background: var(--border); border-radius: 2px; }
+
+.asel__option {
+  padding: 7px 10px;
+  border-radius: var(--r-sm);
+  font: 400 var(--t-base) var(--font-sans);
+  color: var(--text);
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: background var(--d-fast);
+}
+.asel__option:hover,
+.asel__option--focused                  { background: var(--surface-hover); }
+.asel__option--selected                 { color: var(--accent); font-weight: 500; }
+.asel__option--selected.asel__option--focused { background: var(--accent-soft); }
+.asel__option--disabled                 { opacity: .4; pointer-events: none; cursor: default; }
+.asel__empty {
+  padding: 10px;
+  color: var(--text-dim);
+  font-size: var(--t-sm);
+  text-align: center;
+}
+
+/* Dark mode: ensure solid background */
+[data-theme="dark"] .asel__dropdown {
+  background: var(--surface-2-solid);
+  border-color: var(--border-strong);
+}
+[data-theme="dark"] .asel__option:hover,
+[data-theme="dark"] .asel__option--focused { background: var(--surface-3-solid); }
+
+
+/* ════════════════════════════════════════════════════════════════
+   AppDatePicker — calendar popover
+════════════════════════════════════════════════════════════════ */
+
+.dp-wrap { position: relative; }
+
+.dp__trigger { gap: 4px !important; padding-right: 6px !important; }
+
+.dp__icon-btn {
+  background: none;
+  border: none;
+  padding: 3px 4px;
+  margin: 0;
+  cursor: pointer;
+  color: var(--text-dim);
+  border-radius: var(--r-xs);
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  transition: color var(--d-fast), background var(--d-fast);
+}
+.dp__icon-btn:hover { color: var(--text); background: var(--surface-2); }
+
+.dp__popover {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: var(--z-dropdown);
+  background: var(--surface-solid);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-lg);
+  padding: 12px;
+  width: 280px;
+  animation: asel-in var(--d-fast) var(--ease-out);
+}
+[data-theme="dark"] .dp__popover {
+  background: var(--surface-2-solid);
+  border-color: var(--border-strong);
+}
+
+/* Header */
+.dp__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  gap: 4px;
+}
+.dp__month-label {
+  flex: 1;
+  text-align: center;
+  font: 600 var(--t-sm) var(--font-sans);
+  color: var(--text);
+  background: none;
+  border: none;
+  cursor: pointer;
+  border-radius: var(--r-xs);
+  padding: 3px 6px;
+  transition: background var(--d-fast);
+}
+.dp__month-label:hover { background: var(--surface-2); }
+.dp__year-accent { color: var(--accent); }
+.dp__nav-btn {
+  background: none;
+  border: none;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-xs);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  transition: background var(--d-fast), color var(--d-fast);
+}
+.dp__nav-btn:hover { background: var(--surface-2); color: var(--text); }
+
+/* Weekday headers */
+.dp__weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  margin-bottom: 4px;
+}
+.dp__weekday {
+  font: 600 10px var(--font-sans);
+  color: var(--text-dim);
+  text-align: center;
+  padding: 2px 0 4px;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+
+/* Day grid */
+.dp__grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1px;
+}
+.dp__day {
+  aspect-ratio: 1;
+  border: none;
+  border-radius: var(--r-xs);
+  font: 400 var(--t-sm) var(--font-sans);
+  color: var(--text);
+  background: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  transition: background var(--d-fast), color var(--d-fast);
+}
+.dp__day:hover:not(:disabled):not(.dp__day--empty) { background: var(--surface-hover); }
+.dp__day--today                    { color: var(--accent); font-weight: 700; }
+.dp__day--selected                 { background: var(--accent) !important; color: #fff !important; font-weight: 600; }
+.dp__day--empty, .dp__day:disabled { visibility: hidden; pointer-events: none; }
+.dp__day--disabled:not(.dp__day--empty) {
+  visibility: visible;
+  pointer-events: none;
+  opacity: .3;
+}
+
+/* Clear */
+.dp__clear {
+  margin-top: 8px;
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 8px;
+  text-align: center;
+}
+.dp__clear-btn {
+  background: none;
+  border: none;
+  font: 400 var(--t-xs) var(--font-sans);
+  color: var(--text-dim);
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: var(--r-xs);
+  transition: color var(--d-fast);
+}
+.dp__clear-btn:hover { color: var(--danger); }
+
+/* Month / Year grids */
+.dp__month-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  padding: 4px 0;
+}
+.dp__month-btn {
+  padding: 7px 4px;
+  border: none;
+  border-radius: var(--r-sm);
+  font: 400 var(--t-sm) var(--font-sans);
+  color: var(--text);
+  background: none;
+  cursor: pointer;
+  text-align: center;
+  transition: background var(--d-fast), color var(--d-fast);
+}
+.dp__month-btn:hover             { background: var(--surface-hover); }
+.dp__month-btn--selected         { background: var(--accent); color: #fff; font-weight: 600; }
+.dp__month-btn--selected:hover   { background: var(--accent-hover); }

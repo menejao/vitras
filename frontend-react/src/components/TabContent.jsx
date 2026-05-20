@@ -1,0 +1,168 @@
+import { lazy, Suspense } from "react";
+import Button from "./ui/Button";
+import UserList from "./UserList";
+import ProtocolsTab from "./ProtocolsTab";
+import { isAdmin, isGestor, isManager } from "../utils/roles";
+
+const AccessRequestsPage = lazy(() => import("../pages/AccessRequestsPage"));
+const AuditLogPanel      = lazy(() => import("../pages/AuditLogPanel"));
+const AcsTasksPage       = lazy(() => import("../pages/AcsTasksPage"));
+const ReferralsPage      = lazy(() => import("../pages/ReferralsPage"));
+const ReportsPage        = lazy(() => import("../pages/ReportsPage"));
+const GestorPage         = lazy(() => import("../pages/GestorPage"));
+const AiTab              = lazy(() => import("../pages/AiTab"));
+const DiagnosticsPage    = lazy(() => import("../pages/DiagnosticsPage"));
+const Dashboard          = lazy(() => import("../pages/Dashboard"));
+const TriagePage         = lazy(() => import("../pages/TriagePage"));
+const QueuePage          = lazy(() => import("../pages/QueuePage"));
+const RecordsPage        = lazy(() => import("../pages/RecordsPage"));
+const InsumoPage         = lazy(() => import("../pages/InsumoPage"));
+const PharmacyPage       = lazy(() => import("../pages/PharmacyPage"));
+const VaccinesPage       = lazy(() => import("../pages/VaccinesPage"));
+const ExamsPage          = lazy(() => import("../pages/ExamsPage"));
+const AgendaPage         = lazy(() => import("../pages/AgendaPage"));
+const PatientsPage       = lazy(() => import("../pages/PatientsPage"));
+
+export function TabContent({
+  tab, error, setError, busy,
+  user, token,
+  patients, setPatients, users, allUsers, templates, protocolByPatient,
+  publicTeams, demandMonthly, lastLoadAt, apiHealth,
+  appointments, tasks, messages, history,
+  patientDataLoading,
+  selectedPatientId, setSelectedPatientId, selectedPatient,
+  patientTab, setPatientTab,
+  query, setQuery, categoryFilter, setCategoryFilter,
+  acsFilter, setAcsFilter, conditionFilter, setConditionFilter,
+  rosaAdjustedSummary, sortedSpecialAlerts,
+  canReadAuditLog, canManageUser, canWriteRecords,
+  setTab, loadAll, applySessionFromPayload,
+  agendaEntries, referralEntries, referralsLoading, referralsError,
+  createReferralEntry, patchReferralEntry, removeReferralEntry,
+  pharmacyStock, pharmacyLog, pharmacyLoading, pharmacyError, canUsePharmacy,
+  createPharmacyItem, updatePharmacyItem, adjustPharmacyItem, dispensePharmacyItem,
+  suppliesStock, suppliesLog, suppliesContinuous, suppliesLoading, suppliesError, canUseSupplies,
+  adjustSuppliesStock, dispenseSupplies, closeSuppliesContinuous,
+  aiView, aiData, aiQuestion, setAiQuestion,
+  loadAiPriorities, loadAiQuality, loadAiReport, submitAiQuestion,
+  openEditPatient, removePatient, openViewPatient,
+  openEditTemplate, removeTemplate,
+  openEditUser, removeUser,
+  recordForm, setRecordForm, recordVaccines, setRecordVaccines,
+  appointmentForm, setAppointmentForm, taskForm, setTaskForm,
+  messageText, setMessageText,
+  submitRecord, submitAppointment, submitTask, submitMessage,
+  handleDeleteRecord, handleDeleteAppointment, handleStatusChange,
+}) {
+  const navigatePatient = (id) => { setTab("patients"); setSelectedPatientId(id); };
+  const usersResolved = allUsers && allUsers.length ? allUsers : users;
+
+  return (
+    <Suspense fallback={<div className="loading-spinner" aria-label="Carregando..." />}>
+    <section className="main-area">
+      {error && (
+        <div className="error error-banner">
+          {error}
+          <Button variant="ghost" size="sm" iconOnly className="icon-btn error-banner__close" onClick={() => setError("")}>
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M2 2l12 12M14 2L2 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+          </Button>
+        </div>
+      )}
+
+      {tab === "dashboard" && <Dashboard patients={patients} users={users} allUsers={allUsers || []} templates={templates} protocolByPatient={protocolByPatient} demandMonthly={demandMonthly} currentUser={user} agenda={agendaEntries} pharmacyStock={pharmacyStock} onNavigate={navigatePatient} setTab={setTab}/>}
+
+      {tab === "queue" && <QueuePage patients={patients} users={users} user={user} token={token} onNewPatient={p => setPatients(prev => [...prev, p])}/>}
+      {tab === "triage" && <TriagePage patients={patients} users={users} user={user} token={token}/>}
+      {tab === "agenda" && <AgendaPage patients={patients} users={users} user={user} token={token} teams={publicTeams} onNewPatient={p => setPatients(prev => [...prev, p])} onPatientCreated={loadAll} onNavigatePatient={navigatePatient}/>}
+
+      {tab === "referrals" && (
+        <ReferralsPage
+          patients={patients} users={users} user={user}
+          referrals={referralEntries} referralsLoading={referralsLoading} referralsError={referralsError}
+          onCreateReferral={createReferralEntry} onUpdateReferral={patchReferralEntry} onDeleteReferral={removeReferralEntry}
+        />
+      )}
+
+      {tab === "acs_tasks" && <AcsTasksPage patients={patients} users={users} user={user} token={token} onNavigatePatient={navigatePatient}/>}
+      {tab === "chart" && <RecordsPage patients={patients} users={users} user={user} token={token} onApplySessionPayload={applySessionFromPayload} selectedPatientId={selectedPatientId} onSelectPatientId={setSelectedPatientId} onNavigatePatient={navigatePatient}/>}
+      {tab === "exams_page" && <ExamsPage patients={patients} users={users} user={user} token={token} onNavigatePatient={navigatePatient}/>}
+
+      {tab === "gestor" && <GestorPage patients={patients} users={users} templates={templates} protocolByPatient={protocolByPatient} agenda={agendaEntries} referrals={referralEntries} pharmacyStock={pharmacyStock} pharmacyLog={pharmacyLog} token={token} user={user}/>}
+
+      {tab === "access_requests" && (isAdmin(user) || isGestor(user) || user?.capabilities?.includes("access_requests.read")) && <AccessRequestsPage token={token} user={user}/>}
+      {tab === "audit_log" && canReadAuditLog && <AuditLogPanel />}
+      {tab === "reports" && <ReportsPage patients={patients} users={users} templates={templates} protocolByPatient={protocolByPatient} agenda={agendaEntries} referrals={referralEntries} pharmacyStock={pharmacyStock} pharmacyLog={pharmacyLog}/>}
+
+      {tab === "diagnostics" && (
+        <DiagnosticsPage apiHealth={apiHealth} token={token} user={user} patients={patients} users={users} templates={templates} lastLoadAt={lastLoadAt} demandMonthly={demandMonthly}/>
+      )}
+
+      {tab === "patients" && (
+        <PatientsPage
+          patients={patients} users={usersResolved} templates={templates} protocolByPatient={protocolByPatient}
+          query={query} setQuery={setQuery} categoryFilter={categoryFilter} setCategoryFilter={setCategoryFilter}
+          acsFilter={acsFilter} setAcsFilter={setAcsFilter} conditionFilter={conditionFilter} setConditionFilter={setConditionFilter}
+          selectedPatientId={selectedPatientId} setSelectedPatientId={setSelectedPatientId}
+          canManageUser={canManageUser} canWriteRecords={canWriteRecords}
+          onEdit={openEditPatient} onDelete={removePatient} onView={openViewPatient}
+          patientTab={patientTab} setPatientTab={setPatientTab}
+          appointments={appointments} tasks={tasks} messages={messages} history={history}
+          patientDataLoading={patientDataLoading}
+          patientProtocolSummary={rosaAdjustedSummary} sortedSpecialAlerts={sortedSpecialAlerts}
+          recordForm={recordForm} setRecordForm={setRecordForm}
+          recordVaccines={recordVaccines} setRecordVaccines={setRecordVaccines}
+          appointmentForm={appointmentForm} setAppointmentForm={setAppointmentForm}
+          taskForm={taskForm} setTaskForm={setTaskForm}
+          messageText={messageText} setMessageText={setMessageText}
+          onSubmitRecord={submitRecord} onSubmitAppointment={submitAppointment}
+          onSubmitTask={submitTask} onSubmitMessage={submitMessage}
+          onDeleteRecord={handleDeleteRecord} onDeleteAppointment={handleDeleteAppointment}
+          onStatusChange={handleStatusChange}
+          selectedPatient={selectedPatient} userObj={user} token={token}
+        />
+      )}
+
+      {tab === "protocols" && canManageUser && (
+        <ProtocolsTab templates={templates} canManageUser={canManageUser} onEdit={openEditTemplate} onDelete={removeTemplate}/>
+      )}
+
+      {tab === "acs" && (
+        <UserList title="ACS" users={users.filter(u => u.role === "acs")} isManagerUser={isManager(user)} onEdit={openEditUser} onDelete={removeUser}/>
+      )}
+      {tab === "doctors" && (
+        <UserList title="Médicos e Técnicos" users={users.filter(u => ["doctor", "nursing_tech", "pharmacist"].includes(u.role))} isManagerUser={isManager(user)} onEdit={openEditUser} onDelete={removeUser}/>
+      )}
+
+      {tab === "vaccines" && (
+        <VaccinesPage patients={patients} users={users} templates={templates} token={token} canManageUser={canManageUser} user={user}/>
+      )}
+
+      {tab === "pharmacy" && (
+        <PharmacyPage
+          user={user} token={token} patients={patients} users={usersResolved} templates={templates} history={history}
+          stock={pharmacyStock} log={pharmacyLog} loading={pharmacyLoading} error={pharmacyError}
+          canRead={canUsePharmacy} canWrite={Boolean(user?.capabilities?.includes("pharmacy.write"))}
+          onCreateStockItem={createPharmacyItem} onUpdateStockItem={updatePharmacyItem}
+          onAdjustStockItem={adjustPharmacyItem} onDispense={dispensePharmacyItem}
+        />
+      )}
+
+      {tab === "insumos" && (
+        <InsumoPage
+          patients={patients} user={user}
+          stock={suppliesStock} log={suppliesLog} continuous={suppliesContinuous}
+          loading={suppliesLoading} error={suppliesError}
+          canRead={canUseSupplies} canWrite={Boolean(user?.capabilities?.includes("supplies.write"))}
+          onAdjustStock={adjustSuppliesStock} onDispense={dispenseSupplies} onCloseContinuous={closeSuppliesContinuous}
+        />
+      )}
+
+      {tab === "ai" && (
+        <AiTab aiView={aiView} aiData={aiData} aiQuestion={aiQuestion} setAiQuestion={setAiQuestion}
+          onPriorities={loadAiPriorities} onQuality={loadAiQuality} onReport={loadAiReport}
+          onAsk={submitAiQuestion} busy={busy}/>
+      )}
+    </section>
+    </Suspense>
+  );
+}

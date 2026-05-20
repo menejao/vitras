@@ -1,0 +1,358 @@
+/* 05-patterns/gestor.css
+   Layout da tela Gestão à Vista (GestorPage).
+   Usa tokens de 01-tokens/, 02-foundations/, 04-components/card.css.
+*/
+
+/* ── Page container ─────────────────────────────────────── */
+.gestor-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow-y: auto;
+  gap: var(--s-4);
+  padding-bottom: var(--s-6);
+}
+.gestor-page > .page-header,
+.gestor-page > .hero {
+  margin: var(--s-6) var(--s-6) 0;
+}
+.gestor-page > .card,
+.gestor-page > .gestor-section,
+.gestor-page > .gestor-kpi-grid {
+  margin: 0 var(--s-6);
+}
+
+/* ── KPI grid (estatísticas executivas) ─────────────────── */
+.gestor-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(175px, 1fr));
+  gap: var(--s-3);
+}
+
+/* ── Section divider (título + linha horizontal) ─────────── */
+.gestor-section {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin: var(--s-2) 0;
+}
+.gestor-section__title {
+  font: 700 var(--t-xs) var(--font-sans);
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  color: var(--text-dim);
+  margin: 0;
+  white-space: nowrap;
+}
+.gestor-section__line {
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+/* ── Gauge row ───────────────────────────────────────────── */
+.gestor-gauge-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-8);
+  flex-wrap: wrap;
+}
+.gestor-gauge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-1);
+}
+.gestor-gauge__label {
+  font: 600 var(--t-xs) var(--font-sans);
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* ── Bar chart ───────────────────────────────────────────── */
+.gestor-bar-list {
+  flex: 1;
+  min-width: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+.gestor-bar-item__header {
+  display: flex;
+  justify-content: space-between;
+  font: 400 var(--t-xs) var(--font-sans);
+  margin-bottom: var(--s-1);
+}
+.gestor-bar-item__label {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+.gestor-bar-track {
+  height: 6px;
+  background: var(--surface-2);
+  border-radius: 99px;
+  overflow: hidden;
+  flex: 1;
+}
+.gestor-bar-fill {
+  height: 100%;
+  border-radius: 99px;
+  transition: width .4s ease;
+}
+
+/* ── Two-col grid (equipe) ───────────────────────────────── */
+.gestor-two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s-4);
+}
+
+/* ── Filter row (busca + selects) ────────────────────────── */
+.gestor-filter-row {
+  display: grid;
+  grid-template-columns: 1fr 140px 120px 170px;
+  gap: var(--s-2);
+}
+
+/* ── User list scrollable ────────────────────────────────── */
+.gestor-user-list {
+  max-height: 320px;
+  overflow: auto;
+  padding: 0 var(--s-5) var(--s-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+/* ── User row ────────────────────────────────────────────── */
+.gestor-user-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-3);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  align-items: center;
+}
+.gestor-user-row__name {
+  font: 600 var(--t-sm) var(--font-sans);
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.gestor-user-row__meta {
+  font: 400 var(--t-xs) var(--font-sans);
+  color: var(--text-muted);
+}
+
+/* ── Team composition row ────────────────────────────────── */
+.gestor-team-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-2) 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.gestor-team-row:last-child { border-bottom: none; }
+.gestor-team-row__info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+.gestor-team-row__header {
+  display: flex;
+  justify-content: space-between;
+  font: 400 var(--t-sm) var(--font-sans);
+  margin-bottom: var(--s-1);
+}
+.gestor-team-row__label {
+  font-weight: 500;
+  color: var(--text);
+}
+
+/* ── ACS performance row ─────────────────────────────────── */
+.gestor-acs-row {
+  padding: var(--s-2) var(--s-3);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+}
+.gestor-acs-row__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--s-1);
+}
+.gestor-acs-row__name {
+  font: 600 var(--t-sm) var(--font-sans);
+  color: var(--text);
+}
+.gestor-acs-row__badges {
+  display: flex;
+  gap: var(--s-1);
+}
+.gestor-acs-row__bar-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+.gestor-acs-row__pct {
+  font: 400 var(--t-xs) var(--font-sans);
+  color: var(--text-dim);
+  flex-shrink: 0;
+  min-width: 32px;
+}
+
+/* ── Audit row ───────────────────────────────────────────── */
+.gestor-audit-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+.gestor-audit-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+  padding: var(--s-2) var(--s-3);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  font: 400 var(--t-sm) var(--font-sans);
+}
+.gestor-audit-row__dot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  margin-top: 5px;
+  display: block;
+}
+.gestor-audit-row__body {
+  flex: 1;
+  min-width: 0;
+}
+.gestor-audit-row__action {
+  font-weight: 600;
+  color: var(--text);
+}
+.gestor-audit-row__ts {
+  flex-shrink: 0;
+  color: var(--text-dim);
+  font: 400 var(--t-xs) var(--font-mono);
+}
+
+/* ── Category distribution grid ─────────────────────────── */
+.gestor-cat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--s-2);
+}
+.gestor-cat-item {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: var(--s-3);
+}
+.gestor-cat-item__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: var(--s-2);
+}
+.gestor-cat-item__label {
+  font: 600 var(--t-sm) var(--font-sans);
+  color: var(--text);
+}
+.gestor-cat-item__count {
+  font: 800 var(--t-md) var(--font-mono);
+  color: var(--accent-text);
+}
+.gestor-cat-item__footer {
+  display: flex;
+  justify-content: space-between;
+  margin-top: var(--s-1);
+  font: 400 var(--t-xs) var(--font-sans);
+  color: var(--text-dim);
+}
+.gestor-cat-item__crit {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+/* ── Specialty list ──────────────────────────────────────── */
+.gestor-spec-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-1) 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.gestor-spec-row:last-child { border-bottom: none; }
+.gestor-spec-row__label {
+  flex: 1;
+  font: 500 var(--t-sm) var(--font-sans);
+  color: var(--text);
+}
+.gestor-spec-row__count {
+  font: 700 var(--t-sm) var(--font-mono);
+  color: var(--text-muted);
+  min-width: 24px;
+  text-align: right;
+}
+
+/* ── Stock mini KPIs ─────────────────────────────────────── */
+.gestor-stock-mini {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: var(--s-2);
+  margin-bottom: var(--s-4);
+}
+.gestor-stock-mini-item {
+  text-align: center;
+  background: var(--surface-2);
+  border-radius: var(--r-md);
+  padding: var(--s-3) var(--s-2);
+  border: 1px solid var(--border);
+}
+.gestor-stock-mini-item__value {
+  font: 800 1.4rem var(--font-mono);
+}
+.gestor-stock-mini-item__label {
+  font: 400 var(--t-xs) var(--font-sans);
+  color: var(--text-dim);
+  margin-top: var(--s-1);
+}
+
+/* ── Stock item row ──────────────────────────────────────── */
+.gestor-stock-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--s-1) 0;
+  border-bottom: 1px solid var(--border-subtle);
+  font: 400 var(--t-sm) var(--font-sans);
+}
+.gestor-stock-row:last-child { border-bottom: none; }
+.gestor-stock-row__name {
+  color: var(--text);
+  font-weight: 500;
+}
+.gestor-stock-row__qty {
+  font: 700 var(--t-sm) var(--font-mono);
+}
+.gestor-stock-row__qty--low  { color: var(--warning); }
+.gestor-stock-row__qty--zero { color: var(--danger); }
+
+@media (max-width: 1024px) {
+  .gestor-two-col    { grid-template-columns: 1fr; }
+  .gestor-filter-row { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 640px) {
+  .gestor-kpi-grid   { grid-template-columns: repeat(2, 1fr); }
+  .gestor-filter-row { grid-template-columns: 1fr; }
+  .gestor-gauge-row  { gap: var(--s-4); }
+}

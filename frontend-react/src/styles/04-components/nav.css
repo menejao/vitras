@@ -1,0 +1,441 @@
+/* 04-components/nav.css
+   Sidebar dark navy + .nav items + topbar light.
+   Pattern híbrido: app body é light, sidebar é dark institucional.
+
+   Markup sidebar:
+     <aside class="sidebar">
+       <div class="sidebar__brand">…lockup…</div>
+       <nav class="nav">
+         <div class="nav__label">Operacional</div>
+         <a class="nav__item is-active">…</a>
+         <a class="nav__item">…<span class="nav__count">247</span></a>
+       </nav>
+       <div class="sidebar__footer">…user…</div>
+     </aside>
+
+   Markup topbar:
+     <header class="topbar">
+       <div class="topbar__brand">…</div>
+       <nav class="topbar__center">…</nav>
+       <div class="topbar__right">…</div>
+     </header>
+*/
+
+/* ── Sidebar (DARK NAVY) ──────────────────────────────────── */
+:root {
+  --sidebar-bg:           var(--navy);
+  --sidebar-bg-2:         var(--navy-2);
+  --sidebar-border:       rgba(255,255,255,.07);
+  --sidebar-text:         #CBD5E1;
+  --sidebar-muted:        #64748B;
+  --sidebar-hover:        rgba(255,255,255,.06);
+  --sidebar-active:       rgba(255,255,255,.08);
+  --sidebar-active-text:  #fff;
+  --sidebar-active-bar:   var(--teal-400);
+}
+
+.sidebar {
+  width: var(--sidebar-w);
+  flex-shrink: 0;
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--sidebar-border);
+  color: var(--sidebar-text);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.sidebar__brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: var(--s-4) var(--s-4) var(--s-4);
+  border-bottom: 1px solid var(--sidebar-border);
+  height: var(--topbar-h);
+  flex-shrink: 0;
+}
+.sidebar__footer {
+  margin-top: auto;
+  padding: var(--s-3);
+  border-top: 1px solid var(--sidebar-border);
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  flex-shrink: 0;
+}
+
+.sidebar-inner {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.sidebar__brand-lockup {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-width: 0;
+}
+
+.sidebar__brand-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--r-md);
+  background: linear-gradient(135deg, var(--teal-500), #0f766e);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  box-shadow: 0 10px 24px rgba(20, 184, 166, .18);
+}
+
+.sidebar__brand-copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.sidebar__brand-copy strong {
+  font: 800 14px/1 var(--font-sans);
+  letter-spacing: .08em;
+  color: #fff;
+}
+
+.sidebar__brand-copy span {
+  font: 500 10px/1.35 var(--font-sans);
+  color: var(--sidebar-muted);
+}
+
+.sidebar__brand-badge {
+  margin-left: auto;
+  align-self: flex-start;
+  background: rgba(255,255,255,.06);
+  border-color: rgba(255,255,255,.1);
+  color: var(--sidebar-text);
+}
+
+.sidebar__footer-copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.sidebar__footer-copy strong {
+  font: 600 var(--t-sm) var(--font-sans);
+  color: #fff;
+}
+
+.sidebar__footer-copy span {
+  font: 400 var(--t-xs) var(--font-sans);
+  color: var(--sidebar-muted);
+}
+
+/* ── Nav items ────────────────────────────────────────────── */
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--s-3) var(--s-2);
+  flex: 1;
+  overflow-y: auto;
+}
+.nav__label {
+  font: 600 10.5px var(--font-sans);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--sidebar-muted);
+  padding: var(--s-3) var(--s-3) var(--s-1);
+}
+.nav__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: var(--r-md);
+  color: var(--sidebar-text);
+  font: 500 var(--t-base) var(--font-sans);
+  cursor: pointer;
+  position: relative;
+  transition: background var(--d-fast), color var(--d-fast);
+  user-select: none;
+  text-decoration: none;
+  background: none;
+  border: none;
+  appearance: none;
+  width: 100%;
+  text-align: left;
+}
+.nav__item:hover {
+  background: var(--sidebar-hover);
+  color: #fff;
+}
+.nav .nav__item.is-active {
+  background: var(--sidebar-active);
+  color: var(--sidebar-active-text);
+  font-weight: 600;
+}
+.nav .nav__item.is-active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 3px;
+  background: var(--sidebar-active-bar);
+  border-radius: 0 3px 3px 0;
+  box-shadow: 0 0 8px rgba(20,184,166,.45);
+}
+.nav__count {
+  margin-left: auto;
+  font: 500 11px var(--font-mono);
+  color: var(--sidebar-muted);
+}
+
+/* ── Sidebar footer action (dark context) ────────────────── */
+.sidebar__footer-btn {
+  appearance: none;
+  border: 1px solid var(--sidebar-border);
+  background: transparent;
+  border-radius: var(--r-md);
+  color: var(--sidebar-muted);
+  font: 500 var(--t-sm) var(--font-sans);
+  padding: 4px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background var(--d-fast), color var(--d-fast), border-color var(--d-fast);
+}
+.sidebar__footer-btn:hover {
+  background: var(--sidebar-hover);
+  color: var(--sidebar-text);
+  border-color: rgba(255,255,255,.14);
+}
+
+/* ── Mobile menu toggle (topbar, visível só em mobile) ───── */
+.mobile-menu-btn {
+  display: none;
+  width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  appearance: none;
+  border-radius: var(--r-md);
+  color: var(--text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background var(--d-fast), color var(--d-fast);
+}
+.mobile-menu-btn:hover {
+  background: var(--surface-3);
+  color: var(--text);
+}
+@media (max-width: 768px) {
+  .mobile-menu-btn { display: inline-flex; }
+}
+
+/* ── Topbar (LIGHT) ──────────────────────────────────────── */
+.topbar {
+  height: var(--topbar-h);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 var(--s-5);
+  gap: var(--s-3);
+  flex-shrink: 0;
+  z-index: var(--z-sticky);
+}
+.topbar__brand {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding-right: var(--s-4);
+  border-right: 1px solid var(--border);
+  height: 100%;
+}
+.topbar__center {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-width: 0;
+}
+.topbar__right {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.topbar--vitras .topbar__brand-mark {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-md);
+  background: var(--accent-grad);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-glow);
+}
+
+.topbar__brand-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.topbar__brand-copy strong {
+  font: 800 15px/1 var(--font-sans);
+  color: var(--accent);
+  letter-spacing: .08em;
+}
+
+.topbar__brand-copy span {
+  font: 500 10px/1.3 var(--font-sans);
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.topbar__status {
+  height: 26px;
+}
+
+.topbar__patient-pill {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  max-width: 260px;
+  min-height: 30px;
+  padding: 0 var(--s-3);
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+}
+
+.topbar__patient-icon,
+.topbar__account-caret {
+  color: var(--text-dim);
+  flex: 0 0 auto;
+}
+
+.topbar__patient-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 600 var(--t-sm) var(--font-sans);
+  color: var(--text);
+}
+
+.topbar__patient-meta {
+  font: 500 var(--t-xs) var(--font-sans);
+  color: var(--text-dim);
+  flex: 0 0 auto;
+}
+
+.topbar__divider {
+  width: 1px;
+  height: 22px;
+  background: var(--border);
+}
+
+.topbar__account {
+  position: relative;
+}
+
+.topbar__account-trigger {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-height: 36px;
+  padding: 0 var(--s-2);
+  background: transparent;
+  border: 0;
+  border-radius: var(--r-md);
+  cursor: pointer;
+  transition: background var(--d-fast);
+}
+
+.topbar__account-trigger:hover {
+  background: var(--surface-3);
+}
+
+.topbar__account-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.25;
+}
+
+.topbar__account-copy span:first-child {
+  font: 600 var(--t-sm) var(--font-sans);
+  color: var(--text);
+}
+
+.topbar__account-copy span:last-child {
+  font: 400 var(--t-xs) var(--font-sans);
+  color: var(--text-dim);
+}
+
+.topbar__account-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 260px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  z-index: var(--z-dropdown, 500);
+  animation: modal-in var(--d-fast) var(--ease);
+}
+
+.topbar__account-head {
+  padding: var(--s-4);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.topbar__account-head-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.topbar__account-name {
+  font: 600 var(--t-sm) var(--font-sans);
+  color: var(--text);
+}
+
+.topbar__account-email {
+  font: 400 var(--t-xs) var(--font-sans);
+  color: var(--text-dim);
+}
+
+.topbar__account-actions {
+  padding: var(--s-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+.topbar__menu-button {
+  width: 100%;
+  justify-content: flex-start;
+}
+
+.topbar__menu-button--danger {
+  color: var(--danger);
+}
+
+.topbar__menu-button--danger:hover {
+  background: var(--danger-soft);
+}
+
+.topbar__menu-divider {
+  height: 1px;
+  background: var(--border-subtle);
+  margin: var(--s-1) var(--s-2);
+}

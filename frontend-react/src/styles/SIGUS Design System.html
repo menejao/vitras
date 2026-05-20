@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>SIGUS · Design System v1.0</title>
+
+  <link rel="stylesheet" href="tokens-final.css"/>
+  <link rel="stylesheet" href="components.css"/>
+
+  <style>
+    html, body, #root { margin: 0; padding: 0; min-height: 100vh; }
+    pre, code { font-family: 'IBM Plex Mono', ui-monospace, monospace; }
+    /* Smooth anchor jumps */
+    html { scroll-behavior: smooth; }
+  </style>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+  <div id="root"></div>
+
+  <!-- Brand (Monogram + Wordmark + Lockup) -->
+  <script type="text/babel" src="monogram.jsx"></script>
+
+  <!-- Docs primitivas + sidebar -->
+  <script type="text/babel" src="docs-shell.jsx"></script>
+
+  <!-- Conteúdo das seções -->
+  <script type="text/babel" src="docs-foundations.jsx"></script>
+  <script type="text/babel" src="docs-components.jsx"></script>
+  <script type="text/babel" src="docs-patterns.jsx"></script>
+
+  <!-- Main app -->
+  <script type="text/babel" src="docs.jsx"></script>
+</body>
+</html>

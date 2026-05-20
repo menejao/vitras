@@ -1,0 +1,495 @@
+/* 05-patterns/agenda.css
+   Layout e componentes da tela de Agenda de consultas.
+   Usa tokens de 01-tokens/, 02-foundations/ e 04-components/.
+
+   Markup esperado:
+     <div class="agenda-page">
+       <header class="page-header agenda-page__header">…</header>
+       <div class="agenda-week-strip">…</div>
+       <div class="agenda-filters">…</div>
+       <div class="agenda-timeline">
+         <div class="agenda-appt agenda-appt--scheduled">…</div>
+       </div>
+     </div>
+*/
+
+/* ── Wrapper da página ───────────────────────────────────── */
+.agenda-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.agenda-page > .page-header,
+.agenda-page > .hero {
+  margin: var(--s-6) var(--s-6) 0;
+}
+
+/* ── Label de mês ────────────────────────────────────────── */
+.agenda-month-label {
+  padding: var(--s-2) var(--s-6) 0;
+  font: 600 var(--t-xs) var(--font-sans);
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+/* ── Tira semanal de navegação ───────────────────────────── */
+.agenda-week-strip {
+  display: flex;
+  gap: var(--s-1);
+  padding: var(--s-3) var(--s-6);
+  overflow-x: auto;
+  flex-shrink: 0;
+}
+
+.agenda-day-btn {
+  flex: 1 0 56px;
+  min-width: 56px;
+  padding: var(--s-2) var(--s-1);
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  transition:
+    background   var(--d-fast),
+    border-color var(--d-fast),
+    color        var(--d-fast);
+}
+
+.agenda-day-btn:hover:not(.is-unavail):not(.is-sel) {
+  background: var(--surface-2);
+  border-color: var(--border-strong);
+}
+
+.agenda-day-btn.is-today {
+  color: var(--accent-text);
+}
+
+.agenda-day-btn.is-sel {
+  background: var(--accent);
+  border-color: var(--accent-hover);
+  color: var(--text-on-accent);
+}
+
+.agenda-day-btn.is-unavail:not(.is-sel) {
+  background: var(--surface-2);
+  border-color: var(--border-subtle);
+  color: var(--text-dim);
+  opacity: .75;
+}
+
+.agenda-day-btn__weekday {
+  font: 600 var(--t-xs) var(--font-sans);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  opacity: .9;
+}
+
+.agenda-day-btn__num {
+  font: 800 var(--t-xl) var(--font-sans);
+  line-height: 1.1;
+}
+
+.agenda-day-btn__tag {
+  font: 500 var(--t-xs) var(--font-sans);
+  opacity: .8;
+}
+
+/* ── Toolbar contextual da agenda ────────────────────────── */
+.agenda-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-4);
+  padding: var(--s-3) var(--s-6);
+  border-top: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+
+.agenda-toolbar__filters {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.agenda-toolbar__filters .field {
+  min-width: 180px;
+  max-width: 240px;
+  margin: 0;
+}
+
+.agenda-toolbar__count {
+  font: 500 var(--t-sm) var(--font-sans);
+  color: var(--text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ── Timeline de agendamentos ────────────────────────────── */
+.agenda-timeline {
+  flex: 1;
+  overflow: auto;
+  padding: 0 var(--s-6) var(--s-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  min-height: 0;
+}
+
+/* ── Banner: dia indisponível ────────────────────────────── */
+.agenda-unavail-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  margin-bottom: var(--s-1);
+}
+
+.agenda-unavail-banner__icon {
+  color: var(--text-muted);
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+
+.agenda-unavail-banner__title {
+  font: 700 var(--t-sm) var(--font-sans);
+  color: var(--text);
+}
+
+.agenda-unavail-banner__desc {
+  font: 400 var(--t-xs) var(--font-sans);
+  color: var(--text-muted);
+  margin-top: 2px;
+  line-height: var(--lh-snug);
+}
+
+/* ── Card de agendamento ─────────────────────────────────── */
+.agenda-appt {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  transition: box-shadow var(--d-fast);
+}
+
+.agenda-appt--scheduled { background: var(--info-soft);    border-color: var(--info-bd); }
+.agenda-appt--arrived   { background: var(--success-soft); border-color: var(--success-bd); }
+.agenda-appt--attending { background: var(--warning-soft); border-color: var(--warning-bd); }
+.agenda-appt--done      { background: var(--surface-2);    border-color: var(--border); }
+.agenda-appt--absent    { background: var(--danger-soft);  border-color: var(--danger-bd); }
+
+.agenda-appt--incomplete { border-color: var(--warning); }
+
+/* ── Aviso de cadastro incompleto ────────────────────────── */
+.agenda-incomplete-warn {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-1) var(--s-3);
+  background: var(--warning-soft);
+  border: 1px solid var(--warning-bd);
+  border-radius: var(--r-sm);
+  font: 600 var(--t-xs) var(--font-sans);
+  color: var(--warning);
+}
+
+.agenda-incomplete-warn__action {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* ── Linha principal do agendamento ──────────────────────── */
+.agenda-appt__row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.agenda-appt__time {
+  font: 700 var(--t-sm) var(--font-mono);
+  flex: 0 0 44px;
+}
+
+.agenda-appt--scheduled .agenda-appt__time { color: var(--info); }
+.agenda-appt--arrived   .agenda-appt__time { color: var(--success); }
+.agenda-appt--attending .agenda-appt__time { color: var(--warning); }
+.agenda-appt--done      .agenda-appt__time { color: var(--text-dim); }
+.agenda-appt--absent    .agenda-appt__time { color: var(--danger); }
+
+.agenda-appt__copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.agenda-appt__name {
+  font: 700 var(--t-base) var(--font-sans);
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.agenda-appt__meta {
+  font: 400 var(--t-xs) var(--font-sans);
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.agenda-appt__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  flex-shrink: 0;
+}
+
+/* ── Select de status (inline no card) ───────────────────── */
+.agenda-status-sel {
+  height: 26px;
+  padding: 0 var(--s-5) 0 var(--s-2);
+  border-radius: var(--r-pill);
+  border: 1px solid;
+  font: 700 var(--t-xs) var(--font-sans);
+  cursor: pointer;
+  appearance: none;
+  background-repeat: no-repeat;
+  background-position: right 6px center;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 10 6'%3E%3Cpath fill='%2394a3b8' d='M0 0h10L5 6z'/%3E%3C/svg%3E");
+  transition: background var(--d-fast);
+}
+
+.agenda-appt--scheduled .agenda-status-sel {
+  background-color: var(--info-soft);
+  border-color: var(--info-bd);
+  color: var(--info);
+}
+.agenda-appt--arrived .agenda-status-sel {
+  background-color: var(--success-soft);
+  border-color: var(--success-bd);
+  color: var(--success);
+}
+.agenda-appt--attending .agenda-status-sel {
+  background-color: var(--warning-soft);
+  border-color: var(--warning-bd);
+  color: var(--warning);
+}
+.agenda-appt--done .agenda-status-sel {
+  background-color: var(--surface-3);
+  border-color: var(--border);
+  color: var(--text-muted);
+}
+.agenda-appt--absent .agenda-status-sel {
+  background-color: var(--danger-soft);
+  border-color: var(--danger-bd);
+  color: var(--danger);
+}
+
+/* ── Botão de remoção (danger ghost) ─────────────────────── */
+.agenda-appt__remove-btn {
+  color: var(--danger);
+}
+.agenda-appt__remove-btn:hover {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+/* ── Busca de paciente no formulário ─────────────────────── */
+.agenda-pat-wrap {
+  position: relative;
+}
+
+.agenda-pat-dropdown {
+  position: absolute;
+  top: calc(100% + 3px);
+  left: 0;
+  right: 0;
+  z-index: 50;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
+  max-height: 220px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.agenda-pat-dropdown::-webkit-scrollbar { width: 4px; }
+.agenda-pat-dropdown::-webkit-scrollbar-track { background: transparent; }
+.agenda-pat-dropdown::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+.agenda-pat-opt {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  width: 100%;
+  padding: var(--s-2) var(--s-3);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  color: var(--text);
+  font: inherit;
+  transition: background var(--d-fast);
+}
+.agenda-pat-opt:hover { background: var(--surface-2); }
+
+.agenda-pat-opt__avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-pill);
+  background: var(--accent-soft-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  font: 700 var(--t-xs) var(--font-sans);
+  color: var(--accent-text);
+}
+
+.agenda-pat-opt__name {
+  font: 600 var(--t-sm) var(--font-sans);
+  color: var(--text);
+}
+
+.agenda-pat-opt__meta {
+  font: 400 var(--t-xs) var(--font-sans);
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+
+.agenda-pat-empty {
+  padding: var(--s-2) var(--s-3);
+  font: 400 var(--t-sm) var(--font-sans);
+  color: var(--text-muted);
+}
+
+.agenda-pat-new {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  width: 100%;
+  padding: var(--s-2) var(--s-3);
+  background: none;
+  border: none;
+  border-top: 1px solid var(--border-subtle);
+  cursor: pointer;
+  text-align: left;
+  font: 600 var(--t-sm) var(--font-sans);
+  color: var(--accent-text);
+  transition: background var(--d-fast);
+}
+.agenda-pat-new:hover { background: var(--accent-soft); }
+
+/* ── Checkmark de paciente selecionado ───────────────────── */
+.agenda-pat-check {
+  width: 18px;
+  height: 18px;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  color: var(--text-on-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+
+/* ── Cadastro rápido de paciente ─────────────────────────── */
+.agenda-quick-patient {
+  padding: var(--s-4);
+  background: var(--accent-soft);
+  border: 1px solid rgba(20, 184, 166, .2);
+  border-radius: var(--r-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.agenda-quick-patient__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.agenda-quick-patient__title {
+  font: 700 var(--t-sm) var(--font-sans);
+  color: var(--accent-text);
+}
+
+.agenda-quick-patient__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s-2);
+}
+
+.agenda-quick-patient__footer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* ── Empty state do dia ──────────────────────────────────── */
+.agenda-day-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: var(--s-10) var(--s-6);
+  gap: var(--s-3);
+}
+
+.agenda-day-empty__icon {
+  width: 52px;
+  height: 52px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-lg);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+  margin-bottom: var(--s-1);
+}
+
+.agenda-day-empty__title {
+  font: 600 var(--t-base) var(--font-sans);
+  color: var(--text-muted);
+  letter-spacing: var(--ls-base);
+}
+
+.agenda-day-empty__desc {
+  font: 400 var(--t-sm) var(--font-sans);
+  color: var(--text-dim);
+  max-width: 34ch;
+  line-height: var(--lh-relaxed);
+}
+
+@media (max-width: 640px) {
+  .agenda-quick-patient__grid {
+    grid-template-columns: 1fr;
+  }
+  .agenda-week-strip {
+    padding: var(--s-2) var(--s-4);
+  }
+  .agenda-month-label,
+  .agenda-toolbar,
+  .agenda-timeline,
+  .agenda-page > .page-header,
+  .agenda-page > .hero {
+    padding-left: var(--s-4);
+    padding-right: var(--s-4);
+  }
+}

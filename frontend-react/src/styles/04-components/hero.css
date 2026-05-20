@@ -1,0 +1,86 @@
+/* 04-components/hero.css
+   Hero institucional · ponto único onde o navy aparece no produto.
+
+   Markup:
+     <section class="hero">
+       <div class="hero__kicker">EM PRODUÇÃO · 47 UBS</div>
+       <h1>Boa tarde, Dra. Maria.</h1>
+       <p>Subtítulo descritivo.</p>
+     </section>
+
+   Variants:
+     .hero--compact   padding reduzido, h1 menor (páginas internas)
+     .hero--light     versão clara (sem navy) — quando navy não couber
+*/
+
+.hero {
+  position: relative;
+  background: var(--hero-grad);
+  border-radius: var(--r-xl);
+  padding: var(--s-8) 36px;
+  overflow: hidden;
+  isolation: isolate;
+  color: var(--hero-text);
+}
+.hero::before,
+.hero::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+}
+.hero::before { background: var(--hero-glow-1); }
+.hero::after  { background: var(--hero-glow-2); }
+
+.hero h1 {
+  margin: 14px 0 0;
+  font: 700 var(--t-3xl)/1.1 var(--font-sans);
+  letter-spacing: var(--ls-tight);
+  color: var(--hero-text);
+}
+.hero p {
+  margin: 10px 0 0;
+  color: var(--hero-text-muted);
+  font-size: var(--t-md);
+  max-width: 56ch;
+  line-height: var(--lh-base);
+}
+
+.hero__kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font: 600 10.5px var(--font-mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--hero-kicker);
+}
+.hero__kicker::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--accent-2);
+  box-shadow: 0 0 12px rgba(20,184,166,.6);
+}
+
+/* Compact */
+.hero--compact { padding: var(--s-5) var(--s-6); }
+.hero--compact h1 { font-size: var(--t-2xl); margin-top: 8px; }
+.hero--compact p  { font-size: var(--t-base); margin-top: 4px; }
+
+/* Light variant (sem navy) — usado em páginas onde o hero precisa ser mais leve */
+.hero--light {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  box-shadow: var(--shadow-xs);
+}
+.hero--light::before {
+  background: radial-gradient(420px 320px at 92% -10%, rgba(20,184,166,.10), transparent 60%);
+}
+.hero--light::after { background: none; }
+.hero--light h1 { color: var(--text); }
+.hero--light p  { color: var(--text-muted); }
+.hero--light .hero__kicker { color: var(--accent-text); }

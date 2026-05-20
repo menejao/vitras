@@ -1,0 +1,28 @@
+/* 01-tokens/motion.css
+   Easing functions + durations. Movimento é confirmação ou
+   orientação — nunca decorativo.
+*/
+
+:root {
+  --ease:     cubic-bezier(.2,.7,.3,1);   /* transições UI */
+  --ease-out: cubic-bezier(.16,1,.3,1);   /* entradas (modal, toast) */
+  --ease-in:  cubic-bezier(.4,0,1,1);     /* saídas (dismiss) */
+
+  --d-fast: 120ms;   /* hover, tap feedback */
+  --d-base: 180ms;   /* transição padrão (cor, borda, sombra) */
+  --d-slow: 280ms;   /* entrada de modal, toast */
+}
+
+/* Respeita preferência do usuário */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --d-fast: 0ms;
+    --d-base: 0ms;
+    --d-slow: 0ms;
+  }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -1,0 +1,63 @@
+services:
+  - type: web
+    name: saude-backend
+    env: node
+    # PAID PLAN REQUIRED for production: free tier spins down after 15 min inactivity
+    # causing cold-start latency of ~30s on first request. Upgrade to "starter" ($7/mo)
+    # or higher before go-live. See PAID_INFRA_CHECKLIST.md for full upgrade steps.
+    plan: free
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: 22
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_EXPIRES_IN
+        value: 12h
+      - key: DATABASE_URL
+        sync: false
+      - key: DATA_ENCRYPTION_KEY
+        sync: false
+      - key: FRONTEND_ORIGINS
+        sync: false
+      - key: BACKUP_EXPORT_KEY
+        sync: false
+      - key: ENABLE_BACKUP_EXPORT
+        value: "true"
+      - key: ADMIN_SEED_KEY
+        sync: false
+      - key: ENABLE_ADMIN_SEED
+        value: "false"
+      - key: COOKIE_SECURE
+        value: "true"
+      - key: COOKIE_SAME_SITE
+        value: "none"
+      - key: COOKIE_DOMAIN
+        sync: false
+      - key: AUTH_MAX_ATTEMPTS
+        value: 20
+      - key: AUTH_WINDOW_MS
+        value: 600000
+      - key: GLOBAL_RATE_LIMIT_WINDOW_MS
+        value: 60000
+      - key: GLOBAL_RATE_LIMIT_MAX
+        value: 600
+      - key: TWOFA_ISSUER
+        value: Vitras
+      - key: UPSTASH_REDIS_REST_URL
+        sync: false
+      - key: UPSTASH_REDIS_REST_TOKEN
+        sync: false
+      - key: COUNCIL_VERIFY_MODE
+        value: required
+      - key: COUNCIL_VERIFY_PROVIDER
+        value: n8n
+      - key: COUNCIL_VERIFY_URL
+        sync: false
+      - key: COUNCIL_VERIFY_TOKEN
+        sync: false

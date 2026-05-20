@@ -1,0 +1,17 @@
+/* 06-themes/light.css
+   Tema light · DEFAULT · identidade principal.
+
+   Os tokens semânticos em :root (02-foundations/) já são light.
+   Este arquivo existe para suportar override explícito quando
+   o usuário força light apesar do sistema/preferência:
+
+       <html data-theme="light">
+
+   E também para permitir customizações sazonais sem mexer nos
+   tokens base.
+*/
+
+[data-theme="light"] {
+  /* Mantém todos os tokens light de :root.
+     Sem overrides — light É o default em :root. */
+}

@@ -1,0 +1,113 @@
+/* 04-components/modal.css
+   Modal padrão + backdrop. Entrada com fade+scale.
+
+   Markup:
+     <div class="modal-backdrop">
+       <div class="modal" role="dialog" aria-modal="true">
+         <header>…</header>
+         <div>…</div>
+         <footer>…</footer>
+       </div>
+     </div>
+*/
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  background: var(--overlay);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--s-6);
+  overflow-y: auto;
+}
+
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-xl);
+  box-shadow: var(--shadow-lg);
+  width: 100%;
+  max-width: 480px;
+  max-height: calc(100vh - 3rem);
+  overflow: auto;
+  padding: var(--s-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  color: var(--text);
+  animation: modal-in var(--d-slow) var(--ease-out);
+}
+
+.modal--sm { max-width: 400px; }
+.modal--lg { max-width: 720px; }
+.modal--xl { max-width: 960px; }
+
+/* Tabbed modal — header/footer fixed, body scrolls, tab nav sticky */
+.modal--tabbed {
+  overflow: hidden;
+  padding: 0;
+  gap: 0;
+}
+.modal--tabbed .modal__header {
+  padding: var(--s-4) var(--s-6);
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+.modal--tabbed .modal__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  gap: 0;
+  padding: 0;
+}
+.modal--tabbed .modal__footer {
+  padding: var(--s-4) var(--s-6);
+  border-top: 1px solid var(--border);
+  background: var(--surface-2);
+  flex-shrink: 0;
+}
+
+@keyframes modal-in {
+  from { opacity: 0; transform: scale(.96) translateY(8px); }
+  to   { opacity: 1; transform: scale(1)   translateY(0); }
+}
+
+.modal h2, .modal h3 {
+  font: 700 var(--t-xl) var(--font-sans);
+  letter-spacing: var(--ls-snug);
+  color: var(--text);
+}
+.modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+.modal__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+.modal__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--s-2);
+}
+.modal__close {
+  padding: 0;
+}
+.modal p {
+  font-size: var(--t-base);
+  color: var(--text-muted);
+  line-height: var(--lh-base);
+}
+.modal footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--s-2);
+  margin-top: var(--s-1);
+}

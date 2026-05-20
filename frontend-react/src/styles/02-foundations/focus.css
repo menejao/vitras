@@ -1,0 +1,22 @@
+/* 02-foundations/focus.css
+   Focus-visible global. Todo elemento interativo recebe ring no
+   foco por teclado. Mouse focus não dispara (usa :focus-visible).
+
+   Componentes específicos podem sobrescrever — mas nunca remover
+   o foco sem fornecer alternativa visual.
+*/
+
+:focus { outline: none; }
+
+:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--r-xs);
+}
+
+/* Elementos com box-shadow próprio precisam preservar o ring */
+button:focus-visible,
+a:focus-visible,
+[tabindex]:focus-visible {
+  box-shadow: var(--focus-ring);
+}

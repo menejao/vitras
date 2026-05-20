@@ -1,0 +1,11 @@
+/* 01-tokens/index.css — imports de todos os primitivos */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+@import './colors.css';
+@import './typography.css';
+@import './spacing.css';
+@import './radii.css';
+@import './elevation.css';
+@import './motion.css';
+@import './z-index.css';

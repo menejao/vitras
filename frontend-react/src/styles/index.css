@@ -1,0 +1,24 @@
+/* ════════════════════════════════════════════════════════════════
+   Vitras Design System · index.css
+   Master import — ordem importa (ITCSS-like: tokens → foundations
+   → layout → components → patterns → themes overrides).
+   v1.0 · light-first
+════════════════════════════════════════════════════════════════ */
+
+/* 01 — Primitivos (valores brutos) */
+@import './01-tokens/index.css';
+
+/* 02 — Tokens semânticos (compõem primitivos) */
+@import './02-foundations/index.css';
+
+/* 03 — Layout global e reset */
+@import './03-layout/index.css';
+
+/* 04 — Componentes UI */
+@import './04-components/index.css';
+
+/* 05 — Patterns compostos */
+@import './05-patterns/index.css';
+
+/* 06 — Temas (light é o default · dark é override) */
+@import './06-themes/index.css';

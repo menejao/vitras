@@ -1,0 +1,59 @@
+/* 03-layout/containers.css
+   Containers de página, grids comuns, helpers utilitários.
+*/
+
+.page {
+  padding: var(--s-8) var(--s-8);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s-4);
+  margin-bottom: var(--s-2);
+}
+
+.page-title {
+  font: 700 var(--t-2xl) var(--font-sans);
+  letter-spacing: var(--ls-snug);
+  color: var(--text);
+}
+.page-subtitle {
+  font-size: var(--t-base);
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+/* Grids */
+.grid {
+  display: grid;
+  gap: var(--s-3);
+}
+.grid--2 { grid-template-columns: repeat(2, 1fr); }
+.grid--3 { grid-template-columns: repeat(3, 1fr); }
+.grid--4 { grid-template-columns: repeat(4, 1fr); }
+
+@media (max-width: 1024px) {
+  .grid--3, .grid--4 { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 640px) {
+  .grid--2, .grid--3, .grid--4 { grid-template-columns: 1fr; }
+}
+
+/* Stack / row helpers */
+.stack { display: flex; flex-direction: column; gap: var(--s-3); }
+.row   { display: flex; align-items: center; gap: var(--s-3); }
+.row--end { justify-content: flex-end; }
+.row--between { justify-content: space-between; }
+
+/* Container de página (max-width institucional) */
+.container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 var(--s-6);
+}

@@ -1,0 +1,51 @@
+/* 05-patterns/empty-state.css
+   Vazio com ícone + título + descrição + ação opcional.
+   Usar sempre que lista/tabela/filtro retornar zero resultados.
+
+   Markup:
+     <div class="empty">
+       <div class="empty__icon"><Icon name="users"/></div>
+       <h3 class="empty__title">Nenhum paciente cadastrado</h3>
+       <p class="empty__desc">Comece cadastrando o primeiro…</p>
+       <button class="btn btn--primary">Cadastrar paciente</button>
+     </div>
+*/
+
+.empty {
+  text-align: center;
+  padding: var(--s-10) var(--s-5);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.empty__icon {
+  width: 56px;
+  height: 56px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-radius: var(--r-pill);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: var(--s-2);
+}
+.empty__icon--neutral {
+  background: var(--surface-3);
+  color: var(--text-dim);
+}
+
+.empty__title {
+  font: 600 var(--t-lg) var(--font-sans);
+  letter-spacing: var(--ls-base);
+  color: var(--text);
+}
+.empty__desc {
+  font: 400 var(--t-base) var(--font-sans);
+  color: var(--text-muted);
+  max-width: 38ch;
+  line-height: var(--lh-base);
+}
+
+.empty .btn { margin-top: var(--s-2); }

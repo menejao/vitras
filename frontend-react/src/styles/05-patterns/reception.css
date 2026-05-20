@@ -1,0 +1,623 @@
+/* 05-patterns/reception.css */
+
+/* ── App shell ────────────────────────────────────────────────── */
+.rcpt-app {
+  min-height: 100vh;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Topbar ───────────────────────────────────────────────────── */
+.rcpt-topbar {
+  height: 56px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 var(--s-6);
+  gap: var(--s-4);
+  flex-shrink: 0;
+  z-index: 100;
+}
+
+.rcpt-topbar__logo-wrap {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.rcpt-topbar__logo {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.rcpt-topbar__brand { font: 800 var(--t-sm) var(--font-sans); color: var(--text); }
+
+.rcpt-topbar__badge {
+  font: 700 var(--t-xs) var(--font-sans);
+  padding: 2px var(--s-2);
+  border-radius: var(--r-pill);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  border: 1px solid var(--accent-soft-2);
+  margin-left: var(--s-1);
+}
+
+/* ── Nav tabs (inline in topbar) ──────────────────────────────── */
+.rcpt-nav {
+  display: flex;
+  gap: var(--s-1);
+  margin-left: var(--s-4);
+}
+
+.rcpt-nav-btn {
+  padding: var(--s-1) var(--s-3);
+  border-radius: var(--r-md);
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font: 600 var(--t-sm) var(--font-sans);
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  transition: background .12s, color .12s;
+}
+
+.rcpt-nav-btn.is-active { background: var(--accent); color: var(--text-on-accent); }
+.rcpt-nav-btn:not(.is-active):hover { background: var(--surface-2); }
+
+.rcpt-nav-badge {
+  background: var(--danger);
+  color: #fff;
+  border-radius: var(--r-pill);
+  font: 800 var(--t-xs) var(--font-sans);
+  padding: 0 5px;
+  min-width: 16px;
+  text-align: center;
+}
+
+/* ── Topbar right ─────────────────────────────────────────────── */
+.rcpt-topbar__actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.rcpt-topbar__entry-btn {
+  font: 400 var(--t-xs) var(--font-sans);
+  padding: var(--s-1) var(--s-3);
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-soft-2);
+  color: var(--accent-text);
+  border-radius: var(--r-md);
+  cursor: pointer;
+}
+
+.rcpt-topbar__user {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  border-left: 1px solid var(--border);
+  padding-left: var(--s-3);
+}
+
+.rcpt-topbar__user-name {
+  font: 700 var(--t-xs) var(--font-sans);
+  color: var(--text);
+  line-height: 1.2;
+}
+
+.rcpt-topbar__user-role {
+  font: 400 var(--t-xs) var(--font-sans);
+  color: var(--text-dim);
+}
+
+/* ── Main content ─────────────────────────────────────────────── */
+.rcpt-main {
+  flex: 1;
+  overflow: auto;
+  padding: var(--s-6);
+}
+
+.rcpt-section { max-width: 820px; margin: 0 auto; }
+.rcpt-section--wide { max-width: 900px; margin: 0 auto; }
+
+/* ── KPIs ─────────────────────────────────────────────────────── */
+.rcpt-kpis {
+  display: flex;
+  gap: var(--s-3);
+  margin-bottom: var(--s-5);
+  flex-wrap: wrap;
+}
+
+.rcpt-kpi {
+  flex: 1 1 140px;
+  border-radius: var(--r-md);
+  padding: var(--s-3) var(--s-4);
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.rcpt-kpi--waiting  { background: var(--info-soft);    border: 1px solid var(--info-bd);    }
+.rcpt-kpi--attending{ background: var(--warning-soft); border: 1px solid var(--warning-bd); }
+.rcpt-kpi--total    { background: var(--surface-2);    border: 1px solid var(--border);     }
+
+.rcpt-kpi__icon { font-size: 1.6rem; }
+
+.rcpt-kpi__value {
+  font: 900 1.6rem/1 var(--font-sans);
+}
+
+.rcpt-kpi--waiting   .rcpt-kpi__value { color: var(--info); }
+.rcpt-kpi--attending .rcpt-kpi__value { color: var(--warning); }
+.rcpt-kpi--total     .rcpt-kpi__value { color: var(--text-muted); }
+
+.rcpt-kpi__label {
+  font: 400 var(--t-xs) var(--font-sans);
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+
+/* ── Queue list ───────────────────────────────────────────────── */
+.rcpt-queue-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+.rcpt-queue-empty {
+  text-align: center;
+  padding: var(--s-20) var(--s-8);
+  color: var(--text-dim);
+}
+
+.rcpt-queue-empty__icon  { font-size: var(--t-xl, 3rem); margin-bottom: var(--s-4); }
+.rcpt-queue-empty__title { font: 700 var(--t-sm) var(--font-sans); color: var(--text-muted); margin-bottom: var(--s-4); }
+
+/* ── Queue item ───────────────────────────────────────────────── */
+.rcpt-queue-item {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  transition: opacity .2s;
+}
+
+.rcpt-queue-item--done     { opacity: .55; }
+.rcpt-queue-item--urgent   { background: var(--danger-soft);  border-color: var(--danger-bd);     }
+.rcpt-queue-item--elderly  { background: var(--warning-soft); border-color: var(--warning-bd);    }
+.rcpt-queue-item--pregnant { background: var(--accent-soft);  border-color: var(--accent-soft-2); }
+.rcpt-queue-item--child    { background: var(--info-soft);    border-color: var(--info-bd);        }
+.rcpt-queue-item--normal   { background: var(--surface-2);    border-color: var(--border);         }
+
+.rcpt-queue-item__num {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: var(--border);
+}
+
+.rcpt-queue-item--urgent   .rcpt-queue-item__num { background: var(--danger-bd); }
+.rcpt-queue-item--elderly  .rcpt-queue-item__num { background: var(--warning-bd); }
+.rcpt-queue-item--pregnant .rcpt-queue-item__num { background: var(--accent-soft-2); }
+.rcpt-queue-item--child    .rcpt-queue-item__num { background: var(--info-bd); }
+
+.rcpt-queue-item__num-text { font: 800 var(--t-xs) var(--font-sans); }
+.rcpt-queue-item--done     .rcpt-queue-item__num-text  { color: var(--text-dim); }
+.rcpt-queue-item--urgent   .rcpt-queue-item__num-text  { color: var(--danger); }
+.rcpt-queue-item--elderly  .rcpt-queue-item__num-text  { color: var(--warning); }
+.rcpt-queue-item--pregnant .rcpt-queue-item__num-text  { color: var(--accent-text); }
+.rcpt-queue-item--child    .rcpt-queue-item__num-text  { color: var(--info); }
+.rcpt-queue-item--normal   .rcpt-queue-item__num-text  { color: var(--text-muted); }
+
+.rcpt-queue-item__body { flex: 1; min-width: 0; }
+
+.rcpt-queue-item__name { font: 700 var(--t-sm) var(--font-sans); color: var(--text); }
+.rcpt-queue-item--done .rcpt-queue-item__name { color: var(--text-dim); }
+
+.rcpt-queue-item__prio-tag {
+  font: 700 var(--t-xs) var(--font-sans);
+  padding: 1px var(--s-2);
+  border-radius: var(--r-pill);
+}
+
+.rcpt-queue-item--urgent   .rcpt-queue-item__prio-tag { background: var(--danger-soft);  color: var(--danger);     border: 1px solid var(--danger-bd);     }
+.rcpt-queue-item--elderly  .rcpt-queue-item__prio-tag { background: var(--warning-soft); color: var(--warning);    border: 1px solid var(--warning-bd);    }
+.rcpt-queue-item--pregnant .rcpt-queue-item__prio-tag { background: var(--accent-soft);  color: var(--accent-text);border: 1px solid var(--accent-soft-2); }
+.rcpt-queue-item--child    .rcpt-queue-item__prio-tag { background: var(--info-soft);    color: var(--info);       border: 1px solid var(--info-bd);       }
+.rcpt-queue-item--normal   .rcpt-queue-item__prio-tag { background: var(--surface-2);    color: var(--text-muted); border: 1px solid var(--border);         }
+
+.rcpt-queue-item__reason { font: 400 var(--t-xs) var(--font-sans); color: var(--text-dim); }
+.rcpt-queue-item__time   { font: 400 var(--t-xs) var(--font-sans); color: var(--text-dim); margin-top: 2px; }
+
+.rcpt-queue-item__actions { display: flex; gap: var(--s-1); flex-shrink: 0; }
+
+.rcpt-queue-item__remove-btn {
+  font: 400 var(--t-xs) var(--font-sans);
+  padding: var(--s-1) var(--s-2);
+  background: var(--surface);
+  border: 1px solid var(--danger-bd);
+  border-radius: var(--r-md);
+  color: var(--danger);
+  cursor: pointer;
+}
+
+/* ── Week strip ───────────────────────────────────────────────── */
+.rcpt-week-strip {
+  display: flex;
+  gap: var(--s-1);
+  margin-bottom: var(--s-3);
+  overflow-x: auto;
+  padding-bottom: var(--s-1);
+}
+
+.rcpt-week-day {
+  flex: 1 0 70px;
+  min-width: 70px;
+  padding: var(--s-2) var(--s-1);
+  border-radius: var(--r-md);
+  border: 2px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+  text-align: center;
+}
+
+.rcpt-week-day.is-today       { background: var(--accent-soft); color: var(--accent-text); }
+.rcpt-week-day.is-selected    { background: var(--accent); border-color: var(--accent); color: var(--text-on-accent); }
+.rcpt-week-day.is-unavailable { background: var(--surface-2); border-color: var(--border); color: var(--text-dim); opacity: .7; }
+
+.rcpt-week-day__dow  { font: 600 var(--t-xs) var(--font-sans); text-transform: uppercase; opacity: .8; }
+.rcpt-week-day__num  { font: 900 var(--t-lg) var(--font-sans); line-height: 1.2; }
+.rcpt-week-day__closed { font-size: .55rem; margin-top: 2px; }
+.rcpt-week-day__count  { font: 600 var(--t-xs) var(--font-sans); margin-top: 2px; opacity: .85; }
+
+/* ── Day header ───────────────────────────────────────────────── */
+.rcpt-day-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--s-4);
+}
+
+.rcpt-day-header__title {
+  font: 700 var(--t-sm) var(--font-sans);
+  color: var(--text);
+}
+
+.rcpt-day-header__count {
+  font: 400 var(--t-xs) var(--font-sans);
+  color: var(--text-dim);
+  margin-left: var(--s-2);
+}
+
+.rcpt-unavail-notice {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-2) var(--s-4);
+  margin-bottom: var(--s-3);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  font: 400 var(--t-sm) var(--font-sans);
+  color: var(--text-dim);
+}
+
+.rcpt-unavail-notice strong { color: var(--text-muted); }
+
+/* ── Appointment row ──────────────────────────────────────────── */
+.rcpt-appt-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+.rcpt-appt {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+}
+
+.rcpt-appt--scheduled { background: var(--info-soft);    border-color: var(--info-bd);    }
+.rcpt-appt--arrived   { background: var(--success-soft); border-color: var(--success-bd); }
+.rcpt-appt--attending { background: var(--warning-soft); border-color: var(--warning-bd); }
+.rcpt-appt--done      { background: var(--surface-2);    border-color: var(--border);     }
+.rcpt-appt--absent    { background: var(--danger-soft);  border-color: var(--danger-bd);  }
+
+.rcpt-appt__time { font: 800 var(--t-md) var(--font-mono); flex-shrink: 0; width: 52px; }
+.rcpt-appt--scheduled .rcpt-appt__time { color: var(--info); }
+.rcpt-appt--arrived   .rcpt-appt__time { color: var(--success); }
+.rcpt-appt--attending .rcpt-appt__time { color: var(--warning); }
+.rcpt-appt--done      .rcpt-appt__time { color: var(--text-dim); }
+.rcpt-appt--absent    .rcpt-appt__time { color: var(--danger); }
+
+.rcpt-appt__name {
+  font: 700 var(--t-sm) var(--font-sans);
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rcpt-appt__sub {
+  font: 400 var(--t-xs) var(--font-sans);
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+
+.rcpt-appt__controls {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  flex-shrink: 0;
+}
+
+.rcpt-appt__status-select {
+  font: 700 var(--t-xs) var(--font-sans);
+  padding: var(--s-1) var(--s-2);
+  border-radius: var(--r-pill);
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.rcpt-appt--scheduled .rcpt-appt__status-select { background: var(--info-soft);    color: var(--info);       border-color: var(--info-bd);    }
+.rcpt-appt--arrived   .rcpt-appt__status-select { background: var(--success-soft); color: var(--success);    border-color: var(--success-bd); }
+.rcpt-appt--attending .rcpt-appt__status-select { background: var(--warning-soft); color: var(--warning);    border-color: var(--warning-bd); }
+.rcpt-appt--done      .rcpt-appt__status-select { background: var(--surface-2);    color: var(--text-dim);   border-color: var(--border);     }
+.rcpt-appt--absent    .rcpt-appt__status-select { background: var(--danger-soft);  color: var(--danger);     border-color: var(--danger-bd);  }
+
+.rcpt-appt__remove-btn {
+  padding: var(--s-1) var(--s-2);
+  font: 400 var(--t-xs) var(--font-sans);
+  background: var(--surface);
+  border: 1px solid var(--danger-bd);
+  border-radius: var(--r-md);
+  color: var(--danger);
+  cursor: pointer;
+}
+
+/* ── Mini appointment (in patient detail) ─────────────────────── */
+.rcpt-appt-mini {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-1) var(--s-3);
+  border-radius: var(--r-md);
+  margin-bottom: var(--s-1);
+}
+
+.rcpt-appt-mini--scheduled { background: var(--info-soft);    border: 1px solid var(--info-bd);    }
+.rcpt-appt-mini--arrived   { background: var(--success-soft); border: 1px solid var(--success-bd); }
+.rcpt-appt-mini--attending { background: var(--warning-soft); border: 1px solid var(--warning-bd); }
+.rcpt-appt-mini--done      { background: var(--surface-2);    border: 1px solid var(--border);     }
+.rcpt-appt-mini--absent    { background: var(--danger-soft);  border: 1px solid var(--danger-bd);  }
+
+.rcpt-appt-mini__time { font: 700 var(--t-xs) var(--font-mono); flex-shrink: 0; }
+.rcpt-appt-mini--scheduled .rcpt-appt-mini__time { color: var(--info); }
+.rcpt-appt-mini--arrived   .rcpt-appt-mini__time { color: var(--success); }
+.rcpt-appt-mini--attending .rcpt-appt-mini__time { color: var(--warning); }
+.rcpt-appt-mini--done      .rcpt-appt-mini__time { color: var(--text-dim); }
+.rcpt-appt-mini--absent    .rcpt-appt-mini__time { color: var(--danger); }
+
+.rcpt-appt-mini__label { font: 400 var(--t-xs) var(--font-sans); color: var(--text-muted); }
+
+/* ── Search tab ───────────────────────────────────────────────── */
+.rcpt-search-wrap {
+  position: relative;
+  margin-bottom: var(--s-5);
+}
+
+.rcpt-search-wrap .input {
+  padding-left: var(--s-8);
+  width: 100%;
+  box-sizing: border-box;
+  font-size: var(--t-md);
+  padding-top: var(--s-3);
+  padding-bottom: var(--s-3);
+}
+
+.rcpt-search-icon {
+  position: absolute;
+  left: var(--s-3);
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-dim);
+  pointer-events: none;
+}
+
+.rcpt-pat-results {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+.rcpt-pat-result {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  text-align: left;
+  color: var(--text);
+  transition: border-color .12s, background .12s;
+}
+
+.rcpt-pat-result:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.rcpt-pat-result__name  { font: 700 var(--t-sm) var(--font-sans); color: var(--text); }
+.rcpt-pat-result__meta  { font: 400 var(--t-xs) var(--font-sans); color: var(--text-dim); margin-top: 2px; display: flex; gap: var(--s-3); flex-wrap: wrap; }
+.rcpt-pat-result__gest  { color: var(--accent-text); font-weight: 600; }
+
+/* ── Patient detail ───────────────────────────────────────────── */
+.rcpt-pat-header {
+  padding: var(--s-4) var(--s-5);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.rcpt-pat-header__info { flex: 1; min-width: 0; }
+
+.rcpt-pat-header__name {
+  font: 800 var(--t-md) var(--font-sans);
+  color: var(--text);
+}
+
+.rcpt-pat-header__sub {
+  font: 400 var(--t-xs) var(--font-sans);
+  color: var(--text-dim);
+  margin-top: var(--s-1);
+  display: flex;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+}
+
+.rcpt-pat-header__actions { display: flex; gap: var(--s-1); flex-shrink: 0; }
+
+.rcpt-pat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s-4);
+  padding: var(--s-4) var(--s-5);
+}
+
+.rcpt-pat-section-label {
+  font: 700 var(--t-xs) var(--font-sans);
+  color: var(--accent-text);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  margin-bottom: var(--s-2);
+}
+
+.rcpt-pat-info-list {
+  font: 400 var(--t-sm) var(--font-sans);
+  color: var(--text-muted);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+.rcpt-allergy-badge {
+  color: var(--danger);
+  font-weight: 600;
+  background: var(--danger-soft);
+  padding: 2px var(--s-2);
+  border-radius: var(--r-md);
+  border: 1px solid var(--danger-bd);
+  font-size: var(--t-sm);
+}
+
+.rcpt-gest-badge {
+  color: var(--accent-text);
+  font-weight: 600;
+  background: var(--accent-soft);
+  padding: 2px var(--s-2);
+  border-radius: var(--r-md);
+  border: 1px solid var(--accent-soft-2);
+  font-size: var(--t-sm);
+}
+
+.rcpt-upcoming-appts {
+  padding: 0 var(--s-5) var(--s-4);
+}
+
+/* ── Empty / search idle ──────────────────────────────────────── */
+.rcpt-empty {
+  text-align: center;
+  padding: var(--s-16) var(--s-8);
+  color: var(--text-dim);
+}
+
+.rcpt-empty__icon  { font-size: 3rem; margin-bottom: var(--s-4); }
+.rcpt-empty__title { font: 600 var(--t-sm) var(--font-sans); color: var(--text-muted); }
+.rcpt-empty__sub   { font: 400 var(--t-sm) var(--font-sans); margin-top: var(--s-2); }
+
+/* ── Login modal ──────────────────────────────────────────────── */
+.rcpt-login-header {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.rcpt-login-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.rcpt-login-title { font: 800 var(--t-md) var(--font-sans); color: var(--text); }
+.rcpt-login-sub   { font: 400 var(--t-xs) var(--font-sans); color: var(--text-dim); }
+
+/* ── Modal form fields ────────────────────────────────────────── */
+.rcpt-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  font: 600 var(--t-sm) var(--font-sans);
+  color: var(--text-muted);
+}
+
+.rcpt-modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.rcpt-modal-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s-2);
+}
+
+.rcpt-modal-grid--full { grid-column: span 2; }
+
+/* ── Back link ────────────────────────────────────────────────── */
+.rcpt-back-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  font: 600 var(--t-xs) var(--font-sans);
+  color: var(--accent-text);
+  background: none;
+  border: none;
+  cursor: pointer;
+  margin-bottom: var(--s-4);
+  padding: 0;
+}

@@ -1,0 +1,10 @@
+{
+  "name": "saudeubs-ops-scripts",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Standalone operational scripts. Run 'npm install' here before using restore-backup.js outside the backend directory.",
+  "dependencies": {
+    "pg": "^8.13.1"
+  }
+}

@@ -1,0 +1,7 @@
+/* 02-foundations/index.css */
+
+@import './surface.css';
+@import './text.css';
+@import './accent.css';
+@import './status.css';
+@import './focus.css';

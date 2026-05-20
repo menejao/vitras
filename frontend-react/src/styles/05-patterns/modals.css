@@ -1,0 +1,346 @@
+.patient-modal-form,
+.user-modal-form,
+.template-modal-form,
+.profile-modal__stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.patient-modal__checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin: 0;
+  font-size: var(--t-sm);
+  color: var(--text);
+}
+
+.patient-modal__checkbox input {
+  inline-size: 14px;
+  block-size: 14px;
+  accent-color: var(--accent);
+}
+
+.patient-modal__checkbox--compact {
+  white-space: nowrap;
+  color: var(--text-muted);
+}
+
+/* Chronic condition pills */
+.chronic-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  padding-top: var(--s-1);
+}
+
+.chronic-pill {
+  padding: 4px var(--s-3);
+  border-radius: var(--r-pill);
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  font: 500 var(--t-sm) var(--font-sans);
+  color: var(--text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color var(--d-fast), background var(--d-fast), color var(--d-fast);
+  line-height: 1.4;
+}
+
+.chronic-pill:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent-text);
+  background: var(--accent-soft);
+}
+
+.chronic-pill.is-active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+.chronic-pill:disabled {
+  opacity: 0.7;
+  cursor: default;
+  pointer-events: none;
+}
+
+.patient-modal__status {
+  margin-left: auto;
+  font-size: var(--t-xs);
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.patient-modal__stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.patient-modal__inline {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.patient-modal__inline > .input,
+.patient-modal__inline > input {
+  flex: 1;
+}
+
+.user-modal-form__council,
+.profile-modal__council,
+.template-modal__grid {
+  display: grid;
+  gap: var(--s-3);
+}
+
+.user-modal-form__council,
+.profile-modal__council {
+  grid-template-columns: minmax(0, 1fr) 96px;
+}
+
+.template-modal__grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.profile-modal {
+  max-width: 440px;
+}
+
+.profile-modal__avatar {
+  display: flex;
+  justify-content: center;
+  padding: var(--s-3) 0 var(--s-4);
+}
+
+.profile-modal__meta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-3) var(--s-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+}
+
+.profile-modal__meta div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  font-size: var(--t-sm);
+}
+
+.profile-modal__meta span {
+  color: var(--text-muted);
+}
+
+.profile-modal__meta strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.patient-details__chronic {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.patient-details__chronic-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-5);
+  padding: var(--s-3) var(--s-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  opacity: 0.8;
+}
+
+.patient-details__checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin: 0;
+  font-size: var(--t-sm);
+  color: var(--text);
+}
+
+@media (max-width: 920px) {
+  .template-modal__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Tab nav inside tabbed patient modal */
+.patient-modal-nav {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  overflow-x: auto;
+  scrollbar-width: none;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 var(--s-6);
+  flex-shrink: 0;
+}
+.patient-modal-nav::-webkit-scrollbar { display: none; }
+
+.patient-modal-nav__tab {
+  flex-shrink: 0;
+  padding: var(--s-3) var(--s-3);
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  font: 500 var(--t-sm) var(--font-sans);
+  color: var(--text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color var(--d-base), border-color var(--d-base);
+}
+.patient-modal-nav__tab:hover { color: var(--text); }
+.patient-modal-nav__tab.is-active {
+  color: var(--accent-text);
+  border-bottom-color: var(--accent);
+  font-weight: 600;
+}
+
+.patient-modal-nav__error {
+  padding: 0 var(--s-6);
+  margin: var(--s-3) 0 0;
+}
+
+/* Form overrides inside tabbed modal */
+.modal--tabbed .patient-modal-form {
+  gap: var(--s-5);
+  padding: var(--s-5) var(--s-6) var(--s-6);
+}
+.modal--tabbed .patient-modal-form .form__section-header h3 {
+  font-size: var(--t-base);
+}
+
+@media (max-width: 640px) {
+  .patient-modal__inline,
+  .user-modal-form__council,
+  .profile-modal__council,
+  .template-modal__grid {
+    grid-template-columns: 1fr;
+    display: grid;
+  }
+
+  .patient-modal__status {
+    margin-left: 0;
+  }
+}
+
+/* ── Session Timeout Modal ────────────────────────────────── */
+
+.session-timeout-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-toast, 9000);
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--s-6);
+}
+
+.session-timeout-modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-xl);
+  box-shadow: var(--shadow-lg);
+  width: 100%;
+  max-width: 400px;
+  padding: var(--s-8) var(--s-6) var(--s-6);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-5);
+  text-align: center;
+  animation: modal-in var(--d-slow) var(--ease-out);
+}
+
+.session-timeout__icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--orange-50, #fff7ed);
+  color: var(--orange-600, #ea580c);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background var(--d-base), color var(--d-base);
+}
+
+.session-timeout__icon--urgent {
+  background: var(--rose-50, #fff1f2);
+  color: var(--rose-600, #e11d48);
+  animation: pulse-ring 1s ease-in-out infinite;
+}
+
+@keyframes pulse-ring {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(225, 29, 72, 0.25); }
+  50%       { box-shadow: 0 0 0 8px rgba(225, 29, 72, 0); }
+}
+
+.session-timeout__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.session-timeout__title {
+  font: 700 var(--t-xl) var(--font-sans);
+  color: var(--text);
+  letter-spacing: var(--ls-snug);
+  margin: 0;
+}
+
+.session-timeout__desc {
+  font-size: var(--t-sm);
+  color: var(--text-muted);
+  line-height: var(--lh-base);
+  margin: 0;
+}
+
+.session-timeout__countdown {
+  font: 700 2.5rem/1 var(--font-sans);
+  letter-spacing: -0.04em;
+  color: var(--orange-600, #ea580c);
+  margin-top: var(--s-2);
+  transition: color var(--d-base);
+}
+
+.session-timeout__countdown--urgent {
+  color: var(--rose-600, #e11d48);
+}
+
+.session-timeout__actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  width: 100%;
+}
+
+.session-timeout__actions .btn {
+  width: 100%;
+  justify-content: center;
+}
+
+[data-theme="dark"] .session-timeout__icon {
+  background: rgba(234, 88, 12, 0.12);
+}
+
+[data-theme="dark"] .session-timeout__icon--urgent {
+  background: rgba(225, 29, 72, 0.12);
+}

@@ -1,0 +1,56 @@
+/* 04-components/tabs.css
+   Tabs SEMPRE retas. Underline accent · margin-bottom: -1px
+   sobre a borda do contêiner.
+
+   Markup:
+     <div class="tabs">
+       <button class="tab" aria-selected="true">Visão geral</button>
+       <button class="tab">Pacientes <span class="tab__count">247</span></button>
+     </div>
+
+   ❌ NUNCA usar pill-rounded em tabs. Para toggles segmentados,
+   ver .btn-group em button.css.
+*/
+
+.tabs {
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid var(--border);
+  padding: 0 var(--s-1);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.tabs::-webkit-scrollbar { display: none; }
+
+.tab {
+  position: relative;
+  appearance: none;
+  background: transparent;
+  border: 0;
+  color: var(--text-muted);
+  font: 500 var(--t-base) var(--font-sans);
+  letter-spacing: var(--ls-base);
+  padding: 10px 14px;
+  margin-bottom: -1px;
+  cursor: pointer;
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+  transition: color var(--d-fast), background var(--d-fast);
+}
+
+.tab:hover { color: var(--text); background: var(--surface-hover); }
+
+.tab[aria-selected="true"],
+.tab.is-active {
+  color: var(--accent-text);
+  border-bottom-color: var(--accent);
+}
+
+.tab__count {
+  margin-left: 6px;
+  font: 500 10.5px var(--font-mono);
+  color: var(--text-dim);
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--surface-3);
+}

@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SaudeUBS - Endpoints Consumidos pelo Frontend</title>
+  <style>
+    :root {
+      --bg: #f1f5f9;
+      --card: #ffffff;
+      --text: #0f172a;
+      --muted: #475569;
+      --border: #e2e8f0;
+      --get: #16a34a;
+      --post: #2563eb;
+      --put: #d97706;
+      --patch: #7c3aed;
+      --delete: #dc2626;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 24px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Segoe UI", Arial, sans-serif;
+    }
+    .container { max-width: 1200px; margin: 0 auto; }
+    .header {
+      background: linear-gradient(135deg, #0f172a, #1e3a8a);
+      color: #fff;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+    .header h1 { margin: 0 0 6px; font-size: 24px; }
+    .header p { margin: 0; opacity: .9; }
+    .meta {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-bottom: 16px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .table-wrap {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: auto;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 900px;
+    }
+    th, td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+      vertical-align: top;
+      font-size: 14px;
+    }
+    th {
+      background: #f8fafc;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      color: #334155;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+    tr:last-child td { border-bottom: 0; }
+    code {
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 2px 6px;
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    .badge {
+      display: inline-block;
+      color: #fff;
+      border-radius: 999px;
+      font-size: 12px;
+      padding: 3px 8px;
+      min-width: 60px;
+      text-align: center;
+      font-weight: 700;
+    }
+    .GET { background: var(--get); }
+    .POST { background: var(--post); }
+    .PUT { background: var(--put); }
+    .PATCH { background: var(--patch); }
+    .DELETE { background: var(--delete); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <section class="header">
+      <h1>Documentação estilo Swagger</h1>
+      <p>Endpoints consumidos pelo frontend React (arquivo local para consulta/backup).</p>
+    </section>
+
+    <section class="meta">
+      Fonte: <code>frontend-react/src/api.js</code> |
+      Geração: manual (listagem fiel ao frontend) |
+      Ambiente padrão: <code>VITE_API_URL</code>
+    </section>
+
+    <section class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Método</th>
+            <th>Endpoint</th>
+            <th>Auth</th>
+            <th>Função no frontend</th>
+            <th>Descrição</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><span class="badge POST">POST</span></td><td><code>/auth/login</code></td><td>Não</td><td><code>login</code></td><td>Autentica o usuário.</td></tr>
+          <tr><td><span class="badge POST">POST</span></td><td><code>/auth/register</code></td><td>Não</td><td><code>register</code></td><td>Cria cadastro de profissional.</td></tr>
+          <tr><td><span class="badge GET">GET</span></td><td><code>/teams/public</code></td><td>Não</td><td><code>listPublicTeams</code></td><td>Lista equipes públicas.</td></tr>
+          <tr><td><span class="badge GET">GET</span></td><td><code>/bootstrap</code></td><td>Sim</td><td><code>bootstrap</code></td><td>Carrega dados iniciais.</td></tr>
+
+          <tr><td><span class="badge GET">GET</span></td><td><code>/patients</code></td><td>Sim</td><td><code>listPatients</code></td><td>Lista pacientes.</td></tr>
+          <tr><td><span class="badge POST">POST</span></td><td><code>/patients</code></td><td>Sim</td><td><code>createPatient</code></td><td>Cria paciente.</td></tr>
+          <tr><td><span class="badge PUT">PUT</span></td><td><code>/patients/{id}</code></td><td>Sim</td><td><code>updatePatient</code></td><td>Atualiza paciente.</td></tr>
+          <tr><td><span class="badge DELETE">DELETE</span></td><td><code>/patients/{id}</code></td><td>Sim</td><td><code>deletePatient</code></td><td>Exclui paciente.</td></tr>
+          <tr><td><span class="badge GET">GET</span></td><td><code>/patients/protocol-summaries?ids={ids}</code></td><td>Sim</td><td><code>getProtocolSummaries</code></td><td>Resumo de protocolo em lote.</td></tr>
+          <tr><td><span class="badge GET">GET</span></td><td><code>/patients/{id}/protocol-summary</code></td><td>Sim</td><td><code>getPatientProtocolSummary</code></td><td>Resumo de protocolo por paciente.</td></tr>
+          <tr><td><span class="badge GET">GET</span></td><td><code>/patients/{id}/history</code></td><td>Sim</td><td><code>getPatientHistory</code></td><td>Histórico clínico.</td></tr>
+          <tr><td><span class="badge POST">POST</span></td><td><code>/patients/{id}/records</code></td><td>Sim</td><td><code>createRecord</code></td><td>Cria registro clínico.</td></tr>
+          <tr><td><span class="badge DELETE">DELETE</span></td><td><code>/patients/{id}/records/{recordId}</code></td><td>Sim</td><td><code>deleteRecord</code></td><td>Exclui registro clínico.</td></tr>
+
+          <tr><td><span class="badge GET">GET</span></td><td><code>/patients/{id}/appointments</code></td><td>Sim</td><td><code>listAppointments</code></td><td>Lista atendimentos.</td></tr>
+          <tr><td><span class="badge POST">POST</span></td><td><code>/patients/{id}/appointments</code></td><td>Sim</td><td><code>createAppointment</code></td><td>Cria atendimento.</td></tr>
+          <tr><td><span class="badge DELETE">DELETE</span></td><td><code>/patients/{id}/appointments/{appointmentId}</code></td><td>Sim</td><td><code>deleteAppointment</code></td><td>Exclui atendimento.</td></tr>
+
+          <tr><td><span class="badge GET">GET</span></td><td><code>/tasks?patientId={id}</code></td><td>Sim</td><td><code>listTasks</code></td><td>Lista tarefas por paciente.</td></tr>
+          <tr><td><span class="badge POST">POST</span></td><td><code>/tasks</code></td><td>Sim</td><td><code>createTask</code></td><td>Cria tarefa.</td></tr>
+          <tr><td><span class="badge PATCH">PATCH</span></td><td><code>/tasks/{id}</code></td><td>Sim</td><td><code>updateTaskStatus</code></td><td>Atualiza status da tarefa.</td></tr>
+
+          <tr><td><span class="badge GET">GET</span></td><td><code>/patients/{id}/messages</code></td><td>Sim</td><td><code>listMessages</code></td><td>Lista mensagens.</td></tr>
+          <tr><td><span class="badge POST">POST</span></td><td><code>/patients/{id}/messages</code></td><td>Sim</td><td><code>sendMessage</code></td><td>Envia mensagem.</td></tr>
+
+          <tr><td><span class="badge GET">GET</span></td><td><code>/users</code></td><td>Sim</td><td><code>listUsers</code></td><td>Lista usuários.</td></tr>
+          <tr><td><span class="badge POST">POST</span></td><td><code>/users</code></td><td>Sim</td><td><code>createUser</code></td><td>Cria usuário.</td></tr>
+          <tr><td><span class="badge PUT">PUT</span></td><td><code>/users/{id}</code></td><td>Sim</td><td><code>updateUser</code></td><td>Atualiza usuário.</td></tr>
+          <tr><td><span class="badge GET">GET</span></td><td><code>/users/{id}/usage</code></td><td>Sim</td><td><code>getUserUsage</code></td><td>Consulta vínculos do usuário.</td></tr>
+          <tr><td><span class="badge DELETE">DELETE</span></td><td><code>/users/{id}</code></td><td>Sim</td><td><code>deleteUser</code></td><td>Exclui usuário.</td></tr>
+
+          <tr><td><span class="badge GET">GET</span></td><td><code>/protocol/templates</code></td><td>Sim</td><td><code>listProtocolTemplates</code></td><td>Lista modelos de protocolo.</td></tr>
+          <tr><td><span class="badge POST">POST</span></td><td><code>/protocol/templates</code></td><td>Sim</td><td><code>createProtocolTemplate</code></td><td>Cria modelo de protocolo.</td></tr>
+          <tr><td><span class="badge PUT">PUT</span></td><td><code>/protocol/templates/{category}</code></td><td>Sim</td><td><code>updateProtocolTemplate</code></td><td>Atualiza modelo de protocolo.</td></tr>
+          <tr><td><span class="badge DELETE">DELETE</span></td><td><code>/protocol/templates/{category}</code></td><td>Sim</td><td><code>deleteProtocolTemplate</code></td><td>Exclui modelo de protocolo.</td></tr>
+
+          <tr><td><span class="badge POST">POST</span></td><td><code>/ai/team/priorities</code></td><td>Sim</td><td><code>aiTeamPriorities</code></td><td>Gera prioridades do dia.</td></tr>
+          <tr><td><span class="badge POST">POST</span></td><td><code>/ai/team/data-quality</code></td><td>Sim</td><td><code>aiTeamDataQuality</code></td><td>Analisa qualidade de dados.</td></tr>
+          <tr><td><span class="badge POST">POST</span></td><td><code>/ai/team/report</code></td><td>Sim</td><td><code>aiTeamReport</code></td><td>Gera relatório executivo.</td></tr>
+          <tr><td><span class="badge POST">POST</span></td><td><code>/ai/chat</code></td><td>Sim</td><td><code>aiTeamAsk</code></td><td>Perguntas ao assistente.</td></tr>
+        </tbody>
+      </table>
+    </section>
+  </div>
+</body>
+</html>

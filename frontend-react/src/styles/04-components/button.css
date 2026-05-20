@@ -1,0 +1,114 @@
+/* 04-components/button.css
+   .btn — base + modifiers + sizes + states.
+
+   Markup:
+     <button class="btn btn--primary">…</button>
+     <button class="btn btn--secondary btn--sm">…</button>
+     <button class="btn btn--ghost btn--icon" aria-label="…"><Icon/></button>
+*/
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  height: 32px;
+  padding: 0 14px;
+  font: 500 var(--t-base)/1 var(--font-sans);
+  letter-spacing: var(--ls-base);
+  border-radius: var(--r-md);
+  border: 1px solid transparent;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  font-feature-settings: var(--font-feat);
+  transition:
+    background    var(--d-fast) var(--ease),
+    border-color  var(--d-fast) var(--ease),
+    box-shadow    var(--d-base) var(--ease),
+    color         var(--d-fast),
+    transform     80ms          var(--ease);
+}
+
+.btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.btn:disabled { opacity: .5; cursor: not-allowed; transform: none; box-shadow: none; }
+
+/* ── Variants ─────────────────────────────────────────────── */
+.btn--primary {
+  background: var(--accent);
+  color: var(--text-on-accent);
+  font-weight: 600;
+  box-shadow: 0 1px 0 rgba(255,255,255,.18) inset,
+              0 1px 2px rgba(13,148,136,.15);
+}
+.btn--primary:hover { background: var(--accent-hover); box-shadow: var(--shadow-glow); }
+.btn--primary:active { transform: scale(.98); }
+
+.btn--secondary {
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--border);
+  box-shadow: var(--shadow-xs);
+}
+.btn--secondary:hover { background: var(--surface-2); border-color: var(--border-strong); }
+.btn--secondary:active { transform: scale(.98); }
+
+.btn--ghost { color: var(--text-muted); }
+.btn--ghost:hover { background: var(--surface-3); color: var(--text); }
+.btn--danger-hover:hover { color: var(--danger); background: var(--danger-soft); }
+
+.btn--danger {
+  background: var(--danger-soft);
+  color: var(--danger);
+  border-color: var(--danger-bd);
+}
+.btn--danger:hover { background: var(--danger-bd); }
+.btn--danger:active { transform: scale(.98); }
+
+/* ── Sizes ────────────────────────────────────────────────── */
+.btn--sm   { height: 26px; padding: 0 10px; font-size: var(--t-sm); }
+.btn--lg   { height: 38px; padding: 0 18px; font-size: var(--t-md); }
+.btn--icon { width: 30px; padding: 0; justify-content: center; }
+.btn--icon.btn--sm { width: 26px; }
+.btn--icon.btn--lg { width: 38px; }
+
+/* ── Icon button (close, dismiss, toolbar) ───────────────── */
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  border-radius: var(--r-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background var(--d-fast), color var(--d-fast);
+}
+.icon-btn:hover { background: var(--surface-3); color: var(--text); }
+.icon-btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+/* ── Button group horizontal (segmented) ──────────────────── */
+.btn-group {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  background: var(--surface);
+}
+.btn-group .btn {
+  border-radius: 0;
+  border: 0;
+  border-right: 1px solid var(--border-subtle);
+  box-shadow: none;
+  background: transparent;
+}
+.btn-group .btn:last-child { border-right: 0; }
+.btn-group .btn.is-active {
+  background: var(--surface-3);
+  color: var(--text);
+}

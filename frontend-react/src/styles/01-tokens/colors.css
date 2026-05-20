@@ -1,0 +1,103 @@
+/* 01-tokens/colors.css
+   Escalas de cor primitivas (raw). NÃO usar diretamente em UI —
+   use os tokens semânticos de 02-foundations/. Estas escalas
+   existem para compor variantes do tema.
+*/
+
+:root {
+  /* Teal · brand */
+  --teal-50:  #f0fdfa;
+  --teal-100: #ccfbf1;
+  --teal-200: #99f6e4;
+  --teal-300: #5eead4;
+  --teal-400: #2dd4bf;
+  --teal-500: #14b8a6;   /* brand · base */
+  --teal-600: #0d9488;   /* accent light · contraste 4.5+ sobre branco */
+  --teal-700: #0f766e;
+  --teal-800: #115e59;
+  --teal-900: #134e4a;
+
+  /* Slate · neutro institucional · navy */
+  --slate-50:  #f8fafc;
+  --slate-100: #f1f5f9;
+  --slate-200: #e2e8f0;
+  --slate-300: #cbd5e1;
+  --slate-400: #94a3b8;
+  --slate-500: #64748b;
+  --slate-600: #475569;
+  --slate-700: #334155;
+  --slate-800: #1e293b;
+  --slate-900: #0f172a;  /* navy · sidebar · hero */
+  --slate-950: #020617;
+
+  /* Semantic palettes (50/100/500/600/700) */
+  --green-50:  #f0fdf4;
+  --green-100: #dcfce7;
+  --green-200: #bbf7d0;
+  --green-400: #4ade80;
+  --green-500: #22c55e;
+  --green-600: #16a34a;
+  --green-700: #15803d;
+  --green-800: #166534;
+
+  --amber-50:  #fffbeb;
+  --amber-100: #fef3c7;
+  --amber-200: #fde68a;
+  --amber-400: #fbbf24;
+  --amber-500: #f59e0b;
+  --amber-600: #d97706;
+  --amber-700: #b45309;
+
+  /* Orange · "attending/in-progress" status */
+  --orange-50:  #fff7ed;
+  --orange-200: #fed7aa;
+  --orange-700: #c2410c;
+
+  --red-50:   #fef2f2;
+  --red-100:  #fee2e2;
+  --red-200:  #fecaca;
+  --red-400:  #f87171;
+  --red-500:  #ef4444;
+  --red-600:  #dc2626;
+  --red-700:  #b91c1c;
+
+  /* Rose · "absent/overdue" status (Tailwind rose-xxx) */
+  --rose-50:  #fff1f2;
+  --rose-200: #fecdd3;
+  --rose-700: #be123c;
+
+  --blue-50:  #eff6ff;
+  --blue-100: #dbeafe;
+  --blue-200: #bfdbfe;
+  --blue-400: #60a5fa;
+  --blue-500: #3b82f6;
+  --blue-600: #2563eb;
+  --blue-700: #1d4ed8;
+
+  --violet-50:  #f5f3ff;
+  --violet-100: #ede9fe;
+  --violet-200: #ddd6fe;
+  --violet-400: #a78bfa;
+  --violet-500: #8b5cf6;
+  --violet-600: #7c3aed;
+
+  /* Purple · clinical records accent */
+  --purple-50:  #faf5ff;
+  --purple-200: #e9d5ff;
+  --purple-800: #7e22ce;
+
+  /* Indigo · gestor/executive accent */
+  --indigo-100: #e0e7ff;
+  --indigo-200: #c7d2fe;
+  --indigo-300: #a5b4fc;
+  --indigo-400: #818cf8;
+  --indigo-500: #6366f1;
+  --indigo-600: #4f46e5;
+  --indigo-800: #1e1b4b;
+  --indigo-500-rgb: 99 102 241;
+
+  /* Cyan · nursing_tech accent + triage status */
+  --cyan-50:  #ecfeff;
+  --cyan-200: #a5f3fc;
+  --cyan-600: #0891b2;
+}

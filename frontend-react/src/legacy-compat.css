@@ -1,0 +1,34 @@
+/* ────────────────────────────────────────────────────────────────────────────
+   Vitras · Legacy Compatibility Layer
+   Transitional bridge only.
+
+   Official design system source:
+   ./styles/
+
+   Do not add new component styles here.
+   Migrate UI to modular CSS in ./styles and delete this file gradually.
+──────────────────────────────────────────────────────────────────────────── */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300..700;1,14..32,300..700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+/* ══════════════════════════════════════════════════════════════════
+   COMPAT — aliases for App.jsx inline-style references.
+   Only NON-cyclic aliases are safe here. Never alias --X: var(--X).
+══════════════════════════════════════════════════════════════════ */
+:root {
+  /* Text hierarchy aliases */
+  --text-1: var(--text);
+  --text-2: var(--text-muted);
+  --text-3: var(--text-dim);
+  --ink:    var(--text);
+
+  /* Border aliases */
+  --border-soft: var(--border-subtle);
+
+  /* Shadow aliases */
+  --sh-xs: var(--shadow-xs);
+  --sh-sm: var(--shadow-sm);
+  --sh-md: var(--shadow-md);
+  --sh-lg: var(--shadow-lg);
+  --sh-xl: var(--shadow-lg);
+}

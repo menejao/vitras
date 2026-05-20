@@ -1,0 +1,27 @@
+/* 02-foundations/status.css
+   Cores semânticas de estado. Sempre acompanhar de ícone ou texto
+   — nunca codificar significado SÓ por cor (acessibilidade).
+
+   Cada estado tem 3 tokens:
+     --{state}       cor principal (texto + ícone)
+     --{state}-soft  fundo soft para badges/alerts
+     --{state}-bd    borda compatível com soft
+*/
+
+:root {
+  --success:       #16A34A;
+  --success-soft:  #F0FDF4;
+  --success-bd:    #DCFCE7;
+
+  --warning:       #D97706;
+  --warning-soft:  #FFFBEB;
+  --warning-bd:    #FEF3C7;
+
+  --danger:        #DC2626;
+  --danger-soft:   #FEF2F2;
+  --danger-bd:     #FEE2E2;
+
+  --info:          #2563EB;
+  --info-soft:     #EFF6FF;
+  --info-bd:       #DBEAFE;
+}

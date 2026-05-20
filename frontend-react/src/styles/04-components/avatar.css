@@ -1,0 +1,26 @@
+/* 04-components/avatar.css
+   Iniciais sobre gradient teal. Sempre em forma de círculo.
+
+   Markup:
+     <div class="avatar">MS</div>
+     <div class="avatar avatar--sm">MS</div>
+     <div class="avatar avatar--lg">MS</div>
+*/
+
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-pill);
+  background: var(--accent-grad);
+  color: var(--text-on-accent);
+  font: 700 12px var(--font-sans);
+  letter-spacing: -0.01em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  user-select: none;
+}
+.avatar--sm { width: 24px; height: 24px; font-size: 10px; }
+.avatar--lg { width: 40px; height: 40px; font-size: 14px; }
+.avatar--xl { width: 56px; height: 56px; font-size: 20px; }
