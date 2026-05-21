@@ -37,6 +37,9 @@ pnpm-debug.log*
 .cache/
 temp/
 tmp/
+*.tmp
+*.temp
+*.local
 
 # ─── Backups e dumps ─────────────────────────────────────────────────────────
 *.zip
@@ -44,6 +47,8 @@ tmp/
 *.bak
 *.old
 *.dump
+backups/
+dumps/
 
 # ─── Testes / relatórios ─────────────────────────────────────────────────────
 playwright-report/
@@ -52,6 +57,10 @@ test-results/
 # ─── IDEs ────────────────────────────────────────────────────────────────────
 .vscode/
 .idea/
+.aws/
+.amplify/
+.elasticbeanstalk/
+.DS_Store?
 
 # ─── Sistema Operacional ─────────────────────────────────────────────────────
 .DS_Store

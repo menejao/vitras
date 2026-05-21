@@ -3,6 +3,15 @@ import app from "./app.js";
 import { PORT } from "./config.js";
 import { migrateLegacyPlaintextPasswords, alignJoaoTeamOnStartup } from "./services/startup.js";
 import { runMigrations } from "./migrations/runner.js";
+import { closeDbPool } from "./db.js";
+import {
+  markBootCompleted,
+  markShuttingDown,
+  setReadiness,
+  setStartupChecks,
+  setStartupTasks
+} from "./services/runtime-state.js";
+import { logError, logInfo, logWarn } from "./utils/logger.js";
 
 function withTimeout(label, promise, ms = 30000) {
   return new Promise((resolve, reject) => {
@@ -17,57 +26,104 @@ function withTimeout(label, promise, ms = 30000) {
 }
 
 async function runStartupTasks() {
+  const tasks = [];
   const shouldRunMigrations =
     String(process.env.RUN_MIGRATIONS || "").trim().toLowerCase() === "true";
 
   if (shouldRunMigrations) {
-    console.log("[startup] runMigrations — início");
+    logInfo("startup.migrations.started");
     try {
       await withTimeout("runMigrations", runMigrations(), 60000);
-      console.log("[startup] runMigrations — OK");
+      tasks.push({ name: "runMigrations", status: "ok" });
+      logInfo("startup.migrations.completed");
     } catch (err) {
-      console.error("[startup] runMigrations — FALHA (não-fatal):", err.message);
+      tasks.push({ name: "runMigrations", status: "failed", message: err.message });
+      logWarn("startup.migrations.failed_non_fatal", { message: err.message });
     }
   } else {
-    console.log("[startup] runMigrations — ignorado (defina RUN_MIGRATIONS=true para executar)");
+    tasks.push({ name: "runMigrations", status: "skipped" });
+    logInfo("startup.migrations.skipped");
   }
 
-  console.log("[startup] migrateLegacyPlaintextPasswords — início");
+  logInfo("startup.password_migration.started");
   try {
     await withTimeout("migrateLegacyPlaintextPasswords", migrateLegacyPlaintextPasswords(), 30000);
-    console.log("[startup] migrateLegacyPlaintextPasswords — OK");
+    tasks.push({ name: "migrateLegacyPlaintextPasswords", status: "ok" });
+    logInfo("startup.password_migration.completed");
   } catch (err) {
-    console.error("[startup] migrateLegacyPlaintextPasswords — FALHA (não-fatal):", err.message);
+    tasks.push({ name: "migrateLegacyPlaintextPasswords", status: "failed", message: err.message });
+    logWarn("startup.password_migration.failed_non_fatal", { message: err.message });
   }
 
-  console.log("[startup] alignJoaoTeamOnStartup — início");
+  logInfo("startup.joao_alignment.started");
   try {
     await withTimeout("alignJoaoTeamOnStartup", alignJoaoTeamOnStartup(), 30000);
-    console.log("[startup] alignJoaoTeamOnStartup — OK");
+    tasks.push({ name: "alignJoaoTeamOnStartup", status: "ok" });
+    logInfo("startup.joao_alignment.completed");
   } catch (err) {
-    console.error("[startup] alignJoaoTeamOnStartup — FALHA (não-fatal):", err.message);
+    tasks.push({ name: "alignJoaoTeamOnStartup", status: "failed", message: err.message });
+    logWarn("startup.joao_alignment.failed_non_fatal", { message: err.message });
   }
+
+  setStartupTasks(tasks);
 }
 
 async function startServer() {
-  console.log("[startup] iniciando servidor");
+  setStartupChecks([{ name: "config", status: "ok" }]);
+  logInfo("startup.server.starting", { port: PORT });
 
-  // Listen first — /health responde imediatamente, sem bloquear em migrations.
+  let server;
   await new Promise((resolve, reject) => {
-    app.listen(PORT, (err) => {
+    server = app.listen(PORT, (err) => {
       if (err) { reject(err); return; }
-      console.log(`[startup] server listening on http://localhost:${PORT}`);
+      logInfo("startup.server.listening", { port: PORT });
       resolve();
     });
   });
 
-  // Startup tasks em background — falhas não derrubam o processo.
+  markBootCompleted();
+  setReadiness(true);
+
+  const shutdown = async (signal) => {
+    logWarn("shutdown.started", { signal });
+    markShuttingDown();
+    setReadiness(false, signal);
+
+    await new Promise((resolve) => {
+      server.close(() => resolve());
+    });
+
+    try {
+      await closeDbPool();
+    } catch (error) {
+      logError("shutdown.db_pool_close_failed", { error });
+    }
+
+    logInfo("shutdown.completed", { signal });
+    process.exit(0);
+  };
+
+  process.on("SIGTERM", () => {
+    shutdown("SIGTERM").catch((error) => {
+      logError("shutdown.failed", { signal: "SIGTERM", error });
+      process.exit(1);
+    });
+  });
+  process.on("SIGINT", () => {
+    shutdown("SIGINT").catch((error) => {
+      logError("shutdown.failed", { signal: "SIGINT", error });
+      process.exit(1);
+    });
+  });
+
   runStartupTasks().catch((err) => {
-    console.error("[startup] startup tasks — erro inesperado:", err.message);
+    setReadiness(true, err);
+    logError("startup.background_tasks.failed", { error: err });
   });
 }
 
 startServer().catch((err) => {
-  console.error("[startup] falha crítica ao subir o servidor:", err);
+  setReadiness(false, err);
+  logError("startup.failed", { error: err });
   process.exit(1);
 });

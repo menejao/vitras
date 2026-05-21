@@ -745,6 +745,29 @@ async function listRolePermissionsSnapshot(role = "") {
   return result.rows.map((row) => String(row.capability || "")).filter(Boolean);
 }
 
+async function checkDbHealth() {
+  if (!isPostgresMode()) {
+    try {
+      await fs.access(DB_PATH);
+      return { ok: true, driver: DB_DRIVER };
+    } catch (error) {
+      return { ok: false, driver: DB_DRIVER, error: error.message };
+    }
+  }
+
+  try {
+    const result = await pool.query("SELECT 1 AS ok");
+    return { ok: result.rows?.[0]?.ok === 1, driver: DB_DRIVER };
+  } catch (error) {
+    return { ok: false, driver: DB_DRIVER, error: error.message };
+  }
+}
+
+async function closeDbPool() {
+  if (!pool) return;
+  await pool.end();
+}
+
 export {
   isPostgresMode,
   readDb,
@@ -758,5 +781,7 @@ export {
   findPatientByIdSnapshot,
   listAppointmentsByPatientId,
   listAuditLogsSnapshot,
-  listRolePermissionsSnapshot
+  listRolePermissionsSnapshot,
+  checkDbHealth,
+  closeDbPool
 };

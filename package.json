@@ -1,7 +1,9 @@
 {
   "scripts": {
     "build": "cd frontend-react && npm ci --prefer-offline && npm run build",
-    "deploy": "npm run build && npx wrangler deploy"
+    "build:backend": "cd backend && npm install",
+    "deploy:frontend": "node -e \"console.log('Deploy oficial do frontend via AWS Amplify. Ver docs/deployment/aws-cloudflare.md')\"",
+    "deploy:backend": "node -e \"console.log('Deploy oficial do backend via AWS Elastic Beanstalk. Ver docs/deployment/aws-cloudflare.md')\""
   },
   "dependencies": {
     "axios": "^1.13.6"

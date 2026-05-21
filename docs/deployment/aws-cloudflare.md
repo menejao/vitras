@@ -1,270 +1,191 @@
-# Deploy: AWS App Runner (backend) + Cloudflare Pages (frontend)
+// Copyright (c) 2026 Vitras. Todos os direitos reservados.
 
-Guia passo a passo para deploy em produção.
+# Deploy oficial: AWS Amplify + Elastic Beanstalk + Aurora/RDS + Cloudflare
 
-> **Pré-requisito:** conta AWS com permissões para App Runner, ECR e IAM.  
-> **Pré-requisito:** conta Cloudflare com Pages ativo e domínio configurado.
+Este documento define fluxo oficial atual do Vitras. Arquivos e provedores antigos foram mantidos apenas como histórico em `docs/legacy/`.
 
----
+## Visão geral
 
-## Visão geral da arquitetura
+- Frontend: AWS Amplify
+- Backend: AWS Elastic Beanstalk
+- Banco: AWS Aurora PostgreSQL ou Amazon RDS for PostgreSQL
+- Rede: Cloudflare para DNS, CDN, WAF e controle de borda
 
+Fluxo:
+
+1. `git push` em branch controlada.
+2. Amplify executa build do frontend em `frontend-react/`.
+3. Elastic Beanstalk publica backend de `backend/`.
+4. Backend conecta em Aurora/RDS via `DATABASE_URL`.
+5. Cloudflare expõe domínio, cache estático e camada WAF.
+
+## Pré-requisitos
+
+- conta AWS com acesso a Amplify, Elastic Beanstalk, IAM, S3, CloudWatch e Aurora/RDS;
+- conta Cloudflare com zona do domínio;
+- variáveis de ambiente definidas por ambiente;
+- endpoint `/health` respondendo sem autenticação.
+
+## Frontend: AWS Amplify
+
+Arquivo já presente:
+
+- [amplify.yml](/C:/dev/vitras/amplify.yml)
+
+Configuração esperada:
+
+- App root: `frontend-react`
+- Build command: `npm ci && npm run build`
+- Output: `dist`
+- Variável obrigatória: `VITE_API_URL`
+
+Fluxo de deploy:
+
+1. Conectar repositório no AWS Amplify.
+2. Apontar branch desejada, preferencialmente `dev` para homologação e `main` para produção.
+3. Confirmar uso de `amplify.yml`.
+4. Configurar variáveis de ambiente no console do Amplify.
+5. Validar build e publicação.
+
+## Backend: AWS Elastic Beanstalk
+
+Arquivo obrigatório para processo web:
+
+- [backend/Procfile](/C:/dev/vitras/backend/Procfile)
+
+Conteúdo:
+
+```text
+web: npm start
 ```
-Usuário
-  │
-  ▼
-Cloudflare Pages (frontend SPA)
-  │  VITE_API_URL
-  ▼
-AWS App Runner (backend API)
-  │  DATABASE_URL
-  ▼
-Neon PostgreSQL
-```
 
-- **Frontend**: Cloudflare Pages entrega os arquivos estáticos do build Vite
-- **Backend**: AWS App Runner gerencia escalonamento automático e zero cold-start
-- **Banco**: Neon PostgreSQL com connection pooler
+Fluxo de deploy:
 
----
+1. Criar aplicação Elastic Beanstalk para plataforma Node.js 20+.
+2. Configurar diretório de aplicação para `backend/`.
+3. Instalar dependências com `npm install` ou `npm ci` durante pipeline.
+4. Publicar pacote da aplicação.
+5. Validar healthcheck em `/health`.
 
-## 1. Backend — AWS App Runner
+Healthcheck recomendado:
 
-### 1.1 Preparar repositório
+- path: `/health`
+- método: `GET`
+- timeout curto
+- sem autenticação
 
-O arquivo de configuração já está em `backend/apprunner.yaml`. Verifique:
+## Banco: Aurora/RDS
 
-```yaml
-version: 1.0
-runtime: nodejs20
-build:
-  commands:
-    build:
-      - npm ci --omit=dev
-run:
-  command: node src/server.js
-  network:
-    port: 8080
-    env: PORT
-  env:
-    - name: NODE_ENV
-      value: production
-```
+Padrão:
 
-### 1.2 Criar serviço no App Runner
+- engine PostgreSQL;
+- acesso restrito por security groups;
+- SSL habilitado;
+- credenciais fora do código;
+- backup automático e política de retenção ativos.
 
-1. Acesse **AWS Console → App Runner → Create service**
-2. **Source**: GitHub (conecte sua conta)
-   - Repositório: `vitras`
-   - Branch: `main`
-   - Deployment trigger: Automatic
-3. **Build settings**: detecta automaticamente via `apprunner.yaml`
-4. **Service settings**:
-   - Nome: `vitras-backend`
-   - CPU: 0.5 vCPU (ajustar conforme carga)
-   - Memória: 1 GB
-   - Porta: 8080
-5. **Health check**:
-   - Protocol: HTTP
-   - Path: `/health`
-   - Interval: 10s
-   - Timeout: 5s
-   - Healthy threshold: 1
-   - Unhealthy threshold: 3
+`DATABASE_URL` deve apontar para endpoint oficial do cluster/instância, com parâmetros compatíveis de SSL.
 
-### 1.3 Variáveis de ambiente
+## Cloudflare
 
-Configure no console App Runner → seu serviço → **Configuration → Environment variables**.
+Uso esperado:
 
-**Obrigatórias:**
+- DNS autoritativo;
+- proxy do domínio público;
+- WAF;
+- cache estático para frontend;
+- rate limiting e regras gerenciadas, quando aprovado pela operação.
+
+Cloudflare não é origem principal de deploy do frontend neste padrão. Papel é borda e proteção.
+
+## Variáveis obrigatórias
+
+### Backend
+
+- `NODE_ENV=production`
+- `JWT_SECRET=<gerar-valor-forte>`
+- `JWT_EXPIRES_IN=12h`
+- `DATA_ENCRYPTION_KEY=<gerar-valor-forte>`
+- `DATABASE_URL=<endpoint-aurora-ou-rds>`
+- `FRONTEND_ORIGINS=<origens-permitidas>`
+- `BACKUP_EXPORT_KEY=<gerar-valor-forte>`
+- `ADMIN_SEED_KEY=<gerar-valor-forte>`
+- `COOKIE_SECURE=true`
+- `COOKIE_SAME_SITE=none` quando frontend e backend estiverem em domínios cruzados
+
+### Backend recomendadas
+
+- `UPSTASH_REDIS_REST_URL`
+- `UPSTASH_REDIS_REST_TOKEN`
+- `COUNCIL_VERIFY_MODE`
+- `COUNCIL_VERIFY_PROVIDER`
+- `COUNCIL_VERIFY_URL`
+- `COUNCIL_VERIFY_TOKEN`
+
+### Frontend
+
+- `VITE_API_URL=<url-publica-backend>`
+
+## Comandos essenciais
+
+Build local do frontend:
 
 ```bash
-NODE_ENV=production
-JWT_SECRET=<openssl rand -hex 64>
-DATA_ENCRYPTION_KEY=<openssl rand -hex 32>
-DATABASE_URL=<connection string Neon com pooler>
-FRONTEND_ORIGINS=https://seu-frontend.pages.dev,https://app.vitras.com.br
-BACKUP_EXPORT_KEY=<openssl rand -hex 32>
-ADMIN_SEED_KEY=<openssl rand -hex 32>
-COOKIE_SECURE=true
-COOKIE_SAME_SITE=none
-```
-
-**Recomendadas:**
-
-```bash
-TWOFA_ISSUER=Vitras
-ENABLE_BACKUP_EXPORT=true
-ENABLE_ADMIN_SEED=false
-UPSTASH_REDIS_REST_URL=<URL do Upstash>
-UPSTASH_REDIS_REST_TOKEN=<token do Upstash>
-COUNCIL_VERIFY_MODE=required
-COUNCIL_VERIFY_PROVIDER=n8n
-COUNCIL_VERIFY_URL=<URL do webhook>
-COUNCIL_VERIFY_TOKEN=<token>
-```
-
-> Nunca commitar valores reais. Use o console AWS ou AWS Secrets Manager.
-
-### 1.4 Variáveis de chave — como gerar
-
-```bash
-# JWT_SECRET
-openssl rand -hex 64
-
-# DATA_ENCRYPTION_KEY
-openssl rand -hex 32
-
-# BACKUP_EXPORT_KEY
-openssl rand -hex 32
-
-# ADMIN_SEED_KEY
-openssl rand -hex 32
-```
-
-### 1.5 Banco de dados (Neon)
-
-1. Crie projeto em [neon.tech](https://neon.tech)
-2. Copie a connection string do **pooler** (não a direta)
-3. A string deve incluir `sslmode=require`
-4. Teste a conexão: `GET /health` após deploy deve retornar `{"status":"ok"}`
-
-### 1.6 Validar deploy
-
-```bash
-curl https://<sua-url-apprunner>.awsapprunner.com/health
-# Esperado: {"status":"ok","db":"connected"}
-```
-
----
-
-## 2. Frontend — Cloudflare Pages
-
-### 2.1 Configuração do projeto
-
-O `wrangler.toml` na raiz do repositório configura o deploy:
-
-```toml
-name = "vitras"
-main = "worker.js"
-compatibility_date = "2026-03-25"
-
-[assets]
-directory = "./frontend-react/dist"
-binding = "ASSETS"
-```
-
-### 2.2 Variáveis de ambiente do build
-
-No painel Cloudflare Pages → seu projeto → **Settings → Environment variables**:
-
-```
-VITE_API_URL=https://<sua-url-apprunner>.awsapprunner.com
-```
-
-> Esta variável é embutida no build. Mude e faça redeploy se a URL do backend mudar.
-
-### 2.3 Deploy via CLI (manual)
-
-```bash
-# 1. Build do frontend
 cd frontend-react
 npm ci
 npm run build
-
-# 2. Deploy via Wrangler (da raiz do projeto)
-cd ..
-npm run deploy
 ```
 
-O comando `npm run deploy` na raiz executa `wrangler deploy`.
-
-### 2.4 Deploy automático (CI/CD)
-
-Configure no Cloudflare Pages → seu projeto → **Settings → Build & deployments**:
-
-- Framework preset: Vite
-- Build command: `cd frontend-react && npm ci && npm run build`
-- Build output directory: `frontend-react/dist`
-- Root directory: `/` (raiz do repositório)
-- Branch de produção: `main`
-
-### 2.5 Domínio customizado
-
-Cloudflare Pages → seu projeto → **Custom domains**:
-
-1. Adicione `app.vitras.com.br` (ou seu domínio)
-2. Cloudflare configura o DNS automaticamente se o domínio estiver na conta
-3. Aguarde propagação (geralmente < 5 min)
-
----
-
-## 3. Configuração de CORS
-
-O backend valida a origem de toda requisição com cookie auth. Configure `FRONTEND_ORIGINS` com **exatamente** a URL do frontend (sem trailing slash):
-
-```
-FRONTEND_ORIGINS=https://app.vitras.com.br
-```
-
-Múltiplas origens (preview + produção):
-
-```
-FRONTEND_ORIGINS=https://app.vitras.com.br,https://vitras.pages.dev
-```
-
----
-
-## 4. Validação pós-deploy
+Teste do backend:
 
 ```bash
-# Backend health
-curl https://<apprunner-url>/health
-
-# Frontend carrega
-open https://app.vitras.com.br
-
-# Teste de login
-curl -X POST https://<apprunner-url>/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"admin@exemplo.com","password":"..."}'
+cd backend
+npm install
+npm test
 ```
 
-Checklist completo: `docs/deployment/GO_LIVE_CHECKLIST.md`
+Healthcheck:
 
----
+```bash
+curl https://api.seu-dominio/health
+```
 
-## 5. Backup automático
+## Rollback básico
 
-Configure os segredos no GitHub (Settings → Secrets → Actions):
+Frontend:
 
-| Secret | Valor |
-|---|---|
-| `BACKUP_EXPORT_URL` | URL do App Runner |
-| `BACKUP_EXPORT_KEY` | Mesmo valor da variável no App Runner |
+1. selecionar build anterior no Amplify;
+2. republicar versão estável;
+3. validar carregamento do app e chamadas à API.
 
-O workflow `.github/workflows/nightly-backup.yml` executa diariamente e salva o backup como artifact por 30 dias.
+Backend:
 
----
+1. selecionar versão anterior no Elastic Beanstalk;
+2. reimplantar ambiente estável;
+3. validar `/health`, autenticação e fluxo crítico.
 
-## 6. Rotação de chaves
+Banco:
 
-Ver `docs/security/KEY_ROTATION_PLAN.md` e `docs/security/SECRETS_ROTATION.md`.
+1. preferir snapshot/restore controlado em Aurora/RDS;
+2. executar rollback de dados só com janela aprovada;
+3. validar consistência clínica antes de reabrir operação.
 
-Script auxiliar: `scripts/rotate-encryption-key.js`
+## Troubleshooting inicial
 
----
-
-## Troubleshooting
-
-| Sintoma | Causa provável | Ação |
+| Sintoma | Verificação inicial | Ação |
 |---|---|---|
-| `/health` retorna 500 | `DATABASE_URL` inválida | Verificar string Neon + SSL |
-| CORS error no browser | `FRONTEND_ORIGINS` incorreto | Conferir URL exata sem trailing slash |
-| Login retorna 401 | `JWT_SECRET` diferente entre deploys | Garantir valor consistente |
-| 2FA não funciona | `TWOFA_ISSUER` diferente do configurado | Não alterar após usuários terem configurado 2FA |
-| Rate limit imediato | Upstash não configurado | Verificar `UPSTASH_REDIS_REST_URL` e token |
+| Frontend não publica | log do Amplify | validar `amplify.yml`, `npm ci`, `npm run build` |
+| API fora do ar | health do Elastic Beanstalk | validar variáveis, porta, logs e status do ambiente |
+| `/health` com erro | conectividade com banco | revisar `DATABASE_URL`, SSL, SG e credenciais |
+| CORS no browser | `FRONTEND_ORIGINS` | alinhar origem real sem barra final |
+| Login falha após deploy | segredos divergentes | revisar `JWT_SECRET`, cookies e domínio |
+| Lentidão | CloudWatch + banco | checar CPU, memória, pool e queries lentas |
 
----
+## Observabilidade mínima
 
-Copyright (c) 2026 Vitras. Todos os direitos reservados.
+- frontend: logs de build no Amplify;
+- backend: logs e health no Elastic Beanstalk/CloudWatch;
+- banco: métricas e eventos em Aurora/RDS;
+- borda: eventos, WAF e DNS no Cloudflare.
+
+Runbook complementar: [docs/runbooks/observability.md](/C:/dev/vitras/docs/runbooks/observability.md)

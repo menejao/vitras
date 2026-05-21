@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { REQUEST_LOG_ENABLED } from "../config.js";
 import { getClientIp } from "../utils/helpers.js";
+import { logInfo } from "../utils/logger.js";
 
 // In-process counters — read via GET /metrics/internal (admin only) or inspect in logs
 const _metrics = {
@@ -10,17 +11,6 @@ const _metrics = {
   loginFailures: 0,
   startedAt: new Date().toISOString()
 };
-
-const LOG_FORMAT = String(process.env.LOG_FORMAT || "text").trim().toLowerCase();
-
-function logLine(data) {
-  if (LOG_FORMAT === "json") {
-    console.log(JSON.stringify(data));
-  } else {
-    const { requestId, method, path, status, durationMs, userId, ip } = data;
-    console.log(`[req:${requestId}] ${method} ${path} ${status} ${durationMs}ms user=${userId} ip=${ip}`);
-  }
-}
 
 function trackLoginAttempt(success) {
   _metrics.loginAttempts++;
@@ -32,9 +22,19 @@ function getMetrics() {
 }
 
 function requestLoggingMiddleware(req, res, next) {
-  req.requestId = crypto.randomUUID();
+  req.requestId = String(
+    req.headers["x-request-id"] ||
+    req.headers["x-correlation-id"] ||
+    crypto.randomUUID()
+  ).slice(0, 128);
+  req.correlationId = String(
+    req.headers["x-correlation-id"] ||
+    req.headers["x-request-id"] ||
+    req.requestId
+  ).slice(0, 128);
   req.requestStartedAt = Date.now();
   res.setHeader("X-Request-Id", req.requestId);
+  res.setHeader("X-Correlation-Id", req.correlationId);
   _metrics.requests++;
 
   res.on("finish", () => {
@@ -42,8 +42,9 @@ function requestLoggingMiddleware(req, res, next) {
 
     if (!REQUEST_LOG_ENABLED) return;
     const durationMs = Date.now() - req.requestStartedAt;
-    logLine({
+    logInfo("http.request.completed", {
       requestId: req.requestId,
+      correlationId: req.correlationId,
       method: req.method,
       path: req.originalUrl,
       status: res.statusCode,
