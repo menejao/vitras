@@ -43,15 +43,20 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  transition: width var(--d-normal) var(--ease-out);
+}
+.sidebar.is-collapsed {
+  width: var(--sidebar-w-collapsed);
 }
 .sidebar__brand {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: var(--s-4) var(--s-4) var(--s-4);
+  padding: var(--s-4) var(--s-3) var(--s-4);
   border-bottom: 1px solid var(--sidebar-border);
   height: var(--topbar-h);
   flex-shrink: 0;
+  overflow: hidden;
 }
 .sidebar__footer {
   margin-top: auto;
@@ -74,6 +79,8 @@
   align-items: center;
   gap: var(--s-3);
   min-width: 0;
+  flex: 1;
+  overflow: hidden;
 }
 
 .sidebar__brand-icon {
@@ -92,6 +99,14 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
+  overflow: hidden;
+  max-width: 160px;
+  transition: max-width var(--d-normal) var(--ease-out),
+              opacity var(--d-fast) var(--ease-out);
+}
+.sidebar.is-collapsed .sidebar__brand-copy {
+  max-width: 0;
+  opacity: 0;
 }
 
 .sidebar__brand-copy strong {
@@ -144,6 +159,22 @@
   text-transform: uppercase;
   color: var(--sidebar-muted);
   padding: var(--s-3) var(--s-3) var(--s-1);
+  overflow: hidden;
+}
+.nav__label-text {
+  display: block;
+  white-space: nowrap;
+  max-width: 180px;
+  overflow: hidden;
+  transition: max-width var(--d-normal) var(--ease-out),
+              opacity var(--d-fast) var(--ease-out);
+}
+.sidebar.is-collapsed .nav__label {
+  padding: var(--s-1) 0;
+}
+.sidebar.is-collapsed .nav__label-text {
+  max-width: 0;
+  opacity: 0;
 }
 .nav__item {
   display: flex;
@@ -155,7 +186,7 @@
   font: 500 var(--t-base) var(--font-sans);
   cursor: pointer;
   position: relative;
-  transition: background var(--d-fast), color var(--d-fast);
+  transition: background var(--d-fast), color var(--d-fast), padding var(--d-normal) var(--ease-out), justify-content var(--d-normal) var(--ease-out);
   user-select: none;
   text-decoration: none;
   background: none;
@@ -163,6 +194,22 @@
   appearance: none;
   width: 100%;
   text-align: left;
+}
+.nav__item-label {
+  overflow: hidden;
+  white-space: nowrap;
+  max-width: 180px;
+  transition: max-width var(--d-normal) var(--ease-out),
+              opacity var(--d-fast) var(--ease-out);
+}
+.sidebar.is-collapsed .nav__item {
+  justify-content: center;
+  padding: 8px;
+}
+.sidebar.is-collapsed .nav__item-label {
+  max-width: 0;
+  opacity: 0;
+  pointer-events: none;
 }
 .nav__item:hover {
   background: var(--sidebar-hover);
@@ -188,6 +235,42 @@
   margin-left: auto;
   font: 500 11px var(--font-mono);
   color: var(--sidebar-muted);
+  transition: opacity var(--d-fast) var(--ease-out);
+}
+.sidebar.is-collapsed .nav__count {
+  opacity: 0;
+  pointer-events: none;
+  width: 0;
+  overflow: hidden;
+}
+
+/* ── Sidebar collapse button ─────────────────────────────── */
+.sidebar__collapse-btn {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-md);
+  color: var(--sidebar-muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: background var(--d-fast), color var(--d-fast), opacity var(--d-fast);
+  opacity: 0;
+}
+.sidebar:hover .sidebar__collapse-btn,
+.sidebar__collapse-btn:focus-visible {
+  opacity: 1;
+}
+.sidebar.is-collapsed .sidebar__collapse-btn {
+  opacity: 1;
+}
+.sidebar__collapse-btn:hover {
+  background: var(--sidebar-hover);
+  color: var(--sidebar-text);
 }
 
 /* ── Sidebar footer action (dark context) ────────────────── */
@@ -208,6 +291,27 @@
   background: var(--sidebar-hover);
   color: var(--sidebar-text);
   border-color: rgba(255,255,255,.14);
+}
+
+/* ── Topbar icon buttons (theme toggle, etc.) ────────────── */
+.topbar__icon-btn {
+  display: inline-flex;
+  width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-md);
+  color: var(--text-dim);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+  transition: background var(--d-fast), color var(--d-fast);
+}
+.topbar__icon-btn:hover {
+  background: var(--surface-3);
+  color: var(--text);
 }
 
 /* ── Mobile menu toggle (topbar, visível só em mobile) ───── */
@@ -298,9 +402,6 @@
   white-space: nowrap;
 }
 
-.topbar__status {
-  height: 26px;
-}
 
 .topbar__patient-pill {
   display: flex;

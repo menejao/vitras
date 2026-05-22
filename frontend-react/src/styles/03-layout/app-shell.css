@@ -13,8 +13,9 @@
 */
 
 :root {
-  --sidebar-w: 240px;
-  --topbar-h:  56px;
+  --sidebar-w:           240px;
+  --sidebar-w-collapsed: 56px;
+  --topbar-h:            56px;
 }
 
 .app {
@@ -239,10 +240,14 @@
     bottom: 0;
     z-index: var(--z-sticky);
     transform: translateX(-104%);
+    /* override desktop width transition — mobile uses transform */
     transition: transform var(--d-slow) var(--ease-out);
     box-shadow: var(--shadow-lg);
+    /* always full width on mobile regardless of collapsed state */
+    width: var(--sidebar-w) !important;
   }
   .sidebar.is-open { transform: translateX(0); }
+  .sidebar__collapse-btn { display: none; }
   .app-shell__scrim { display: block; }
   .offline-banner {
     flex-direction: column;

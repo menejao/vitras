@@ -1,3 +1,4 @@
+// Copyright (c) 2026 Vitras. Todos os direitos reservados.
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";

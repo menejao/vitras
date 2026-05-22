@@ -1,3 +1,4 @@
+// Copyright (c) 2026 Vitras. Todos os direitos reservados.
 const IS_PROD = String(process.env.NODE_ENV || "").trim().toLowerCase() === "production";
 const PORT = process.env.PORT || 3001;
 const JWT_SECRET = String(process.env.JWT_SECRET || "").trim() || "dev-only-jwt-secret-change-me";
@@ -48,6 +49,8 @@ const PUBLIC_SELF_REGISTER_ROLES = String(
   .split(",")
   .map((v) => v.trim().toLowerCase())
   .filter(Boolean);
+const DATABASE_URL = String(process.env.DATABASE_URL || "").trim();
+const DATA_ENCRYPTION_KEY = String(process.env.DATA_ENCRYPTION_KEY || "").trim();
 const REFRESH_EXPIRES_MS = (() => {
   const s = REFRESH_EXPIRES_IN;
   const n = parseInt(s, 10);
@@ -66,10 +69,16 @@ if (IS_PROD && !FRONTEND_ORIGINS.length && !CORS_ALLOW_ALL) {
     "FRONTEND_ORIGINS obrigatório em produção (ou defina CORS_ALLOW_ALL=true por sua conta e risco)"
   );
 }
-if (IS_PROD && !process.env.DATA_ENCRYPTION_KEY) {
+if (IS_PROD && !DATABASE_URL) {
+  throw new Error("DATABASE_URL obrigatório em produção");
+}
+if (IS_PROD && !DATA_ENCRYPTION_KEY) {
   throw new Error(
     "DATA_ENCRYPTION_KEY obrigatório em produção — dados sensíveis (CPF, CNS) não podem ser armazenados sem criptografia"
   );
+}
+if (IS_PROD && DATA_ENCRYPTION_KEY.length < 32) {
+  throw new Error("DATA_ENCRYPTION_KEY inválido em produção — use valor forte com pelo menos 32 caracteres");
 }
 if (IS_PROD && COOKIE_SAME_SITE === "none" && !COOKIE_SECURE) {
   throw new Error("COOKIE_SECURE=true obrigatório em produção quando COOKIE_SAME_SITE=none");
@@ -79,9 +88,6 @@ if (IS_PROD && !BACKUP_EXPORT_KEY) {
 }
 if (IS_PROD && !ADMIN_SEED_KEY) {
   throw new Error("ADMIN_SEED_KEY obrigatorio em producao");
-}
-if (IS_PROD && (!process.env.JWT_EXPIRES_IN || JWT_EXPIRES_IN === "12h")) {
-  console.warn("[aviso] JWT_EXPIRES_IN não definido — usando padrão de 12h");
 }
 
 export {
@@ -121,5 +127,7 @@ export {
   COOKIE_DOMAIN,
   COOKIE_SECURE,
   COOKIE_SAME_SITE,
-  PUBLIC_SELF_REGISTER_ROLES
+  PUBLIC_SELF_REGISTER_ROLES,
+  DATABASE_URL,
+  DATA_ENCRYPTION_KEY
 };

@@ -1,3 +1,4 @@
+// Copyright (c) 2026 Vitras. Todos os direitos reservados.
 import express from "express";
 import { setupHelmet, setupCors, securityHeadersMiddleware, contentTypeMiddleware } from "./middlewares/security.js";
 import { requestLoggingMiddleware } from "./middlewares/logging.js";
