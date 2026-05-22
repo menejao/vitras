@@ -304,6 +304,12 @@
   color: var(--danger);
 }
 
+/* ── Botão "Dar entrada" no card do agendamento ──────────── */
+.agenda-checkin-btn {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
 /* ── Botão de remoção (danger ghost) ─────────────────────── */
 .agenda-appt__remove-btn {
   color: var(--danger);

@@ -5,6 +5,7 @@ import { initials, formatCpf, formatCns, formatPhone, formatCep } from "../utils
 import { createPatient } from "../api";
 import { useQueue } from "../hooks/useQueue";
 import { inferQueuePriorityFromPatient, QUEUE_PRIORITY_LABELS, formatQueueClock, formatQueueWait } from "../utils/queue";
+import { describeAgendaType } from "../utils/agenda";
 import PageHeader from "../components/layout/PageHeader";
 import PageShell from "../components/layout/PageShell";
 import PageToolbar from "../components/layout/PageToolbar";
@@ -35,7 +36,7 @@ const IconWarning = () => (
   </svg>
 );
 
-function QueuePage({ patients, users, user, token, onNewPatient }) {
+function QueuePage({ patients, users, user, token, agenda = [], onNewPatient }) {
   const {
     entries: queue,
     loading,
@@ -74,6 +75,17 @@ function QueuePage({ patients, users, user, token, onNewPatient }) {
   const [newPat, setNewPat] = useState(emptyNew());
   const [savingNew, setSavingNew] = useState(false);
   const [newPatErr, setNewPatErr] = useState("");
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+
+  const todayAppt = useMemo(() => {
+    if (!selectedPatient) return null;
+    return (agenda || []).find(a =>
+      a.patientId === selectedPatient.id &&
+      a.date === todayStr &&
+      ["scheduled", "arrived"].includes(a.status)
+    ) || null;
+  }, [selectedPatient, agenda, todayStr]);
 
   const searchResults = useMemo(() => {
     const q = searchQ.trim();
@@ -377,6 +389,17 @@ function QueuePage({ patients, users, user, token, onNewPatient }) {
                   <Button variant="ghost" size="sm" iconOnly onClick={() => { setSelectedPatient(null); setSearchQ(""); }}>
                     <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M2 2l12 12M14 2L2 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
                   </Button>
+                </div>
+              )}
+
+              {selectedPatient && todayAppt && (
+                <div className="queue-appt-hint">
+                  <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="2" y="3" width="12" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.3"/><path d="M5 2v2M11 2v2M2 7h12" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
+                  <span>
+                    Consulta de hoje às <strong>{todayAppt.time}</strong>
+                    {todayAppt.doctorName ? ` · ${todayAppt.doctorName}` : ""}
+                    {todayAppt.type !== "consultation" ? ` · ${describeAgendaType(todayAppt.type)}` : ""}
+                  </span>
                 </div>
               )}
 

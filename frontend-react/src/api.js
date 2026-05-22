@@ -1,7 +1,8 @@
 export const API_URL = import.meta.env.VITE_API_URL || "https://api.vitras.com.br";
 const COOKIE_SESSION_SENTINEL = "__cookie_session__";
 const SESSION_KEY = "vitras_react_session";
-const RETRYABLE_STATUSES = new Set([408, 425, 429, 500, 502, 503, 504]);
+// 429 excluded: retrying rate-limited requests amplifies the storm
+const RETRYABLE_STATUSES = new Set([408, 425, 500, 502, 503, 504]);
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
