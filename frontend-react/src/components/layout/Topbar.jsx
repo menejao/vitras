@@ -20,6 +20,19 @@ const IconSignOut = () => (
   </svg>
 );
 
+const IconSun = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <circle cx="12" cy="12" r="5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round"/>
+    <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round"/>
+  </svg>
+);
+
+const IconMoon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
 function Topbar({
   user,
   selectedPatient,
@@ -37,7 +50,9 @@ function Topbar({
   pharmacyStock,
   agenda,
   onNavigatePatient,
-  apiHealth
+  apiHealth,
+  theme,
+  onToggleTheme,
 }) {
   const [dropOpen, setDropOpen] = useState(false);
 
@@ -48,7 +63,6 @@ function Topbar({
     return () => document.removeEventListener("click", handler);
   }, [dropOpen]);
 
-  const statusTone = apiHealth?.status === "ok" ? "success" : apiHealth?.status === "checking" ? "warning" : "danger";
   const impersonating = isImpersonating(user);
   const breakGlass = isBreakGlassActive(user);
 
@@ -77,9 +91,15 @@ function Topbar({
       <div className="topbar__right">
         {impersonating ? <Badge tone="warning">Contexto assumido</Badge> : null}
         {breakGlass ? <Badge tone="danger">Break-glass ativo</Badge> : null}
-        <Badge tone={statusTone} className="topbar__status">
-          API {apiHealth?.label || "Verificando..."}
-        </Badge>
+        <Button
+          variant="ghost"
+          className="topbar__icon-btn"
+          onClick={onToggleTheme}
+          aria-label={theme === "dark" ? "Modo claro" : "Modo escuro"}
+          title={theme === "dark" ? "Modo claro" : "Modo escuro"}
+        >
+          {theme === "dark" ? <IconSun /> : <IconMoon />}
+        </Button>
         <NotificationBell
           patients={patients || []}
           protocolByPatient={protocolByPatient || {}}

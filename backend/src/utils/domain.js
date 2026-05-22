@@ -69,9 +69,6 @@ const DEFAULT_CARE_PROTOCOLS = {
 const DEFAULT_TEAM_COLORS = ["Rosa", "Azul", "Cinza", "Marrom", "Amarela"];
 const DEMO_POPULATE_SIZE_COMPLETE = 50;
 const DEMO_POPULATE_SIZE_INCOMPLETE = 10;
-const JOAO_DEV_TARGET_TEAM_ID = "team-rosa";
-const JOAO_DEV_TARGET_TEAM_NAME = "Equipe Rosa";
-const JOAO_DEV_CANONICAL_EMAIL = "joao@vitras.com.br";
 
 function buildDefaultProtocolTemplates() {
   const ministryRefs = {
@@ -151,36 +148,6 @@ function normalizeLookupText(value) {
     .trim();
 }
 
-function isJoaoDevVerificationUser(user) {
-  const email = normalizeLookupText(user?.email);
-  const name = normalizeLookupText(user?.name);
-  return email === normalizeLookupText(JOAO_DEV_CANONICAL_EMAIL)
-    || email.startsWith("joao.dev.")
-    || name === normalizeLookupText("João Benedito (Dev)")
-    || name === normalizeLookupText("João Dev")
-    || name === normalizeLookupText("Joao Dev");
-}
-
-function alignJoaoVerificationWorkspace(db) {
-  const joaoUsers = db.users.filter(isJoaoDevVerificationUser);
-  if (!joaoUsers.length) return;
-
-  db.users = db.users.map((user) => {
-    if (!isJoaoDevVerificationUser(user)) return user;
-    return {
-      ...user,
-      email: JOAO_DEV_CANONICAL_EMAIL,
-      teamId: JOAO_DEV_TARGET_TEAM_ID,
-      teamName: JOAO_DEV_TARGET_TEAM_NAME
-    };
-  });
-
-  db.patients = db.patients.map((patient) => ({
-    ...patient,
-    teamId: JOAO_DEV_TARGET_TEAM_ID
-  }));
-}
-
 /* ── DB shape enforcement ── */
 
 function ensureDbShape(db) {
@@ -230,8 +197,6 @@ function ensureDbShape(db) {
     byId.add(id);
     byName.add(name.toLowerCase());
   }
-
-  alignJoaoVerificationWorkspace(db);
 
   if (!db.protocolTemplates.length) {
     db.protocolTemplates = buildDefaultProtocolTemplates();
@@ -547,13 +512,9 @@ export {
   DEFAULT_TEAM_COLORS,
   DEMO_POPULATE_SIZE_COMPLETE,
   DEMO_POPULATE_SIZE_INCOMPLETE,
-  JOAO_DEV_TARGET_TEAM_ID,
-  JOAO_DEV_TARGET_TEAM_NAME,
-  JOAO_DEV_CANONICAL_EMAIL,
   buildDefaultProtocolTemplates,
   normalizeCategory,
   normalizeChronicConditions,
-  isJoaoDevVerificationUser,
   ensureDbShape,
   getTeamById,
   getTeamNameById,

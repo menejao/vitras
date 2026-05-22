@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { readUiState, writeLS } from "./utils/storage";
 import { UI_STATE_KEY } from "./config/constants";
+import { useTheme } from "./hooks/useTheme";
 import { isReceptionist, isAdmin, canWriteRecords } from "./utils/roles";
 import AppShell from "./components/layout/AppShell";
 import Sidebar from "./components/layout/Sidebar";
@@ -54,11 +55,13 @@ function AppInner() {
     },
   });
   const apiHealth = useApiHealth();
+  const { theme, toggleTheme } = useTheme();
   const [tab,  setTab]  = useState(()=>{ const t=uiState?.tab; if(t) return t; return "dashboard"; });
   const [selectedPatientId, setSelectedPatientId] = useState("");
   const [patientTab, setPatientTab] = useState(uiState?.patientTab==="history"?"chart":(uiState?.patientTab||"protocol"));
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => Boolean(uiState?.sidebarCollapsed));
 
-  useEffect(() => { writeLS(UI_STATE_KEY, { tab, patientTab }); }, [tab, patientTab]);
+  useEffect(() => { writeLS(UI_STATE_KEY, { tab, patientTab, sidebarCollapsed }); }, [tab, patientTab, sidebarCollapsed]);
   const {
     patients, setPatients,
     users, templates, protocolByPatient, allUsers, publicTeams,
@@ -234,6 +237,7 @@ function AppInner() {
           agenda={agendaEntries}
           apiHealth={apiHealth}
           onNavigatePatient={(id)=>{ setTab("patients"); setSelectedPatientId(id); }}
+          theme={theme} onToggleTheme={toggleTheme}
         />}
         sidebar={<Sidebar
           tab={tab} setTab={setTab}
@@ -241,6 +245,7 @@ function AppInner() {
           query={query} setQuery={setQuery}
           user={user} canManageUser={canManageUser}
           onClearPatient={()=>setSelectedPatientId("")}
+          collapsed={sidebarCollapsed} onToggleCollapsed={() => setSidebarCollapsed(v => !v)}
         />}
       >
         <TabContent
