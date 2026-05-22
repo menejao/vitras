@@ -251,7 +251,7 @@ export function buildProactiveAlerts(patients, protocolByPatient, pharmacyStock,
   patients.forEach(p => {
     const chip = protocolChip(protocolByPatient[p.id]);
     if (chip.tone === "danger") {
-      alerts.push({ id:"prot-"+p.id, type:"warn", title:"Protocolo crítico", detail:p.name+" — "+chip.text, patientId:p.id, createdAt:nowIso });
+      alerts.push({ id:"prot-"+p.id, type:"danger", title:"Protocolo crítico", detail:p.name+" — "+chip.text, patientId:p.id, createdAt:nowIso });
     }
   });
 
