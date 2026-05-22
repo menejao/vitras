@@ -228,6 +228,21 @@
   flex: 0 0 auto;
 }
 
+/* Icon color matches alert severity */
+.dashboard__alert-card--danger .dashboard__alert-icon { color: var(--danger); }
+.dashboard__alert-card--warn   .dashboard__alert-icon { color: var(--warning); }
+.dashboard__alert-card--info   .dashboard__alert-icon { color: var(--info); }
+
+/* Title color matches severity for stronger visual cue */
+.dashboard__alert-card--danger .dashboard__alert-copy strong { color: var(--danger); }
+.dashboard__alert-card--warn   .dashboard__alert-copy strong { color: var(--warning); }
+.dashboard__alert-card--info   .dashboard__alert-copy strong { color: var(--info); }
+
+/* Preserve colored background on hover (overrides btn--ghost:hover) */
+.dashboard__alert-card--danger:hover { background: var(--danger-soft); border-color: var(--danger-bd); }
+.dashboard__alert-card--warn:hover   { background: var(--warning-soft); border-color: var(--warning-bd); }
+.dashboard__alert-card--info:hover   { background: var(--info-soft); border-color: var(--info-bd); }
+
 .dashboard__alert-copy {
   display: flex;
   flex-direction: column;
@@ -262,6 +277,20 @@
 
 .dashboard__presence.is-online .dot {
   color: var(--success);
+}
+
+/* Clickable priority patient row */
+.stack-list__patient-row {
+  cursor: pointer;
+  border-radius: var(--r-sm);
+  transition: background var(--d-fast);
+  outline: none;
+}
+.stack-list__patient-row:hover {
+  background: var(--surface-2);
+}
+.stack-list__patient-row:focus-visible {
+  box-shadow: var(--focus-ring);
 }
 
 .dashboard__team-user {

@@ -2,14 +2,12 @@ import Chip from "../components/ui/Chip";
 import Badge from "../components/ui/Badge";
 import Card from "../components/ui/Card";
 import KPI from "../components/ui/KPI";
-import Table from "../components/ui/Table";
 import Avatar from "../components/ui/Avatar";
 import Button from "../components/ui/Button";
 import PageLayout from "../components/layout/PageLayout";
 import PageHeader from "../components/layout/PageHeader";
-import { RECEPTION_USERS, PHARMA_USERS } from "../config/constants";
 import { buildProactiveAlerts, protocolChip, catLabel } from "../utils/clinical";
-import { isAdmin, roleLabel } from "../utils/roles";
+import { roleLabel } from "../utils/roles";
 
 function Dashboard({ patients, users, allUsers, templates, protocolByPatient, demandMonthly, currentUser, onNavigate, agenda = [], pharmacyStock = [] }) {
   const assigned = patients.filter((p) => String(p.assignedAcsId || "").trim()).length;
@@ -32,16 +30,6 @@ function Dashboard({ patients, users, allUsers, templates, protocolByPatient, de
   const dmInRange = dmPct !== null && dmPct >= 50 && dmPct <= 70;
   const dmStatus = dmPct === null ? "Sem dados" : dmInRange ? "Na meta" : dmPct < 50 ? "Abaixo da meta" : "Acima da meta";
   const dmTone = dmPct === null ? "neutral" : dmInRange ? "success" : dmPct < 50 ? "warning" : "danger";
-  const isAna = isAdmin(currentUser);
-
-  const localExtras = [...RECEPTION_USERS, ...PHARMA_USERS]
-    .filter((lu) => !allUsers.some((au) => au.email?.toLowerCase() === lu.email?.toLowerCase()) && !users.some((u) => u.email?.toLowerCase() === lu.email?.toLowerCase()))
-    .map((lu) => ({ ...lu, online: lu.id === currentUser?.id }));
-
-  const adminUserList = [
-    ...(allUsers.length ? allUsers : users).map((u) => (u.id === currentUser?.id ? { ...u, online: true } : u)),
-    ...localExtras,
-  ];
 
   const alerts = buildProactiveAlerts(
     patients,
@@ -100,52 +88,6 @@ function Dashboard({ patients, users, allUsers, templates, protocolByPatient, de
         </Card>
       ) : null}
 
-      {isAna ? (
-        <Card className="card--noPad card--operational">
-          <div className="card__header">
-            <div>
-              <div className="card__title">Painel de contas</div>
-              <div className="card__subtitle">
-                {adminUserList.length} conta{adminUserList.length !== 1 ? "s" : ""} · {adminUserList.filter((u) => u.online).length} online
-              </div>
-            </div>
-          </div>
-          <Table className="table--dense">
-            <thead>
-              <tr>
-                <th />
-                <th>Nome</th>
-                <th>E-mail</th>
-                <th>Perfil</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {[...adminUserList]
-                .sort((a, b) =>
-                  String(a.name || "").localeCompare(String(b.name || ""), "pt-BR", { sensitivity: "base" })
-                )
-                .map((u) => {
-                  const online = u.online === true;
-                  return (
-                    <tr key={u.id}>
-                      <td><Avatar name={u.name} size="sm" /></td>
-                      <td>{u.name}</td>
-                      <td className="mono">{u.email || "-"}</td>
-                      <td><Badge>{roleLabel(u.role)}</Badge></td>
-                      <td>
-                        <span className={`dashboard__presence ${online ? "is-online" : ""}`}>
-                          <span className="dot" />
-                          {online ? "Online" : "Offline"}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-            </tbody>
-          </Table>
-        </Card>
-      ) : null}
 
       {alerts.length ? (
         <section className="dashboard__alerts">
@@ -198,7 +140,14 @@ function Dashboard({ patients, users, allUsers, templates, protocolByPatient, de
                   const chip = protocolChip(protocolByPatient[p.id]);
                   const acsName = users.find((u) => u.id === p.assignedAcsId)?.name || "Sem ACS";
                   return (
-                    <li key={p.id}>
+                    <li
+                      key={p.id}
+                      className="stack-list__patient-row"
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => onNavigate?.(p.id)}
+                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onNavigate?.(p.id); }}
+                    >
                       <div>
                         <p><strong>{p.name}</strong></p>
                         <p className="muted small">{catLabel(templates, p.careCategory)} · {acsName}</p>
