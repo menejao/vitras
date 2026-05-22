@@ -96,6 +96,25 @@
 
 .input__icon   { color: var(--text-dim); display: inline-flex; flex: 0 0 auto; }
 .input__suffix { font: 500 var(--t-xs) var(--font-mono); color: var(--text-dim); flex: 0 0 auto; }
+
+.input__pw-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  margin-right: -4px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  border-radius: var(--r-sm);
+  transition: color var(--d-fast), background var(--d-fast);
+}
+.input__pw-toggle:hover { color: var(--text); background: var(--surface-2); }
+.input__pw-toggle:focus-visible { outline: 2px solid var(--border-accent); outline-offset: 1px; }
 .input__kbd {
   font: 500 10px var(--font-mono);
   color: var(--text-dim);
