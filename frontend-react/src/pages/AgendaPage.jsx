@@ -387,6 +387,7 @@ function AgendaPage({ patients, users, user, token, onNewPatient, onPatientCreat
       {showForm && (
         <Modal
           title={editId ? "Editar agendamento" : "Novo agendamento"}
+          className="modal--agenda"
           onClose={() => setShowForm(false)}
           actions={
             <>
@@ -403,7 +404,7 @@ function AgendaPage({ patients, users, user, token, onNewPatient, onPatientCreat
               <div className="agenda-pat-wrap" ref={patWrapRef}>
                 <div className="input">
                   <span className="input__icon"><IconSearch /></span>
-                  <Input
+                  <input
                     value={patSearch}
                     onChange={e => {
                       setPatSearch(e.target.value);
