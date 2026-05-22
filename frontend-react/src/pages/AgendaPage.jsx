@@ -1,11 +1,12 @@
 import { useState, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
-import { createPatient } from "../api";
+import { createPatient, createQueueEntry } from "../api";
 import { matchesPatientSearch, emptyPatientForm, isProfileIncomplete, ageInMonths } from "../utils/clinical";
+import { inferQueuePriorityFromPatient } from "../utils/queue";
 import { isUnavailableDay, unavailableReason } from "../utils/dates";
 import { formatCpf, formatPhone, initials } from "../utils/formatting";
 import { useAgenda } from "../hooks/useAgenda";
-import { AGENDA_HOURS, AGENDA_STATUS_LABELS, describeAgendaType } from "../utils/agenda";
+import { AGENDA_HOURS, AGENDA_STATUS_LABELS, AGENDA_PROCEDURE_SUBTYPES, describeAgendaType } from "../utils/agenda";
 import Button from "../components/ui/Button";
 import Alert from "../components/ui/Alert";
 import Input from "../components/ui/Input";
@@ -63,6 +64,8 @@ function AgendaPage({ patients, users, user, token, onNewPatient, onPatientCreat
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [showForm, setShowForm]         = useState(false);
   const [form, setForm]                 = useState({ patientId: "", doctorId: "", date: "", time: "", type: "consultation", notes: "", status: "scheduled" });
+  const [procedureSubtype, setProcedureSubtype] = useState("");
+  const [checkingIn, setCheckingIn]     = useState({});
   const [editId, setEditId]             = useState(null);
   const [filterDoc, setFilterDoc]       = useState("");
   const [patSearch, setPatSearch]       = useState("");
@@ -91,9 +94,12 @@ function AgendaPage({ patients, users, user, token, onNewPatient, onPatientCreat
 
   const doctors = users.filter(u => ["doctor", "nurse_manager", "nursing_tech"].includes(u.role));
 
+  const todayStr = new Date().toISOString().slice(0, 10);
+
   function openNew(time = "", date = selectedDate) {
     setForm({ patientId: "", doctorId: "", date, time, type: "consultation", notes: "", status: "scheduled" });
     setPatSearch(""); setPatSelected(null);
+    setProcedureSubtype("");
     setEditId(null); setShowForm(true);
   }
 
@@ -101,7 +107,27 @@ function AgendaPage({ patients, users, user, token, onNewPatient, onPatientCreat
     const pat = patients.find(p => p.id === appt.patientId) || null;
     setForm({ patientId: appt.patientId, doctorId: appt.doctorId, date: appt.date, time: appt.time, type: appt.type, notes: appt.notes || "", status: appt.status });
     setPatSearch(pat?.name || ""); setPatSelected(pat);
+    setProcedureSubtype("");
     setEditId(appt.id); setShowForm(true);
+  }
+
+  async function checkIn(appt) {
+    const patient = patients.find(p => p.id === appt.patientId);
+    const priority = patient ? inferQueuePriorityFromPatient(patient) : "normal";
+    setCheckingIn(prev => ({ ...prev, [appt.id]: true }));
+    try {
+      await createQueueEntry(token, {
+        patientId: appt.patientId,
+        demandType: "scheduled",
+        priority,
+        agendaRef: appt.id,
+      });
+      await patchEntry(appt.id, { status: "arrived" });
+    } catch (err) {
+      setAgendaError(err.message || "Erro ao dar entrada.");
+    } finally {
+      setCheckingIn(prev => ({ ...prev, [appt.id]: false }));
+    }
   }
 
   async function createQuickPatient() {
@@ -169,7 +195,6 @@ function AgendaPage({ patients, users, user, token, onNewPatient, onPatientCreat
     .filter(a => a.date === selectedDate && (!filterDoc || a.doctorId === filterDoc))
     .sort((a, b) => a.time.localeCompare(b.time));
 
-  const todayStr = new Date().toISOString().slice(0, 10);
   const selD = new Date(selectedDate + "T12:00:00");
   const weekDays = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(selD);
@@ -332,6 +357,17 @@ function AgendaPage({ patients, users, user, token, onNewPatient, onPatientCreat
                   </div>
 
                   <div className="agenda-appt__actions">
+                    {appt.date === todayStr && appt.status === "scheduled" && !incomplete && (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        className="agenda-checkin-btn"
+                        disabled={checkingIn[appt.id]}
+                        onClick={() => checkIn(appt)}
+                      >
+                        {checkingIn[appt.id] ? "…" : "Dar entrada"}
+                      </Button>
+                    )}
                     <Select
                       className="agenda-status-sel"
                       value={appt.status}
@@ -614,21 +650,43 @@ function AgendaPage({ patients, users, user, token, onNewPatient, onPatientCreat
             <Select
               label="Tipo"
               value={form.type}
-              onChange={e => setForm(s => ({ ...s, type: e.target.value }))}
+              onChange={e => {
+                setForm(s => ({ ...s, type: e.target.value, notes: "" }));
+                setProcedureSubtype("");
+              }}
             >
               <option value="consultation">Consulta</option>
               <option value="return">Retorno</option>
-              <option value="procedure">Procedimento</option>
+              <option value="procedure">Procedimento / Exame</option>
               <option value="other">Outro</option>
             </Select>
+
+            {/* Subtipo de procedimento */}
+            {form.type === "procedure" && (
+              <Select
+                label="Procedimento / Exame"
+                value={procedureSubtype}
+                onChange={e => {
+                  const v = e.target.value;
+                  setProcedureSubtype(v);
+                  const lbl = AGENDA_PROCEDURE_SUBTYPES.find(s => s.value === v)?.label || "";
+                  setForm(s => ({ ...s, notes: lbl }));
+                }}
+              >
+                <option value="">Selecionar...</option>
+                {AGENDA_PROCEDURE_SUBTYPES.map(s => (
+                  <option key={s.value} value={s.value}>{s.label}</option>
+                ))}
+              </Select>
+            )}
 
             {/* Observações */}
             <Input
               label="Observações"
-              className="field--span-2"
+              className={form.type === "procedure" ? "" : "field--span-2"}
               value={form.notes}
               onChange={e => setForm(s => ({ ...s, notes: e.target.value }))}
-              placeholder="Motivo, solicitações especiais..."
+              placeholder={form.type === "procedure" ? "Detalhes adicionais..." : "Motivo, solicitações especiais..."}
             />
 
           </form>

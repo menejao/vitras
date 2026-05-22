@@ -71,7 +71,7 @@ export function TabContent({
 
       {tab === "dashboard" && <Dashboard patients={patients} users={users} allUsers={allUsers || []} templates={templates} protocolByPatient={protocolByPatient} demandMonthly={demandMonthly} currentUser={user} agenda={agendaEntries} pharmacyStock={pharmacyStock} onNavigate={navigatePatient} setTab={setTab}/>}
 
-      {tab === "queue" && <QueuePage patients={patients} users={users} user={user} token={token} onNewPatient={p => setPatients(prev => [...prev, p])}/>}
+      {tab === "queue" && <QueuePage patients={patients} users={users} user={user} token={token} agenda={agendaEntries} onNewPatient={p => setPatients(prev => [...prev, p])}/>}
       {tab === "triage" && <TriagePage patients={patients} users={users} user={user} token={token}/>}
       {tab === "agenda" && <AgendaPage patients={patients} users={users} user={user} token={token} teams={publicTeams} onNewPatient={p => setPatients(prev => [...prev, p])} onPatientCreated={loadAll} onNavigatePatient={navigatePatient}/>}
 

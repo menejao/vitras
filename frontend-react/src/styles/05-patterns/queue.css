@@ -295,6 +295,20 @@
   color: var(--accent-text);
 }
 
+/* ── Hint de agendamento do dia no modal de entrada ───────── */
+.queue-appt-hint {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-3);
+  background: var(--info-soft);
+  border: 1px solid var(--info-bd);
+  border-radius: var(--r-md);
+  font: 400 var(--t-sm) var(--font-sans);
+  color: var(--info);
+}
+.queue-appt-hint svg { flex-shrink: 0; }
+
 @media (max-width: 640px) {
   .queue-page > .page-header,
   .queue-page > .hero,

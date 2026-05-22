@@ -1,3 +1,17 @@
+export const AGENDA_PROCEDURE_SUBTYPES = [
+  { value: "preventivo",    label: "Preventivo / Papanicolau" },
+  { value: "glicemia",      label: "Glicemia capilar" },
+  { value: "pressao",       label: "Aferição de pressão arterial" },
+  { value: "teste_gravidez",label: "Teste de gravidez" },
+  { value: "teste_hiv",     label: "Teste rápido HIV" },
+  { value: "teste_sifilis", label: "Teste rápido sífilis" },
+  { value: "teste_hepatite",label: "Teste rápido hepatite B/C" },
+  { value: "curativo",      label: "Curativo / Enfermagem" },
+  { value: "coleta_lab",    label: "Coleta de exames laboratoriais" },
+  { value: "vacina",        label: "Vacinação" },
+  { value: "outro_proc",    label: "Outro procedimento" },
+];
+
 export const AGENDA_STATUS_LABELS = {
   scheduled: "Agendado",
   arrived: "Chegou",
