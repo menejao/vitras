@@ -120,12 +120,12 @@ function QueuePage({ patients, users, user, token, onNewPatient }) {
 
   async function saveNewPatient(e) {
     e.preventDefault();
-    if (!newPat.name.trim()) { setNewPatErr("Nome Ã© obrigatÃ³rio."); return; }
+    if (!newPat.name.trim()) { setNewPatErr("Nome é obrigatório."); return; }
     setSavingNew(true); setNewPatErr("");
     try {
       const territorial = [
-        newPat.microarea ? `MicroÃ¡rea: ${newPat.microarea}` : "",
-        newPat.familyCode ? `CÃ³d.famÃ­lia: ${newPat.familyCode}` : "",
+        newPat.microarea ? `Microárea: ${newPat.microarea}` : "",
+        newPat.familyCode ? `Cód.família: ${newPat.familyCode}` : "",
         newPat.homeVisitFreq ? `Freq.visita: ${newPat.homeVisitFreq}` : "",
         newPat.housingType ? `Moradia: ${newPat.housingType}` : "",
         newPat.waterSupply ? `Ãgua: ${newPat.waterSupply}` : "",
@@ -186,7 +186,7 @@ function QueuePage({ patients, users, user, token, onNewPatient }) {
     try {
       await clearDone();
     } catch (err) {
-      setQueueError(err.message || "Erro ao limpar concluÃ­dos.");
+      setQueueError(err.message || "Erro ao limpar concluídos.");
     }
   }
 
@@ -197,7 +197,7 @@ function QueuePage({ patients, users, user, token, onNewPatient }) {
   return (
     <PageShell className="queue-page">
       <PageHeader
-        eyebrow="RecepÃ§Ã£o"
+        eyebrow="Recepção"
         title="Fila de Atendimento"
         subtitle="Triagem, prioridade e fluxo de pacientes no dia."
         actions={(
@@ -216,7 +216,7 @@ function QueuePage({ patients, users, user, token, onNewPatient }) {
       <PageToolbar>
         {queue.some((entry) => entry.status === "done") ? (
           <Button variant="ghost" size="sm" className="queue-kpis__clear-btn" onClick={clearCompleted}>
-            Limpar concluÃ­dos
+            Limpar concluídos
           </Button>
         ) : null}
       </PageToolbar>
@@ -233,7 +233,7 @@ function QueuePage({ patients, users, user, token, onNewPatient }) {
         ) : !queue.length ? (
           <EmptyState
             title="Nenhum paciente na fila"
-            description="Clique em Â«Dar entradaÂ» para registrar a chegada de um paciente."
+            description="Clique em «Dar entrada» para registrar a chegada de um paciente."
           />
         ) : (
           queue.map((entry, index) => {
@@ -245,13 +245,13 @@ function QueuePage({ patients, users, user, token, onNewPatient }) {
                 <div className="queue-entry__copy">
                   <div className="queue-entry__name">{entry.patientName}</div>
                   <div className="queue-entry__meta">
-                    Entrada: {formatQueueClock(entry.arrivedAt)} Â· Aguardando: {formatQueueWait(entry.arrivedAt)}{entry.reason ? ` Â· ${entry.reason}` : ""}
+                    Entrada: {formatQueueClock(entry.arrivedAt)} · Aguardando: {formatQueueWait(entry.arrivedAt)}{entry.reason ? ` · ${entry.reason}` : ""}
                   </div>
                   <div className="queue-entry__badges">
                     <span className={`queue-badge ${isDone ? "" : priorityClass}`}>{QUEUE_PRIORITY_LABELS[entry.priority]}</span>
                     {entry.demandType === "spontaneous" && (
                       <span className="queue-badge queue-badge--spontaneous">
-                        EspontÃ¢neo â†’ {entry.destination === "nurse" ? "Enfermagem" : "MÃ©dico(a)"}
+                        Espontâneo → {entry.destination === "nurse" ? "Enfermagem" : "Médico(a)"}
                       </span>
                     )}
                     {entry.demandType === "scheduled" && (
@@ -342,7 +342,7 @@ function QueuePage({ patients, users, user, token, onNewPatient }) {
                           <div>
                             <div className="agenda-pat-opt__name">{patient.name}</div>
                             <div className="agenda-pat-opt__meta">
-                              {patient.careCategory || "general"}{am !== null ? ` Â· ${am < 24 ? `${am}m` : `${Math.floor(am / 12)}a`}` : ""}{patient.phone ? ` Â· ${patient.phone}` : ""}
+                              {patient.careCategory || "general"}{am !== null ? ` · ${am < 24 ? `${am}m` : `${Math.floor(am / 12)}a`}` : ""}{patient.phone ? ` · ${patient.phone}` : ""}
                             </div>
                           </div>
                         </Button>
@@ -385,7 +385,7 @@ function QueuePage({ patients, users, user, token, onNewPatient }) {
                   <div className="field">
                     <label className="field__label">Tipo de demanda *</label>
                     <div className="queue-toggle">
-                      {[["scheduled", "Agendado", "Consulta marcada"], ["spontaneous", "EspontÃ¢neo", "Sem agendamento"]].map(([value, label, description]) => (
+                      {[["scheduled", "Agendado", "Consulta marcada"], ["spontaneous", "Espontâneo", "Sem agendamento"]].map(([value, label, description]) => (
                         <Button key={value} variant="ghost" className={`queue-toggle-btn${demandType === value ? " is-active" : ""}`} onClick={() => setDemandType(value)}>
                           <div className="queue-toggle-btn__label">{label}</div>
                           <div className="queue-toggle-btn__desc">{description}</div>
@@ -398,7 +398,7 @@ function QueuePage({ patients, users, user, token, onNewPatient }) {
                     <div className="field">
                       <label className="field__label">Encaminhar para *</label>
                       <div className="queue-toggle">
-                        {[["doctor", "MÃ©dico(a)"], ["nurse", "Enfermagem"]].map(([value, label]) => (
+                        {[["doctor", "Médico(a)"], ["nurse", "Enfermagem"]].map(([value, label]) => (
                           <Button key={value} variant="ghost" className={`queue-toggle-btn${destination === value ? " is-active" : ""}`} onClick={() => setDestination(value)}>
                             <div className="queue-toggle-btn__label">{label}</div>
                           </Button>
@@ -417,7 +417,7 @@ function QueuePage({ patients, users, user, token, onNewPatient }) {
                     label="Motivo / queixa principal"
                     value={reason}
                     onChange={(e) => setReason(e.target.value)}
-                    placeholder="Dor, retorno, renovaÃ§Ã£o de receita..."
+                    placeholder="Dor, retorno, renovação de receita..."
                   />
 
                   <div className={`queue-demand-notice queue-demand-notice--${demandType}`}>
@@ -425,8 +425,8 @@ function QueuePage({ patients, users, user, token, onNewPatient }) {
                     <span>
                       <strong>Aviso:</strong>{" "}
                       {demandType === "scheduled"
-                        ? `Profissional serÃ¡ notificado que ${selectedPatient.name} chegou.`
-                        : `${destination === "doctor" ? "MÃ©dico(a)" : "Enfermagem"} receberÃ¡ aviso de paciente espontÃ¢neo.`}
+                        ? `Profissional será notificado que ${selectedPatient.name} chegou.`
+                        : `${destination === "doctor" ? "Médico(a)" : "Enfermagem"} receberá aviso de paciente espontâneo.`}
                     </span>
                   </div>
 
@@ -444,26 +444,26 @@ function QueuePage({ patients, users, user, token, onNewPatient }) {
           {step === "new-patient" && (
             <form onSubmit={saveNewPatient} style={{ display: "flex", flexDirection: "column", gap: "var(--s-4)" }}>
               <div className="queue-form-section">
-                <p className="queue-form-section__title">IdentificaÃ§Ã£o</p>
+                <p className="queue-form-section__title">Identificação</p>
                 <div className="field-grid field-grid--no-pad">
                   <Input className="field--span-2" label="Nome completo *" value={newPat.name} onChange={(e) => setNewPat((state) => ({ ...state, name: e.target.value }))} placeholder="Nome do paciente" autoFocus />
                   {isChildCategory(newPat.careCategory) && (
-                    <Input className="field--span-2" label="Nome do responsÃ¡vel" value={newPat.motherName} onChange={(e) => setNewPat((state) => ({ ...state, motherName: e.target.value }))} />
+                    <Input className="field--span-2" label="Nome do responsável" value={newPat.motherName} onChange={(e) => setNewPat((state) => ({ ...state, motherName: e.target.value }))} />
                   )}
                   <Input label="Data de nascimento" type="date" value={newPat.birthDate} onChange={(e) => setNewPat((state) => ({ ...state, birthDate: e.target.value }))} />
                   <Select label="Sexo" value={newPat.sex} onChange={(e) => setNewPat((state) => ({ ...state, sex: e.target.value }))}>
-                    <option value="">NÃ£o informado</option>
+                    <option value="">Não informado</option>
                     <option value="feminino">Feminino</option>
                     <option value="masculino">Masculino</option>
                   </Select>
                   {!isChildCategory(newPat.careCategory) && (
                     <Select label="Estado civil" value={newPat.maritalStatus} onChange={(e) => setNewPat((state) => ({ ...state, maritalStatus: e.target.value }))}>
-                      <option value="">NÃ£o informado</option>
+                      <option value="">Não informado</option>
                       <option value="solteiro">Solteiro(a)</option>
                       <option value="casado">Casado(a)</option>
-                      <option value="uniao_estavel">UniÃ£o estÃ¡vel</option>
+                      <option value="uniao_estavel">União estável</option>
                       <option value="divorciado">Divorciado(a)</option>
-                      <option value="viuvo">ViÃºvo(a)</option>
+                      <option value="viuvo">Viúvo(a)</option>
                     </Select>
                   )}
                   <Input label="CPF" value={newPat.cpf} onChange={(e) => setNewPat((state) => ({ ...state, cpf: formatCpf(e.target.value) }))} placeholder="000.000.000-00" inputMode="numeric" maxLength={14} />
@@ -475,18 +475,18 @@ function QueuePage({ patients, users, user, token, onNewPatient }) {
                     <option value="pregnant">Gestante</option>
                     <option value="child_followup">Puericultura</option>
                     <option value="elderly">Pessoa Idosa</option>
-                    <option value="puerperal">PuÃ©rpera</option>
+                    <option value="puerperal">Puérpera</option>
                   </Select>
                 </div>
               </div>
 
               <div className="queue-form-section">
-                <p className="queue-form-section__title">EndereÃ§o</p>
+                <p className="queue-form-section__title">Endereço</p>
                 <div className="field-grid field-grid--no-pad">
                   <Input label="CEP" value={newPat.zipCode} onChange={(e) => setNewPat((state) => ({ ...state, zipCode: formatCep(e.target.value) }))} placeholder="00000-000" inputMode="numeric" maxLength={9} />
                   <Input label="UF" value={newPat.state} onChange={(e) => setNewPat((state) => ({ ...state, state: e.target.value.toUpperCase().slice(0, 2) }))} placeholder="SP" maxLength={2} />
                   <Input className="field--span-2" label="Rua" value={newPat.address} onChange={(e) => setNewPat((state) => ({ ...state, address: e.target.value }))} />
-                  <Input label="NÃºmero" value={newPat.number} onChange={(e) => setNewPat((state) => ({ ...state, number: e.target.value }))} />
+                  <Input label="Número" value={newPat.number} onChange={(e) => setNewPat((state) => ({ ...state, number: e.target.value }))} />
                   <Input label="Complemento" value={newPat.complement} onChange={(e) => setNewPat((state) => ({ ...state, complement: e.target.value }))} />
                   <Input label="Bairro" value={newPat.neighborhood} onChange={(e) => setNewPat((state) => ({ ...state, neighborhood: e.target.value }))} />
                   <Input label="Cidade" value={newPat.city} onChange={(e) => setNewPat((state) => ({ ...state, city: e.target.value }))} />
@@ -506,19 +506,19 @@ function QueuePage({ patients, users, user, token, onNewPatient }) {
               )}
 
               <div className="queue-form-section">
-                <p className="queue-form-section__title">InformaÃ§Ãµes clÃ­nicas</p>
+                <p className="queue-form-section__title">Informações clínicas</p>
                 <div className="field-grid field-grid--no-pad">
                   <Input className="field--span-2" label="Alergias" value={newPat.allergies} onChange={(e) => setNewPat((state) => ({ ...state, allergies: e.target.value }))} placeholder="Medicamentos, alimentos..." />
-                  <Input className="field--span-2" label="Comorbidades" value={newPat.comorbidities} onChange={(e) => setNewPat((state) => ({ ...state, comorbidities: e.target.value }))} placeholder="HipertensÃ£o, diabetes..." />
-                  <Input className="field--span-2" label="Medicamentos em uso" value={newPat.medications} onChange={(e) => setNewPat((state) => ({ ...state, medications: e.target.value }))} placeholder="Nome, dose, frequÃªncia..." />
+                  <Input className="field--span-2" label="Comorbidades" value={newPat.comorbidities} onChange={(e) => setNewPat((state) => ({ ...state, comorbidities: e.target.value }))} placeholder="Hipertensão, diabetes..." />
+                  <Input className="field--span-2" label="Medicamentos em uso" value={newPat.medications} onChange={(e) => setNewPat((state) => ({ ...state, medications: e.target.value }))} placeholder="Nome, dose, frequência..." />
                 </div>
               </div>
 
               {newPatErr ? <p className="field__error">{newPatErr}</p> : null}
 
               <div className="queue-form-footer">
-                <Button variant="secondary" type="button" onClick={() => setStep("select")}>â† Voltar</Button>
-                <Button variant="primary" type="submit" disabled={savingNew}>{savingNew ? "Cadastrando..." : "Cadastrar e continuar â†’"}</Button>
+                <Button variant="secondary" type="button" onClick={() => setStep("select")}>← Voltar</Button>
+                <Button variant="primary" type="submit" disabled={savingNew}>{savingNew ? "Cadastrando..." : "Cadastrar e continuar →"}</Button>
               </div>
             </form>
           )}

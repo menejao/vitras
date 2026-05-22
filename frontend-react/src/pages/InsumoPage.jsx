@@ -291,7 +291,7 @@ function InsumoPage({
                       return (
                         <Button key={patient.id} variant="ghost" className="ins-pat-opt" onClick={() => selectPat(patient)}>
                           <div className="ins-pat-opt__name">{patient.name}</div>
-                          <div className="ins-pat-opt__sub">{patient.cpf || ""}{currentContinuous ? " Â· Continuo" : ""}</div>
+                          <div className="ins-pat-opt__sub">{patient.cpf || ""}{currentContinuous ? " · Continuo" : ""}</div>
                         </Button>
                       );
                     })}
@@ -302,7 +302,7 @@ function InsumoPage({
                     <div className="ins-pat-card__name">{patSelected.name}</div>
                     <div className="ins-pat-card__meta">
                       {patSelected.birthDate ? `Nasc.: ${fmtDate(patSelected.birthDate)}` : ""}
-                      {patSelected.cpf ? ` Â· CPF: ${patSelected.cpf}` : ""}
+                      {patSelected.cpf ? ` · CPF: ${patSelected.cpf}` : ""}
                     </div>
                     {continuousByPatient.get(patSelected.id) && <div className="ins-pat-card__cont">Paciente continuo ativo</div>}
                   </div>
@@ -502,7 +502,7 @@ function InsumoPage({
                           {entry.continuo && <span className="ins-cont-tag">Continuo</span>}
                         </div>
                         <div className="ins-log-entry__sub">
-                          {entry.professionalName || user?.name} ({roleLabel(entry.professionalRole)}) Â· {new Date(entry.ts).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                          {entry.professionalName || user?.name} ({roleLabel(entry.professionalRole)}) · {new Date(entry.ts).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
                         </div>
                       </div>
                       <span className="ins-log-entry__date">{entry.date || String(entry.ts).slice(0, 10)}</span>
@@ -548,7 +548,7 @@ function InsumoPage({
                             <span className="ins-cont-tag">Ativo</span>
                           </div>
                           <div className="ins-cont-card__meta">
-                            Desde {fmtDate(entry.dtInicio)} Â· {retiradas} retirada(s) registrada(s) Â· Por: {entry.profissional}
+                            Desde {fmtDate(entry.dtInicio)} · {retiradas} retirada(s) registrada(s) · Por: {entry.profissional}
                           </div>
                           {ultima && <div className="ins-cont-card__meta">Ultima retirada: {fmtDate(ultima.date || String(ultima.ts).slice(0, 10))}</div>}
                         </div>
@@ -591,7 +591,7 @@ function InsumoPage({
                   <div key={entry.id} className="ins-cont-done">
                     <div className="ins-cont-done__name">{entry.patientName}</div>
                     <div className="ins-cont-done__meta">
-                      {fmtDate(entry.dtInicio)} â†’ {fmtDate(entry.dtFim)} Â· {log.filter((item) => item.patientId === entry.patientId && item.continuo).length} retirada(s)
+                      {fmtDate(entry.dtInicio)} → {fmtDate(entry.dtFim)} · {log.filter((item) => item.patientId === entry.patientId && item.continuo).length} retirada(s)
                     </div>
                   </div>
                 ))}
@@ -651,7 +651,7 @@ function InsumoPage({
               rows={3}
               value={closingReason}
               onChange={(event) => setClosingReason(event.target.value)}
-              placeholder="Motivo clÃ­nico ou operacional para encerrar acompanhamento..."
+              placeholder="Motivo clínico ou operacional para encerrar acompanhamento..."
             />
           </label>
           {closingError ? <div className="alert alert--danger" style={{ marginTop: "var(--s-2)" }}>{closingError}</div> : null}

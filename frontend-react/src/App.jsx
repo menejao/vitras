@@ -178,7 +178,7 @@ function AppInner() {
     enabled: isAuthenticated,
   });
 
-  /* â"€â"€ Auth guard â€" login Ãºnico, roteamento por perfil â"€â"€ */
+  /* â"€â"€ Auth guard â€" login único, roteamento por perfil â"€â"€ */
   /* rota /activate — primeiro acesso via token (sem auth) */
   const _path = typeof window !== "undefined" ? window.location.pathname : "/";
   if (_path === "/activate" || _path === "/primeiro-acesso") {
@@ -198,7 +198,7 @@ function AppInner() {
     );
   }
 
-  // Recepcionista â†’ app dedicado de recepÃ§Ã£o
+  // Recepcionista → app dedicado de recepção
   if (isReceptionist(user) && !isAdmin(user)) {
     return (
       <div style={{position:"fixed",inset:0}}>
@@ -214,7 +214,7 @@ function AppInner() {
   }
 
   const catOpts=templates.map(t=>({value:t.category,label:t.label}));
-  // Todos os perfis com acesso ao mÃ³dulo visualizam todos os pacientes.
+  // Todos os perfis com acesso ao módulo visualizam todos os pacientes.
 
 
   return (

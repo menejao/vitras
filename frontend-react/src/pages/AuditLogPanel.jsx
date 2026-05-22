@@ -10,45 +10,45 @@ import { canManage, isAdmin } from "../utils/roles";
 const ACTION_LABELS = {
   "auth.login": { label: "Login", tone: "success" },
   "auth.login_failed": { label: "Tentativa falha", tone: "danger" },
-  "auth.refresh": { label: "Refresh de sessÃ£o", tone: "info" },
+  "auth.refresh": { label: "Refresh de sessão", tone: "info" },
   "auth.logout": { label: "Logout", tone: "neutral" },
   "auth.2fa_status_read": { label: "Leitura status 2FA", tone: "info" },
   "audit.read": { label: "Leitura de auditoria", tone: "info" },
-  "audit.export": { label: "ExportaÃ§Ã£o de auditoria", tone: "warning" },
-  "audit.retention_prune": { label: "Expurgo por retenÃ§Ã£o", tone: "danger" },
+  "audit.export": { label: "Exportação de auditoria", tone: "warning" },
+  "audit.retention_prune": { label: "Expurgo por retenção", tone: "danger" },
   "me.read": { label: "Leitura do perfil", tone: "info" },
   "me.access_context_read": { label: "Leitura do contexto", tone: "info" },
-  "user.list_read": { label: "Leitura de usuÃ¡rios", tone: "info" },
+  "user.list_read": { label: "Leitura de usuários", tone: "info" },
   "user.activity_log_read": { label: "Leitura de atividade", tone: "info" },
   "user.usage_read": { label: "Leitura de uso", tone: "info" },
   LOGIN: { label: "Login", tone: "success" },
   LOGIN_FAILED: { label: "Tentativa falha", tone: "danger" },
   LOGOUT: { label: "Logout", tone: "neutral" },
-  USUARIO_CADASTRADO: { label: "UsuÃ¡rio cadastrado", tone: "info" },
-  USUARIO_EDITADO: { label: "UsuÃ¡rio editado", tone: "warning" },
-  USUARIO_EXCLUIDO: { label: "UsuÃ¡rio excluÃ­do", tone: "danger" },
+  USUARIO_CADASTRADO: { label: "Usuário cadastrado", tone: "info" },
+  USUARIO_EDITADO: { label: "Usuário editado", tone: "warning" },
+  USUARIO_EXCLUIDO: { label: "Usuário excluído", tone: "danger" },
   PACIENTE_CADASTRADO: { label: "Paciente cadastrado", tone: "accent" },
   PACIENTE_EDITADO: { label: "Paciente editado", tone: "accent" },
-  PACIENTE_EXCLUIDO: { label: "Paciente excluÃ­do", tone: "danger" },
+  PACIENTE_EXCLUIDO: { label: "Paciente excluído", tone: "danger" },
   ATENDIMENTO_REGISTRADO: { label: "Atendimento", tone: "info" },
   TAREFA_CRIADA: { label: "Tarefa criada", tone: "warning" },
   MENSAGEM_ENVIADA: { label: "Mensagem", tone: "info" },
   REGISTRO_INATIVADO: { label: "Registro inativado", tone: "warning" },
-  ATENDIMENTO_EXCLUIDO: { label: "Atendimento excluÃ­do", tone: "danger" },
-  ACESSO_PRONTUARIO: { label: "Acesso prontuÃ¡rio", tone: "info" },
-  LANCAMENTO_REGISTRO: { label: "LanÃ§amento prontuÃ¡rio", tone: "info" },
-  INATIVACAO_REGISTRO: { label: "InativaÃ§Ã£o prontuÃ¡rio", tone: "warning" },
+  ATENDIMENTO_EXCLUIDO: { label: "Atendimento excluído", tone: "danger" },
+  ACESSO_PRONTUARIO: { label: "Acesso prontuário", tone: "info" },
+  LANCAMENTO_REGISTRO: { label: "Lançamento prontuário", tone: "info" },
+  INATIVACAO_REGISTRO: { label: "Inativação prontuário", tone: "warning" },
   PEDIDO_EXAME: { label: "Pedido de exame", tone: "accent" },
-  PRESCRICAO_EMITIDA: { label: "PrescriÃ§Ã£o emitida", tone: "success" },
+  PRESCRICAO_EMITIDA: { label: "Prescrição emitida", tone: "success" },
   ENCAMINHAMENTO_INTERNO: { label: "Encaminhamento", tone: "info" },
   EXAME_POSTO_REGISTRADO: { label: "Exame (posto)", tone: "accent" },
   EXAME_EXTERNO_INSERIDO: { label: "Exame externo", tone: "info" },
   RESET_SENHA_SOLICITADO: { label: "Reset de senha", tone: "warning" },
-  DISPENSACAO_FARMACIA: { label: "DispensaÃ§Ã£o", tone: "accent" },
+  DISPENSACAO_FARMACIA: { label: "Dispensação", tone: "accent" },
   ESTOQUE_AJUSTADO: { label: "Ajuste de estoque", tone: "warning" },
   MEDICAMENTO_CADASTRADO: { label: "Medicamento cadastrado", tone: "success" },
   MEDICAMENTO_EDITADO: { label: "Medicamento editado", tone: "warning" },
-  EXAME_EXCLUIDO: { label: "Exame excluÃ­do", tone: "danger" }
+  EXAME_EXCLUIDO: { label: "Exame excluído", tone: "danger" }
 };
 
 const CATEGORY_OPTIONS = [
@@ -56,7 +56,7 @@ const CATEGORY_OPTIONS = [
   ["auth", "Auth"],
   ["read", "Leitura"],
   ["write", "Escrita"],
-  ["export", "ExportaÃ§Ã£o"],
+  ["export", "Exportação"],
   ["privacy", "Privacidade"],
   ["audit", "Auditoria"],
   ["general", "Geral"]
@@ -65,7 +65,7 @@ const CATEGORY_OPTIONS = [
 const SEVERITY_OPTIONS = [
   ["", "Toda severidade"],
   ["info", "Info"],
-  ["medium", "MÃ©dia"],
+  ["medium", "Média"],
   ["high", "Alta"]
 ];
 
@@ -79,10 +79,10 @@ const OUTCOME_OPTIONS = [
 const ENTITY_OPTIONS = [
   ["", "Toda entidade"],
   ["auth", "Auth"],
-  ["user", "UsuÃ¡rio"],
+  ["user", "Usuário"],
   ["patient", "Paciente"],
   ["audit_log", "Auditoria"],
-  ["privacy_request", "SolicitaÃ§Ã£o LGPD"],
+  ["privacy_request", "Solicitação LGPD"],
   ["task", "Tarefa"],
   ["protocol_template", "Protocolo"]
 ];
@@ -96,8 +96,8 @@ function getSessionToken() {
 function formatActionMeta(action = "") {
   if (ACTION_LABELS[action]) return ACTION_LABELS[action];
   return {
-    label: String(action || "AÃ§Ã£o")
-      .replaceAll(".", " Â· ")
+    label: String(action || "Ação")
+      .replaceAll(".", " · ")
       .replaceAll("_", " ")
       .replace(/\b\w/g, (char) => char.toUpperCase()),
     tone: "neutral"
@@ -112,7 +112,7 @@ function buildDetails(entry) {
   if (entry.request?.ip) chunks.push(`IP: ${entry.request.ip}`);
   if (entry.outcome) chunks.push(`Resultado: ${entry.outcome}`);
   if (entry.details && Object.keys(entry.details).length) chunks.push(JSON.stringify(entry.details));
-  return chunks.join(" Â· ");
+  return chunks.join(" · ");
 }
 
 function normalizeDisplayDate(entry) {
@@ -256,7 +256,7 @@ function AuditLogPanel({ embedded = false }) {
       setNextCursor(String(payload?.nextCursor || ""));
       setTotalMatched(Number(payload?.totalMatched || totalMatched));
     } catch (err) {
-      setError(String(err?.message || "Falha ao carregar prÃ³xima pÃ¡gina"));
+      setError(String(err?.message || "Falha ao carregar próxima página"));
     } finally {
       setLoading(false);
     }
@@ -272,7 +272,7 @@ function AuditLogPanel({ embedded = false }) {
       });
       setRetentionResult(payload);
     } catch (err) {
-      setError(String(err?.message || "Falha ao simular retenÃ§Ã£o"));
+      setError(String(err?.message || "Falha ao simular retenção"));
     } finally {
       setRetentionBusy(false);
     }
@@ -304,7 +304,7 @@ function AuditLogPanel({ embedded = false }) {
       setNextCursor(String(refreshed?.nextCursor || ""));
       setTotalMatched(Number(refreshed?.totalMatched || nextItems.length));
     } catch (err) {
-      setError(String(err?.message || "Falha ao executar retenÃ§Ã£o"));
+      setError(String(err?.message || "Falha ao executar retenção"));
     } finally {
       setRetentionBusy(false);
     }
@@ -321,15 +321,15 @@ function AuditLogPanel({ embedded = false }) {
     <div className={embedded ? "audit-embedded" : "audit-page"}>
       {!embedded && (
         <PageHeader
-          eyebrow="SeguranÃ§a e Conformidade"
+          eyebrow="Segurança e Conformidade"
           title="Trilha de Auditoria"
-          subtitle={`${totalMatched} eventos encontrados â€” leitura institucional, exportÃ¡vel, com retenÃ§Ã£o controlada.`}
+          subtitle={`${totalMatched} eventos encontrados â€” leitura institucional, exportável, com retenção controlada.`}
           actions={exportBtn}
         />
       )}
       {embedded && (
         <div className="audit-embedded-header">
-          <span className="audit-embedded-title">Trilha de Auditoria Â· {totalMatched} eventos</span>
+          <span className="audit-embedded-title">Trilha de Auditoria · {totalMatched} eventos</span>
           {exportBtn}
         </div>
       )}
@@ -343,15 +343,15 @@ function AuditLogPanel({ embedded = false }) {
 
       <div className="audit-notice">
         <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><rect x="3" y="7" width="10" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.3"/><path d="M5 7V5a3 3 0 016 0v2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
-        <span>Trilha <strong>somente leitura</strong>. Fonte atual: <strong>backend oficial</strong>. Eventos carregam categoria, severidade, responsÃ¡vel e contexto da requisiÃ§Ã£o.</span>
+        <span>Trilha <strong>somente leitura</strong>. Fonte atual: <strong>backend oficial</strong>. Eventos carregam categoria, severidade, responsável e contexto da requisição.</span>
       </div>
 
       {canRunRetention && (
         <div className="card audit-retention-card">
           <div className="audit-retention-card__header">
             <div>
-              <div className="audit-retention-card__title">RetenÃ§Ã£o de auditoria</div>
-              <div className="audit-retention-card__sub">Execute primeiro em modo simulaÃ§Ã£o. Expurgo real sÃ³ depois da prÃ©via.</div>
+              <div className="audit-retention-card__title">Retenção de auditoria</div>
+              <div className="audit-retention-card__sub">Execute primeiro em modo simulação. Expurgo real só depois da prévia.</div>
             </div>
             <div className="audit-retention-card__actions">
               <Input
@@ -362,7 +362,7 @@ function AuditLogPanel({ embedded = false }) {
                 placeholder="Dias"
               />
               <Button variant="secondary" size="sm" onClick={handleRetentionPreview} disabled={retentionBusy}>
-                Simular retenÃ§Ã£o
+                Simular retenção
               </Button>
               <Button variant="danger" size="sm" onClick={handleRetentionPrune} disabled={retentionBusy || !retentionResult?.candidateCount}>
                 Executar expurgo
@@ -383,7 +383,7 @@ function AuditLogPanel({ embedded = false }) {
                 <div className="audit-retention-card__sample">
                   {retentionResult.sample.map((item) => (
                     <span key={item.id} className="audit-badge audit-badge--neutral">
-                      {item.action || item.id} Â· {String(item.createdAt || "").slice(0, 10)}
+                      {item.action || item.id} · {String(item.createdAt || "").slice(0, 10)}
                     </span>
                   ))}
                 </div>
@@ -397,11 +397,11 @@ function AuditLogPanel({ embedded = false }) {
         <Input
           value={search}
           onChange={(event) => setSearch(event.target.value)}
-          placeholder="Buscar por usuÃ¡rio, aÃ§Ã£o, detalhe..."
+          placeholder="Buscar por usuário, ação, detalhe..."
           style={{ flex: 1, minWidth: 220 }}
         />
         <Select style={{ minWidth: 180 }} value={actionFilter} onChange={(event) => setActionFilter(event.target.value)}>
-            <option value="">Todas as aÃ§Ãµes</option>
+            <option value="">Todas as ações</option>
             {actions.map((action) => <option key={action} value={action}>{formatActionMeta(action).label}</option>)}
         </Select>
         <Select style={{ minWidth: 160 }} value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}>
@@ -424,7 +424,7 @@ function AuditLogPanel({ embedded = false }) {
 
       <div className="audit-summary-grid">
         <div className="audit-summary-card">
-          <span className="audit-summary-card__label">Eventos visÃ­veis</span>
+          <span className="audit-summary-card__label">Eventos visíveis</span>
           <strong className="audit-summary-card__value">{summary.total}</strong>
         </div>
         <div className="audit-summary-card">
@@ -440,7 +440,7 @@ function AuditLogPanel({ embedded = false }) {
           <strong className="audit-summary-card__value">{summary.loginFailed}</strong>
         </div>
         <div className="audit-summary-card">
-          <span className="audit-summary-card__label">ExportaÃ§Ãµes</span>
+          <span className="audit-summary-card__label">Exportações</span>
           <strong className="audit-summary-card__value">{summary.exports}</strong>
         </div>
       </div>
@@ -450,8 +450,8 @@ function AuditLogPanel({ embedded = false }) {
           <thead>
             <tr>
               <th className="audit-table__th" style={{ width: 150 }}>Data / Hora</th>
-              <th className="audit-table__th" style={{ width: 260 }}>AÃ§Ã£o</th>
-              <th className="audit-table__th" style={{ width: 180 }}>UsuÃ¡rio</th>
+              <th className="audit-table__th" style={{ width: 260 }}>Ação</th>
+              <th className="audit-table__th" style={{ width: 180 }}>Usuário</th>
               <th className="audit-table__th">Detalhes</th>
             </tr>
           </thead>
@@ -493,7 +493,7 @@ function AuditLogPanel({ embedded = false }) {
                     {(entry.actor || entry.user) ? (
                       <div>
                         <div className="audit-table__td--user-name">{entry.actor?.name || entry.user?.name || "â€”"}</div>
-                        <div className="audit-table__td--user-sub">{entry.actor?.role || entry.user?.role || "â€”"} Â· {entry.teamName || entry.actor?.teamName || entry.teamId || "Sem equipe"}</div>
+                        <div className="audit-table__td--user-sub">{entry.actor?.role || entry.user?.role || "â€”"} · {entry.teamName || entry.actor?.teamName || entry.teamId || "Sem equipe"}</div>
                       </div>
                     ) : <span style={{ color: "var(--text-dim)" }}>â€”</span>}
                   </td>
