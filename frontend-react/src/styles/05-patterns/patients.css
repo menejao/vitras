@@ -401,21 +401,141 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  overflow-y: auto;
-  gap: var(--s-4);
-  padding-bottom: var(--s-6);
 }
-.records-page > .page-header,
-.records-page > .hero {
+.records-page > .hero,
+.records-page > .page-header {
   margin: var(--s-6) var(--s-6) 0;
-}
-.records-page > *:not(.page-header):not(.hero) {
-  margin: 0 var(--s-6);
+  flex-shrink: 0;
 }
 
-.patients-page,
-.records-page {
-  gap: var(--s-5);
+.patients-page { gap: var(--s-5); }
+
+/* ── Two-pane layout ──────────────────────────────────────────── */
+.records-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  border-top: 1px solid var(--border-subtle);
+}
+
+/* ── Patient sidebar ──────────────────────────────────────────── */
+.records-sidebar {
+  width: 280px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+}
+
+.records-sidebar__search {
+  padding: var(--s-3);
+  border-bottom: 1px solid var(--border);
+  position: relative;
+}
+
+.records-sidebar__search-icon {
+  position: absolute;
+  left: calc(var(--s-3) + var(--s-2));
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-dim);
+  pointer-events: none;
+}
+
+.records-sidebar__search .input {
+  padding-left: var(--s-8);
+  width: 100%;
+  box-sizing: border-box;
+  font-size: var(--t-sm);
+}
+
+.records-pat-list { flex: 1; overflow-y: auto; }
+
+.records-pat-empty {
+  padding: var(--s-4);
+  font: 400 var(--t-sm) var(--font-sans);
+  color: var(--text-dim);
+  text-align: center;
+}
+
+/* ── Patient list item ────────────────────────────────────────── */
+.records-pat-item {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  width: 100%;
+  height: auto;
+  min-height: 54px;
+  padding: var(--s-3);
+  background: transparent;
+  border: none;
+  border-left: 3px solid transparent;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  text-align: left;
+  color: var(--text);
+  white-space: normal;
+}
+
+.records-pat-item.is-active {
+  background: var(--accent-soft);
+  border-left-color: var(--accent);
+}
+
+.records-pat-item__name {
+  font: 600 var(--t-sm) var(--font-sans);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+}
+
+.records-pat-item.is-active .records-pat-item__name { color: var(--accent-text); }
+
+.records-pat-item__sub {
+  font: 400 var(--t-xs) var(--font-sans);
+  color: var(--text-dim);
+}
+
+/* ── Main panel ───────────────────────────────────────────────── */
+.records-panel {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--s-5) var(--s-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.records-panel-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-dim);
+  gap: var(--s-3);
+}
+
+.records-panel-empty span { font: 400 var(--t-sm) var(--font-sans); }
+
+.records-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-4);
+}
+
+.records-panel__header h2 {
+  margin: 0;
+  font: 700 var(--t-md) var(--font-sans);
+  color: var(--text);
+}
+
+.records-panel__header__sub {
+  font: 400 var(--t-xs) var(--font-sans);
+  color: var(--text-dim);
+  margin-top: 2px;
 }
 
 /* Patient row: avatar + name + meta */
@@ -1101,6 +1221,17 @@
   .patients-filters,
   .records-header {
     grid-template-columns: 1fr;
+  }
+
+  .records-body {
+    flex-direction: column;
+  }
+
+  .records-sidebar {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    max-height: 220px;
   }
 
   .patients-workspace__header,

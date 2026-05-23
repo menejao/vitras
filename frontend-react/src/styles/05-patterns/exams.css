@@ -6,7 +6,11 @@
   height: 100%;
 }
 
-.exams-page > .page-header { margin: var(--s-6) var(--s-6) 0; }
+.exams-page > .hero,
+.exams-page > .page-header {
+  margin: var(--s-6) var(--s-6) 0;
+  flex-shrink: 0;
+}
 
 /* ── Two-pane layout ──────────────────────────────────────────── */
 .exams-body {

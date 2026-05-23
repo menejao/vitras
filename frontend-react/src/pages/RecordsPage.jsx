@@ -3,13 +3,14 @@ import { deleteRecord, getPatientHistory, login, verifyLogin2fa } from "../api";
 
 import PageHeader from "../components/layout/PageHeader";
 import Alert from "../components/ui/Alert";
+import Avatar from "../components/ui/Avatar";
 import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
 import Input from "../components/ui/Input";
 import RecordEmptyState from "../components/records/RecordEmptyState";
 import RecordFilters from "../components/records/RecordFilters";
-import RecordHeader from "../components/records/RecordHeader";
 import RecordTimeline from "../components/records/RecordTimeline";
+import { catLabel } from "../utils/clinical";
 import { canAccessChart, canWriteRecords } from "../utils/roles";
 
 export default function RecordsPage({
@@ -54,6 +55,11 @@ export default function RecordsPage({
   }, [localSelectedPatientId]);
 
   function handleSelectPatient(patientId) {
+    if (patientId === localSelectedPatientId) {
+      setLocalSelectedPatientId("");
+      if (typeof onSelectPatientId === "function") onSelectPatientId("");
+      return;
+    }
     setLocalSelectedPatientId(patientId);
     if (typeof onSelectPatientId === "function") onSelectPatientId(patientId);
   }
@@ -166,105 +172,152 @@ export default function RecordsPage({
         eyebrow="Vitras"
         title="Prontuário"
         subtitle="Workspace clínico com timeline, filtros estruturados e acesso protegido por reautenticação."
-        actions={selectedPatient ? <Button variant="secondary" onClick={() => onNavigatePatient(selectedPatient.id)}>Abrir paciente</Button> : null}
+        actions={selectedPatient && onNavigatePatient
+          ? <Button variant="secondary" size="sm" onClick={() => onNavigatePatient(selectedPatient.id)}>Abrir ficha →</Button>
+          : null}
       />
 
-      <section className="page-kpis">
-        <div className="kpi card card--compact kpi--info">
-          <span className="kpi__label">Pacientes</span>
-          <strong className="kpi__value">{patients.length}</strong>
-          <span className="kpi__helper">{filteredPatients.length} visíveis</span>
-        </div>
-        <div className={`kpi card card--compact${selectedPatient ? " kpi--warning" : ""}`}>
-          <span className="kpi__label">Selecionado</span>
-          <strong className="kpi__value">{selectedPatient ? "1" : "0"}</strong>
-          <span className="kpi__helper">{selectedPatient?.name || "nenhum"}</span>
-        </div>
-        <div className="kpi card card--compact kpi--success">
-          <span className="kpi__label">Registros</span>
-          <strong className="kpi__value">{visibleRecords.length}</strong>
-          <span className="kpi__helper">{typeFilter || "todos os tipos"}</span>
-        </div>
-      </section>
-
-      <RecordHeader
-        query={query}
-        setQuery={setQuery}
-        patientOptions={filteredPatients}
-        selectedPatientId={localSelectedPatientId}
-        onSelectPatient={handleSelectPatient}
-      />
-
-      {selectedPatient && chartLocked ? (
-        <Card className="card--operational">
-          <div className="records-security-gate">
-            <div className="records-security-gate__icon" aria-hidden="true">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
-                <rect x="5" y="11" width="14" height="10" rx="2" stroke="currentColor" strokeWidth="1.5" />
-                <path d="M8 11V7a4 4 0 0 1 8 0v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                <circle cx="12" cy="16" r="1.2" fill="currentColor" />
+      <div className="records-body">
+        <div className="records-sidebar">
+          <div className="records-sidebar__search">
+            <span className="records-sidebar__search-icon">
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+                <circle cx="6.5" cy="6.5" r="4" stroke="currentColor" strokeWidth="1.3"/>
+                <path d="M10 10l3.5 3.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
               </svg>
-            </div>
-            <div className="records-security-gate__content">
-              <p className="records-security-gate__title">Confirmação de identidade obrigatória</p>
-              <p className="records-security-gate__desc">
-                O acesso ao prontuário de <strong>{selectedPatient.name}</strong> exige reautenticação por exigência da LGPD e das diretrizes de segurança clínica.
-                {lockChallenge ? " Informe agora o código 2FA para concluir a liberação." : " Informe sua senha de acesso ao sistema para iniciar a liberação."}
-              </p>
-              <form className="records-security-gate__form" onSubmit={lockChallenge ? handleVerifyUnlock : handleUnlock}>
-                <Input
-                  className="records-security-gate__input"
-                  type={lockChallenge ? "text" : "password"}
-                  placeholder={lockChallenge ? "Código 2FA" : "Senha de acesso"}
-                  value={lockChallenge ? lockCode : lockPassword}
-                  onChange={(e) => {
-                    if (lockChallenge) {
-                      setLockCode(e.target.value.replace(/\D+/g, "").slice(0, 6));
-                    } else {
-                      setLockPassword(e.target.value);
-                    }
-                    setLockError("");
-                  }}
-                  autoComplete={lockChallenge ? "one-time-code" : "current-password"}
-                  disabled={lockBusy}
-                />
-                {lockError ? <span className="field__error">{lockError}</span> : null}
-                <Button variant="primary" type="submit" disabled={lockBusy || (lockChallenge ? lockCode.length !== 6 : !lockPassword.trim())}>
-                  {lockBusy ? "Verificando..." : (lockChallenge ? "Validar 2FA" : "Liberar acesso")}
-                </Button>
-              </form>
-              <p className="records-security-gate__lgpd">
-                Esta ação é registrada no log de auditoria com data, hora e identidade do responsável, conforme a Lei 13.709/2018 (LGPD).
-              </p>
-            </div>
+            </span>
+            <Input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Buscar paciente..."
+            />
           </div>
-        </Card>
-      ) : (
-        <>
-          <RecordFilters typeFilter={typeFilter} setTypeFilter={setTypeFilter} />
+          <div className="records-pat-list">
+            {filteredPatients.length === 0 && (
+              <p className="records-pat-empty">Nenhum paciente encontrado.</p>
+            )}
+            {filteredPatients.map((patient) => (
+              <button
+                key={patient.id}
+                type="button"
+                className={`records-pat-item${localSelectedPatientId === patient.id ? " is-active" : ""}`}
+                onClick={() => handleSelectPatient(patient.id)}
+              >
+                <Avatar name={patient.name} size="sm" />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="records-pat-item__name">{patient.name}</div>
+                  <div className="records-pat-item__sub">{catLabel([], patient.careCategory)}</div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
 
-          {error ? <Alert tone="danger">{error}</Alert> : null}
-
-          <Card className="card--noPad card--operational">
-            <div className="card__header">
-              <div>
-                <div className="card__title">Linha do tempo clínica</div>
-                <div className="card__subtitle">
-                  {selectedPatient ? `${visibleRecords.length} registro(s) filtrados para ${selectedPatient.name}` : "Selecione um paciente para iniciar a leitura"}
+        <div className="records-panel">
+          {!selectedPatient ? (
+            <div className="records-panel-empty">
+              <svg width="48" height="48" viewBox="0 0 16 16" fill="none" style={{ opacity: 0.25 }}>
+                <path d="M3 2h7l3 3v9H3V2z" stroke="currentColor" strokeWidth="1.2"/>
+                <path d="M10 2v3h3" stroke="currentColor" strokeWidth="1.2"/>
+                <path d="M6 8h4M6 10.5h2.5" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round"/>
+              </svg>
+              <span>Selecione um paciente para ver o prontuário</span>
+            </div>
+          ) : chartLocked ? (
+            <>
+              <div className="records-panel__header">
+                <div>
+                  <h2>{selectedPatient.name}</h2>
+                  <div className="records-panel__header__sub">{catLabel([], selectedPatient.careCategory)}</div>
                 </div>
               </div>
-            </div>
-            <div className="card__body">
-              {busy && selectedPatient ? <Alert tone="info">Carregando registros clínicos...</Alert> : null}
-              {visibleRecords.length ? (
-                <RecordTimeline records={visibleRecords} fmtDate={(value) => value ? new Date(`${value}T12:00:00`).toLocaleDateString("pt-BR") : "-"} onDelete={handleDelete} canDelete={canWrite} />
-              ) : (
-                <RecordEmptyState hasPatient={Boolean(selectedPatient)} />
-              )}
-            </div>
-          </Card>
-        </>
-      )}
+              <Card className="card--operational">
+                <div className="records-security-gate">
+                  <div className="records-security-gate__icon" aria-hidden="true">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                      <rect x="5" y="11" width="14" height="10" rx="2" stroke="currentColor" strokeWidth="1.5" />
+                      <path d="M8 11V7a4 4 0 0 1 8 0v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                      <circle cx="12" cy="16" r="1.2" fill="currentColor" />
+                    </svg>
+                  </div>
+                  <div className="records-security-gate__content">
+                    <p className="records-security-gate__title">Confirmação de identidade obrigatória</p>
+                    <p className="records-security-gate__desc">
+                      O acesso ao prontuário de <strong>{selectedPatient.name}</strong> exige reautenticação por exigência da LGPD e das diretrizes de segurança clínica.
+                      {lockChallenge ? " Informe agora o código 2FA para concluir a liberação." : " Informe sua senha de acesso ao sistema para iniciar a liberação."}
+                    </p>
+                    <form className="records-security-gate__form" onSubmit={lockChallenge ? handleVerifyUnlock : handleUnlock}>
+                      <Input
+                        className="records-security-gate__input"
+                        type={lockChallenge ? "text" : "password"}
+                        placeholder={lockChallenge ? "Código 2FA" : "Senha de acesso"}
+                        value={lockChallenge ? lockCode : lockPassword}
+                        onChange={(e) => {
+                          if (lockChallenge) {
+                            setLockCode(e.target.value.replace(/\D+/g, "").slice(0, 6));
+                          } else {
+                            setLockPassword(e.target.value);
+                          }
+                          setLockError("");
+                        }}
+                        autoComplete={lockChallenge ? "one-time-code" : "current-password"}
+                        disabled={lockBusy}
+                      />
+                      {lockError ? <span className="field__error">{lockError}</span> : null}
+                      <Button variant="primary" type="submit" disabled={lockBusy || (lockChallenge ? lockCode.length !== 6 : !lockPassword.trim())}>
+                        {lockBusy ? "Verificando..." : (lockChallenge ? "Validar 2FA" : "Liberar acesso")}
+                      </Button>
+                    </form>
+                    <p className="records-security-gate__lgpd">
+                      Esta ação é registrada no log de auditoria com data, hora e identidade do responsável, conforme a Lei 13.709/2018 (LGPD).
+                    </p>
+                  </div>
+                </div>
+              </Card>
+            </>
+          ) : (
+            <>
+              <div className="records-panel__header">
+                <div>
+                  <h2>{selectedPatient.name}</h2>
+                  <div className="records-panel__header__sub">
+                    {catLabel([], selectedPatient.careCategory)} · {visibleRecords.length} registro{visibleRecords.length !== 1 ? "s" : ""}
+                    {typeFilter ? ` (${typeFilter})` : ""}
+                  </div>
+                </div>
+              </div>
+
+              <RecordFilters typeFilter={typeFilter} setTypeFilter={setTypeFilter} />
+
+              {error ? <Alert tone="danger">{error}</Alert> : null}
+
+              <Card className="card--noPad card--operational">
+                <div className="card__header">
+                  <div>
+                    <div className="card__title">Linha do tempo clínica</div>
+                    <div className="card__subtitle">
+                      {busy ? "Carregando registros..." : `${visibleRecords.length} registro(s) para ${selectedPatient.name}`}
+                    </div>
+                  </div>
+                </div>
+                <div className="card__body">
+                  {busy ? <Alert tone="info">Carregando registros clínicos...</Alert> : null}
+                  {!busy && visibleRecords.length > 0 ? (
+                    <RecordTimeline
+                      records={visibleRecords}
+                      fmtDate={(value) => value ? new Date(`${value}T12:00:00`).toLocaleDateString("pt-BR") : "-"}
+                      onDelete={handleDelete}
+                      canDelete={canWrite}
+                    />
+                  ) : (
+                    !busy && <RecordEmptyState hasPatient={Boolean(selectedPatient)} />
+                  )}
+                </div>
+              </Card>
+            </>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
