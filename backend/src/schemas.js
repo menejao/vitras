@@ -216,7 +216,8 @@ const CriticalActionReasonSchema = z.object({
 const ExamCreateSchema = z.object({
   title: z.string().trim().min(1).max(300),
   date: z.string().trim().min(1).max(50),
-  notes: optionalShortString(20000)
+  notes: optionalShortString(20000),
+  source: z.enum(["posto", "externo"]).optional()
 });
 
 const ExamAttachmentCreateSchema = z.object({

@@ -104,6 +104,7 @@ router.post("/patients/:id/exams", validate(ExamCreateSchema), async (req, res) 
     title: String(req.body.title || "").trim(),
     date: String(req.body.date || "").trim(),
     details: String(req.body.notes || "").trim(),
+    source: req.body.source === "externo" ? "externo" : "posto",
     attachments: [],
     createdAt: new Date().toISOString(),
     createdBy: req.user.id,

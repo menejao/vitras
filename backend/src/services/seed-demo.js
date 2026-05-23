@@ -191,6 +191,8 @@ export async function seedDemoTeamRosa() {
     db.messages          = db.messages.filter((x) => !x.id?.startsWith("seed-msg-"));
     if (!Array.isArray(db.notifications)) db.notifications = [];
     db.notifications     = db.notifications.filter((x) => !x.id?.startsWith("seed-notif-"));
+    if (!Array.isArray(db.labIntegrations)) db.labIntegrations = [];
+    db.labIntegrations   = db.labIntegrations.filter((x) => !x.id?.startsWith("seed-labint-"));
     db.pharmacyLogs      = db.pharmacyLogs.filter((x) => !x.id?.startsWith("seed-pharma-log-"));
     db.suppliesLogs      = db.suppliesLogs.filter((x) => !x.id?.startsWith("seed-supply-log-"));
     db.suppliesContinuous= db.suppliesContinuous.filter((x) => !x.id?.startsWith("seed-cont-"));
@@ -602,16 +604,16 @@ export async function seedDemoTeamRosa() {
 
     // ── Exams (results) ───────────────────────────────────────────────────
     const exams = [
-      // Legado (sem campos de integração) — histórico laboratorial antigo
-      { id: "seed-exam-g09-1",  patientId: "seed-p-g09",  title: "Glicemia de Jejum",   date: dAgo(30),  details: "108 mg/dL — dentro do alvo terapêutico." },
-      { id: "seed-exam-g09-2",  patientId: "seed-p-g09",  title: "HbA1c",               date: dAgo(30),  details: "6,8% — bom controle glicêmico." },
-      { id: "seed-exam-g12-1",  patientId: "seed-p-g12",  title: "Hemograma Completo",  date: dAgo(15),  details: "Sem alterações relevantes." },
-      { id: "seed-exam-g12-2",  patientId: "seed-p-g12",  title: "HbA1c",               date: dAgo(15),  details: "7,1% — controle aceitável." },
-      { id: "seed-exam-el03-1", patientId: "seed-p-el03", title: "HbA1c",               date: dAgo(60),  details: "7,8% — controle parcial. Ajuste indicado." },
-      { id: "seed-exam-el03-2", patientId: "seed-p-el03", title: "Glicemia de Jejum",   date: dAgo(60),  details: "165 mg/dL — acima da meta." },
-      { id: "seed-exam-el03-3", patientId: "seed-p-el03", title: "Creatinina + Ureia",  date: dAgo(60),  details: "Creatinina 1,1 mg/dL, Ureia 38 mg/dL — dentro da normalidade." },
-      { id: "seed-exam-el04-1", patientId: "seed-p-el04", title: "HbA1c",               date: dAgo(50),  details: "8,2% na primeira dosagem; 7,4% após ajuste terapêutico." },
-      { id: "seed-exam-el04-2", patientId: "seed-p-el04", title: "Hemograma Completo",  date: dAgo(50),  details: "Sem anemia. Leucócitos normais." },
+      // Histórico laboratorial (source explícito)
+      { id: "seed-exam-g09-1",  patientId: "seed-p-g09",  source: "posto",   title: "Glicemia de Jejum",   date: dAgo(30),  details: "108 mg/dL — dentro do alvo terapêutico." },
+      { id: "seed-exam-g09-2",  patientId: "seed-p-g09",  source: "posto",   title: "HbA1c",               date: dAgo(30),  details: "6,8% — bom controle glicêmico." },
+      { id: "seed-exam-g12-1",  patientId: "seed-p-g12",  source: "posto",   title: "Hemograma Completo",  date: dAgo(15),  details: "Sem alterações relevantes." },
+      { id: "seed-exam-g12-2",  patientId: "seed-p-g12",  source: "posto",   title: "HbA1c",               date: dAgo(15),  details: "7,1% — controle aceitável." },
+      { id: "seed-exam-el03-1", patientId: "seed-p-el03", source: "posto",   title: "HbA1c",               date: dAgo(60),  details: "7,8% — controle parcial. Ajuste indicado." },
+      { id: "seed-exam-el03-2", patientId: "seed-p-el03", source: "posto",   title: "Glicemia de Jejum",   date: dAgo(60),  details: "165 mg/dL — acima da meta." },
+      { id: "seed-exam-el03-3", patientId: "seed-p-el03", source: "posto",   title: "Creatinina + Ureia",  date: dAgo(60),  details: "Creatinina 1,1 mg/dL, Ureia 38 mg/dL — dentro da normalidade." },
+      { id: "seed-exam-el04-1", patientId: "seed-p-el04", source: "posto",   title: "HbA1c",               date: dAgo(50),  details: "8,2% na primeira dosagem; 7,4% após ajuste terapêutico." },
+      { id: "seed-exam-el04-2", patientId: "seed-p-el04", source: "posto",   title: "Hemograma Completo",  date: dAgo(50),  details: "Sem anemia. Leucócitos normais." },
       // Demo integração laboratorial — exame enviado, aguardando resultado
       {
         id: "seed-exam-g10-pending", patientId: "seed-p-g10",
@@ -663,6 +665,22 @@ export async function seedDemoTeamRosa() {
         examId: "seed-exam-g14-result",
         createdAt: tsAgo(115),
         read: false,
+      });
+    }
+
+    // ── Lab integration records (idempotency control) ────────────────────
+    if (!hasId(db.labIntegrations, "seed-labint-g14-001")) {
+      db.labIntegrations.push({
+        id: "seed-labint-g14-001",
+        requestId: "seed-req-g14-001",
+        idempotencyKey: "SEED-LAB-G14-001",
+        examId: "seed-exam-g14-result",
+        patientId: "seed-p-g14",
+        teamId: TEAM_ID,
+        examTitle: "Hemograma Completo",
+        status: "result_received",
+        lab: "Laboratório Municipal",
+        createdAt: tsAgo(115),
       });
     }
 

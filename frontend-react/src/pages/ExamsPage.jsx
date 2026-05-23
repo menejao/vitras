@@ -36,8 +36,12 @@ async function fileToPayload(file) {
   };
 }
 
+function isExternalExam(exam) {
+  return exam.source === "externo" || String(exam.details || "").includes("[EXAME EXTERNO");
+}
+
 function ExamCard({ exam, canManage, onDelete, onPreview }) {
-  const isExternal = String(exam.details || "").includes("[EXAME EXTERNO");
+  const isExternal = isExternalExam(exam);
   const details = exam.details?.replace(/^\[EXAME.*?\]\n?/, "") || "";
   const hasResult = exam.status === "result_available";
   const isPendingResult = !isExternal && exam.status && exam.status !== "result_available";
@@ -165,7 +169,8 @@ function ExamsPage({ patients, user, token, onNavigatePatient }) {
       const created = await createExam(token, selectedId, {
         title,
         date: form.date,
-        notes
+        notes,
+        source: addMode === "externo" ? "externo" : "posto"
       });
 
       for (const file of files) {
@@ -208,8 +213,8 @@ function ExamsPage({ patients, user, token, onNavigatePatient }) {
     return bytes > 1048576 ? `${(bytes / 1048576).toFixed(1)}MB` : `${Math.round(bytes / 1024)}KB`;
   }
 
-  const posto = exams.filter((exam) => !String(exam.details || "").includes("[EXAME EXTERNO"));
-  const externo = exams.filter((exam) => String(exam.details || "").includes("[EXAME EXTERNO"));
+  const posto = exams.filter((exam) => !isExternalExam(exam));
+  const externo = exams.filter((exam) => isExternalExam(exam));
 
   return (
     <div className="exams-page">

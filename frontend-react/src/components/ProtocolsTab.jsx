@@ -10,7 +10,7 @@ function ProtocolsTab({ templates, canManageUser, onEdit, onDelete }) {
         title="Protocolos"
         subtitle="Metas e etapas de acompanhamento por categoria de paciente."
         actions={canManageUser && (
-          <Button size="sm" onClick={() => onEdit(null)}>+ Novo protocolo</Button>
+          <Button size="sm" onClick={() => onEdit(null)()}>+ Novo protocolo</Button>
         )}
       />
       <div className="card card--noPad">
@@ -35,7 +35,7 @@ function ProtocolsTab({ templates, canManageUser, onEdit, onDelete }) {
                   </div>
                   {canManageUser && (
                     <div className="actions">
-                      <Button variant="secondary" size="sm" onClick={() => onEdit(tpl)}>Editar</Button>
+                      <Button variant="secondary" size="sm" onClick={() => onEdit(tpl)()}>Editar</Button>
                       <Button variant="danger" size="sm" onClick={() => onDelete(tpl)}>Excluir</Button>
                     </div>
                   )}
