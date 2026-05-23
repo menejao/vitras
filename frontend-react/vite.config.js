@@ -1,7 +1,9 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
-const DEV_API_TARGET = process.env.VITE_API_PROXY_TARGET || "http://localhost:3001";
+// Override: VITE_API_PROXY_TARGET=http://localhost:3002 para rodar backend local
+const DEV_API_TARGET = process.env.VITE_API_PROXY_TARGET
+  || "http://vitras-prod-sa.eba-pzqcqhqx.sa-east-1.elasticbeanstalk.com";
 
 export default defineConfig({
   plugins: [react()],
