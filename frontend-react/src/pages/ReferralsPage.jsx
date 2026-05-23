@@ -262,7 +262,6 @@ function ReferralsPage({
             </svg>
             <p className="ref-empty__title">Nenhum encaminhamento encontrado.</p>
             <p className="ref-empty__sub">Os encaminhamentos externos e regulações dos pacientes aparecerão aqui.</p>
-            <Button onClick={openNew} variant="secondary" size="sm"><IconPlus /> Novo encaminhamento</Button>
           </div>
         ) : (
           <div className="ref-list">

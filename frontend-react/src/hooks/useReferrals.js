@@ -6,6 +6,20 @@ import {
   updateReferral,
 } from "../api";
 
+function buildReferralErrorMessage(err) {
+  const status = Number(err?.status || 0);
+  if (status === 401) return "Sessão expirada. Faça login novamente.";
+  if (status === 403) return "Você não tem permissão para acessar encaminhamentos.";
+  if (status === 404) return "Endpoint de encaminhamentos não encontrado.";
+  if (status >= 500) return "Erro ao carregar encaminhamentos.";
+
+  const backendMessage = String(err?.message || "").trim();
+  if (!backendMessage || backendMessage === "Erro na API") {
+    return "Não foi possível carregar os encaminhamentos agora.";
+  }
+  return backendMessage;
+}
+
 function sortReferrals(entries = []) {
   return [...entries].sort((a, b) => {
     const dateCmp = String(b.date || "").localeCompare(String(a.date || ""));
@@ -32,7 +46,7 @@ export function useReferrals(token, options = {}) {
       setEntries(sortReferrals(next));
       return next;
     } catch (err) {
-      const message = err?.message || "Erro ao carregar encaminhamentos.";
+      const message = buildReferralErrorMessage(err);
       setError(message);
       if (typeof onErrorRef.current === "function") onErrorRef.current(message);
       throw err;
