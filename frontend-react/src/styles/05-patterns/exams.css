@@ -62,7 +62,9 @@
   align-items: center;
   gap: var(--s-2);
   width: 100%;
-  padding: var(--s-2) var(--s-3);
+  height: auto;
+  min-height: 54px;
+  padding: var(--s-3);
   background: transparent;
   border: none;
   border-left: 3px solid transparent;
@@ -70,6 +72,7 @@
   cursor: pointer;
   text-align: left;
   color: var(--text);
+  white-space: normal;
 }
 
 .exams-pat-item.is-active {
@@ -270,6 +273,45 @@
   border-color: var(--info-bd);
   background: var(--info-soft);
   color: var(--info);
+}
+
+/* ── Status chips (lab result) ───────────────────────────────── */
+.exams-card__status-chip {
+  font: 600 .64rem var(--font-sans);
+  padding: 1px 6px;
+  border-radius: 999px;
+  line-height: 1.6;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.exams-card__status-chip--done {
+  background: #dcfce7;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+}
+.exams-card__status-chip--pending {
+  background: var(--surface-2);
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+}
+[data-theme="dark"] .exams-card__status-chip--done {
+  background: rgba(16,185,129,.14);
+  color: #4ade80;
+  border-color: rgba(16,185,129,.25);
+}
+
+.exams-card__lab-name {
+  color: var(--text-dim);
+}
+
+.exams-card__result-date {
+  font: 400 var(--t-xs) var(--font-sans);
+  color: var(--accent-text);
+  margin-top: var(--s-1);
+}
+
+.exams-card--result {
+  border-left-color: #10b981;
 }
 
 .exams-card__details {

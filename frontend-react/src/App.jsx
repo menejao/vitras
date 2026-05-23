@@ -23,6 +23,7 @@ import { usePatientActivity } from "./hooks/usePatientActivity";
 import { useAiHandlers } from "./hooks/useAiHandlers";
 import { usePatientAlerts } from "./hooks/usePatientAlerts";
 import { useIdleTimeout } from "./hooks/useIdleTimeout";
+import { listNotifications } from "./api";
 import ReceptionistApp from "./pages/ReceptionistApp";
 import AuthScreen from "./pages/AuthScreen";
 import ActivateAccountPage from "./pages/ActivateAccountPage";
@@ -101,6 +102,11 @@ function AppInner() {
   } = useUserTemplateHandlers({ token, user, handleApiError, setBusy, setError, loadAll });
   const { aiView, aiData, aiQuestion, setAiQuestion, loadAiPriorities, loadAiQuality, loadAiReport, submitAiQuestion } = useAiHandlers({ token, handleApiError, setBusy, setError });
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [labNotifications, setLabNotifications] = useState([]);
+  useEffect(() => {
+    if (!token) return;
+    listNotifications(token).then(setLabNotifications).catch(() => {});
+  }, [token]);
   const {
     showProfileModal, setShowProfileModal, profileForm, setProfileForm, profileBusy, profileError,
     openProfile, submitProfile,
@@ -235,6 +241,7 @@ function AppInner() {
           patients={patients} protocolByPatient={protocolByPatient}
           pharmacyStock={pharmacyStock}
           agenda={agendaEntries}
+          labNotifications={labNotifications}
           apiHealth={apiHealth}
           onNavigatePatient={(id)=>{ setTab("patients"); setSelectedPatientId(id); }}
           theme={theme} onToggleTheme={toggleTheme}

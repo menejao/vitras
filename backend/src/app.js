@@ -7,6 +7,7 @@ import { requireAuth } from "./middlewares/auth.js";
 import { requireCsrfForCookieAuth } from "./middlewares/csrf.js";
 import { globalErrorHandler } from "./middlewares/errors.js";
 
+import { labPublicRouter, labNotificationsRouter } from "./routes/lab.js";
 import healthRouter from "./routes/health.js";
 import authRouter from "./routes/auth.js";
 import meRouter from "./routes/me.js";
@@ -42,6 +43,7 @@ app.use(globalRateLimit);
 
 app.use(healthRouter);
 app.use(authRouter);
+app.use(labPublicRouter);
 app.use(adminRouter);
 app.use(seedAdminRouter);
 app.use(usersRouter);
@@ -63,6 +65,7 @@ app.use(referralsRouter);
 app.use(pharmacyRouter);
 app.use(suppliesRouter);
 app.use(examsRouter);
+app.use(labNotificationsRouter);
 app.use(tasksRouter);
 app.use(protocolsRouter);
 app.use(auditLogsRouter);
