@@ -138,7 +138,15 @@ export default function RecordsPage({
       setPendingPatient(null);
       setPassword("");
     } catch (err) {
-      setAuthError(err.message || "Senha incorreta. Acesso negado.");
+      const status = err.status;
+      const msg =
+        status === 401 ? "Sessão expirada. Faça login novamente." :
+        status === 403 ? "Seu perfil não tem permissão para acessar prontuários." :
+        status === 400 ? "Dados inválidos para validação." :
+        status === 422 ? "Senha incorreta. Tente novamente." :
+        status === 500 ? "Não foi possível validar sua identidade agora." :
+        err.message || "Senha incorreta. Acesso negado.";
+      setAuthError(msg);
     } finally {
       setAuthBusy(false);
     }
