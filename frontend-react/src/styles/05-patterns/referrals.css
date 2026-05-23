@@ -16,6 +16,11 @@
   flex-shrink: 0;
 }
 
+.referrals-page .page-kpi-grid {
+  margin: var(--s-4) var(--s-6) 0;
+  flex-shrink: 0;
+}
+
 /* ── Filter bar ─────────────────────────────────────────────── */
 .referrals-filter-bar {
   display: flex;

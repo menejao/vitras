@@ -56,8 +56,12 @@ function PriorityBadge({ priority }) {
 function AcsTasksPage({ patients, users, user, token, onNavigatePatient }) {
   const [allTasks, setAllTasks] = useState([]);
   const [loading, setLoading]   = useState(true);
-  const [filter, setFilter]     = useState("pending");
-  const [typeFilter, setTypeFilter] = useState("all");
+  const [filter, setFilter]         = useState("pending");
+  const [typeFilter, setTypeFilter]   = useState("all");
+  const [priorityFilter, setPriorityFilter] = useState("all");
+  const [patientSearch, setPatientSearch]   = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo]     = useState("");
 
   useEffect(() => {
     if (!token) return;
@@ -83,9 +87,13 @@ function AcsTasksPage({ patients, users, user, token, onNavigatePatient }) {
   const myTasks = allTasks.filter(t => !t.assigneeId || t.assigneeId === user?.id);
 
   const filtered = myTasks.filter(t => {
-    const statusOk = filter === "all" || (filter === "pending" ? t.status !== "done" : t.status === "done");
-    const typeOk   = typeFilter === "all" || t.type === typeFilter;
-    return statusOk && typeOk;
+    const statusOk   = filter === "all" || (filter === "pending" ? t.status !== "done" : t.status === "done");
+    const typeOk     = typeFilter === "all" || t.type === typeFilter;
+    const priorityOk = priorityFilter === "all" || t.priority === priorityFilter;
+    const patOk      = !patientSearch.trim() || String(t.patientName || "").toLowerCase().includes(patientSearch.trim().toLowerCase());
+    const fromOk     = !dateFrom || (t.dueDate && t.dueDate >= dateFrom);
+    const toOk       = !dateTo   || (t.dueDate && t.dueDate <= dateTo);
+    return statusOk && typeOk && priorityOk && patOk && fromOk && toOk;
   });
 
   const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -110,7 +118,8 @@ function AcsTasksPage({ patients, users, user, token, onNavigatePatient }) {
     } catch {}
   }
 
-  const typeOptions = [["all", "Todos os tipos"], ...Object.entries(TASK_TYPES).map(([k, v]) => [k, v.label])];
+  const typeOptions     = [["all", "Todos os tipos"],     ...Object.entries(TASK_TYPES).map(([k, v]) => [k, v.label])];
+  const priorityOptions = [["all", "Todas as prioridades"], ...Object.entries(PRIORITY_CONFIG).map(([k, v]) => [k, v.label])];
 
   return (
     <div className="acs-page">
@@ -128,6 +137,14 @@ function AcsTasksPage({ patients, users, user, token, onNavigatePatient }) {
       </div>
 
       <div className="acs-toolbar">
+        <input
+          className="acs-search-input"
+          type="text"
+          value={patientSearch}
+          onChange={e => setPatientSearch(e.target.value)}
+          placeholder="Buscar paciente..."
+          aria-label="Buscar paciente"
+        />
         <div className="acs-filters">
           {[["pending", "Pendentes"], ["done", "Concluídas"], ["all", "Todas"]].map(([val, lbl]) => (
             <Button key={val} type="button" variant={filter === val ? "primary" : "secondary"} size="sm" className={`acs-filter-btn${filter === val ? " is-active" : ""}`} onClick={() => setFilter(val)}>
@@ -135,7 +152,6 @@ function AcsTasksPage({ patients, users, user, token, onNavigatePatient }) {
             </Button>
           ))}
         </div>
-
         <Select
           className="acs-type-filter"
           value={typeFilter}
@@ -144,6 +160,16 @@ function AcsTasksPage({ patients, users, user, token, onNavigatePatient }) {
         >
           {typeOptions.map(([val, lbl]) => <option key={val} value={val}>{lbl}</option>)}
         </Select>
+        <Select
+          className="acs-type-filter"
+          value={priorityFilter}
+          onChange={e => setPriorityFilter(e.target.value)}
+          aria-label="Filtrar por prioridade"
+        >
+          {priorityOptions.map(([val, lbl]) => <option key={val} value={val}>{lbl}</option>)}
+        </Select>
+        <input className="acs-date-filter" type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} aria-label="Data a partir de" title="Data a partir de" />
+        <input className="acs-date-filter" type="date" value={dateTo}   onChange={e => setDateTo(e.target.value)}   aria-label="Data até"         title="Data até" />
       </div>
 
       {loading ? (
@@ -151,16 +177,14 @@ function AcsTasksPage({ patients, users, user, token, onNavigatePatient }) {
       ) : !sorted.length ? (
         <div className="acs-empty">
           <div className="acs-empty__icon">
-            <svg width="36" height="36" viewBox="0 0 16 16" fill="none">
-              <path d="M3 8l3 3 7-7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
+              <rect x="8" y="2" width="8" height="4" rx="1" stroke="currentColor" strokeWidth="1.4" />
+              <path d="M6 4H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-1" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+              <path d="M9 12h6M9 16h4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
             </svg>
           </div>
-          <div className="acs-empty__title">
-            {filter === "done" ? "Nenhuma tarefa concluída" : "Nenhuma tarefa pendente"}
-          </div>
-          <div className="acs-empty__sub">
-            {filter === "done" ? "Conclua tarefas para vê-las aqui." : "Você está em dia com as atividades."}
-          </div>
+          <div className="acs-empty__title">Nenhuma tarefa encontrada.</div>
+          <div className="acs-empty__sub">Ajuste os filtros ou selecione outro período para visualizar as atividades.</div>
         </div>
       ) : (
         <div className="acs-task-list">
