@@ -24,6 +24,22 @@ const TABS = [
   { id: "message", label: "Mensagens", type: "message" },
 ];
 
+function resolveChartAccessError(err) {
+  const status = Number(err?.status || 0);
+  if (status === 401) return "Sessão expirada. Faça login novamente.";
+  if (status === 403) return "Seu perfil não tem permissão para acessar prontuários.";
+  if (status === 400) return "Dados inválidos para validação.";
+  if (status === 404) return "Paciente não encontrado para validação de acesso.";
+  if (status === 422) return "Senha incorreta.";
+  if (status >= 500) return "Não foi possível validar sua identidade agora.";
+
+  const backendMessage = String(err?.message || "").trim();
+  if (!backendMessage || backendMessage === "Erro na API") {
+    return "Não foi possível validar sua identidade agora.";
+  }
+  return backendMessage;
+}
+
 export default function RecordsPage({
   patients,
   users,
@@ -146,7 +162,7 @@ export default function RecordsPage({
         status === 422 ? "Senha incorreta. Tente novamente." :
         status === 500 ? "Não foi possível validar sua identidade agora." :
         err.message || "Senha incorreta. Acesso negado.";
-      setAuthError(msg);
+      setAuthError(resolveChartAccessError(err));
     } finally {
       setAuthBusy(false);
     }
