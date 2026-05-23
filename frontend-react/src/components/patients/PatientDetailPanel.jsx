@@ -312,7 +312,7 @@ function HistoricoTab({ history, appointments, tasks, messages, canManageUser, o
     });
 
   return (
-    <div className="panel-block">
+    <>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: ".75rem", flexWrap: "wrap", gap: ".5rem" }}>
         <div style={{ fontSize: ".72rem", color: "var(--text-3)" }}>
           {allEvents.length} {filter === "all" ? "eventos" : "registros"} · {allEvents.filter(e => !e.internalOnly).length} clínicos
@@ -400,7 +400,7 @@ function HistoricoTab({ history, appointments, tasks, messages, canManageUser, o
           </div>
         );
       })}
-    </div>
+    </>
   );
 }
 
@@ -412,185 +412,137 @@ function FollowupTab({ patient, users, recordForm, setRecordForm, recordVaccines
   const acsMode = isAcs(userObj);
 
   return (
-    <div className="panel-block">
-      <div style={{ marginBottom: "1rem", padding: ".6rem .85rem", background: "var(--teal-50)", border: "1px solid var(--teal-100)", borderRadius: "var(--r-md)", fontSize: ".75rem", color: "var(--teal-700)" }}>
-        <strong>Registrar atendimento</strong> — o que foi feito com o paciente agora ou retroativamente.
-        Tudo que for registrado aqui aparece automaticamente no prontuário.
-      </div>
+    <form className="field-grid" onSubmit={onSubmitRecord}>
+      {acsMode ? (
+        <Input label="Tipo de atendimento" value="Visita domiciliar" disabled />
+      ) : (
+        <Select label="Tipo de atendimento" value={recordForm.type || "consultation"} onChange={e => {
+          const t = e.target.value;
+          const defaultTitle = t === "consultation"
+            ? (userObj?.role === "doctor" ? "Consulta médica" : userObj?.role === "dentist" ? "Consulta odontológica" : "Consulta de enfermagem")
+            : t === "visit" ? "Visita ACS" : "";
+          setRecordForm(s => ({ ...s, type: t, title: defaultTitle, consultKind: "medica", consultDoctor: "", consultSpecialty: "" }));
+          setRecordVaccines([]);
+        }}>
+          <option value="consultation">Consulta</option>
+          <option value="visit">Visita domiciliar</option>
+          <option value="vaccine">Vacina</option>
+          <option value="procedure">Procedimento</option>
+          <option value="note">Observação / nota</option>
+        </Select>
+      )}
 
-      <form className="field-grid" onSubmit={onSubmitRecord}>
-        <div className="field">
-          <label style={{ fontSize: ".78rem", fontWeight: 600, display: "flex", flexDirection: "column", gap: ".25rem" }}>
-            Tipo de atendimento
-            {acsMode ? (
-              <Input value="Visita domiciliar" disabled />
-            ) : (
-              <div className="input">
-                <Select value={recordForm.type || "consultation"} onChange={e => {
-                  const t = e.target.value;
-                  const defaultTitle = t === "consultation"
-                    ? (userObj?.role === "doctor" ? "Consulta médica" : userObj?.role === "dentist" ? "Consulta odontológica" : "Consulta de enfermagem")
-                    : t === "visit" ? "Visita ACS" : "";
-                  setRecordForm(s => ({ ...s, type: t, title: defaultTitle, consultKind: "medica", consultDoctor: "", consultSpecialty: "" }));
-                  setRecordVaccines([]);
-                }}>
-                  <option value="consultation">Consulta</option>
-                  <option value="visit">Visita domiciliar</option>
-                  <option value="vaccine">Vacina</option>
-                  <option value="procedure">Procedimento</option>
-                  <option value="note">Observação / nota</option>
-                </Select>
-              </div>
-            )}
-          </label>
-        </div>
+      <Input label="Data" type="date" value={recordForm.date || ""} max={new Date().toISOString().slice(0, 10)} onChange={e => setRecordForm(s => ({ ...s, date: e.target.value }))} />
 
-        <div className="field">
-          <Input label="Data" type="date" value={recordForm.date || ""} max={new Date().toISOString().slice(0, 10)} onChange={e => setRecordForm(s => ({ ...s, date: e.target.value }))} />
-        </div>
+      {!acsMode && recordForm.type === "consultation" && (
+        <>
+          <Select className="field--span-2" label="Tipo de consulta" value={recordForm.consultKind || "medica"} onChange={e => {
+            const k = e.target.value;
+            const titleMap = { medica: "Consulta médica", enfermagem: "Consulta de enfermagem", dentista: "Consulta odontológica" };
+            setRecordForm(s => ({ ...s, consultKind: k, title: titleMap[k] || "Consulta médica", consultDoctor: "", consultSpecialty: "" }));
+          }}>
+            <option value="medica">Consulta médica</option>
+            <option value="enfermagem">Consulta de enfermagem</option>
+            <option value="dentista">Consulta odontológica (Dentista)</option>
+          </Select>
 
-        {!acsMode && recordForm.type === "consultation" && (
-          <div className="field field--span-2" style={{ display: "flex", flexDirection: "column", gap: ".5rem" }}>
-            <label style={{ fontSize: ".78rem", fontWeight: 600, display: "flex", flexDirection: "column", gap: ".25rem" }}>
-              Tipo de consulta
-              <div className="input">
-                <Select value={recordForm.consultKind || "medica"} onChange={e => {
-                  const k = e.target.value;
-                  const titleMap = { medica: "Consulta médica", enfermagem: "Consulta de enfermagem", dentista: "Consulta odontológica" };
-                  setRecordForm(s => ({ ...s, consultKind: k, title: titleMap[k] || "Consulta médica", consultDoctor: "", consultSpecialty: "" }));
-                }}>
-                  <option value="medica">Consulta médica</option>
-                  <option value="enfermagem">Consulta de enfermagem</option>
-                  <option value="dentista">Consulta odontológica (Dentista)</option>
-                </Select>
-              </div>
-            </label>
-            {(recordForm.consultKind === "medica" || !recordForm.consultKind) && (
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: ".5rem" }}>
-                <label style={{ fontSize: ".78rem", fontWeight: 600, display: "flex", flexDirection: "column", gap: ".25rem" }}>
-                  Médico(a) responsável
-                  <div className="input">
-                    <Select value={recordForm.consultDoctor || ""} onChange={e => setRecordForm(s => ({ ...s, consultDoctor: e.target.value }))}>
-                      <option value="">— Selecionar —</option>
-                      {(users || []).filter(u => u.role === "doctor").map(u => (
-                        <option key={u.id} value={u.name}>{u.name}{u.teamName ? ` (${u.teamName})` : ""}</option>
-                      ))}
-                      {!(users || []).some(u => u.role === "doctor") && (
-                        <>
-                          <option value="Dr. Carlos Mendes">Dr. Carlos Mendes</option>
-                          <option value="Dra. Fernanda Costa">Dra. Fernanda Costa</option>
-                        </>
-                      )}
-                    </Select>
-                  </div>
-                </label>
-                <label style={{ fontSize: ".78rem", fontWeight: 600, display: "flex", flexDirection: "column", gap: ".25rem" }}>
-                  Especialidade
-                  <div className="input">
-                    <Select value={recordForm.consultSpecialty || ""} onChange={e => setRecordForm(s => ({ ...s, consultSpecialty: e.target.value }))}>
-                      <option value="">— Selecionar —</option>
-                      <option value="Ginecologia">Ginecologia</option>
-                      <option value="Médico da família">Médico da família</option>
-                      <option value="Médico geral">Médico geral</option>
-                      <option value="Pediatria">Pediatria</option>
-                    </Select>
-                  </div>
-                </label>
-              </div>
-            )}
-            {recordForm.consultKind === "enfermagem" && (
-              <label style={{ fontSize: ".78rem", fontWeight: 600, display: "flex", flexDirection: "column", gap: ".25rem" }}>
-                Profissional de enfermagem
-                <div className="input">
-                  <Select value={recordForm.consultDoctor || ""} onChange={e => setRecordForm(s => ({ ...s, consultDoctor: e.target.value }))}>
-                    <option value="">— Selecionar —</option>
-                    {(users || []).filter(u => ["nurse_manager", "nursing_tech"].includes(u.role)).map(u => (
-                      <option key={u.id} value={u.name}>{u.name} — {u.role === "nurse_manager" ? "Enfermeira" : "Téc. Enfermagem"}{u.teamName ? ` (${u.teamName})` : ""}</option>
-                    ))}
-                  </Select>
-                </div>
-              </label>
-            )}
-          </div>
-        )}
+          {(recordForm.consultKind === "medica" || !recordForm.consultKind) && (
+            <>
+              <Select label="Médico(a) responsável" value={recordForm.consultDoctor || ""} onChange={e => setRecordForm(s => ({ ...s, consultDoctor: e.target.value }))}>
+                <option value="">— Selecionar —</option>
+                {(users || []).filter(u => u.role === "doctor").map(u => (
+                  <option key={u.id} value={u.name}>{u.name}{u.teamName ? ` (${u.teamName})` : ""}</option>
+                ))}
+                {!(users || []).some(u => u.role === "doctor") && (
+                  <>
+                    <option value="Dr. Carlos Mendes">Dr. Carlos Mendes</option>
+                    <option value="Dra. Fernanda Costa">Dra. Fernanda Costa</option>
+                  </>
+                )}
+              </Select>
+              <Select label="Especialidade" value={recordForm.consultSpecialty || ""} onChange={e => setRecordForm(s => ({ ...s, consultSpecialty: e.target.value }))}>
+                <option value="">— Selecionar —</option>
+                <option value="Ginecologia">Ginecologia</option>
+                <option value="Médico da família">Médico da família</option>
+                <option value="Médico geral">Médico geral</option>
+                <option value="Pediatria">Pediatria</option>
+              </Select>
+            </>
+          )}
 
-        {!acsMode && (recordForm.type === "procedure" || recordForm.type === "note") && (
-          <div className="field field--span-2">
-            <Input
-              label={recordForm.type === "procedure" ? "Procedimento realizado" : "Assunto da nota"}
-              placeholder={recordForm.type === "procedure" ? "Ex: Curativo, aferição PA..." : "Ex: Orientação nutricional..."}
-              value={recordForm.title || ""}
-              onChange={e => setRecordForm(s => ({ ...s, title: e.target.value }))}
-            />
-          </div>
-        )}
-
-        {!acsMode && recordForm.type === "vaccine" && (
-          <div className="field field--span-2" style={{ display: "flex", flexDirection: "column", gap: ".4rem" }}>
-            <span style={{ fontSize: ".75rem", fontWeight: 600 }}>Vacinas aplicadas</span>
-            {(() => {
-              const birthDate = patient?.birthDate;
-              const am = birthDate
-                ? Math.floor((Date.now() - (parseLocalDate(birthDate) || new Date()).getTime()) / (1000 * 60 * 60 * 24 * 30.44))
-                : null;
-              const isCrianca = am !== null && am < 120;
-              return isCrianca && recordForm.date && recordVaccines.length > 0 ? (
-                <div style={{ padding: ".4rem .6rem", background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: "var(--r-md)", fontSize: ".72rem", color: "#1d4ed8", display: "flex", flexDirection: "column", gap: ".2rem" }}>
-                  <strong>Doses que serão registradas:</strong>
-                  {recordVaccines.map(v => {
-                    const resolved = inferVaccineDoseTitle(v, recordForm.date, patient.birthDate);
-                    return <span key={v}>💉 {resolved !== v ? resolved : `${v} (dose não inferida — verifique a data)`}</span>;
-                  })}
-                </div>
-              ) : null;
-            })()}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: ".3rem", background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: "var(--r-md)", padding: ".65rem .75rem", maxHeight: 200, overflowY: "auto" }}>
-              {VACCINE_OPTIONS.map(v => (
-                <label key={v} style={{ display: "flex", alignItems: "center", gap: ".4rem", fontSize: ".8rem", cursor: "pointer", padding: ".25rem .35rem", borderRadius: "var(--r-sm)", background: recordVaccines.includes(v) ? "var(--teal-50)" : "transparent", border: recordVaccines.includes(v) ? "1px solid var(--teal-200)" : "1px solid transparent" }}>
-                  <Checkbox checked={recordVaccines.includes(v)}
-                    onChange={e => setRecordVaccines(prev => e.target.checked ? [...prev, v] : prev.filter(x => x !== v))} />
-                  {v}
-                </label>
+          {recordForm.consultKind === "enfermagem" && (
+            <Select className="field--span-2" label="Profissional de enfermagem" value={recordForm.consultDoctor || ""} onChange={e => setRecordForm(s => ({ ...s, consultDoctor: e.target.value }))}>
+              <option value="">— Selecionar —</option>
+              {(users || []).filter(u => ["nurse_manager", "nursing_tech"].includes(u.role)).map(u => (
+                <option key={u.id} value={u.name}>{u.name} — {u.role === "nurse_manager" ? "Enfermeira" : "Téc. Enfermagem"}{u.teamName ? ` (${u.teamName})` : ""}</option>
               ))}
-            </div>
-          </div>
-        )}
-
-        {recordForm.type === "consultation" && (
-          <div className="field field--span-2">
-            <Select label="Tipo de demanda" value={recordForm.demandType || "scheduled"} onChange={e => setRecordForm(s => ({ ...s, demandType: e.target.value }))}>
-              <option value="scheduled">Programada</option>
-              <option value="spontaneous">Espontânea</option>
-              <option value="retroactive">Retroativo</option>
             </Select>
+          )}
+        </>
+      )}
+
+      {!acsMode && (recordForm.type === "procedure" || recordForm.type === "note") && (
+        <Input className="field--span-2"
+          label={recordForm.type === "procedure" ? "Procedimento realizado" : "Assunto da nota"}
+          placeholder={recordForm.type === "procedure" ? "Ex: Curativo, aferição PA..." : "Ex: Orientação nutricional..."}
+          value={recordForm.title || ""}
+          onChange={e => setRecordForm(s => ({ ...s, title: e.target.value }))}
+        />
+      )}
+
+      {!acsMode && recordForm.type === "vaccine" && (
+        <div className="field field--span-2" style={{ display: "flex", flexDirection: "column", gap: ".4rem" }}>
+          <span style={{ fontSize: ".75rem", fontWeight: 600 }}>Vacinas aplicadas</span>
+          {(() => {
+            const birthDate = patient?.birthDate;
+            const am = birthDate
+              ? Math.floor((Date.now() - (parseLocalDate(birthDate) || new Date()).getTime()) / (1000 * 60 * 60 * 24 * 30.44))
+              : null;
+            const isCrianca = am !== null && am < 120;
+            return isCrianca && recordForm.date && recordVaccines.length > 0 ? (
+              <div style={{ padding: ".4rem .6rem", background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: "var(--r-md)", fontSize: ".72rem", color: "#1d4ed8", display: "flex", flexDirection: "column", gap: ".2rem" }}>
+                <strong>Doses que serão registradas:</strong>
+                {recordVaccines.map(v => {
+                  const resolved = inferVaccineDoseTitle(v, recordForm.date, patient.birthDate);
+                  return <span key={v}>💉 {resolved !== v ? resolved : `${v} (dose não inferida — verifique a data)`}</span>;
+                })}
+              </div>
+            ) : null;
+          })()}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: ".3rem", background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: "var(--r-md)", padding: ".65rem .75rem", maxHeight: 200, overflowY: "auto" }}>
+            {VACCINE_OPTIONS.map(v => (
+              <label key={v} style={{ display: "flex", alignItems: "center", gap: ".4rem", fontSize: ".8rem", cursor: "pointer", padding: ".25rem .35rem", borderRadius: "var(--r-sm)", background: recordVaccines.includes(v) ? "var(--teal-50)" : "transparent", border: recordVaccines.includes(v) ? "1px solid var(--teal-200)" : "1px solid transparent" }}>
+                <Checkbox checked={recordVaccines.includes(v)}
+                  onChange={e => setRecordVaccines(prev => e.target.checked ? [...prev, v] : prev.filter(x => x !== v))} />
+                {v}
+              </label>
+            ))}
           </div>
-        )}
-
-        {(recordForm.type === "consultation" || recordForm.type === "procedure") && (
-          <div className="field field--span-2">
-            <Textarea className="patients-textarea" label="Conduta / resultado" rows={2} placeholder="O que foi feito, orientações dadas, conduta adotada..." value={recordForm.conduct || ""} onChange={e => setRecordForm(s => ({ ...s, conduct: e.target.value }))} />
-          </div>
-        )}
-
-        {recordForm.type === "consultation" && (
-          <div className="field field--span-2">
-            <Input label="Próximo passo / retorno" placeholder="Ex: Retorno em 30 dias, aguardar resultado de exame..." value={recordForm.nextStep || ""} onChange={e => setRecordForm(s => ({ ...s, nextStep: e.target.value }))} />
-          </div>
-        )}
-
-        <div className="field field--span-2">
-          <Textarea className="patients-textarea" label="Observações adicionais" rows={2} placeholder="Informações complementares..." value={recordForm.details || ""} onChange={e => setRecordForm(s => ({ ...s, details: e.target.value }))} />
         </div>
+      )}
 
-        <div className="field field--span-2" style={{ padding: ".5rem .65rem", background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: "var(--r-md)", fontSize: ".72rem", color: "#15803d" }}>
-          Este registro será salvo automaticamente no prontuário com data, hora e profissional responsável.
-        </div>
+      {recordForm.type === "consultation" && (
+        <Select className="field--span-2" label="Tipo de demanda" value={recordForm.demandType || "scheduled"} onChange={e => setRecordForm(s => ({ ...s, demandType: e.target.value }))}>
+          <option value="scheduled">Programada</option>
+          <option value="spontaneous">Espontânea</option>
+          <option value="retroactive">Retroativo</option>
+        </Select>
+      )}
 
-        <div className="field--span-2 patients-form-actions">
-          <Button type="submit">Registrar atendimento</Button>
-        </div>
-      </form>
-    </div>
+      {(recordForm.type === "consultation" || recordForm.type === "procedure") && (
+        <Textarea className="field--span-2 patients-textarea" label="Conduta / resultado" rows={2} placeholder="O que foi feito, orientações dadas, conduta adotada..." value={recordForm.conduct || ""} onChange={e => setRecordForm(s => ({ ...s, conduct: e.target.value }))} />
+      )}
+
+      {recordForm.type === "consultation" && (
+        <Input className="field--span-2" label="Próximo passo / retorno" placeholder="Ex: Retorno em 30 dias, aguardar resultado de exame..." value={recordForm.nextStep || ""} onChange={e => setRecordForm(s => ({ ...s, nextStep: e.target.value }))} />
+      )}
+
+      <Textarea className="field--span-2 patients-textarea" label="Observações adicionais" rows={2} placeholder="Informações complementares..." value={recordForm.details || ""} onChange={e => setRecordForm(s => ({ ...s, details: e.target.value }))} />
+
+      <div className="field--span-2 patients-form-actions">
+        <Button type="submit">Registrar atendimento</Button>
+      </div>
+    </form>
   );
 }
 
@@ -1291,8 +1243,6 @@ function AcoesClinicasTab({ patient, user, users, token, canManageUser, canWrite
   const canPrescribe = canManageUser || ["doctor", "dentist", "nurse_manager"].includes(String(user?.role || ""));
   const canRefer = canWriteRecords;
   const canExam = canManageUser || canWriteRecords;
-  const canAttest = canWriteRecords;
-  const canMedicalAttest = canManageUser || ["doctor", "dentist", "nurse_manager"].includes(String(user?.role || ""));
 
   const ACTIONS = [
     canExam ? {
@@ -1324,29 +1274,6 @@ function AcoesClinicasTab({ patient, user, users, token, canManageUser, canWrite
       icon: (
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
           <path d="M5 12h14M13 5l7 7-7 7"/>
-        </svg>
-      ),
-    } : null,
-    canAttest ? {
-      id: "attendance_attest", colorKey: "note",
-      title: "Declaração de comparecimento",
-      desc: "Emita declaração institucional de comparecimento à unidade de saúde.",
-      icon: (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <rect x="4" y="4" width="16" height="16" rx="2"/>
-          <path d="M8 12l3 3 5-5"/>
-        </svg>
-      ),
-    } : null,
-    canMedicalAttest ? {
-      id: "medical_attest", colorKey: "exam",
-      title: "Atestado médico",
-      desc: "Emita atestado de afastamento com dias, CID-10 opcional e observações.",
-      icon: (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
-          <path d="M14 3v6h6"/>
-          <path d="M9 13h6M9 17h4"/>
         </svg>
       ),
     } : null,
@@ -1403,8 +1330,6 @@ function AcoesClinicasTab({ patient, user, users, token, canManageUser, canWrite
       {modal === "exam" && <ExamRequestModal patient={patient} user={user} token={token} onClose={ok => handleClose("exam", ok)} />}
       {modal === "prescription" && <PrescriptionModal patient={patient} user={user} token={token} onClose={ok => handleClose("prescription", ok)} />}
       {modal === "referral" && <InternalReferralModal patient={patient} user={user} users={users} token={token} onClose={ok => handleClose("referral", ok)} />}
-      {modal === "attendance_attest" && <AttendanceAttestModal patient={patient} user={user} token={token} onClose={ok => handleClose("attendance_attest", ok)} />}
-      {modal === "medical_attest" && <MedicalAttestModal patient={patient} user={user} token={token} onClose={ok => handleClose("medical_attest", ok)} />}
     </div>
   );
 }
@@ -1634,11 +1559,25 @@ export default function PatientDetailPanel({
             <span>·</span>
             <span>ACS: {acsName}</span>
           </div>
-          <div className="panel-patient-doc-actions">
-            <Button size="sm" onClick={() => setShowPatientCard(true)}>Cartão SUS</Button>
-            <Button variant="secondary" size="sm" onClick={() => setDocType("comparecimento")}>Declaração</Button>
-            {canManageUser ? <Button variant="secondary" size="sm" onClick={() => setDocType("atestado")}>Atestado</Button> : null}
-          </div>
+        </div>
+        <div className="panel-patient-doc-actions">
+          <button type="button" className="panel-doc-icon-btn" title="Cartão SUS" aria-label="Cartão SUS" onClick={() => setShowPatientCard(true)}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>
+            </svg>
+          </button>
+          <button type="button" className="panel-doc-icon-btn" title="Declaração de comparecimento" aria-label="Declaração de comparecimento" onClick={() => setDocType("comparecimento")}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 15l2 2 4-4"/>
+            </svg>
+          </button>
+          {canManageUser ? (
+            <button type="button" className="panel-doc-icon-btn" title="Atestado médico" aria-label="Atestado médico" onClick={() => setDocType("atestado")}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="12" y2="17"/>
+              </svg>
+            </button>
+          ) : null}
         </div>
         <Button variant="ghost" size="sm" iconOnly title="Fechar painel" aria-label="Fechar painel" onClick={onClose}>
           <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -1659,13 +1598,14 @@ export default function PatientDetailPanel({
         </div>
       ) : null}
 
-      <div className="tabs small-tabs" style={{ flexWrap: "nowrap", overflowX: "auto", whiteSpace: "nowrap", scrollbarWidth: "thin" }}>
+      <div className="tabs small-tabs">
         {DETAIL_TABS.map(tab => (
-          <Button key={tab.id} className={`tab${activeTab === tab.id ? " active" : ""}`} variant={activeTab === tab.id ? "primary" : "ghost"} size="sm"
-            style={{ flexShrink: 0, whiteSpace: "nowrap" }}
+          <button key={tab.id} type="button"
+            className={`tab${activeTab === tab.id ? " is-active" : ""}`}
+            aria-selected={activeTab === tab.id}
             onClick={() => setPatientTab?.(tab.id)}>
             {tab.label}
-          </Button>
+          </button>
         ))}
       </div>
 
