@@ -88,6 +88,21 @@ describe("Medical records access verification", () => {
     assert.equal(verifyRes.json?.ok, true);
   });
 
+  it("authorizes chart access with patient aliases from the selected patient payload", async () => {
+    const verifyRes = await post("/medical-records/access/verify", {
+      patientId: "legacy-ui-id",
+      password,
+      patient: {
+        externalId: "legacy-ui-id",
+        id: patientId,
+        cpf: "11122233344"
+      }
+    }, nurseToken);
+
+    assert.equal(verifyRes.status, 200, JSON.stringify(verifyRes.json));
+    assert.equal(verifyRes.json?.patientId, patientId);
+  });
+
   it("rejects wrong password with 422", async () => {
     const verifyRes = await post("/medical-records/access/verify", {
       patientId,

@@ -40,6 +40,19 @@ function resolveChartAccessError(err) {
   return backendMessage;
 }
 
+function getCanonicalPatientId(patient) {
+  return String(
+    patient?.id
+    || patient?.patientId
+    || patient?.externalId
+    || patient?.legacyId
+    || patient?.cnsCpf
+    || patient?.cpf
+    || patient?.cns
+    || ""
+  ).trim();
+}
+
 export default function RecordsPage({
   patients,
   users,
@@ -144,10 +157,15 @@ export default function RecordsPage({
       return;
     }
     if (!pendingPatient) return;
+    const resolvedPatientId = getCanonicalPatientId(pendingPatient);
+    if (!resolvedPatientId) {
+      setAuthError("Paciente inválido ou não selecionado.");
+      return;
+    }
     setAuthBusy(true);
     setAuthError("");
     try {
-      await verifyChartAccess(token, pendingPatient.id, password);
+      await verifyChartAccess(token, resolvedPatientId, password, pendingPatient);
       setSelectedPatient(pendingPatient);
       setChartUnlocked(true);
       setShowAuthModal(false);
