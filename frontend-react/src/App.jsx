@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { readUiState, writeLS } from "./utils/storage";
 import { UI_STATE_KEY } from "./config/constants";
+import { SESSION_IDLE_TIMEOUT_ENABLED } from "./config/runtime";
 import { useTheme } from "./hooks/useTheme";
 import { isReceptionist, isAdmin, canWriteRecords } from "./utils/roles";
 import AppShell from "./components/layout/AppShell";
@@ -181,7 +182,7 @@ function AppInner() {
   const isAuthenticated = !!(token && user && typeof user === "object");
   const { showWarning: sessionShowWarning, remaining: sessionRemaining, stayActive, doLogout: forceLogout } = useIdleTimeout({
     onLogout: logout,
-    enabled: isAuthenticated,
+    enabled: isAuthenticated && SESSION_IDLE_TIMEOUT_ENABLED,
   });
 
   /* â"€â"€ Auth guard â€" login único, roteamento por perfil â"€â"€ */
@@ -324,6 +325,5 @@ export function App() {
     </AppErrorBoundary>
   );
 }
-
 
 

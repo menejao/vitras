@@ -20,7 +20,14 @@ No Windows (PowerShell), tambem pode usar:
 
 ```powershell
 $env:VITE_API_URL="http://localhost:3001"
+$env:VITE_SESSION_IDLE_TIMEOUT_ENABLED="false"
 ```
+
+## Logout por inatividade
+
+- `VITE_SESSION_IDLE_TIMEOUT_ENABLED=false`: desativa temporariamente o logout automatico por inatividade no app.
+- `VITE_SESSION_IDLE_TIMEOUT_ENABLED=true`: reativa comportamento original sem refactor.
+- Expiracao real de token e autenticacao do backend continuam valendo.
 
 3. Inicie:
 
