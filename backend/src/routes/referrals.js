@@ -24,7 +24,7 @@ function canAccessTeam(user, teamId) {
 
 function normalizeReferralStatus(value) {
   const raw = String(value || "").trim().toLowerCase();
-  if (["pending", "scheduled", "done", "cancelled"].includes(raw)) return raw;
+  if (["pending", "regulated", "scheduled", "done", "cancelled"].includes(raw)) return raw;
   return "pending";
 }
 

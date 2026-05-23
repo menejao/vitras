@@ -145,7 +145,7 @@ const ReferralCreateSchema = z.object({
   priority: z.enum(["urgent", "priority", "routine"]).optional(),
   date: z.string().trim().min(1).max(50),
   notes: optionalShortString(4000),
-  status: z.enum(["pending", "scheduled", "done", "cancelled"]).optional()
+  status: z.enum(["pending", "regulated", "scheduled", "done", "cancelled"]).optional()
 });
 
 const ReferralPatchSchema = z.object({
@@ -154,7 +154,7 @@ const ReferralPatchSchema = z.object({
   priority: z.enum(["urgent", "priority", "routine"]).optional(),
   date: z.string().trim().min(1).max(50).optional(),
   notes: optionalShortString(4000),
-  status: z.enum(["pending", "scheduled", "done", "cancelled"]).optional()
+  status: z.enum(["pending", "regulated", "scheduled", "done", "cancelled"]).optional()
 });
 
 const PharmacyStockCreateSchema = z.object({
