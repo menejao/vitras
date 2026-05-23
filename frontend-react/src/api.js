@@ -360,10 +360,18 @@ export async function deleteRecord(token, patientId, recordId, payload = {}) {
   }, token);
 }
 
-export async function verifyChartAccess(token, patientId, password) {
+export async function verifyChartAccess(token, patientId, password, patientHint = null) {
+  const body = { patientId, password };
+  if (patientHint) {
+    body.patientHint = {
+      id: String(patientHint.id || "").trim(),
+      name: String(patientHint.name || "").trim(),
+      cpf: String(patientHint.cpf || patientHint.cnsCpf || "").trim(),
+    };
+  }
   return api("/medical-records/access/verify", {
     method: "POST",
-    body: JSON.stringify({ patientId, password }),
+    body: JSON.stringify(body),
   }, token);
 }
 

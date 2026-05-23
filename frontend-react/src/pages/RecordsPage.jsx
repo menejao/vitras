@@ -131,7 +131,7 @@ export default function RecordsPage({
     setAuthBusy(true);
     setAuthError("");
     try {
-      await verifyChartAccess(token, pendingPatient.id, password);
+      await verifyChartAccess(token, pendingPatient.id, password, pendingPatient);
       setSelectedPatient(pendingPatient);
       setChartUnlocked(true);
       setShowAuthModal(false);
@@ -139,13 +139,16 @@ export default function RecordsPage({
       setPassword("");
     } catch (err) {
       const status = err.status;
+      const message = String(err.message || "");
+      const isRouteMissing = message === "Erro na API";
       const msg =
         status === 401 ? "Sessão expirada. Faça login novamente." :
         status === 403 ? "Seu perfil não tem permissão para acessar prontuários." :
-        status === 400 ? "Dados inválidos para validação." :
-        status === 422 ? "Senha incorreta. Tente novamente." :
-        status === 500 ? "Não foi possível validar sua identidade agora." :
-        err.message || "Senha incorreta. Acesso negado.";
+        status === 400 ? "Paciente inválido ou não selecionado." :
+        status === 404 && !isRouteMissing ? message :
+        status === 422 ? "Senha incorreta." :
+        isRouteMissing || status >= 500 ? "Não foi possível validar sua identidade agora." :
+        message || "Senha incorreta. Acesso negado.";
       setAuthError(msg);
     } finally {
       setAuthBusy(false);
