@@ -179,9 +179,10 @@ function AppInner() {
   const { rosaAdjustedSummary, sortedSpecialAlerts } = usePatientAlerts({ selectedPatient, patientProtocolSummary, history, isEquipeRosaUser });
 
   const isAuthenticated = !!(token && user && typeof user === "object");
+  const idleLogoutEnabled = import.meta.env.VITE_IDLE_LOGOUT_ENABLED !== "false";
   const { showWarning: sessionShowWarning, remaining: sessionRemaining, stayActive, doLogout: forceLogout } = useIdleTimeout({
     onLogout: logout,
-    enabled: isAuthenticated,
+    enabled: isAuthenticated && idleLogoutEnabled,
   });
 
   /* â"€â"€ Auth guard â€" login único, roteamento por perfil â"€â"€ */
