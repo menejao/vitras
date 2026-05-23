@@ -636,16 +636,22 @@ router.delete("/patients/:id/records/:recordId", validate(CriticalActionReasonSc
 
     const current = db.clinicalRecords[index];
     if (isAcs(req.user)) {
-      const canDeleteOwnVisit = current.type === "visit" && current.createdBy === req.user.id;
-      if (!canDeleteOwnVisit) {
-        return { error: { status: 403, message: "ACS pode excluir apenas visita própria registrada por ele" } };
+      const canInactivate = current.type === "visit" && current.createdBy === req.user.id;
+      if (!canInactivate) {
+        return { error: { status: 403, message: "ACS pode inativar apenas visita própria registrada por ele" } };
       }
     } else if (!(isManager(req.user) || isDoctor(req.user))) {
-      return { error: { status: 403, message: "Sem permissão para excluir registro" } };
+      return { error: { status: 403, message: "Sem permissão para inativar registro" } };
     }
 
-    db.clinicalRecords.splice(index, 1);
-    addAuditLog(db, req.user, "clinical_record.deleted", "clinical_record", recordId, {
+    db.clinicalRecords[index] = {
+      ...current,
+      status: "inactive",
+      statusReason: String(req.body.reason || "").trim(),
+      statusChangedAt: new Date().toISOString(),
+      statusChangedBy: req.user.id,
+    };
+    addAuditLog(db, req.user, "clinical_record.inactivated", "clinical_record", recordId, {
       patientId,
       type: current.type,
       reason: String(req.body.reason || "").trim()
@@ -655,6 +661,57 @@ router.delete("/patients/:id/records/:recordId", validate(CriticalActionReasonSc
 
   if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
   return res.json({ ok: true });
+});
+
+router.patch("/patients/:id/records/:recordId/inactivate", async (req, res) => {
+  const patientId = String(req.params.id || "").trim();
+  const recordId = String(req.params.recordId || "").trim();
+  const reason = String(req.body?.reason || "").trim();
+  const newStatus = req.body?.status === "cancelled" ? "cancelled" : "inactive";
+
+  if (reason.length < 8 || reason.length > 1000) {
+    return res.status(400).json({ error: "Justificativa obrigatória (mínimo 8, máximo 1000 caracteres)." });
+  }
+
+  const result = await withDb((db) => {
+    ensureDbShape(db);
+    const patient = db.patients.find((p) => p.id === patientId);
+    if (!patient) return { error: { status: 404, message: "Paciente não encontrado" } };
+    if (!canAccessPatient(req.user, patient)) return { error: { status: 403, message: "Sem permissão para este paciente" } };
+
+    const index = db.clinicalRecords.findIndex((r) => r.id === recordId && r.patientId === patientId);
+    if (index < 0) return { error: { status: 404, message: "Registro não encontrado" } };
+
+    const current = db.clinicalRecords[index];
+    if (current.status === "inactive" || current.status === "cancelled") {
+      return { error: { status: 409, message: "Registro já está inativo ou cancelado." } };
+    }
+
+    if (isAcs(req.user)) {
+      const canInactivate = current.type === "visit" && current.createdBy === req.user.id;
+      if (!canInactivate) return { error: { status: 403, message: "ACS pode inativar apenas visita própria." } };
+    } else if (!(isManager(req.user) || isDoctor(req.user))) {
+      return { error: { status: 403, message: "Sem permissão para inativar registro clínico." } };
+    }
+
+    db.clinicalRecords[index] = {
+      ...current,
+      status: newStatus,
+      statusReason: reason,
+      statusChangedAt: new Date().toISOString(),
+      statusChangedBy: req.user.id,
+    };
+    addAuditLog(db, req.user, "clinical_record.inactivated", "clinical_record", recordId, {
+      patientId,
+      type: current.type,
+      newStatus,
+      reason,
+    });
+    return { ok: true, record: db.clinicalRecords[index] };
+  });
+
+  if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
+  return res.json({ ok: true, record: result.record });
 });
 
 router.get("/patients/:id/history", async (req, res) => {

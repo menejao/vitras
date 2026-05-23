@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { deleteRecord, getPatientHistory, verifyChartAccess } from "../api";
+import { inactivateRecord, getPatientHistory, verifyChartAccess } from "../api";
 
 import PageHeader from "../components/layout/PageHeader";
 import Alert from "../components/ui/Alert";
@@ -7,22 +7,26 @@ import Avatar from "../components/ui/Avatar";
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
 import Modal from "../components/ui/Modal";
+import RecordCard from "../components/records/RecordCard";
 import RecordEmptyState from "../components/records/RecordEmptyState";
-import RecordFilters from "../components/records/RecordFilters";
-import RecordTimeline from "../components/records/RecordTimeline";
 import { calcAge, catLabel, matchesPatientSearch } from "../utils/clinical";
 import { canAccessChart, canWriteRecords } from "../utils/roles";
 
-const TABS = [
-  { id: "timeline", label: "Linha do tempo" },
-  { id: "consultation", label: "Atendimentos", type: "consultation" },
-  { id: "exam", label: "Exames", type: "exam" },
-  { id: "vaccine", label: "Vacinas", type: "vaccine" },
-  { id: "prescription", label: "Prescrições", type: "prescription" },
-  { id: "referral", label: "Encaminhamentos", type: "referral" },
-  { id: "document", label: "Documentos", type: "document" },
-  { id: "message", label: "Mensagens", type: "message" },
-];
+const TYPE_FILTER_GROUPS = {
+  atendimento:  ["appointment", "consultation"],
+  visit:        ["visit"],
+  exam_request: ["exam_request"],
+  vaccine:      ["vaccine"],
+  prescription: ["prescription"],
+  referral:     ["referral"],
+  procedimento: ["nursing", "procedure", "evolution"],
+  note:         ["note"],
+  atestado:     ["attendance_attest", "medical_attest"],
+};
+
+function fmtDate(value) {
+  return value ? new Date(`${value}T12:00:00`).toLocaleDateString("pt-BR") : "—";
+}
 
 export default function RecordsPage({
   patients,
@@ -47,11 +51,20 @@ export default function RecordsPage({
   const [records, setRecords] = useState([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+
   const [typeFilter, setTypeFilter] = useState("");
-  const [activeTab, setActiveTab] = useState("timeline");
+  const [recordSearch, setRecordSearch] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [showInactive, setShowInactive] = useState(false);
+
+  const [pendingInactivate, setPendingInactivate] = useState(null);
+  const [inactivateReason, setInactivateReason] = useState("");
+  const [inactivateBusy, setInactivateBusy] = useState(false);
+  const [inactivateError, setInactivateError] = useState("");
 
   const canAccess = canAccessChart(user);
-  const canWrite = canWriteRecords(user);
+  const canWrite  = canWriteRecords(user);
 
   useEffect(() => {
     if (!controlledPatientId) return;
@@ -69,8 +82,11 @@ export default function RecordsPage({
     setChartUnlocked(false);
     setRecords([]);
     setError("");
-    setActiveTab("timeline");
     setTypeFilter("");
+    setRecordSearch("");
+    setDateFrom("");
+    setDateTo("");
+    setShowInactive(false);
   }, [selectedPatient?.id]);
 
   useEffect(() => {
@@ -94,12 +110,21 @@ export default function RecordsPage({
   }, [patients, query]);
 
   const visibleRecords = useMemo(() => {
-    if (activeTab === "timeline") {
-      return typeFilter ? records.filter((r) => r.type === typeFilter) : records;
-    }
-    const tab = TABS.find((t) => t.id === activeTab);
-    return tab?.type ? records.filter((r) => r.type === tab.type) : records;
-  }, [records, activeTab, typeFilter]);
+    const activeTypes = typeFilter ? (TYPE_FILTER_GROUPS[typeFilter] || [typeFilter]) : [];
+    const searchLower = recordSearch.trim().toLowerCase();
+    return records.filter((r) => {
+      if (!showInactive && r.status && r.status !== "active") return false;
+      if (activeTypes.length && !activeTypes.includes(r.type)) return false;
+      if (dateFrom && r.date && r.date < dateFrom) return false;
+      if (dateTo && r.date && r.date > dateTo) return false;
+      if (searchLower) {
+        const hay = [r.title, r.details, r.professionalName, r.type]
+          .filter(Boolean).join(" ").toLowerCase();
+        if (!hay.includes(searchLower)) return false;
+      }
+      return true;
+    });
+  }, [records, typeFilter, showInactive, recordSearch, dateFrom, dateTo]);
 
   function handleSelectFromDropdown(patient) {
     setShowDropdown(false);
@@ -143,7 +168,6 @@ export default function RecordsPage({
       const isRouteMissing = message === "Erro na API";
 
       // Em dev, rota ainda não deployada no backend remoto → liberar diretamente.
-      // import.meta.env.DEV é sempre false em build de produção (Vite strips it).
       if (isRouteMissing && import.meta.env.DEV) {
         // eslint-disable-next-line no-console
         console.warn(
@@ -180,18 +204,37 @@ export default function RecordsPage({
     if (typeof onSelectPatientId === "function") onSelectPatientId("");
   }
 
-  async function handleDelete(recordId) {
-    if (!selectedPatient) return;
-    setBusy(true);
-    setError("");
+  function handleInactivateRequest(record) {
+    setPendingInactivate(record);
+    setInactivateReason("");
+    setInactivateError("");
+  }
+
+  function handleCloseInactivate() {
+    setPendingInactivate(null);
+    setInactivateReason("");
+    setInactivateError("");
+  }
+
+  async function handleConfirmInactivate(event) {
+    event.preventDefault();
+    const reason = inactivateReason.trim();
+    if (reason.length < 8) {
+      setInactivateError("Justificativa obrigatória (mínimo 8 caracteres).");
+      return;
+    }
+    setInactivateBusy(true);
+    setInactivateError("");
     try {
-      await deleteRecord(token, selectedPatient.id, recordId);
+      await inactivateRecord(token, selectedPatient.id, pendingInactivate.id, reason);
       const data = await getPatientHistory(token, selectedPatient.id);
       setRecords(Array.isArray(data) ? data : []);
+      setPendingInactivate(null);
+      setInactivateReason("");
     } catch (err) {
-      setError(err.message || "Erro ao excluir registro.");
+      setInactivateError(err.message || "Não foi possível inativar o registro.");
     } finally {
-      setBusy(false);
+      setInactivateBusy(false);
     }
   }
 
@@ -206,6 +249,10 @@ export default function RecordsPage({
 
   const age = selectedPatient?.birthDate ? calcAge(selectedPatient.birthDate) : null;
   const teamMember = users?.find((u) => u.id === selectedPatient?.assignedUserId);
+  const hasAllergy = Boolean(selectedPatient?.allergies);
+  const chronicList = Array.isArray(selectedPatient?.chronicConditions)
+    ? selectedPatient.chronicConditions.filter(Boolean)
+    : [];
 
   return (
     <div className="records-page">
@@ -213,9 +260,6 @@ export default function RecordsPage({
         eyebrow="PRONTUÁRIO ELETRÔNICO"
         title="Prontuário"
         subtitle="Acesso protegido a informações clínicas e dados sensíveis dos pacientes."
-        actions={selectedPatient && chartUnlocked && onNavigatePatient
-          ? <Button variant="secondary" size="sm" onClick={() => onNavigatePatient(selectedPatient.id)}>Abrir ficha →</Button>
-          : null}
       />
 
       {showAuthModal && pendingPatient && (
@@ -251,6 +295,38 @@ export default function RecordsPage({
               </Button>
               <Button variant="primary" type="submit" size="sm" disabled={authBusy || !password.trim()}>
                 {authBusy ? "Verificando..." : "Liberar acesso"}
+              </Button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {pendingInactivate && (
+        <Modal title="Inativar registro clínico" onClose={handleCloseInactivate}>
+          <form className="chr-inactivate-modal" onSubmit={handleConfirmInactivate}>
+            <p>
+              O registro <strong>"{pendingInactivate.title}"</strong> será marcado como inativo.
+              Ele não será excluído — permanece acessível com o filtro "Mostrar inativos".
+            </p>
+            <Input
+              label="Justificativa obrigatória"
+              type="text"
+              value={inactivateReason}
+              onChange={(e) => { setInactivateReason(e.target.value); setInactivateError(""); }}
+              placeholder="Descreva o motivo (mínimo 8 caracteres)..."
+              disabled={inactivateBusy}
+              autoFocus
+            />
+            {inactivateError ? <span className="field__error">{inactivateError}</span> : null}
+            <p className="records-auth-modal__lgpd">
+              Esta ação é registrada no log de auditoria e não pode ser desfeita pelo sistema.
+            </p>
+            <div className="records-auth-modal__actions">
+              <Button variant="secondary" type="button" size="sm" onClick={handleCloseInactivate} disabled={inactivateBusy}>
+                Cancelar
+              </Button>
+              <Button variant="danger" type="submit" size="sm" disabled={inactivateBusy || inactivateReason.trim().length < 8}>
+                {inactivateBusy ? "Salvando..." : "Confirmar inativação"}
               </Button>
             </div>
           </form>
@@ -312,11 +388,12 @@ export default function RecordsPage({
         </div>
       ) : (
         <div className="records-content">
-          <div className="records-patient-header">
+
+          <div className="chr-patient-header">
             <Avatar name={selectedPatient.name} size="lg" />
-            <div className="records-patient-info">
-              <h2 className="records-patient-info__name">{selectedPatient.name}</h2>
-              <div className="records-patient-info__meta">
+            <div className="chr-patient-main">
+              <div className="chr-patient-name">{selectedPatient.name}</div>
+              <div className="chr-patient-meta">
                 {[
                   age !== null ? `${age} anos` : null,
                   catLabel([], selectedPatient.careCategory) || null,
@@ -325,50 +402,110 @@ export default function RecordsPage({
                   teamMember ? `Equipe: ${teamMember.name}` : null,
                 ].filter(Boolean).join(" · ")}
               </div>
+              {(hasAllergy || chronicList.length > 0) && (
+                <div className="chr-patient-alerts">
+                  {hasAllergy && (
+                    <span className="chr-clinical-alert chr-clinical-alert--warning">
+                      <svg width="10" height="10" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                        <path d="M8 2L14 13H2L8 2Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
+                        <path d="M8 7v3M8 11.5v.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+                      </svg>
+                      Alergia: {selectedPatient.allergies}
+                    </span>
+                  )}
+                  {chronicList.map((c) => (
+                    <span key={c} className="chr-clinical-alert chr-clinical-alert--info">{c}</span>
+                  ))}
+                </div>
+              )}
             </div>
-            <div className="records-patient-actions">
-              <Button variant="secondary" size="sm" onClick={handleCloseChart}>Fechar</Button>
+            <div className="chr-patient-aside">
+              <span className="chr-lgpd-notice">Dados sensíveis — acesso auditado conforme LGPD</span>
+              <div className="chr-patient-btns">
+                {onNavigatePatient && (
+                  <Button variant="secondary" size="sm" onClick={() => onNavigatePatient(selectedPatient.id)}>
+                    Abrir ficha
+                  </Button>
+                )}
+                <Button variant="secondary" size="sm" onClick={handleCloseChart}>Fechar</Button>
+              </div>
             </div>
           </div>
 
-          <div className="records-tab-bar" role="tablist">
-            {TABS.map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                role="tab"
-                aria-selected={activeTab === tab.id}
-                className={`records-tab-btn${activeTab === tab.id ? " is-active" : ""}`}
-                onClick={() => { setActiveTab(tab.id); setTypeFilter(""); }}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="records-tab-content">
-            {error ? <Alert tone="danger">{error}</Alert> : null}
-            {busy ? <Alert tone="info">Carregando registros clínicos...</Alert> : null}
-
-            {activeTab === "timeline" && !busy && (
-              <RecordFilters typeFilter={typeFilter} setTypeFilter={setTypeFilter} />
-            )}
-
-            {!busy && visibleRecords.length > 0 ? (
-              <RecordTimeline
-                records={visibleRecords}
-                fmtDate={(value) => value ? new Date(`${value}T12:00:00`).toLocaleDateString("pt-BR") : "-"}
-                onDelete={handleDelete}
-                canDelete={canWrite}
+          <div className="chr-filter-bar">
+            <input
+              className="chr-search-input"
+              type="text"
+              value={recordSearch}
+              onChange={(e) => setRecordSearch(e.target.value)}
+              placeholder="Buscar no prontuário..."
+              aria-label="Buscar registros clínicos"
+            />
+            <select
+              className="chr-filter-select"
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              aria-label="Filtrar por tipo de registro"
+            >
+              <option value="">Todos os tipos</option>
+              <option value="atendimento">Atendimento / Consulta</option>
+              <option value="visit">Visita domiciliar</option>
+              <option value="exam_request">Exame</option>
+              <option value="vaccine">Vacina</option>
+              <option value="prescription">Prescrição</option>
+              <option value="referral">Encaminhamento</option>
+              <option value="procedimento">Procedimento / Evolução</option>
+              <option value="note">Anotação</option>
+              <option value="atestado">Atestado / Documento</option>
+            </select>
+            <input
+              className="chr-date-input"
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              aria-label="Data inicial"
+              title="Data inicial"
+            />
+            <input
+              className="chr-date-input"
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              aria-label="Data final"
+              title="Data final"
+            />
+            <label className="chr-inactive-toggle">
+              <input
+                type="checkbox"
+                checked={showInactive}
+                onChange={(e) => setShowInactive(e.target.checked)}
               />
-            ) : (
-              !busy && <RecordEmptyState hasPatient={true} />
-            )}
-
-            <p className="records-audit-notice">
-              Acesso registrado no log de auditoria com sua identidade, conforme a Lei 13.709/2018 (LGPD).
-            </p>
+              <span>Mostrar inativos</span>
+            </label>
           </div>
+
+          {error ? <Alert tone="danger">{error}</Alert> : null}
+          {busy ? <Alert tone="info">Carregando registros clínicos...</Alert> : null}
+
+          {!busy && visibleRecords.length > 0 ? (
+            <div className="chr-timeline">
+              {visibleRecords.map((r) => (
+                <RecordCard
+                  key={r.id}
+                  record={r}
+                  fmtDate={fmtDate}
+                  onInactivate={handleInactivateRequest}
+                  canInactivate={canWrite}
+                />
+              ))}
+            </div>
+          ) : (
+            !busy && <RecordEmptyState hasPatient />
+          )}
+
+          <p className="records-audit-notice">
+            Acesso registrado no log de auditoria com sua identidade, conforme a Lei 13.709/2018 (LGPD).
+          </p>
         </div>
       )}
     </div>

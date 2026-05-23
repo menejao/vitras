@@ -360,6 +360,13 @@ export async function deleteRecord(token, patientId, recordId, payload = {}) {
   }, token);
 }
 
+export async function inactivateRecord(token, patientId, recordId, reason, status = "inactive") {
+  return api(`/patients/${patientId}/records/${recordId}/inactivate`, {
+    method: "PATCH",
+    body: JSON.stringify({ reason: String(reason || "").trim(), status }),
+  }, token);
+}
+
 export async function verifyChartAccess(token, patientId, password, patientHint = null) {
   const body = { patientId, password };
   if (patientHint) {
