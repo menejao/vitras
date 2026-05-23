@@ -141,6 +141,24 @@ export default function RecordsPage({
       const status = err.status;
       const message = String(err.message || "");
       const isRouteMissing = message === "Erro na API";
+
+      // Em dev, rota ainda não deployada no backend remoto → liberar diretamente.
+      // import.meta.env.DEV é sempre false em build de produção (Vite strips it).
+      if (isRouteMissing && import.meta.env.DEV) {
+        // eslint-disable-next-line no-console
+        console.warn(
+          "[DEV] POST /medical-records/access/verify não encontrado no backend.\n" +
+          "Acesso liberado sem validação remota (apenas em dev).\n" +
+          "Para validação real: inicie backend local e exporte VITE_API_PROXY_TARGET=http://localhost:3002"
+        );
+        setSelectedPatient(pendingPatient);
+        setChartUnlocked(true);
+        setShowAuthModal(false);
+        setPendingPatient(null);
+        setPassword("");
+        return;
+      }
+
       const msg =
         status === 401 ? "Sessão expirada. Faça login novamente." :
         status === 403 ? "Seu perfil não tem permissão para acessar prontuários." :

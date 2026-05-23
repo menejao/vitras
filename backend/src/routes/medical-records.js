@@ -66,7 +66,14 @@ router.post("/medical-records/access/verify", async (req, res) => {
       return res.status(403).json({ error: "Acesso negado. Perfil sem autorização para acessar prontuários." });
     }
 
-    const db = await readDb();
+    const db = await readDb().catch((readErr) => {
+      logError("chart.access.verify.readdb_failed", {
+        code: String(readErr?.code || ""),
+        error: readErr,
+      });
+      if (readErr?.code === "ENOENT") return { patients: [], users: [] };
+      throw readErr;
+    });
     const patient = findPatientForAccess(db.patients || [], patientId, patientHint);
 
     logInfo("chart.access.verify.lookup", {
