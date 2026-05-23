@@ -360,6 +360,13 @@ export async function deleteRecord(token, patientId, recordId, payload = {}) {
   }, token);
 }
 
+export async function verifyChartAccess(token, patientId, password) {
+  return api("/medical-records/access/verify", {
+    method: "POST",
+    body: JSON.stringify({ patientId, password }),
+  }, token);
+}
+
 export async function listUsers(token) {
   return api("/users", { method: "GET", retryCount: 2 }, token);
 }

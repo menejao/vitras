@@ -1,17 +1,28 @@
 import { useEffect, useMemo, useState } from "react";
-import { deleteRecord, getPatientHistory, login, verifyLogin2fa } from "../api";
+import { deleteRecord, getPatientHistory, verifyChartAccess } from "../api";
 
 import PageHeader from "../components/layout/PageHeader";
 import Alert from "../components/ui/Alert";
 import Avatar from "../components/ui/Avatar";
 import Button from "../components/ui/Button";
-import Card from "../components/ui/Card";
 import Input from "../components/ui/Input";
+import Modal from "../components/ui/Modal";
 import RecordEmptyState from "../components/records/RecordEmptyState";
 import RecordFilters from "../components/records/RecordFilters";
 import RecordTimeline from "../components/records/RecordTimeline";
-import { catLabel } from "../utils/clinical";
+import { calcAge, catLabel, matchesPatientSearch } from "../utils/clinical";
 import { canAccessChart, canWriteRecords } from "../utils/roles";
+
+const TABS = [
+  { id: "timeline", label: "Linha do tempo" },
+  { id: "consultation", label: "Atendimentos", type: "consultation" },
+  { id: "exam", label: "Exames", type: "exam" },
+  { id: "vaccine", label: "Vacinas", type: "vaccine" },
+  { id: "prescription", label: "Prescrições", type: "prescription" },
+  { id: "referral", label: "Encaminhamentos", type: "referral" },
+  { id: "document", label: "Documentos", type: "document" },
+  { id: "message", label: "Mensagens", type: "message" },
+];
 
 export default function RecordsPage({
   patients,
@@ -21,134 +32,132 @@ export default function RecordsPage({
   onNavigatePatient,
   selectedPatientId: controlledPatientId = "",
   onSelectPatientId,
-  onApplySessionPayload,
+  onApplySessionPayload: _unused,
 }) {
   const [query, setQuery] = useState("");
-  const [localSelectedPatientId, setLocalSelectedPatientId] = useState(controlledPatientId || "");
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [selectedPatient, setSelectedPatient] = useState(null);
+  const [pendingPatient, setPendingPatient] = useState(null);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [password, setPassword] = useState("");
+  const [authBusy, setAuthBusy] = useState(false);
+  const [authError, setAuthError] = useState("");
+
+  const [chartUnlocked, setChartUnlocked] = useState(false);
   const [records, setRecords] = useState([]);
-  const [typeFilter, setTypeFilter] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-
-  const [chartLocked, setChartLocked] = useState(true);
-  const [lockPassword, setLockPassword] = useState("");
-  const [lockCode, setLockCode] = useState("");
-  const [lockError, setLockError] = useState("");
-  const [lockBusy, setLockBusy] = useState(false);
-  const [lockChallenge, setLockChallenge] = useState(null);
+  const [typeFilter, setTypeFilter] = useState("");
+  const [activeTab, setActiveTab] = useState("timeline");
 
   const canAccess = canAccessChart(user);
   const canWrite = canWriteRecords(user);
 
   useEffect(() => {
-    if (controlledPatientId && controlledPatientId !== localSelectedPatientId) {
-      setLocalSelectedPatientId(controlledPatientId);
-    }
-  }, [controlledPatientId, localSelectedPatientId]);
+    if (!controlledPatientId) return;
+    if (selectedPatient?.id === controlledPatientId && chartUnlocked) return;
+    const pat = patients.find((p) => p.id === controlledPatientId);
+    if (!pat) return;
+    setPendingPatient(pat);
+    setQuery(pat.name);
+    setPassword("");
+    setAuthError("");
+    setShowAuthModal(true);
+  }, [controlledPatientId]);
 
   useEffect(() => {
-    setChartLocked(true);
-    setLockPassword("");
-    setLockCode("");
-    setLockChallenge(null);
-    setLockError("");
-  }, [localSelectedPatientId]);
-
-  function handleSelectPatient(patientId) {
-    if (patientId === localSelectedPatientId) {
-      setLocalSelectedPatientId("");
-      if (typeof onSelectPatientId === "function") onSelectPatientId("");
-      return;
-    }
-    setLocalSelectedPatientId(patientId);
-    if (typeof onSelectPatientId === "function") onSelectPatientId(patientId);
-  }
-
-  async function handleUnlock(event) {
-    event.preventDefault();
-    if (!lockPassword.trim()) {
-      setLockError("Informe sua senha para liberar o acesso.");
-      return;
-    }
-    setLockBusy(true);
-    setLockError("");
-    try {
-      const payload = await login(user?.email, lockPassword);
-      if (payload?.twoFactorRequired) {
-        setLockChallenge(payload);
-        return;
-      }
-      onApplySessionPayload?.(payload);
-      setChartLocked(false);
-      setLockPassword("");
-    } catch {
-      setLockError("Senha incorreta. Acesso negado.");
-    } finally {
-      setLockBusy(false);
-    }
-  }
-
-  async function handleVerifyUnlock(event) {
-    event.preventDefault();
-    if (!lockChallenge?.challengeId || lockCode.length !== 6) {
-      setLockError("Informe o código 2FA de 6 dígitos.");
-      return;
-    }
-    setLockBusy(true);
-    setLockError("");
-    try {
-      const payload = await verifyLogin2fa(lockChallenge.challengeId, lockCode);
-      onApplySessionPayload?.(payload);
-      setChartLocked(false);
-      setLockPassword("");
-      setLockCode("");
-      setLockChallenge(null);
-    } catch {
-      setLockError("Código 2FA inválido. Acesso negado.");
-    } finally {
-      setLockBusy(false);
-    }
-  }
-
-  const filteredPatients = useMemo(() => {
-    const term = query.trim().toLowerCase();
-    if (!term) return patients;
-    return patients.filter((patient) => `${patient.name || ""} ${patient.cpf || ""} ${patient.cns || ""}`.toLowerCase().includes(term));
-  }, [patients, query]);
-
-  const selectedPatient = useMemo(
-    () => patients.find((patient) => patient.id === localSelectedPatientId) || null,
-    [patients, localSelectedPatientId],
-  );
-
-  const visibleRecords = useMemo(
-    () => records.filter((record) => !typeFilter || record.type === typeFilter),
-    [records, typeFilter],
-  );
+    setChartUnlocked(false);
+    setRecords([]);
+    setError("");
+    setActiveTab("timeline");
+    setTypeFilter("");
+  }, [selectedPatient?.id]);
 
   useEffect(() => {
-    if (!localSelectedPatientId || !token || chartLocked) {
+    if (!selectedPatient || !chartUnlocked || !token) {
       setRecords([]);
       return;
     }
-
     let active = true;
     setBusy(true);
     setError("");
-    getPatientHistory(token, localSelectedPatientId)
+    getPatientHistory(token, selectedPatient.id)
       .then((data) => { if (active) setRecords(Array.isArray(data) ? data : []); })
       .catch((err) => { if (active) setError(err.message || "Erro ao carregar prontuário."); })
       .finally(() => { if (active) setBusy(false); });
     return () => { active = false; };
-  }, [localSelectedPatientId, token, chartLocked]);
+  }, [selectedPatient?.id, chartUnlocked, token]);
+
+  const filteredPatients = useMemo(() => {
+    if (!query.trim()) return [];
+    return patients.filter((p) => matchesPatientSearch(p, query)).slice(0, 10);
+  }, [patients, query]);
+
+  const visibleRecords = useMemo(() => {
+    if (activeTab === "timeline") {
+      return typeFilter ? records.filter((r) => r.type === typeFilter) : records;
+    }
+    const tab = TABS.find((t) => t.id === activeTab);
+    return tab?.type ? records.filter((r) => r.type === tab.type) : records;
+  }, [records, activeTab, typeFilter]);
+
+  function handleSelectFromDropdown(patient) {
+    setShowDropdown(false);
+    setQuery(patient.name);
+    setPendingPatient(patient);
+    setPassword("");
+    setAuthError("");
+    setShowAuthModal(true);
+    if (typeof onSelectPatientId === "function") onSelectPatientId(patient.id);
+  }
+
+  function handleCloseAuth() {
+    setShowAuthModal(false);
+    setPendingPatient(null);
+    setPassword("");
+    setAuthError("");
+    if (!selectedPatient) {
+      if (typeof onSelectPatientId === "function") onSelectPatientId("");
+    }
+  }
+
+  async function handleAuth(event) {
+    event.preventDefault();
+    if (!password.trim()) {
+      setAuthError("Informe sua senha de acesso ao sistema.");
+      return;
+    }
+    if (!pendingPatient) return;
+    setAuthBusy(true);
+    setAuthError("");
+    try {
+      await verifyChartAccess(token, pendingPatient.id, password);
+      setSelectedPatient(pendingPatient);
+      setChartUnlocked(true);
+      setShowAuthModal(false);
+      setPendingPatient(null);
+      setPassword("");
+    } catch (err) {
+      setAuthError(err.message || "Senha incorreta. Acesso negado.");
+    } finally {
+      setAuthBusy(false);
+    }
+  }
+
+  function handleCloseChart() {
+    setSelectedPatient(null);
+    setChartUnlocked(false);
+    setQuery("");
+    if (typeof onSelectPatientId === "function") onSelectPatientId("");
+  }
 
   async function handleDelete(recordId) {
-    if (!localSelectedPatientId) return;
+    if (!selectedPatient) return;
     setBusy(true);
     setError("");
     try {
-      await deleteRecord(token, localSelectedPatientId, recordId);
-      const data = await getPatientHistory(token, localSelectedPatientId);
+      await deleteRecord(token, selectedPatient.id, recordId);
+      const data = await getPatientHistory(token, selectedPatient.id);
       setRecords(Array.isArray(data) ? data : []);
     } catch (err) {
       setError(err.message || "Erro ao excluir registro.");
@@ -160,164 +169,179 @@ export default function RecordsPage({
   if (!canAccess) {
     return (
       <div className="records-page">
-        <PageHeader eyebrow="Vitras" title="Prontuário" subtitle="Acesso restrito a perfis com autorização clínica." />
+        <PageHeader eyebrow="PRONTUÁRIO ELETRÔNICO" title="Prontuário" subtitle="Acesso restrito a perfis com autorização clínica." />
         <Alert tone="danger">O prontuário eletrônico é acessível apenas por perfis autorizados da equipe clínica.</Alert>
       </div>
     );
   }
 
+  const age = selectedPatient?.birthDate ? calcAge(selectedPatient.birthDate) : null;
+  const teamMember = users?.find((u) => u.id === selectedPatient?.assignedUserId);
+
   return (
     <div className="records-page">
       <PageHeader
-        eyebrow="Vitras"
+        eyebrow="PRONTUÁRIO ELETRÔNICO"
         title="Prontuário"
-        subtitle="Workspace clínico com timeline, filtros estruturados e acesso protegido por reautenticação."
-        actions={selectedPatient && onNavigatePatient
+        subtitle="Acesso protegido a informações clínicas e dados sensíveis dos pacientes."
+        actions={selectedPatient && chartUnlocked && onNavigatePatient
           ? <Button variant="secondary" size="sm" onClick={() => onNavigatePatient(selectedPatient.id)}>Abrir ficha →</Button>
           : null}
       />
 
-      <div className="records-body">
-        <div className="records-sidebar">
-          <div className="records-sidebar__search">
-            <span className="records-sidebar__search-icon">
-              <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
-                <circle cx="6.5" cy="6.5" r="4" stroke="currentColor" strokeWidth="1.3"/>
-                <path d="M10 10l3.5 3.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+      {showAuthModal && pendingPatient && (
+        <Modal title="Confirmação de identidade" onClose={handleCloseAuth}>
+          <form className="records-auth-modal" onSubmit={handleAuth}>
+            <div className="records-auth-modal__icon" aria-hidden="true">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                <rect x="5" y="11" width="14" height="10" rx="2" stroke="currentColor" strokeWidth="1.5" />
+                <path d="M8 11V7a4 4 0 0 1 8 0v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                <circle cx="12" cy="16" r="1.2" fill="currentColor" />
               </svg>
-            </span>
-            <Input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Buscar paciente..."
-            />
-          </div>
-          <div className="records-pat-list">
-            {filteredPatients.length === 0 && (
-              <p className="records-pat-empty">Nenhum paciente encontrado.</p>
-            )}
-            {filteredPatients.map((patient) => (
-              <button
-                key={patient.id}
-                type="button"
-                className={`records-pat-item${localSelectedPatientId === patient.id ? " is-active" : ""}`}
-                onClick={() => handleSelectPatient(patient.id)}
-              >
-                <Avatar name={patient.name} size="sm" />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div className="records-pat-item__name">{patient.name}</div>
-                  <div className="records-pat-item__sub">{catLabel([], patient.careCategory)}</div>
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="records-panel">
-          {!selectedPatient ? (
-            <div className="records-panel-empty">
-              <svg width="48" height="48" viewBox="0 0 16 16" fill="none" style={{ opacity: 0.25 }}>
-                <path d="M3 2h7l3 3v9H3V2z" stroke="currentColor" strokeWidth="1.2"/>
-                <path d="M10 2v3h3" stroke="currentColor" strokeWidth="1.2"/>
-                <path d="M6 8h4M6 10.5h2.5" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round"/>
-              </svg>
-              <span>Selecione um paciente para ver o prontuário</span>
             </div>
-          ) : chartLocked ? (
-            <>
-              <div className="records-panel__header">
-                <div>
-                  <h2>{selectedPatient.name}</h2>
-                  <div className="records-panel__header__sub">{catLabel([], selectedPatient.careCategory)}</div>
-                </div>
-              </div>
-              <Card className="card--operational">
-                <div className="records-security-gate">
-                  <div className="records-security-gate__icon" aria-hidden="true">
-                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
-                      <rect x="5" y="11" width="14" height="10" rx="2" stroke="currentColor" strokeWidth="1.5" />
-                      <path d="M8 11V7a4 4 0 0 1 8 0v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                      <circle cx="12" cy="16" r="1.2" fill="currentColor" />
-                    </svg>
-                  </div>
-                  <div className="records-security-gate__content">
-                    <p className="records-security-gate__title">Confirmação de identidade obrigatória</p>
-                    <p className="records-security-gate__desc">
-                      O acesso ao prontuário de <strong>{selectedPatient.name}</strong> exige reautenticação por exigência da LGPD e das diretrizes de segurança clínica.
-                      {lockChallenge ? " Informe agora o código 2FA para concluir a liberação." : " Informe sua senha de acesso ao sistema para iniciar a liberação."}
-                    </p>
-                    <form className="records-security-gate__form" onSubmit={lockChallenge ? handleVerifyUnlock : handleUnlock}>
-                      <Input
-                        className="records-security-gate__input"
-                        type={lockChallenge ? "text" : "password"}
-                        placeholder={lockChallenge ? "Código 2FA" : "Senha de acesso"}
-                        value={lockChallenge ? lockCode : lockPassword}
-                        onChange={(e) => {
-                          if (lockChallenge) {
-                            setLockCode(e.target.value.replace(/\D+/g, "").slice(0, 6));
-                          } else {
-                            setLockPassword(e.target.value);
-                          }
-                          setLockError("");
-                        }}
-                        autoComplete={lockChallenge ? "one-time-code" : "current-password"}
-                        disabled={lockBusy}
-                      />
-                      {lockError ? <span className="field__error">{lockError}</span> : null}
-                      <Button variant="primary" type="submit" disabled={lockBusy || (lockChallenge ? lockCode.length !== 6 : !lockPassword.trim())}>
-                        {lockBusy ? "Verificando..." : (lockChallenge ? "Validar 2FA" : "Liberar acesso")}
-                      </Button>
-                    </form>
-                    <p className="records-security-gate__lgpd">
-                      Esta ação é registrada no log de auditoria com data, hora e identidade do responsável, conforme a Lei 13.709/2018 (LGPD).
-                    </p>
-                  </div>
-                </div>
-              </Card>
-            </>
-          ) : (
-            <>
-              <div className="records-panel__header">
-                <div>
-                  <h2>{selectedPatient.name}</h2>
-                  <div className="records-panel__header__sub">
-                    {catLabel([], selectedPatient.careCategory)} · {visibleRecords.length} registro{visibleRecords.length !== 1 ? "s" : ""}
-                    {typeFilter ? ` (${typeFilter})` : ""}
-                  </div>
-                </div>
-              </div>
+            <p className="records-auth-modal__desc">
+              O acesso ao prontuário de <strong>{pendingPatient.name}</strong> é protegido por lei.
+              Confirme sua identidade com a senha do sistema para liberar a visualização.
+            </p>
+            <Input
+              type="password"
+              placeholder="Sua senha de acesso"
+              value={password}
+              onChange={(e) => { setPassword(e.target.value); setAuthError(""); }}
+              autoComplete="current-password"
+              disabled={authBusy}
+              autoFocus
+            />
+            {authError ? <span className="field__error">{authError}</span> : null}
+            <p className="records-auth-modal__lgpd">
+              Esta ação é registrada no log de auditoria com data, hora e identidade do responsável, conforme a Lei 13.709/2018 (LGPD).
+            </p>
+            <div className="records-auth-modal__actions">
+              <Button variant="secondary" type="button" size="sm" onClick={handleCloseAuth} disabled={authBusy}>
+                Cancelar
+              </Button>
+              <Button variant="primary" type="submit" size="sm" disabled={authBusy || !password.trim()}>
+                {authBusy ? "Verificando..." : "Liberar acesso"}
+              </Button>
+            </div>
+          </form>
+        </Modal>
+      )}
 
-              <RecordFilters typeFilter={typeFilter} setTypeFilter={setTypeFilter} />
-
-              {error ? <Alert tone="danger">{error}</Alert> : null}
-
-              <Card className="card--noPad card--operational">
-                <div className="card__header">
+      <div className="records-search-bar">
+        <div className="records-search-wrap">
+          <span className="records-search-icon">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+              <circle cx="6.5" cy="6.5" r="4" stroke="currentColor" strokeWidth="1.3" />
+              <path d="M10 10l3.5 3.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+            </svg>
+          </span>
+          <Input
+            value={query}
+            onChange={(e) => { setQuery(e.target.value); setShowDropdown(true); }}
+            onFocus={() => setShowDropdown(true)}
+            onBlur={() => setTimeout(() => setShowDropdown(false), 150)}
+            placeholder="Pesquisar paciente por nome, CPF ou CNS..."
+            disabled={chartUnlocked && Boolean(selectedPatient)}
+          />
+          {showDropdown && filteredPatients.length > 0 && (
+            <div className="records-search-dropdown">
+              {filteredPatients.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  className="records-search-dropdown__item"
+                  onMouseDown={() => handleSelectFromDropdown(p)}
+                >
+                  <Avatar name={p.name} size="sm" />
                   <div>
-                    <div className="card__title">Linha do tempo clínica</div>
-                    <div className="card__subtitle">
-                      {busy ? "Carregando registros..." : `${visibleRecords.length} registro(s) para ${selectedPatient.name}`}
-                    </div>
+                    <div className="records-search-dropdown__name">{p.name}</div>
+                    <div className="records-search-dropdown__meta">{catLabel([], p.careCategory)}</div>
                   </div>
-                </div>
-                <div className="card__body">
-                  {busy ? <Alert tone="info">Carregando registros clínicos...</Alert> : null}
-                  {!busy && visibleRecords.length > 0 ? (
-                    <RecordTimeline
-                      records={visibleRecords}
-                      fmtDate={(value) => value ? new Date(`${value}T12:00:00`).toLocaleDateString("pt-BR") : "-"}
-                      onDelete={handleDelete}
-                      canDelete={canWrite}
-                    />
-                  ) : (
-                    !busy && <RecordEmptyState hasPatient={Boolean(selectedPatient)} />
-                  )}
-                </div>
-              </Card>
-            </>
+                </button>
+              ))}
+            </div>
           )}
         </div>
       </div>
+
+      {!selectedPatient || !chartUnlocked ? (
+        <div className="records-security-empty">
+          <div className="records-security-empty__icon" aria-hidden="true">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
+              <rect x="5" y="11" width="14" height="10" rx="2" stroke="currentColor" strokeWidth="1.3" />
+              <path d="M8 11V7a4 4 0 0 1 8 0v4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+              <circle cx="12" cy="16" r="1.2" fill="currentColor" />
+            </svg>
+          </div>
+          <p className="records-security-empty__title">
+            Pesquise e selecione um paciente para acessar o prontuário
+          </p>
+          <p className="records-security-empty__lgpd">
+            O acesso requer confirmação de identidade. Todos os acessos são registrados conforme a LGPD (Lei 13.709/2018).
+          </p>
+        </div>
+      ) : (
+        <div className="records-content">
+          <div className="records-patient-header">
+            <Avatar name={selectedPatient.name} size="lg" />
+            <div className="records-patient-info">
+              <h2 className="records-patient-info__name">{selectedPatient.name}</h2>
+              <div className="records-patient-info__meta">
+                {[
+                  age !== null ? `${age} anos` : null,
+                  catLabel([], selectedPatient.careCategory) || null,
+                  selectedPatient.cpf ? `CPF ${selectedPatient.cpf}` : null,
+                  selectedPatient.cns ? `CNS ${selectedPatient.cns}` : null,
+                  teamMember ? `Equipe: ${teamMember.name}` : null,
+                ].filter(Boolean).join(" · ")}
+              </div>
+            </div>
+            <div className="records-patient-actions">
+              <Button variant="secondary" size="sm" onClick={handleCloseChart}>Fechar</Button>
+            </div>
+          </div>
+
+          <div className="records-tab-bar" role="tablist">
+            {TABS.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={activeTab === tab.id}
+                className={`records-tab-btn${activeTab === tab.id ? " is-active" : ""}`}
+                onClick={() => { setActiveTab(tab.id); setTypeFilter(""); }}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="records-tab-content">
+            {error ? <Alert tone="danger">{error}</Alert> : null}
+            {busy ? <Alert tone="info">Carregando registros clínicos...</Alert> : null}
+
+            {activeTab === "timeline" && !busy && (
+              <RecordFilters typeFilter={typeFilter} setTypeFilter={setTypeFilter} />
+            )}
+
+            {!busy && visibleRecords.length > 0 ? (
+              <RecordTimeline
+                records={visibleRecords}
+                fmtDate={(value) => value ? new Date(`${value}T12:00:00`).toLocaleDateString("pt-BR") : "-"}
+                onDelete={handleDelete}
+                canDelete={canWrite}
+              />
+            ) : (
+              !busy && <RecordEmptyState hasPatient={true} />
+            )}
+
+            <p className="records-audit-notice">
+              Acesso registrado no log de auditoria com sua identidade, conforme a Lei 13.709/2018 (LGPD).
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
