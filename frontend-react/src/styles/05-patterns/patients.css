@@ -264,7 +264,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  flex: 1;
+  flex: 0 1 auto;
   min-width: 0;
 }
 .panel-patient-age {
@@ -335,7 +335,7 @@
 
 /* Panel content block */
 .panel-block {
-  padding: 1rem 1.25rem;
+  padding: var(--s-3) var(--s-4);
   overflow-y: auto;
   max-height: 58vh;
 }
@@ -1238,6 +1238,8 @@
   align-items: center;
   gap: .9rem;
   padding: .9rem 1rem;
+  height: auto;
+  white-space: normal;
   background: var(--surface);
   border: 1px solid var(--border);
   border-left: 3px solid transparent;

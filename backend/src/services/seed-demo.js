@@ -64,7 +64,7 @@ const SUPPLIES_ITEMS = [
 ];
 
 // ── Patient definitions ───────────────────────────────────────────────────────
-// 45% geral (18) · 15% gestante (6) · 10% puérpera (4) · 15% criança (6) · 15% idoso (6) = 40
+// geral (18) · gestante (7) · puérpera (4) · criança (6) · idoso (6) = 41
 
 const GENERAL_DEFS = [
   { idx: "g01", name: "Thiago de Oliveira Braga",   birthDate: "1988-08-23", sexAtBirth: "male",   cond: [],                           microArea: "MA-1", phone: "(11) 91111-0001", address: "Rua Henrique, 214",             cpf: "001.001.001-01", situation: "ok" },
@@ -94,6 +94,7 @@ const PREGNANT_DEFS = [
   { idx: "pg04", name: "Ana Beatriz Ferreira Campos", birthDate: "1996-08-14", sexAtBirth: "female", microArea: "MA-6", phone: "(11) 92222-0004", address: "Av. das Flores, 200, apto 8", cpf: "002.002.004-04", weeksGest: 32 },
   { idx: "pg05", name: "Renata Souza Galvão",         birthDate: "1992-06-30", sexAtBirth: "female", microArea: "MA-6", phone: "(11) 92222-0005", address: "Rua Panorâmica, 19",          cpf: "002.002.005-05", weeksGest: 36 },
   { idx: "pg06", name: "Patrícia Vieira Moreira",     birthDate: "1989-04-05", sexAtBirth: "female", microArea: "MA-6", phone: "(11) 92222-0006", address: "Av. Principal, 450",          cpf: "002.002.006-06", weeksGest: 20 },
+  { idx: "pg07", name: "Simone Aparecida Nunes",      birthDate: "1991-02-17", sexAtBirth: "female", microArea: "MA-5", phone: "(11) 92222-0007", address: "Rua do Cedro, 88",            cpf: "002.002.007-07", weeksGest: 28 },
 ];
 
 const PUERPERAL_DEFS = [
@@ -212,7 +213,7 @@ export async function seedDemoTeamRosa() {
     upsert(db.users, { ...baseUser, id: ENF_ID,  name: "Enf. Patrícia Lima",email: "patricia.enf@vitras.com.br",role: "nurse_manager",     teamId: TEAM_ID, teamName: TEAM_NAME, password: hashPassword("Demo@2026"), councilType: "COREN", councilNumber: "12345", councilUf: "SP" });
 
     // ── Patients ──────────────────────────────────────────────────────────
-    console.log("[seed] criando 40 pacientes");
+    console.log("[seed] criando 41 pacientes");
     for (const def of GENERAL_DEFS)   db.patients.push(buildPatient(def, "general"));
     for (const def of PREGNANT_DEFS)  db.patients.push(buildPatient(def, "pregnant"));
     for (const def of PUERPERAL_DEFS) db.patients.push(buildPatient(def, "puerperal"));
@@ -303,6 +304,10 @@ export async function seedDemoTeamRosa() {
     recs.push(r("seed-rec-pg06-c1", "pg06", "consultation", "1ª Consulta Pré-natal", "8ª semana. Exames solicitados. Suplementação iniciada.", dAgo(140), "pregnant", DRA_ID));
     recs.push(r("seed-rec-pg06-c2", "pg06", "consultation", "Pré-natal — 2ª consulta", "20ª semana. Morfológico de 2º trimestre solicitado. BCF 144bpm. Exames normais.", dAgo(56), "pregnant", DRA_ID));
     recs.push(r("seed-rec-pg06-v1", "pg06", "visit", "Visita ACS — Gestante", "Visita domiciliar. Gestante sem queixas. Caderneta em dia.", dAgo(70), "pregnant", ACS_ID));
+
+    // pg07 — 28 semanas, apenas 1 consulta (mínimo PNAB para IG≥26s = 3) → dispara alerta de perda de indicador
+    recs.push(r("seed-rec-pg07-c1", "pg07", "consultation", "1ª Consulta Pré-natal", "Captação tardia na 16ª semana. Exames solicitados. Ácido fólico + Sulfato Ferroso prescritos. Orientada sobre importância do pré-natal regular.", dAgo(112), "pregnant", DRA_ID));
+    recs.push(r("seed-rec-pg07-v1", "pg07", "visit", "Visita ACS — Gestante", "Visita domiciliar. Gestante faltou às consultas marcadas. Reorientada sobre importância do acompanhamento.", dAgo(30), "pregnant", ACS_ID));
 
     // — Puérperas —
     // pu01 — 5 dias
