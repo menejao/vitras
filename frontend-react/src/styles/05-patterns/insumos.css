@@ -5,23 +5,10 @@
 .insumos-page {
   display: flex;
   flex-direction: column;
-  height: 100%;
 }
 
-.insumos-page > .page-header { margin: var(--s-6) var(--s-6) 0; }
-
-/* ── Session info ─────────────────────────────────────────────── */
-.insumos-session { text-align: right; }
-
-.insumos-session__name {
-  font: 700 var(--t-sm) var(--font-sans);
-  color: var(--accent-text);
-}
-
-.insumos-session__role {
-  font: 400 var(--t-xs) var(--font-sans);
-  color: var(--text-dim);
-}
+.insumos-page > .page-header,
+.insumos-page > .hero { margin: var(--s-6) var(--s-6) 0; }
 
 /* ── KPI row ──────────────────────────────────────────────────── */
 .insumos-kpis {
@@ -35,16 +22,25 @@
 .insumos-kpis .kpi { flex: 1 1 140px; }
 
 /* ── Tabs bar ─────────────────────────────────────────────────── */
-.insumos-tabs {
+.insumos-tabs-bar {
   padding: 0 var(--s-6);
-  flex-shrink: 0;
+  border-bottom: 1px solid var(--border-subtle);
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+  z-index: var(--z-sticky);
+}
+.insumos-tabs-bar .tabs {
+  border-bottom: none;
+  padding: 0;
 }
 
-/* ── Scrollable body ──────────────────────────────────────────── */
+/* ── Body ─────────────────────────────────────────────────────── */
 .insumos-body {
-  flex: 1;
-  overflow: auto;
-  padding: var(--s-5) var(--s-6) var(--s-6);
+  padding: var(--s-4) var(--s-6) var(--s-8);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
 }
 
 /* ── Dispensar: two-column layout ─────────────────────────────── */
@@ -358,9 +354,10 @@
 .ins-toolbar {
   display: flex;
   gap: var(--s-2);
-  margin-bottom: var(--s-4);
   flex-wrap: wrap;
   align-items: center;
+  padding: var(--s-3) var(--s-4);
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 /* ── Stock table ──────────────────────────────────────────────── */
@@ -618,6 +615,7 @@
 
 @media (max-width: 640px) {
   .insumos-page > .page-header,
+  .insumos-page > .hero,
   .insumos-kpis,
   .insumos-body { padding-left: var(--s-4); padding-right: var(--s-4); }
   .ins-disp-sidebar { flex: 1 1 100%; }
