@@ -401,7 +401,9 @@ export default function RecordsPage({
         <div className="records-content">
 
           <div className="chr-patient-header">
-            <Avatar name={selectedPatient.name} size="lg" />
+            <div className="chr-patient-avatar-wrap">
+              <Avatar name={selectedPatient.name} size="lg" />
+            </div>
             <div className="chr-patient-main">
               <div className="chr-patient-name-row">
                 <span className="chr-patient-name">{selectedPatient.name}</span>
@@ -454,7 +456,7 @@ export default function RecordsPage({
                     Abrir ficha
                   </Button>
                 )}
-                <Button variant="secondary" size="sm" onClick={handleCloseChart}>Trocar paciente</Button>
+                <Button variant="ghost" size="sm" onClick={handleCloseChart}>Trocar paciente</Button>
                 <Button variant="ghost" size="sm" onClick={handleCloseChart}>Fechar</Button>
               </div>
             </div>

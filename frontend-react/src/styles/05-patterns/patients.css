@@ -2039,21 +2039,32 @@
    Clinical History Record (chr-*) — prontuário redesign
    ═══════════════════════════════════════════════════════════════ */
 
+/* Patient context header — clinical area identifier */
 .chr-patient-header {
   display: flex;
   align-items: flex-start;
-  gap: var(--s-3);
-  padding: var(--s-4) var(--s-5);
-  background: var(--surface-2);
-  border: 1px solid var(--border-subtle);
+  gap: var(--s-5);
+  padding: var(--s-5) var(--s-6);
+  background: linear-gradient(160deg, var(--surface) 0%, #F0FDFA 100%);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
   border-radius: var(--r-lg);
-  margin-top: var(--s-4);
+  margin-top: var(--s-5);
   flex-wrap: wrap;
+  box-shadow: var(--shadow-md);
+}
+
+.chr-patient-avatar-wrap {
+  flex-shrink: 0;
+  padding-top: 2px;
 }
 
 .chr-patient-main {
   flex: 1;
-  min-width: 200px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
 }
 
 .chr-patient-name-row {
@@ -2061,12 +2072,13 @@
   align-items: center;
   gap: var(--s-2);
   flex-wrap: wrap;
-  margin: 0 0 2px;
 }
 
 .chr-patient-name {
-  font: 700 var(--t-lg) var(--font-sans);
+  font: 700 var(--t-xl) var(--font-sans);
   color: var(--text);
+  letter-spacing: var(--ls-snug);
+  line-height: 1.2;
 }
 
 .chr-audited-badge {
@@ -2080,29 +2092,32 @@
   color: var(--success);
   border: 1px solid var(--success-bd);
   white-space: nowrap;
+  letter-spacing: 0.01em;
 }
 
 .chr-patient-meta {
-  font: 400 var(--t-xs) var(--font-sans);
+  font: 400 var(--t-sm) var(--font-sans);
   color: var(--text-muted);
   line-height: var(--lh-snug);
+  letter-spacing: var(--ls-base);
 }
 
 .chr-patient-alerts {
   display: flex;
   flex-wrap: wrap;
   gap: var(--s-1);
-  margin-top: var(--s-2);
+  margin-top: var(--s-1);
 }
 
 .chr-clinical-alert {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 1px var(--s-2);
+  padding: 2px var(--s-2);
   border-radius: var(--r-pill);
   font: 600 var(--t-xs) var(--font-sans);
   border: 1px solid;
+  letter-spacing: 0.01em;
 }
 
 .chr-clinical-alert--warning { background: var(--warning-soft); color: var(--warning); border-color: var(--warning-bd); }
@@ -2112,25 +2127,45 @@
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: var(--s-2);
+  justify-content: space-between;
+  gap: var(--s-3);
   flex-shrink: 0;
+  align-self: stretch;
+  min-height: 64px;
 }
 
 .chr-lgpd-notice {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  font: 400 var(--t-xs) var(--font-sans);
+  gap: 5px;
+  padding: 4px var(--s-2);
+  border-radius: var(--r-sm);
+  font: 500 var(--t-xs) var(--font-sans);
   color: var(--text-dim);
-  text-align: right;
-  max-width: 220px;
-  line-height: var(--lh-snug);
-  opacity: 0.75;
+  background: var(--surface-3);
+  border: 1px solid var(--border-subtle);
+  white-space: nowrap;
+  letter-spacing: 0.01em;
 }
 
 .chr-patient-btns {
   display: flex;
   gap: var(--s-2);
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+/* ── Dark mode — patient header ─────────────────────────────── */
+[data-theme="dark"] .chr-patient-header {
+  background: linear-gradient(160deg, #0D1A24 0%, #071A18 100%);
+  border-color: rgba(255,255,255,.08);
+  border-left-color: var(--accent);
+  box-shadow: 0 4px 24px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.04);
+}
+
+[data-theme="dark"] .chr-lgpd-notice {
+  background: rgba(255,255,255,.04);
+  border-color: rgba(255,255,255,.06);
 }
 
 /* ── Filter bar ─────────────────────────────────────────────── */
@@ -2474,12 +2509,30 @@
 }
 
 /* ── Responsive ─────────────────────────────────────────────── */
+@media (max-width: 860px) {
+  .chr-patient-header {
+    padding: var(--s-4) var(--s-5) var(--s-4) calc(var(--s-5) - 2px);
+    gap: var(--s-3);
+  }
+}
+
 @media (max-width: 640px) {
-  .chr-patient-header { flex-direction: column; }
-  .chr-patient-aside  { align-items: flex-start; }
-  .chr-lgpd-notice    { text-align: left; max-width: none; }
-  .chr-card__head     { flex-wrap: wrap; gap: var(--s-2); }
-  .chr-card__date     { min-width: auto; }
-  .chr-card__actions  { margin-left: 0; padding-left: 0; }
+  .chr-patient-header {
+    flex-direction: column;
+    border-left: none;
+    border-top: 3px solid var(--accent);
+    padding: var(--s-4) var(--s-4);
+    gap: var(--s-3);
+  }
+  .chr-patient-aside {
+    align-items: flex-start;
+    align-self: auto;
+    min-height: auto;
+  }
+  .chr-patient-btns  { justify-content: flex-start; }
+  .chr-lgpd-notice   { white-space: normal; }
+  .chr-card__head    { flex-wrap: wrap; gap: var(--s-2); }
+  .chr-card__date    { min-width: auto; }
+  .chr-card__actions { margin-left: 0; padding-left: 0; }
 }
 
