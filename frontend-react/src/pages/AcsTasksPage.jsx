@@ -97,9 +97,17 @@ const PatBtn = ({ patientId, name, onNavigate }) => (
   </button>
 );
 
-function FamilyGroupsSection({ token, patients, onNavigatePatient }) {
+const IconHome = () => (
+  <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+    <path d="M8 1.5C5.52 1.5 3.5 3.52 3.5 6c0 3.5 4.5 8.5 4.5 8.5s4.5-5 4.5-8.5c0-2.48-2.02-4.5-4.5-4.5z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+    <circle cx="8" cy="6" r="1.5" stroke="currentColor" strokeWidth="1.2" />
+  </svg>
+);
+
+function FamilyGroupsSection({ token, user, patients, onNavigatePatient }) {
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     if (!token) return;
@@ -115,55 +123,147 @@ function FamilyGroupsSection({ token, patients, onNavigatePatient }) {
     return m;
   }, [patients]);
 
-  if (loading) return <div className="acs-loading">Carregando grupos familiares...</div>;
-
-  if (!groups.length) return (
-    <div className="acs-empty">
-      <div className="acs-empty__icon" aria-hidden="true">
-        <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
-          <circle cx="9" cy="6" r="3" stroke="currentColor" strokeWidth="1.4" />
-          <path d="M3 20c0-3.314 2.686-6 6-6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-          <circle cx="17" cy="9" r="3" stroke="currentColor" strokeWidth="1.4" />
-          <path d="M11 20c0-3.314 2.686-6 6-6s6 2.686 6 6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-        </svg>
-      </div>
-      <p className="acs-empty__title">Nenhum grupo familiar cadastrado.</p>
-      <p className="acs-empty__sub">Grupos familiares agrupam pacientes de um mesmo endereço para facilitar o acompanhamento territorial.</p>
-    </div>
+  const myPatients = useMemo(() =>
+    patients.filter(p => p.assignedAcsId === user?.id && !p.inactive),
+    [patients, user?.id]
   );
 
+  const groupedIds = useMemo(() => {
+    const s = new Set();
+    for (const g of groups) (g.memberPatientIds || []).forEach(id => s.add(id));
+    return s;
+  }, [groups]);
+
+  const ungrouped = useMemo(() =>
+    myPatients.filter(p => !groupedIds.has(p.id) && p.address?.trim()),
+    [myPatients, groupedIds]
+  );
+
+  const noAddress = useMemo(() =>
+    myPatients.filter(p => !p.address?.trim()),
+    [myPatients]
+  );
+
+  const q = search.toLowerCase().trim();
+  const filteredGroups = useMemo(() => {
+    if (!q) return groups;
+    return groups.filter(g => {
+      if ((g.address || "").toLowerCase().includes(q)) return true;
+      if ((g.microArea || "").toLowerCase().includes(q)) return true;
+      return (g.memberPatientIds || []).some(id => {
+        const p = patientMap[id];
+        return p && p.name.toLowerCase().includes(q);
+      });
+    });
+  }, [groups, q, patientMap]);
+
+  if (loading) return <div className="acs-loading">Carregando grupos familiares...</div>;
+
+  const hasResults = filteredGroups.length > 0 || ungrouped.length > 0 || noAddress.length > 0;
+
   return (
-    <div className="acs-fg-list">
-      {groups.map(fg => {
-        const members = (fg.memberPatientIds || []).map(id => patientMap[id]).filter(Boolean);
-        return (
-          <div key={fg.id} className="acs-fg-card">
-            <div className="acs-fg-card__head">
-              <div className="acs-fg-card__addr">
-                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                  <path d="M8 1.5C5.52 1.5 3.5 3.52 3.5 6c0 3.5 4.5 8.5 4.5 8.5s4.5-5 4.5-8.5c0-2.48-2.02-4.5-4.5-4.5z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
-                  <circle cx="8" cy="6" r="1.5" stroke="currentColor" strokeWidth="1.2" />
-                </svg>
-                {fg.address}
-              </div>
-              <span className="acs-fg-card__micro">{fg.microArea}</span>
-            </div>
-            <div className="acs-fg-card__members">
-              {members.length > 0
-                ? members.map(m => (
-                    <PatBtn key={m.id} patientId={m.id} name={m.name} onNavigate={onNavigatePatient} />
-                  ))
-                : <span className="acs-fg-card__no-members">Nenhum membro cadastrado.</span>
-              }
-            </div>
-            {fg.transferHistory && fg.transferHistory.length > 0 && (
-              <div className="acs-fg-card__history">
-                Última transferência: {fmtDate(fg.transferHistory[fg.transferHistory.length - 1].transferredAt?.split("T")[0])}
-              </div>
-            )}
+    <div className="acs-fg-section">
+      <div className="acs-fg-note" aria-live="polite">
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.3" />
+          <path d="M8 7v4M8 5h.01" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+        </svg>
+        Grupos criados automaticamente a partir do endereço cadastrado do paciente.
+      </div>
+
+      <div className="acs-fg-search-wrap">
+        <span className="acs-search-icon" aria-hidden="true">
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+            <circle cx="6.5" cy="6.5" r="4" stroke="currentColor" strokeWidth="1.3" />
+            <path d="M10 10l3.5 3.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+          </svg>
+        </span>
+        <input
+          className="acs-search-input acs-fg-search"
+          type="text"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Buscar por endereço ou paciente..."
+          aria-label="Buscar grupo familiar"
+        />
+      </div>
+
+      {!hasResults ? (
+        <div className="acs-empty">
+          <div className="acs-empty__icon" aria-hidden="true">
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
+              <circle cx="9" cy="6" r="3" stroke="currentColor" strokeWidth="1.4" />
+              <path d="M3 20c0-3.314 2.686-6 6-6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+              <circle cx="17" cy="9" r="3" stroke="currentColor" strokeWidth="1.4" />
+              <path d="M11 20c0-3.314 2.686-6 6-6s6 2.686 6 6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+            </svg>
           </div>
-        );
-      })}
+          <p className="acs-empty__title">Nenhum grupo familiar encontrado.</p>
+          <p className="acs-empty__sub">Grupos são criados automaticamente quando dois ou mais pacientes compartilham o mesmo endereço.</p>
+        </div>
+      ) : (
+        <>
+          {filteredGroups.length > 0 && (
+            <div className="acs-fg-list">
+              {filteredGroups.map(fg => {
+                const members = (fg.memberPatientIds || []).map(id => patientMap[id]).filter(Boolean);
+                return (
+                  <div key={fg.id} className="acs-fg-card">
+                    <div className="acs-fg-card__head">
+                      <div className="acs-fg-card__addr">
+                        <IconHome />
+                        {fg.address}
+                      </div>
+                      {fg.microArea && <span className="acs-fg-card__micro">{fg.microArea}</span>}
+                    </div>
+                    <div className="acs-fg-card__members">
+                      {members.length > 0
+                        ? members.map(m => (
+                            <PatBtn key={m.id} patientId={m.id} name={m.name} onNavigate={onNavigatePatient} />
+                          ))
+                        : <span className="acs-fg-card__no-members">Nenhum membro ativo.</span>
+                      }
+                    </div>
+                    {fg.transferHistory && fg.transferHistory.length > 0 && (
+                      <div className="acs-fg-card__history">
+                        Última transferência: {fmtDate(fg.transferHistory[fg.transferHistory.length - 1].transferredAt?.split("T")[0])}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {ungrouped.length > 0 && !q && (
+            <div className="acs-fg-ungrouped">
+              <p className="acs-fg-ungrouped__title">Sem grupo familiar definido ({ungrouped.length})</p>
+              <div className="acs-fg-ungrouped__list">
+                {ungrouped.map(p => (
+                  <div key={p.id} className="acs-fg-ungrouped__item">
+                    <PatBtn patientId={p.id} name={p.name} onNavigate={onNavigatePatient} />
+                    <span className="acs-fg-ungrouped__addr">{p.address}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {noAddress.length > 0 && !q && (
+            <div className="acs-fg-ungrouped acs-fg-ungrouped--warn">
+              <p className="acs-fg-ungrouped__title">Endereço incompleto — sem grupo ({noAddress.length})</p>
+              <div className="acs-fg-ungrouped__list">
+                {noAddress.map(p => (
+                  <div key={p.id} className="acs-fg-ungrouped__item">
+                    <PatBtn patientId={p.id} name={p.name} onNavigate={onNavigatePatient} />
+                    <span className="acs-fg-ungrouped__addr acs-fg-ungrouped__addr--missing">Sem endereço cadastrado</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }
@@ -426,6 +526,7 @@ function AcsTasksPage({ patients, users, user, token, onNavigatePatient }) {
         {activeTab === "groups" && (
           <FamilyGroupsSection
             token={token}
+            user={user}
             patients={patients}
             onNavigatePatient={onNavigatePatient}
           />

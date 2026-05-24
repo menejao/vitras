@@ -13,6 +13,7 @@ import { requireManagerOrDoctor } from "../middlewares/auth.js";
 import {
   ensureDbShape, getProtocolTemplateMap, normalizeCategory, normalizeChronicConditions
 } from "../utils/domain.js";
+import { syncPatientFamilyGroup } from "../utils/family-groups.js";
 import {
   isManager, isDoctor, isAcs, normalizeDemandType,
   detectConsultationSpecialtyFromTitle, normalizeConsultationTitle
@@ -205,6 +206,7 @@ router.post("/patients", requireManagerOrDoctor, validate(PatientCreateSchema), 
       careCategory: patient.careCategory,
       after: buildPatientAuditSnapshot(patient)
     });
+    syncPatientFamilyGroup(db, patient, req.user, "Cadastro de novo paciente");
   });
 
   return res.status(201).json(patient);
@@ -332,6 +334,15 @@ router.put("/patients/:id", validate(PatientUpdateSchema), async (req, res) => {
       after: buildPatientAuditSnapshot(next)
     });
 
+    const addressChanged = (next.address || "") !== (current.address || "");
+    const acsChanged = (next.assignedAcsId || "") !== (current.assignedAcsId || "");
+    if (addressChanged || acsChanged) {
+      const reason = addressChanged
+        ? "Atualização automática por alteração de endereço do paciente"
+        : "Atualização automática por mudança de ACS responsável";
+      syncPatientFamilyGroup(db, next, req.user, reason);
+    }
+
     return next;
   });
 
@@ -395,6 +406,18 @@ router.delete("/patients/:id", requireManagerOrDoctor, async (req, res) => {
     const recordsRemoved = recordsBefore - db.clinicalRecords.length;
 
     db.patients.splice(patientIndex, 1);
+
+    // Remove from family group
+    for (const grp of db.familyGroups) {
+      if (Array.isArray(grp.memberPatientIds) && grp.memberPatientIds.includes(id)) {
+        grp.memberPatientIds = grp.memberPatientIds.filter((pid) => pid !== id);
+        grp.memberHistory = [...(grp.memberHistory || []), {
+          action: "leave", patientId: id, reason: "Paciente excluído do sistema",
+          at: new Date().toISOString(), by: req.user.id,
+        }];
+        grp.updatedAt = new Date().toISOString();
+      }
+    }
 
     addAuditLog(db, req.user, "patient.deleted", "patient", id, {
       name: patient.name,

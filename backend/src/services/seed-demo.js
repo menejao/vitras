@@ -1,6 +1,7 @@
 import { withDb } from "../db.js";
 import { ensureDbShape } from "../utils/domain.js";
 import { hashPassword } from "./crypto.js";
+import { backfillFamilyGroups } from "../utils/family-groups.js";
 
 const TEAM_ID = "team-rosa";
 const TEAM_NAME = "Equipe Rosa";
@@ -192,7 +193,7 @@ export async function seedDemoTeamRosa() {
     if (!Array.isArray(db.notifications)) db.notifications = [];
     db.notifications     = db.notifications.filter((x) => !x.id?.startsWith("seed-notif-"));
     if (!Array.isArray(db.familyGroups)) db.familyGroups = [];
-    db.familyGroups      = db.familyGroups.filter((x) => !x.id?.startsWith("seed-fg-"));
+    db.familyGroups      = db.familyGroups.filter((x) => x.teamId !== TEAM_ID);
     if (!Array.isArray(db.labIntegrations)) db.labIntegrations = [];
     db.labIntegrations   = db.labIntegrations.filter((x) => !x.id?.startsWith("seed-labint-"));
     db.pharmacyLogs      = db.pharmacyLogs.filter((x) => !x.id?.startsWith("seed-pharma-log-"));
@@ -565,61 +566,6 @@ export async function seedDemoTeamRosa() {
       });
     }
 
-    // ── Family Groups ─────────────────────────────────────────────────────
-    const familyGroups = [
-      {
-        id: "seed-fg-camargo",
-        teamId: TEAM_ID,
-        address: "Rua Camargo, 71",
-        microArea: "MA-2",
-        assignedAcsId: ACS_ID,
-        memberPatientIds: ["seed-p-g06", "seed-p-pg02"],
-        createdBy: JOAO_ID,
-        createdAt: tsAgo(120),
-        updatedAt: tsAgo(120),
-        transferHistory: [],
-      },
-      {
-        id: "seed-fg-acacias",
-        teamId: TEAM_ID,
-        address: "Rua das Acácias, 142",
-        microArea: "MA-5",
-        assignedAcsId: ACS_ID,
-        memberPatientIds: ["seed-p-g17", "seed-p-el03"],
-        createdBy: JOAO_ID,
-        createdAt: tsAgo(90),
-        updatedAt: tsAgo(90),
-        transferHistory: [],
-      },
-      {
-        id: "seed-fg-ipes",
-        teamId: TEAM_ID,
-        address: "Rua dos Ipês, 87",
-        microArea: "MA-5",
-        assignedAcsId: ACS_ID,
-        memberPatientIds: ["seed-p-g18", "seed-p-el04"],
-        createdBy: JOAO_ID,
-        createdAt: tsAgo(90),
-        updatedAt: tsAgo(90),
-        transferHistory: [],
-      },
-      {
-        id: "seed-fg-antonio-carlos",
-        teamId: TEAM_ID,
-        address: "Rua Antônio Carlos, 99",
-        microArea: "MA-2",
-        assignedAcsId: ACS_ID,
-        memberPatientIds: ["seed-p-g07", "seed-p-el02"],
-        createdBy: JOAO_ID,
-        createdAt: tsAgo(60),
-        updatedAt: tsAgo(60),
-        transferHistory: [],
-      },
-    ];
-    for (const fg of familyGroups) {
-      if (!hasId(db.familyGroups, fg.id)) db.familyGroups.push(fg);
-    }
-
     // ── Messages ──────────────────────────────────────────────────────────
     if (!hasId(db.messages, "seed-msg-g17-1")) {
       db.messages.push({
@@ -827,10 +773,15 @@ export async function seedDemoTeamRosa() {
       });
     }
 
+    // ── Family groups (auto-generated from patient addresses) ────────────
+    const fgResult = backfillFamilyGroups(db, { id: JOAO_ID, name: "João Dev", teamId: TEAM_ID });
+    console.log(`[seed] family groups gerados: ${fgResult.groups}`);
+
     return {
       removedPatients: oldSeedCount,
       createdPatients: seedPatients.length,
       totalPatients: db.patients.length,
+      familyGroups: fgResult.groups,
       countsByCategory: {
         general:       countCat("general"),
         pregnant:      countCat("pregnant"),

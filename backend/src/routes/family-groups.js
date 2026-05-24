@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from "uuid";
 import { readDb, withDb } from "../db.js";
 import { ensureDbShape } from "../utils/domain.js";
 import { addAuditLog } from "../services/audit.js";
-import { isManager, isAcs, canonicalRole } from "../utils/helpers.js";
+import { isManager, canonicalRole } from "../utils/helpers.js";
 
 const router = express.Router();
 
@@ -22,53 +22,15 @@ function groupVisibleToUser(group, user) {
 router.get("/family-groups", async (req, res) => {
   const db = await readDb();
   ensureDbShape(db);
-  const groups = db.familyGroups.filter((g) => groupVisibleToUser(g, req.user));
+  const q = String(req.query.q || "").toLowerCase().trim();
+  let groups = db.familyGroups.filter((g) => groupVisibleToUser(g, req.user));
+  if (q) {
+    groups = groups.filter((g) =>
+      (g.address || "").toLowerCase().includes(q) ||
+      (g.microArea || "").toLowerCase().includes(q)
+    );
+  }
   return res.json(groups);
-});
-
-router.post("/family-groups", async (req, res) => {
-  if (!canManageGroups(req.user)) {
-    return res.status(403).json({ error: "Sem permissão para criar grupos familiares" });
-  }
-
-  const { address, microArea, assignedAcsId, memberPatientIds } = req.body;
-  if (!address || !microArea || !assignedAcsId) {
-    return res.status(400).json({ error: "address, microArea e assignedAcsId são obrigatórios" });
-  }
-
-  const db = await readDb();
-  ensureDbShape(db);
-
-  const assignee = db.users.find((u) => u.id === String(assignedAcsId));
-  if (!assignee || canonicalRole(assignee.role) !== "acs" || assignee.teamId !== req.user.teamId) {
-    return res.status(400).json({ error: "ACS responsável não encontrado na equipe" });
-  }
-
-  const group = {
-    id: uuidv4(),
-    teamId: req.user.teamId,
-    address: String(address),
-    microArea: String(microArea),
-    assignedAcsId: String(assignedAcsId),
-    memberPatientIds: Array.isArray(memberPatientIds) ? memberPatientIds.map(String) : [],
-    createdBy: req.user.id,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    transferHistory: [],
-  };
-
-  await withDb((mutableDb) => {
-    ensureDbShape(mutableDb);
-    mutableDb.familyGroups.push(group);
-    addAuditLog(mutableDb, req.user, "familyGroup.created", "familyGroup", group.id, {
-      address: group.address,
-      microArea: group.microArea,
-      assignedAcsId: group.assignedAcsId,
-      memberCount: group.memberPatientIds.length,
-    });
-  });
-
-  return res.status(201).json(group);
 });
 
 router.patch("/family-groups/:id/members", async (req, res) => {

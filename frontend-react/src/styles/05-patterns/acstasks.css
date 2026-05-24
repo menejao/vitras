@@ -464,6 +464,48 @@
   .acs-status-btn { flex: 1; text-align: center; }
 }
 
+/* ── Family groups section wrapper ───────────────────────────── */
+.acs-fg-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.acs-fg-note {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  font: 400 var(--t-xs) var(--font-sans);
+  color: var(--text-dim);
+  background: var(--surface-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-md);
+  padding: var(--s-2) var(--s-3);
+  flex-shrink: 0;
+}
+
+.acs-fg-search-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.acs-fg-search-wrap .acs-search-icon {
+  position: absolute;
+  left: var(--s-3);
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-dim);
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+}
+
+.acs-fg-search {
+  width: 100%;
+  box-sizing: border-box;
+  max-width: 360px;
+}
+
 /* ── Family groups list ───────────────────────────────────────── */
 .acs-fg-list {
   display: flex;
@@ -530,4 +572,52 @@
   border-top: 1px solid var(--border-subtle);
   padding-top: var(--s-2);
   margin-top: var(--s-1);
+}
+
+/* ── Ungrouped patients ───────────────────────────────────────── */
+.acs-fg-ungrouped {
+  background: var(--surface-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-md);
+  padding: var(--s-3) var(--s-4);
+}
+
+.acs-fg-ungrouped--warn {
+  border-color: var(--warning-bd);
+  background: var(--warning-soft);
+}
+
+.acs-fg-ungrouped__title {
+  font: 600 var(--t-xs) var(--font-sans);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  margin: 0 0 var(--s-2);
+}
+
+.acs-fg-ungrouped--warn .acs-fg-ungrouped__title {
+  color: var(--warning);
+}
+
+.acs-fg-ungrouped__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.acs-fg-ungrouped__item {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+}
+
+.acs-fg-ungrouped__addr {
+  font: 400 var(--t-xs) var(--font-sans);
+  color: var(--text-dim);
+}
+
+.acs-fg-ungrouped__addr--missing {
+  color: var(--warning);
+  font-style: italic;
 }
