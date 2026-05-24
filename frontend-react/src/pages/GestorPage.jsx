@@ -1,12 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 
-import { fetchAuditLogs } from "../api";
 import PageHeader from "../components/layout/PageHeader";
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
 import Select from "../components/ui/Select";
 import { ageInMonths, protocolChip } from "../utils/clinical";
-import { isAdmin, roleLabel } from "../utils/roles";
+import { roleLabel } from "../utils/roles";
 
 const C_ACCENT  = "var(--accent)";
 const C_DANGER  = "var(--danger)";
@@ -54,8 +53,6 @@ function GestorPage({
   referrals = [],
   pharmacyStock = [],
   pharmacyLog = [],
-  token = "",
-  user = null,
 }) {
   const now = new Date();
   const ONLINE_WINDOW_MS = 2 * 60 * 1000;
@@ -63,10 +60,6 @@ function GestorPage({
   const [globalUserRoleFilter, setGlobalUserRoleFilter] = useState("all");
   const [globalUserStatusFilter, setGlobalUserStatusFilter] = useState("all");
   const [globalUserTeamFilter, setGlobalUserTeamFilter] = useState("all");
-  const [auditRecent, setAuditRecent] = useState([]);
-  const [auditTotal, setAuditTotal] = useState(0);
-  const [auditError, setAuditError] = useState("");
-  const canReadAudit = Boolean(isAdmin(user) || user?.capabilities?.includes("audit.read"));
 
   const [period, setPeriod] = useState("month");
   function inPeriod(dateStr) {
@@ -142,46 +135,13 @@ function GestorPage({
     return matchesText && matchesRole && matchesStatus && matchesTeam;
   });
 
-  useEffect(() => {
-    let active = true;
-    if (!token || !canReadAudit) {
-      setAuditRecent([]);
-      setAuditTotal(0);
-      setAuditError("");
-      return undefined;
-    }
-
-    fetchAuditLogs(token, { limit: 8 })
-      .then((payload) => {
-        if (!active) return;
-        const items = Array.isArray(payload?.items) ? payload.items : [];
-        setAuditRecent(items);
-        setAuditTotal(Number(payload?.totalMatched || items.length));
-        setAuditError("");
-      })
-      .catch((err) => {
-        if (!active) return;
-        setAuditRecent([]);
-        setAuditTotal(0);
-        setAuditError(String(err?.message || "Falha ao carregar auditoria"));
-      });
-
-    return () => { active = false; };
-  }, [token, canReadAudit]);
-
-  const auditSummaryText = useMemo(() => {
-    if (!canReadAudit) return "Sem permissão para leitura de auditoria";
-    if (auditError) return auditError;
-    return `${auditTotal} registros totais`;
-  }, [auditError, auditTotal, canReadAudit]);
-
   return (
     <div className="gestor-page">
 
       <PageHeader
-        eyebrow="Painel de Gestão"
-        title="Indicadores à Vista"
-        subtitle="Visão executiva da UBS, atualizada em tempo real com os dados da equipe."
+        eyebrow="PAINEL DE GESTÃO"
+        title="Gestão à Vista"
+        subtitle="Visão executiva da UBS atualizada em tempo real com os dados da equipe."
         actions={
           <div className="actions">
             {[["month", "Mês"], ["quarter", "Trimestre"], ["year", "Ano"]].map(([k, l]) => (
@@ -489,41 +449,6 @@ function GestorPage({
         </div>
       </div>
 
-      {/* Trilha de Auditoria */}
-      <div className="card card--noPad">
-        <div className="card__header">
-          <span className="card__title">Trilha de Auditoria — Ações Recentes</span>
-          <span className="muted small">{auditSummaryText}</span>
-        </div>
-        <div className="card__body">
-          {!canReadAudit ? (
-            <p className="muted small">Perfil atual não pode consultar trilha de auditoria.</p>
-          ) : auditError ? (
-            <p className="muted small">{auditError}</p>
-          ) : !auditRecent.length ? (
-            <p className="muted small">Nenhuma ação registrada ainda.</p>
-          ) : (
-            <div className="gestor-audit-list">
-              {auditRecent.map((a, i) => (
-                <div key={i} className="gestor-audit-row">
-                  <span className="gestor-audit-row__dot" />
-                  <div className="gestor-audit-row__body">
-                    <span className="gestor-audit-row__action">{a.action || "Ação"}</span>
-                    {(a.actor || a.user) && (
-                      <span className="muted"> por {(a.actor?.name || a.user?.name || a.user?.email || "usuário")}</span>
-                    )}
-                  </div>
-                  <span className="gestor-audit-row__ts">
-                    {a.createdAt || a.ts
-                      ? new Date(a.createdAt || a.ts).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })
-                      : "—"}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
 
     </div>
   );

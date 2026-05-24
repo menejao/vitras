@@ -119,7 +119,7 @@ function normalizeDisplayDate(entry) {
   if (entry.createdAt) return String(entry.createdAt).slice(0, 19).replace("T", " ");
   if (entry.tsDisplay) return entry.tsDisplay;
   if (entry.ts) return String(entry.ts).slice(0, 19).replace("T", " ");
-  return "â€”";
+  return "—";
 }
 
 function AuditLogPanel({ embedded = false }) {
@@ -321,9 +321,9 @@ function AuditLogPanel({ embedded = false }) {
     <div className={embedded ? "audit-embedded" : "audit-page"}>
       {!embedded && (
         <PageHeader
-          eyebrow="Segurança e Conformidade"
+          eyebrow="SEGURANÇA E RASTREABILIDADE"
           title="Trilha de Auditoria"
-          subtitle={`${totalMatched} eventos encontrados â€” leitura institucional, exportável, com retenção controlada.`}
+          subtitle="Monitoramento institucional de acessos, ações críticas e eventos rastreáveis do sistema."
           actions={exportBtn}
         />
       )}
@@ -334,6 +334,7 @@ function AuditLogPanel({ embedded = false }) {
         </div>
       )}
 
+      <div className="audit-body">
       {error && (
         <div className="audit-notice audit-notice--danger">
           <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.3"/><path d="M8 5v3.5M8 11h.01" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
@@ -374,7 +375,7 @@ function AuditLogPanel({ embedded = false }) {
             <div className="audit-retention-card__result">
               {"candidateCount" in retentionResult && (
                 <div className="audit-retention-card__stats">
-                  <span><strong>Corte:</strong> {retentionResult.cutoffIso || "â€”"}</span>
+                  <span><strong>Corte:</strong> {retentionResult.cutoffIso || "—"}</span>
                   <span><strong>Candidatos:</strong> {retentionResult.candidateCount ?? retentionResult.prunedCount ?? 0}</span>
                   {"remainingCount" in retentionResult && <span><strong>Restantes:</strong> {retentionResult.remainingCount}</span>}
                 </div>
@@ -394,32 +395,33 @@ function AuditLogPanel({ embedded = false }) {
       )}
 
       <div className="audit-toolbar">
-        <Input
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          placeholder="Buscar por usuário, ação, detalhe..."
-          style={{ flex: 1, minWidth: 220 }}
-        />
-        <Select style={{ minWidth: 180 }} value={actionFilter} onChange={(event) => setActionFilter(event.target.value)}>
-            <option value="">Todas as ações</option>
-            {actions.map((action) => <option key={action} value={action}>{formatActionMeta(action).label}</option>)}
-        </Select>
-        <Select style={{ minWidth: 160 }} value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}>
-            {CATEGORY_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-        </Select>
-        <Select style={{ minWidth: 150 }} value={severityFilter} onChange={(event) => setSeverityFilter(event.target.value)}>
-            {SEVERITY_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-        </Select>
-        <Select style={{ minWidth: 150 }} value={outcomeFilter} onChange={(event) => setOutcomeFilter(event.target.value)}>
-            {OUTCOME_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-        </Select>
-        <Select style={{ minWidth: 170 }} value={entityFilter} onChange={(event) => setEntityFilter(event.target.value)}>
-            {ENTITY_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-        </Select>
-        <Input style={{ minWidth: 150 }} value={teamIdFilter} onChange={(event) => setTeamIdFilter(event.target.value)} placeholder="Equipe (teamId)" />
-        <Input style={{ minWidth: 170 }} value={patientIdFilter} onChange={(event) => setPatientIdFilter(event.target.value)} placeholder="Paciente (patientId)" />
-        <Input style={{ minWidth: 160 }} type="date" value={fromFilter} onChange={(event) => setFromFilter(event.target.value)} />
-        <Input style={{ minWidth: 160 }} type="date" value={toFilter} onChange={(event) => setToFilter(event.target.value)} />
+        <div className="audit-toolbar__row">
+          <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por usuário, ação, detalhe..." style={{ flex: 1, minWidth: 220 }} />
+        </div>
+        <div className="audit-toolbar__row">
+          <Select style={{ minWidth: 180 }} value={actionFilter} onChange={(event) => setActionFilter(event.target.value)}>
+              <option value="">Todas as ações</option>
+              {actions.map((action) => <option key={action} value={action}>{formatActionMeta(action).label}</option>)}
+          </Select>
+          <Select style={{ minWidth: 160 }} value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}>
+              {CATEGORY_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+          </Select>
+          <Select style={{ minWidth: 150 }} value={severityFilter} onChange={(event) => setSeverityFilter(event.target.value)}>
+              {SEVERITY_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+          </Select>
+          <Select style={{ minWidth: 150 }} value={outcomeFilter} onChange={(event) => setOutcomeFilter(event.target.value)}>
+              {OUTCOME_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+          </Select>
+          <Select style={{ minWidth: 170 }} value={entityFilter} onChange={(event) => setEntityFilter(event.target.value)}>
+              {ENTITY_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+          </Select>
+        </div>
+        <div className="audit-toolbar__row">
+          <Input style={{ minWidth: 150 }} value={teamIdFilter} onChange={(event) => setTeamIdFilter(event.target.value)} placeholder="Equipe (teamId)" />
+          <Input style={{ minWidth: 170 }} value={patientIdFilter} onChange={(event) => setPatientIdFilter(event.target.value)} placeholder="Paciente (patientId)" />
+          <Input style={{ minWidth: 160 }} type="date" value={fromFilter} onChange={(event) => setFromFilter(event.target.value)} />
+          <Input style={{ minWidth: 160 }} type="date" value={toFilter} onChange={(event) => setToFilter(event.target.value)} />
+        </div>
       </div>
 
       <div className="audit-summary-grid">
@@ -445,7 +447,8 @@ function AuditLogPanel({ embedded = false }) {
         </div>
       </div>
 
-      <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+      <div className="card" style={{ padding: 0 }}>
+        <div style={{ overflowX: "auto" }}>
         <table className="audit-table">
           <thead>
             <tr>
@@ -492,19 +495,20 @@ function AuditLogPanel({ embedded = false }) {
                   <td className="audit-table__td">
                     {(entry.actor || entry.user) ? (
                       <div>
-                        <div className="audit-table__td--user-name">{entry.actor?.name || entry.user?.name || "â€”"}</div>
-                        <div className="audit-table__td--user-sub">{entry.actor?.role || entry.user?.role || "â€”"} · {entry.teamName || entry.actor?.teamName || entry.teamId || "Sem equipe"}</div>
+                        <div className="audit-table__td--user-name">{entry.actor?.name || entry.user?.name || "—"}</div>
+                        <div className="audit-table__td--user-sub">{entry.actor?.role || entry.user?.role || "—"} · {entry.teamName || entry.actor?.teamName || entry.teamId || "Sem equipe"}</div>
                       </div>
-                    ) : <span style={{ color: "var(--text-dim)" }}>â€”</span>}
+                    ) : <span style={{ color: "var(--text-dim)" }}>—</span>}
                   </td>
                   <td className="audit-table__td audit-table__td--details" title={details}>
-                    {details || "â€”"}
+                    {details || "—"}
                   </td>
                 </tr>
               );
             })}
           </tbody>
         </table>
+        </div>
       </div>
 
       <div className="audit-pagination">
@@ -514,6 +518,7 @@ function AuditLogPanel({ embedded = false }) {
             <Button variant="secondary" size="sm" onClick={handleLoadMore} disabled={loading}>Carregar mais</Button>
           )}
         </div>
+      </div>
       </div>
     </div>
   );

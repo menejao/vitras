@@ -4,7 +4,6 @@ import PageHeader from "../components/layout/PageHeader";
 import Button from "../components/ui/Button";
 import { Tabs, Tab } from "../components/ui/Tabs";
 import { ageInMonths, protocolChip } from "../utils/clinical";
-import AuditLogPanel from "./AuditLogPanel";
 import EsusMirror from "./EsusMirror";
 
 function StatBox({ label, value, sub, tone = "" }) {
@@ -66,7 +65,7 @@ function ReportsPage({ patients, users, templates, protocolByPatient, agenda = [
   return (
     <div className="reports-page">
       <PageHeader
-        eyebrow="Vitras"
+        eyebrow="RELATÓRIOS"
         title="Relatórios"
         subtitle="Indicadores operacionais e de saúde para leitura executiva, prestação de contas e monitoramento assistencial."
         variant="workspace"
@@ -92,7 +91,6 @@ function ReportsPage({ patients, users, templates, protocolByPatient, agenda = [
         <Tab active={tab === "production"} onClick={() => setTab("production")}>Produção</Tab>
         <Tab active={tab === "pharmacy"} onClick={() => setTab("pharmacy")}>Farmácia</Tab>
         <Tab active={tab === "esus"} onClick={() => setTab("esus")}>e-SUS / RNDS</Tab>
-        <Tab active={tab === "audit"} onClick={() => setTab("audit")}>Trilha de Auditoria</Tab>
       </Tabs>
 
       <div className="reports-content">
@@ -208,9 +206,6 @@ function ReportsPage({ patients, users, templates, protocolByPatient, agenda = [
             <EsusMirror patients={patients} users={users} agenda={agenda} referrals={referrals} pharmacyLog={pharmacyLog} period={period} periodLabel={periodLabel} />
         )}
 
-        {tab === "audit" && (
-          <AuditLogPanel embedded />
-        )}
       </div>
     </div>
   );
