@@ -2056,10 +2056,30 @@
   min-width: 200px;
 }
 
+.chr-patient-name-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+  margin: 0 0 2px;
+}
+
 .chr-patient-name {
   font: 700 var(--t-lg) var(--font-sans);
   color: var(--text);
-  margin: 0 0 2px;
+}
+
+.chr-audited-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px var(--s-2);
+  border-radius: var(--r-pill);
+  font: 600 10px var(--font-sans);
+  background: var(--success-soft);
+  color: var(--success);
+  border: 1px solid var(--success-bd);
+  white-space: nowrap;
 }
 
 .chr-patient-meta {
@@ -2097,6 +2117,9 @@
 }
 
 .chr-lgpd-notice {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font: 400 var(--t-xs) var(--font-sans);
   color: var(--text-dim);
   text-align: right;

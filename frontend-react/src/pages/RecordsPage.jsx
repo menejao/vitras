@@ -28,6 +28,14 @@ function fmtDate(value) {
   return value ? new Date(`${value}T12:00:00`).toLocaleDateString("pt-BR") : "—";
 }
 
+function sexLabel(sex) {
+  if (!sex) return null;
+  const s = String(sex).toLowerCase();
+  if (s === "m" || s === "male"   || s === "masculino") return "Masculino";
+  if (s === "f" || s === "female" || s === "feminino")  return "Feminino";
+  return null;
+}
+
 export default function RecordsPage({
   patients,
   users,
@@ -47,7 +55,7 @@ export default function RecordsPage({
   const [authBusy, setAuthBusy] = useState(false);
   const [authError, setAuthError] = useState("");
 
-  const [chartUnlocked, setChartUnlocked] = useState(false);
+  const [unlockedPatientId, setUnlockedPatientId] = useState(null);
   const [records, setRecords] = useState([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -63,12 +71,13 @@ export default function RecordsPage({
   const [inactivateBusy, setInactivateBusy] = useState(false);
   const [inactivateError, setInactivateError] = useState("");
 
-  const canAccess = canAccessChart(user);
-  const canWrite  = canWriteRecords(user);
+  const canAccess     = canAccessChart(user);
+  const canWrite      = canWriteRecords(user);
+  const chartUnlocked = Boolean(selectedPatient) && unlockedPatientId === selectedPatient?.id;
 
   useEffect(() => {
     if (!controlledPatientId) return;
-    if (selectedPatient?.id === controlledPatientId && chartUnlocked) return;
+    if (selectedPatient?.id === controlledPatientId && unlockedPatientId === controlledPatientId) return;
     const pat = patients.find((p) => p.id === controlledPatientId);
     if (!pat) return;
     setPendingPatient(pat);
@@ -79,7 +88,6 @@ export default function RecordsPage({
   }, [controlledPatientId]);
 
   useEffect(() => {
-    setChartUnlocked(false);
     setRecords([]);
     setError("");
     setTypeFilter("");
@@ -133,7 +141,6 @@ export default function RecordsPage({
     setPassword("");
     setAuthError("");
     setShowAuthModal(true);
-    if (typeof onSelectPatientId === "function") onSelectPatientId(patient.id);
   }
 
   function handleCloseAuth() {
@@ -157,11 +164,13 @@ export default function RecordsPage({
     setAuthError("");
     try {
       await verifyChartAccess(token, pendingPatient.id, password, pendingPatient);
-      setSelectedPatient(pendingPatient);
-      setChartUnlocked(true);
+      const p = pendingPatient;
+      setSelectedPatient(p);
+      setUnlockedPatientId(p.id);
       setShowAuthModal(false);
       setPendingPatient(null);
       setPassword("");
+      if (typeof onSelectPatientId === "function") onSelectPatientId(p.id);
     } catch (err) {
       const status = err.status;
       const message = String(err.message || "");
@@ -175,11 +184,13 @@ export default function RecordsPage({
           "Acesso liberado sem validação remota (apenas em dev).\n" +
           "Para validação real: inicie backend local e exporte VITE_API_PROXY_TARGET=http://localhost:3002"
         );
-        setSelectedPatient(pendingPatient);
-        setChartUnlocked(true);
+        const p = pendingPatient;
+        setSelectedPatient(p);
+        setUnlockedPatientId(p.id);
         setShowAuthModal(false);
         setPendingPatient(null);
         setPassword("");
+        if (typeof onSelectPatientId === "function") onSelectPatientId(p.id);
         return;
       }
 
@@ -199,7 +210,7 @@ export default function RecordsPage({
 
   function handleCloseChart() {
     setSelectedPatient(null);
-    setChartUnlocked(false);
+    setUnlockedPatientId(null);
     setQuery("");
     if (typeof onSelectPatientId === "function") onSelectPatientId("");
   }
@@ -392,10 +403,20 @@ export default function RecordsPage({
           <div className="chr-patient-header">
             <Avatar name={selectedPatient.name} size="lg" />
             <div className="chr-patient-main">
-              <div className="chr-patient-name">{selectedPatient.name}</div>
+              <div className="chr-patient-name-row">
+                <span className="chr-patient-name">{selectedPatient.name}</span>
+                <span className="chr-audited-badge">
+                  <svg width="9" height="9" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                    <circle cx="6" cy="6" r="5" stroke="currentColor" strokeWidth="1.3" />
+                    <path d="M3.5 6l2 2 3-3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  Acesso auditado
+                </span>
+              </div>
               <div className="chr-patient-meta">
                 {[
                   age !== null ? `${age} anos` : null,
+                  sexLabel(selectedPatient.sex),
                   catLabel([], selectedPatient.careCategory) || null,
                   selectedPatient.cpf ? `CPF ${selectedPatient.cpf}` : null,
                   selectedPatient.cns ? `CNS ${selectedPatient.cns}` : null,
@@ -420,14 +441,21 @@ export default function RecordsPage({
               )}
             </div>
             <div className="chr-patient-aside">
-              <span className="chr-lgpd-notice">Dados sensíveis — acesso auditado conforme LGPD</span>
+              <span className="chr-lgpd-notice">
+                <svg width="9" height="9" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                  <rect x="1.5" y="5.5" width="9" height="5.5" rx="1" stroke="currentColor" strokeWidth="1.1" />
+                  <path d="M3.5 5.5V3.5a2.5 2.5 0 0 1 5 0v2" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
+                </svg>
+                Dados sensíveis — LGPD
+              </span>
               <div className="chr-patient-btns">
                 {onNavigatePatient && (
                   <Button variant="secondary" size="sm" onClick={() => onNavigatePatient(selectedPatient.id)}>
                     Abrir ficha
                   </Button>
                 )}
-                <Button variant="secondary" size="sm" onClick={handleCloseChart}>Fechar</Button>
+                <Button variant="secondary" size="sm" onClick={handleCloseChart}>Trocar paciente</Button>
+                <Button variant="ghost" size="sm" onClick={handleCloseChart}>Fechar</Button>
               </div>
             </div>
           </div>
