@@ -421,7 +421,7 @@ function PharmacyPage({
 
       <div className="pharma-body">
         {pharmaTab === "stock" && (
-          <>
+          <div className="card card--noPad overflow-hidden">
             <div className="pharma-toolbar">
               <div className="pharma-search">
                 <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar medicamento, categoria ou localizacao..." />
@@ -436,9 +436,7 @@ function PharmacyPage({
               </Button>
               {canUseWriteFlow ? <Button size="sm" onClick={() => setEditItem({ item: null, mode: "add" })}>+ Novo medicamento</Button> : null}
             </div>
-
-            <div className="card card--noPad overflow-hidden">
-              <table className="patients-table" style={{ width: "100%" }}>
+            <table className="patients-table" style={{ width: "100%" }}>
                 <thead>
                   <tr>
                     <th style={{ width: 40, textAlign: "center" }}>Status</th>
@@ -486,9 +484,8 @@ function PharmacyPage({
                     );
                   })}
                 </tbody>
-              </table>
-            </div>
-          </>
+            </table>
+          </div>
         )}
         {pharmaTab === "log" && (
           <>
@@ -498,14 +495,13 @@ function PharmacyPage({
               </span>
             </div>
 
-            <div className="pharma-toolbar">
-              <div className="pharma-search" style={{ maxWidth: 380 }}>
-                <Input value={logSearch} onChange={(e) => setLogSearch(e.target.value)} placeholder="Buscar por medicamento, paciente, prescritor ou receita..." />
-              </div>
-              <Button onClick={() => exportPharmacyCsv(filteredLog)}>Exportar CSV (ANVISA)</Button>
-            </div>
-
             <div className="card card--noPad overflow-hidden">
+              <div className="pharma-toolbar">
+                <div className="pharma-search" style={{ maxWidth: 380 }}>
+                  <Input value={logSearch} onChange={(e) => setLogSearch(e.target.value)} placeholder="Buscar por medicamento, paciente, prescritor ou receita..." />
+                </div>
+                <Button onClick={() => exportPharmacyCsv(filteredLog)}>Exportar CSV (ANVISA)</Button>
+              </div>
               <table className="patients-table" style={{ width: "100%" }}>
                 <thead>
                   <tr>
@@ -561,13 +557,12 @@ function PharmacyPage({
           </>
         )}
         {pharmaTab === "prescriptions" && (
-          <>
+          <div className="card card--noPad overflow-hidden">
             <div className="pharma-toolbar">
               <div className="pharma-search">
                 <Input value={rxSearch} onChange={e => setRxSearch(e.target.value)} placeholder="Buscar paciente ou medicamento..." />
               </div>
             </div>
-            <div className="card card--noPad overflow-hidden">
               <table className="patients-table" style={{ width: "100%" }}>
                 <thead>
                   <tr>
@@ -611,8 +606,7 @@ function PharmacyPage({
                   ))}
                 </tbody>
               </table>
-            </div>
-          </>
+          </div>
         )}
       </div>
 
