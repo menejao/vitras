@@ -263,7 +263,12 @@ function VaccinesPage({ patients, users, templates, token, canManageUser, user }
         headers:{ ...authHeader, "Content-Type":"application/json" },
         body: JSON.stringify({ type:"vaccine", title:applyForm.vaccine, date:applyForm.date, details:detailsParts.join(" — ") }),
       });
-      if (!res.ok) { const e = await res.json(); throw new Error(e.error || "Erro ao registrar"); }
+      if (!res.ok) {
+        const friendly = { 400:"Dados inválidos", 401:"Sessão expirada", 403:"Sem permissão", 404:"Paciente ou vacina não encontrado" }[res.status] ?? (res.status >= 500 ? "Não foi possível registrar" : "Erro ao registrar");
+        let msg = friendly;
+        try { const body = await res.json(); if (body?.error) msg = body.error; } catch {}
+        throw new Error(msg);
+      }
       const r2 = await fetch(`/patients/${selectedId}/history`, { headers: authHeader });
       const data2 = r2.ok ? await r2.json() : [];
       setCard({ history: Array.isArray(data2) ? data2 : [], loading:false });
@@ -322,7 +327,9 @@ function VaccinesPage({ patients, users, templates, token, canManageUser, user }
     String(selectedPatient.careCategory || "").toLowerCase() === "pregnant" &&
     lifeVaccines.length === 0;
 
-  const filtered = patients.filter(p => !search.trim() || matchesPatientSearch(p, search));
+  const filtered = patients
+    .filter(p => !search.trim() || matchesPatientSearch(p, search))
+    .sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "pt-BR"));
 
   const norm = s => String(s || "").toLowerCase().replace(/[^a-z0-9]/g," ").trim();
 
@@ -367,12 +374,7 @@ function VaccinesPage({ patients, users, templates, token, canManageUser, user }
     <div className="vaccines-page">
       <PageHeader
         eyebrow="Calendário Nacional de Vacinação"
-        title={
-          <>
-            Carteira de Vacinas
-            {isEquipeRosa && <span className="vacc-team-badge">Indicador — Equipe Rosa</span>}
-          </>
-        }
+        title="Carteira de Vacinas"
         subtitle="Indicações baseadas no Calendário Nacional de Vacinação — Ministério da Saúde (PNI)."
       />
 
@@ -392,11 +394,9 @@ function VaccinesPage({ patients, users, templates, token, canManageUser, user }
                     const am = ageInMonths(p.birthDate);
                     const ag = getAgeGroup(am, p.careCategory);
                     return (
-                      <Button
+                      <button
                         key={p.id}
                         type="button"
-                        variant="ghost"
-                        size="sm"
                         className={`vacc-pat${isOpen ? " is-active" : ""}`}
                         onClick={() => openPatient(p)}
                       >
@@ -415,7 +415,7 @@ function VaccinesPage({ patients, users, templates, token, canManageUser, user }
                         <svg className="vacc-pat__chevron" width="11" height="11" viewBox="0 0 16 16" fill="none">
                           <path d="M6 12l4-4-4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                         </svg>
-                      </Button>
+                      </button>
                     );
                   })
               }
