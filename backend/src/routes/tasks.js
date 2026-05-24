@@ -79,6 +79,18 @@ router.post("/tasks", requireManagerOrDoctor, validate(TaskCreateSchema), async 
       assigneeId: task.assigneeId,
       after: buildTaskAuditSnapshot(task)
     });
+    mutableDb.notifications.push({
+      id: uuidv4(),
+      type: "info",
+      title: "Nova tarefa atribuída",
+      detail: `${req.user.name || "Equipe"} atribuiu uma tarefa para ${lookup.patient?.name || "paciente"}: "${task.title}"`,
+      targetUserId: task.assigneeId,
+      patientId: task.patientId,
+      taskId: task.id,
+      teamId: req.user.teamId,
+      createdAt: task.createdAt,
+      read: false,
+    });
   });
 
   return res.status(201).json(task);

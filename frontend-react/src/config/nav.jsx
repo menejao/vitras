@@ -68,7 +68,7 @@ export function buildNavItems(user, canManageUser) {
   if ((canManageUser || admin) && !isNursingTech(user)) items.push({ id: "protocols", label: "Protocolos", section: "" });
   if (canAccessChart(user) || admin) items.push({ id: "chart", label: "Prontuário", section: "" });
   if (!isPharmacist(user) || admin) items.push({ id: "referrals", label: "Encaminhamentos", section: "" });
-  if (role === "acs" || admin) items.push({ id: "acs_tasks", label: admin ? "Tarefas ACS" : "Minhas tarefas", section: "" });
+  if (role === "acs" || admin) items.push({ id: "acs_tasks", label: "ACS", section: "" });
 
   if (!isPharmacist(user) || admin) items.push({ id: "vaccines", label: "Vacinas", section: "Preventivo" });
   if (canReadPharmacy) items.push({ id: "pharmacy", label: "Farmácia", section: "" });

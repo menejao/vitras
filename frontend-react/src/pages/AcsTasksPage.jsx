@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
 import PageHeader from "../components/layout/PageHeader";
-import Button from "../components/ui/Button";
 import KPI from "../components/ui/KPI";
 import { parseLocalDate } from "../utils/dates";
 import { fmtDate } from "../utils/formatting";
@@ -84,9 +83,95 @@ function PriorityBadge({ priority }) {
   return <span className={`acs-priority ${cfg.cls}`}>{cfg.label}</span>;
 }
 
+const PatBtn = ({ patientId, name, onNavigate }) => (
+  <button
+    type="button"
+    className="acs-task__pat-btn"
+    onClick={() => onNavigate && onNavigate(patientId)}
+  >
+    <svg width="10" height="10" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <circle cx="8" cy="5" r="3" stroke="currentColor" strokeWidth="1.4" />
+      <path d="M2 14c0-3 2.7-5 6-5s6 2 6 5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+    </svg>
+    {name}
+  </button>
+);
+
+function FamilyGroupsSection({ token, patients, onNavigatePatient }) {
+  const [groups, setGroups] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!token) return;
+    fetch("/family-groups", { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : [])
+      .then(data => { setGroups(Array.isArray(data) ? data : []); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [token]);
+
+  const patientMap = useMemo(() => {
+    const m = {};
+    for (const p of patients) m[p.id] = p;
+    return m;
+  }, [patients]);
+
+  if (loading) return <div className="acs-loading">Carregando grupos familiares...</div>;
+
+  if (!groups.length) return (
+    <div className="acs-empty">
+      <div className="acs-empty__icon" aria-hidden="true">
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
+          <circle cx="9" cy="6" r="3" stroke="currentColor" strokeWidth="1.4" />
+          <path d="M3 20c0-3.314 2.686-6 6-6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+          <circle cx="17" cy="9" r="3" stroke="currentColor" strokeWidth="1.4" />
+          <path d="M11 20c0-3.314 2.686-6 6-6s6 2.686 6 6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+        </svg>
+      </div>
+      <p className="acs-empty__title">Nenhum grupo familiar cadastrado.</p>
+      <p className="acs-empty__sub">Grupos familiares agrupam pacientes de um mesmo endereço para facilitar o acompanhamento territorial.</p>
+    </div>
+  );
+
+  return (
+    <div className="acs-fg-list">
+      {groups.map(fg => {
+        const members = (fg.memberPatientIds || []).map(id => patientMap[id]).filter(Boolean);
+        return (
+          <div key={fg.id} className="acs-fg-card">
+            <div className="acs-fg-card__head">
+              <div className="acs-fg-card__addr">
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                  <path d="M8 1.5C5.52 1.5 3.5 3.52 3.5 6c0 3.5 4.5 8.5 4.5 8.5s4.5-5 4.5-8.5c0-2.48-2.02-4.5-4.5-4.5z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+                  <circle cx="8" cy="6" r="1.5" stroke="currentColor" strokeWidth="1.2" />
+                </svg>
+                {fg.address}
+              </div>
+              <span className="acs-fg-card__micro">{fg.microArea}</span>
+            </div>
+            <div className="acs-fg-card__members">
+              {members.length > 0
+                ? members.map(m => (
+                    <PatBtn key={m.id} patientId={m.id} name={m.name} onNavigate={onNavigatePatient} />
+                  ))
+                : <span className="acs-fg-card__no-members">Nenhum membro cadastrado.</span>
+              }
+            </div>
+            {fg.transferHistory && fg.transferHistory.length > 0 && (
+              <div className="acs-fg-card__history">
+                Última transferência: {fmtDate(fg.transferHistory[fg.transferHistory.length - 1].transferredAt?.split("T")[0])}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function AcsTasksPage({ patients, users, user, token, onNavigatePatient }) {
   const [allTasks, setAllTasks]       = useState([]);
   const [loading, setLoading]         = useState(true);
+  const [activeTab, setActiveTab]     = useState("tasks");
   const [filter, setFilter]           = useState("pending");
   const [typeFilter, setTypeFilter]   = useState("all");
   const [priorityFilter, setPriorityFilter] = useState("all");
@@ -160,8 +245,8 @@ function AcsTasksPage({ patients, users, user, token, onNavigatePatient }) {
     <div className="acs-page">
       <PageHeader
         eyebrow="Vitras · ACS"
-        title="Tarefas"
-        subtitle="Atividades e visitas atribuídas aos pacientes da sua microárea."
+        title="ACS"
+        subtitle="Acompanhamento territorial, grupos familiares, visitas e obrigações da microárea."
       />
 
       <div className="acs-kpis">
@@ -173,160 +258,177 @@ function AcsTasksPage({ patients, users, user, token, onNavigatePatient }) {
 
       <div className="acs-body">
 
-        <div className="acs-toolbar-card">
-          <div className="acs-toolbar__row">
-            <div className="acs-search-wrap">
-              <span className="acs-search-icon" aria-hidden="true">
-                <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
-                  <circle cx="6.5" cy="6.5" r="4" stroke="currentColor" strokeWidth="1.3" />
-                  <path d="M10 10l3.5 3.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-                </svg>
-              </span>
-              <input
-                className="acs-search-input"
-                type="text"
-                value={patientSearch}
-                onChange={e => setPatientSearch(e.target.value)}
-                placeholder="Buscar paciente..."
-                aria-label="Buscar paciente"
-              />
-            </div>
-            <div className="acs-status-group" role="group" aria-label="Filtrar por status">
-              {[["pending","Pendentes"],["done","Concluídas"],["all","Todas"]].map(([val, lbl]) => (
-                <button
-                  key={val}
-                  type="button"
-                  className={`acs-status-btn${filter === val ? " is-active" : ""}`}
-                  onClick={() => setFilter(val)}
-                >
-                  {lbl}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="acs-toolbar__row acs-toolbar__row--sep">
-            <select
-              className="acs-select"
-              value={typeFilter}
-              onChange={e => setTypeFilter(e.target.value)}
-              aria-label="Filtrar por tipo"
+        <div className="acs-tabs" role="tablist" aria-label="Seções ACS">
+          {[["tasks", "Tarefas"], ["groups", "Grupos Familiares"]].map(([val, lbl]) => (
+            <button
+              key={val}
+              type="button"
+              role="tab"
+              aria-selected={activeTab === val}
+              className={`acs-tab${activeTab === val ? " is-active" : ""}`}
+              onClick={() => setActiveTab(val)}
             >
-              <option value="all">Todos os tipos</option>
-              {Object.entries(TASK_TYPES).map(([k, v]) => (
-                <option key={k} value={k}>{v.label}</option>
-              ))}
-            </select>
-            <select
-              className="acs-select"
-              value={priorityFilter}
-              onChange={e => setPriorityFilter(e.target.value)}
-              aria-label="Filtrar por prioridade"
-            >
-              <option value="all">Todas as prioridades</option>
-              {Object.entries(PRIORITY_CONFIG).map(([k, v]) => (
-                <option key={k} value={k}>{v.label}</option>
-              ))}
-            </select>
-            <div className="acs-period-group" role="group" aria-label="Filtrar por período">
-              {PERIOD_PRESETS.map(([val, lbl]) => (
-                <button
-                  key={val}
-                  type="button"
-                  className={`acs-period-btn${periodPreset === val ? " is-active" : ""}`}
-                  onClick={() => setPeriodPreset(val)}
-                >
-                  {lbl}
-                </button>
-              ))}
-            </div>
-            {periodPreset === "custom" && (
-              <div className="acs-date-range">
-                <input
-                  className="acs-date-input"
-                  type="date"
-                  value={customFrom}
-                  onChange={e => setCustomFrom(e.target.value)}
-                  aria-label="Data inicial"
-                  title="Data inicial"
-                />
-                <span className="acs-date-range__sep" aria-hidden="true">–</span>
-                <input
-                  className="acs-date-input"
-                  type="date"
-                  value={customTo}
-                  onChange={e => setCustomTo(e.target.value)}
-                  aria-label="Data final"
-                  title="Data final"
-                />
-              </div>
-            )}
-          </div>
+              {lbl}
+            </button>
+          ))}
         </div>
 
-        {loading ? (
-          <div className="acs-loading">Carregando tarefas...</div>
-        ) : !sorted.length ? (
-          <div className="acs-empty">
-            <div className="acs-empty__icon" aria-hidden="true">
-              <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
-                <rect x="8" y="2" width="8" height="4" rx="1" stroke="currentColor" strokeWidth="1.4" />
-                <path d="M6 4H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-1" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-                <path d="M9 12h6M9 16h4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-              </svg>
-            </div>
-            <p className="acs-empty__title">Nenhuma tarefa encontrada.</p>
-            <p className="acs-empty__sub">Ajuste os filtros ou selecione outro período para visualizar as atividades.</p>
-          </div>
-        ) : (
-          <div className="acs-task-list">
-            {sorted.map(t => {
-              const uc   = urgencyClass(t.dueDate, t.status, today);
-              const ul   = urgencyLabel(t.dueDate, t.status, today);
-              const done = t.status === "done";
-              return (
-                <div key={t.id} className={`acs-task acs-task--${uc}`}>
-                  <div className="acs-task__head">
-                    <div className="acs-task__body">
-                      <div className="acs-task__title-row">
-                        {t.type && <TypeBadge type={t.type} />}
-                        {t.priority && t.priority !== "normal" && <PriorityBadge priority={t.priority} />}
-                        <span className="acs-task__title">{t.title}</span>
-                        {ul && !done && <span className="acs-task__urgency">{ul}</span>}
-                      </div>
-                      {t.notes && <p className="acs-task__notes">{t.notes}</p>}
-                      <div className="acs-task__meta">
-                        <button
-                          type="button"
-                          className="acs-task__pat-btn"
-                          onClick={() => onNavigatePatient && onNavigatePatient(t.patientId)}
-                        >
-                          <svg width="10" height="10" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                            <circle cx="8" cy="5" r="3" stroke="currentColor" strokeWidth="1.4" />
-                            <path d="M2 14c0-3 2.7-5 6-5s6 2 6 5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-                          </svg>
-                          {t.patientName}
-                        </button>
-                        {t.dueDate && <span className="acs-task__due">Prazo: {fmtDate(t.dueDate)}</span>}
-                      </div>
-                    </div>
-                    <div className="acs-task__controls">
-                      <select
-                        className="acs-task__status"
-                        value={t.status || "pending"}
-                        onChange={e => changeStatus(t, e.target.value)}
-                        aria-label="Status da tarefa"
-                      >
-                        <option value="pending">Pendente</option>
-                        <option value="in_progress">Em andamento</option>
-                        <option value="done">Concluída</option>
-                      </select>
-                    </div>
-                  </div>
+        {activeTab === "tasks" && (
+          <>
+            <div className="acs-toolbar-card">
+              <div className="acs-toolbar__row">
+                <div className="acs-search-wrap">
+                  <span className="acs-search-icon" aria-hidden="true">
+                    <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+                      <circle cx="6.5" cy="6.5" r="4" stroke="currentColor" strokeWidth="1.3" />
+                      <path d="M10 10l3.5 3.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+                    </svg>
+                  </span>
+                  <input
+                    className="acs-search-input"
+                    type="text"
+                    value={patientSearch}
+                    onChange={e => setPatientSearch(e.target.value)}
+                    placeholder="Buscar paciente..."
+                    aria-label="Buscar paciente"
+                  />
                 </div>
-              );
-            })}
-          </div>
+                <div className="acs-status-group" role="group" aria-label="Filtrar por status">
+                  {[["pending","Pendentes"],["done","Concluídas"],["all","Todas"]].map(([val, lbl]) => (
+                    <button
+                      key={val}
+                      type="button"
+                      className={`acs-status-btn${filter === val ? " is-active" : ""}`}
+                      onClick={() => setFilter(val)}
+                    >
+                      {lbl}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="acs-toolbar__row acs-toolbar__row--sep">
+                <select
+                  className="acs-select"
+                  value={typeFilter}
+                  onChange={e => setTypeFilter(e.target.value)}
+                  aria-label="Filtrar por tipo"
+                >
+                  <option value="all">Todos os tipos</option>
+                  {Object.entries(TASK_TYPES).map(([k, v]) => (
+                    <option key={k} value={k}>{v.label}</option>
+                  ))}
+                </select>
+                <select
+                  className="acs-select"
+                  value={priorityFilter}
+                  onChange={e => setPriorityFilter(e.target.value)}
+                  aria-label="Filtrar por prioridade"
+                >
+                  <option value="all">Todas as prioridades</option>
+                  {Object.entries(PRIORITY_CONFIG).map(([k, v]) => (
+                    <option key={k} value={k}>{v.label}</option>
+                  ))}
+                </select>
+                <div className="acs-period-group" role="group" aria-label="Filtrar por período">
+                  {PERIOD_PRESETS.map(([val, lbl]) => (
+                    <button
+                      key={val}
+                      type="button"
+                      className={`acs-period-btn${periodPreset === val ? " is-active" : ""}`}
+                      onClick={() => setPeriodPreset(val)}
+                    >
+                      {lbl}
+                    </button>
+                  ))}
+                </div>
+                {periodPreset === "custom" && (
+                  <div className="acs-date-range">
+                    <input
+                      className="acs-date-input"
+                      type="date"
+                      value={customFrom}
+                      onChange={e => setCustomFrom(e.target.value)}
+                      aria-label="Data inicial"
+                      title="Data inicial"
+                    />
+                    <span className="acs-date-range__sep" aria-hidden="true">–</span>
+                    <input
+                      className="acs-date-input"
+                      type="date"
+                      value={customTo}
+                      onChange={e => setCustomTo(e.target.value)}
+                      aria-label="Data final"
+                      title="Data final"
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {loading ? (
+              <div className="acs-loading">Carregando tarefas...</div>
+            ) : !sorted.length ? (
+              <div className="acs-empty">
+                <div className="acs-empty__icon" aria-hidden="true">
+                  <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
+                    <rect x="8" y="2" width="8" height="4" rx="1" stroke="currentColor" strokeWidth="1.4" />
+                    <path d="M6 4H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-1" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+                    <path d="M9 12h6M9 16h4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+                  </svg>
+                </div>
+                <p className="acs-empty__title">Nenhuma tarefa encontrada.</p>
+                <p className="acs-empty__sub">Ajuste os filtros ou selecione outro período para visualizar as atividades.</p>
+              </div>
+            ) : (
+              <div className="acs-task-list">
+                {sorted.map(t => {
+                  const uc   = urgencyClass(t.dueDate, t.status, today);
+                  const ul   = urgencyLabel(t.dueDate, t.status, today);
+                  const done = t.status === "done";
+                  return (
+                    <div key={t.id} className={`acs-task acs-task--${uc}`}>
+                      <div className="acs-task__head">
+                        <div className="acs-task__body">
+                          <div className="acs-task__title-row">
+                            {t.type && <TypeBadge type={t.type} />}
+                            {t.priority && t.priority !== "normal" && <PriorityBadge priority={t.priority} />}
+                            <span className="acs-task__title">{t.title}</span>
+                            {ul && !done && <span className="acs-task__urgency">{ul}</span>}
+                          </div>
+                          {t.notes && <p className="acs-task__notes">{t.notes}</p>}
+                          <div className="acs-task__meta">
+                            <PatBtn patientId={t.patientId} name={t.patientName} onNavigate={onNavigatePatient} />
+                            {t.dueDate && <span className="acs-task__due">Prazo: {fmtDate(t.dueDate)}</span>}
+                          </div>
+                        </div>
+                        <div className="acs-task__controls">
+                          <select
+                            className="acs-task__status"
+                            value={t.status || "pending"}
+                            onChange={e => changeStatus(t, e.target.value)}
+                            aria-label="Status da tarefa"
+                          >
+                            <option value="pending">Pendente</option>
+                            <option value="in_progress">Em andamento</option>
+                            <option value="done">Concluída</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
+        )}
+
+        {activeTab === "groups" && (
+          <FamilyGroupsSection
+            token={token}
+            patients={patients}
+            onNavigatePatient={onNavigatePatient}
+          />
         )}
       </div>
     </div>

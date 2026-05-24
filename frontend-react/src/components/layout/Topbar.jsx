@@ -102,6 +102,7 @@ function Topbar({
           {theme === "dark" ? <IconSun /> : <IconMoon />}
         </Button>
         <NotificationBell
+          user={user}
           patients={patients || []}
           protocolByPatient={protocolByPatient || {}}
           pharmacyStock={pharmacyStock || []}

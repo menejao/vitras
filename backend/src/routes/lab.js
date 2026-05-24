@@ -221,8 +221,13 @@ authRouter.get("/notifications", async (req, res) => {
   const db = await readDb();
   ensureDbShape(db);
   const teamId = req.user?.teamId;
+  const userId = req.user?.id;
   const items = db.notifications
-    .filter((n) => !teamId || !n.teamId || n.teamId === teamId)
+    .filter((n) => {
+      if (teamId && n.teamId && n.teamId !== teamId) return false;
+      if (n.targetUserId && n.targetUserId !== userId) return false;
+      return true;
+    })
     .slice(-50)
     .reverse();
   return res.json(items);

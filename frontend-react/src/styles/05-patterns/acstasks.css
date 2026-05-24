@@ -37,6 +37,35 @@
   gap: var(--s-4);
 }
 
+/* ── Section tabs ─────────────────────────────────────────────── */
+.acs-tabs {
+  display: flex;
+  gap: var(--s-1);
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+
+.acs-tab {
+  padding: var(--s-2) var(--s-4);
+  font: 500 var(--t-sm) var(--font-sans);
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color .12s, border-color .12s;
+}
+
+.acs-tab:hover:not(.is-active) { color: var(--text); }
+
+.acs-tab.is-active {
+  color: var(--accent-text);
+  border-bottom-color: var(--accent);
+  font-weight: 600;
+}
+
 /* ── Toolbar card ─────────────────────────────────────────────── */
 .acs-toolbar-card {
   background: var(--surface);
@@ -433,4 +462,72 @@
   .acs-search-wrap { max-width: none; }
   .acs-status-group { flex: 1; }
   .acs-status-btn { flex: 1; text-align: center; }
+}
+
+/* ── Family groups list ───────────────────────────────────────── */
+.acs-fg-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.acs-fg-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: var(--s-3) var(--s-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.acs-fg-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+
+.acs-fg-card__addr {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  font: 600 var(--t-sm) var(--font-sans);
+  color: var(--text);
+}
+
+.acs-fg-card__addr svg {
+  color: var(--accent-text);
+  flex-shrink: 0;
+}
+
+.acs-fg-card__micro {
+  font: 500 .65rem var(--font-sans);
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  padding: 2px var(--s-2);
+  border-radius: var(--r-pill);
+  flex-shrink: 0;
+}
+
+.acs-fg-card__members {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+
+.acs-fg-card__no-members {
+  font: 400 var(--t-xs) var(--font-sans);
+  color: var(--text-dim);
+}
+
+.acs-fg-card__history {
+  font: 400 var(--t-xs) var(--font-sans);
+  color: var(--text-dim);
+  border-top: 1px solid var(--border-subtle);
+  padding-top: var(--s-2);
+  margin-top: var(--s-1);
 }

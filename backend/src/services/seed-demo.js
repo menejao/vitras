@@ -191,6 +191,8 @@ export async function seedDemoTeamRosa() {
     db.messages          = db.messages.filter((x) => !x.id?.startsWith("seed-msg-"));
     if (!Array.isArray(db.notifications)) db.notifications = [];
     db.notifications     = db.notifications.filter((x) => !x.id?.startsWith("seed-notif-"));
+    if (!Array.isArray(db.familyGroups)) db.familyGroups = [];
+    db.familyGroups      = db.familyGroups.filter((x) => !x.id?.startsWith("seed-fg-"));
     if (!Array.isArray(db.labIntegrations)) db.labIntegrations = [];
     db.labIntegrations   = db.labIntegrations.filter((x) => !x.id?.startsWith("seed-labint-"));
     db.pharmacyLogs      = db.pharmacyLogs.filter((x) => !x.id?.startsWith("seed-pharma-log-"));
@@ -561,6 +563,61 @@ export async function seedDemoTeamRosa() {
         createdAt: tsAgo(29),
         updatedAt: tsAgo(29),
       });
+    }
+
+    // ── Family Groups ─────────────────────────────────────────────────────
+    const familyGroups = [
+      {
+        id: "seed-fg-camargo",
+        teamId: TEAM_ID,
+        address: "Rua Camargo, 71",
+        microArea: "MA-2",
+        assignedAcsId: ACS_ID,
+        memberPatientIds: ["seed-p-g06", "seed-p-pg02"],
+        createdBy: JOAO_ID,
+        createdAt: tsAgo(120),
+        updatedAt: tsAgo(120),
+        transferHistory: [],
+      },
+      {
+        id: "seed-fg-acacias",
+        teamId: TEAM_ID,
+        address: "Rua das Acácias, 142",
+        microArea: "MA-5",
+        assignedAcsId: ACS_ID,
+        memberPatientIds: ["seed-p-g17", "seed-p-el03"],
+        createdBy: JOAO_ID,
+        createdAt: tsAgo(90),
+        updatedAt: tsAgo(90),
+        transferHistory: [],
+      },
+      {
+        id: "seed-fg-ipes",
+        teamId: TEAM_ID,
+        address: "Rua dos Ipês, 87",
+        microArea: "MA-5",
+        assignedAcsId: ACS_ID,
+        memberPatientIds: ["seed-p-g18", "seed-p-el04"],
+        createdBy: JOAO_ID,
+        createdAt: tsAgo(90),
+        updatedAt: tsAgo(90),
+        transferHistory: [],
+      },
+      {
+        id: "seed-fg-antonio-carlos",
+        teamId: TEAM_ID,
+        address: "Rua Antônio Carlos, 99",
+        microArea: "MA-2",
+        assignedAcsId: ACS_ID,
+        memberPatientIds: ["seed-p-g07", "seed-p-el02"],
+        createdBy: JOAO_ID,
+        createdAt: tsAgo(60),
+        updatedAt: tsAgo(60),
+        transferHistory: [],
+      },
+    ];
+    for (const fg of familyGroups) {
+      if (!hasId(db.familyGroups, fg.id)) db.familyGroups.push(fg);
     }
 
     // ── Messages ──────────────────────────────────────────────────────────
