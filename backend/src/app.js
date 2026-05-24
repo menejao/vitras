@@ -47,7 +47,6 @@ app.use(healthRouter);
 app.use(authRouter);
 app.use(labPublicRouter);
 app.use(adminRouter);
-app.use(seedAdminRouter);
 app.use(usersRouter);
 
 app.use(requireAuth);
@@ -60,6 +59,7 @@ app.use((req, res, next) => {
 });
 
 app.use(meRouter);
+app.use(seedAdminRouter);
 app.use(patientsRouter);
 app.use(queueRouter);
 app.use(agendaRouter);

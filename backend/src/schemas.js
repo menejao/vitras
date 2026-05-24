@@ -108,7 +108,8 @@ const TaskCreateSchema = z.object({
 });
 
 const TaskPatchSchema = z.object({
-  status: z.enum(["pending", "in_progress", "done"])
+  status: z.enum(["pending", "in_progress", "done"]).optional(),
+  notes: optionalShortString(4000)
 });
 
 const AppointmentCreateSchema = z.object({

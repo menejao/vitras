@@ -4,10 +4,19 @@ import { seedDemoTeamRosa } from "../services/seed-demo.js";
 import { withDb } from "../db.js";
 import { ensureDbShape } from "../utils/domain.js";
 import { backfillFamilyGroups } from "../utils/family-groups.js";
+import { hasRole } from "../utils/helpers.js";
 
 const router = express.Router();
 
-router.post("/admin/run-demo-seed", async (req, res) => {
+// Shared guard: requireAuth must already have run (router mounted after requireAuth in app.js)
+function requireSeedAdminRole(req, res, next) {
+  if (!hasRole(req.user, ["gestor", "break_glass_admin"])) {
+    return res.status(403).json({ error: "Apenas gestor ou administrador pode executar esta ação" });
+  }
+  return next();
+}
+
+router.post("/admin/run-demo-seed", requireSeedAdminRole, async (req, res) => {
   if (!ENABLE_ADMIN_SEED) {
     return res.status(403).json({ error: "Rotina administrativa desabilitada neste ambiente" });
   }
@@ -40,7 +49,7 @@ router.post("/admin/run-demo-seed", async (req, res) => {
   }
 });
 
-router.post("/admin/backfill-family-groups", async (req, res) => {
+router.post("/admin/backfill-family-groups", requireSeedAdminRole, async (req, res) => {
   if (!ENABLE_ADMIN_SEED) {
     return res.status(403).json({ error: "Rotina administrativa desabilitada neste ambiente" });
   }

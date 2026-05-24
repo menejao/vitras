@@ -356,8 +356,9 @@ router.put("/patients/:id", validate(PatientUpdateSchema), async (req, res) => {
   return res.json(updated);
 });
 
-router.delete("/patients/:id", requireManagerOrDoctor, async (req, res) => {
+router.delete("/patients/:id", requireManagerOrDoctor, validate(CriticalActionReasonSchema), async (req, res) => {
   const { id } = req.params;
+  const { reason } = req.body;
 
   const result = await withDb((db) => {
     ensureDbShape(db);
@@ -365,92 +366,37 @@ router.delete("/patients/:id", requireManagerOrDoctor, async (req, res) => {
     if (patientIndex < 0) return { error: "Paciente não encontrado" };
 
     const patient = db.patients[patientIndex];
-    if (!canAccessPatient(req.user, patient)) return { error: "Sem permissão para excluir paciente" };
+    if (!canAccessPatient(req.user, patient)) return { error: "Sem permissão para inativar paciente" };
+
+    if (patient.inactive) return { error: "Paciente já está inativo" };
+
     const before = buildPatientAuditSnapshot(patient);
-    const teamPatientIds = new Set([patient.id]);
+    const now = new Date().toISOString();
 
-    const appointmentsBefore = db.appointments.length;
-    db.appointments = db.appointments.filter((a) => !teamPatientIds.has(a.patientId));
-    const appointmentsRemoved = appointmentsBefore - db.appointments.length;
+    // Soft-delete: mark inactive, preserve all records intact (CFM 1821/2007 / LGPD)
+    patient.inactive = true;
+    patient.inactivatedAt = now;
+    patient.inactivatedById = req.user.id;
+    patient.inactivatedBy = req.user.name || req.user.email || req.user.id;
+    patient.inactivationReason = String(reason || "").trim();
+    patient.updatedAt = now;
 
-    const agendaEntriesBefore = db.agendaEntries.length;
-    db.agendaEntries = db.agendaEntries.filter((a) => !teamPatientIds.has(a.patientId));
-    const agendaEntriesRemoved = agendaEntriesBefore - db.agendaEntries.length;
+    const after = buildPatientAuditSnapshot(patient);
 
-    const referralsBefore = db.referrals.length;
-    db.referrals = db.referrals.filter((item) => !teamPatientIds.has(item.patientId));
-    const referralsRemoved = referralsBefore - db.referrals.length;
-
-    const suppliesLogsBefore = db.suppliesLogs.length;
-    db.suppliesLogs = db.suppliesLogs.filter((item) => !teamPatientIds.has(item.patientId));
-    const suppliesLogsRemoved = suppliesLogsBefore - db.suppliesLogs.length;
-
-    const suppliesContinuousBefore = db.suppliesContinuous.length;
-    db.suppliesContinuous = db.suppliesContinuous.filter((item) => !teamPatientIds.has(item.patientId));
-    const suppliesContinuousRemoved = suppliesContinuousBefore - db.suppliesContinuous.length;
-
-    const examsBefore = db.exams.length;
-    db.exams = db.exams.filter((item) => !teamPatientIds.has(item.patientId));
-    const examsRemoved = examsBefore - db.exams.length;
-
-    const tasksBefore = db.tasks.length;
-    db.tasks = db.tasks.filter((t) => !teamPatientIds.has(t.patientId));
-    const tasksRemoved = tasksBefore - db.tasks.length;
-
-    const messagesBefore = db.messages.length;
-    db.messages = db.messages.filter((m) => !teamPatientIds.has(m.patientId));
-    const messagesRemoved = messagesBefore - db.messages.length;
-
-    const recordsBefore = db.clinicalRecords.length;
-    db.clinicalRecords = db.clinicalRecords.filter((r) => !teamPatientIds.has(r.patientId));
-    const recordsRemoved = recordsBefore - db.clinicalRecords.length;
-
-    db.patients.splice(patientIndex, 1);
-
-    // Remove from family group
-    for (const grp of db.familyGroups) {
-      if (Array.isArray(grp.memberPatientIds) && grp.memberPatientIds.includes(id)) {
-        grp.memberPatientIds = grp.memberPatientIds.filter((pid) => pid !== id);
-        grp.memberHistory = [...(grp.memberHistory || []), {
-          action: "leave", patientId: id, reason: "Paciente excluído do sistema",
-          at: new Date().toISOString(), by: req.user.id,
-        }];
-        grp.updatedAt = new Date().toISOString();
-      }
-    }
-
-    addAuditLog(db, req.user, "patient.deleted", "patient", id, {
+    addAuditLog(db, req.user, "patient.inactivated", "patient", id, {
       name: patient.name,
-      appointmentsRemoved,
-      agendaEntriesRemoved,
-      referralsRemoved,
-      suppliesLogsRemoved,
-      suppliesContinuousRemoved,
-      examsRemoved,
-      tasksRemoved,
-      messagesRemoved,
-      recordsRemoved,
+      inactivationReason: patient.inactivationReason,
       before,
-      after: null
+      after
     });
 
-    return {
-      ok: true,
-      removed: {
-        appointments: appointmentsRemoved,
-        agendaEntries: agendaEntriesRemoved,
-        referrals: referralsRemoved,
-        suppliesLogs: suppliesLogsRemoved,
-        suppliesContinuous: suppliesContinuousRemoved,
-        tasks: tasksRemoved,
-        messages: messagesRemoved,
-        clinicalRecords: recordsRemoved
-      }
-    };
+    return { ok: true, inactive: true, patientId: id };
   });
 
   if (result?.error) {
-    const status = String(result.error).toLowerCase().includes("permissão") ? 403 : 404;
+    const isAlreadyInactive = String(result.error).toLowerCase().includes("já está");
+    const status = String(result.error).toLowerCase().includes("permissão") ? 403
+      : isAlreadyInactive ? 409 : 404;
     return res.status(status).json({ error: result.error });
   }
   return res.json(result);

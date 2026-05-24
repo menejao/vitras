@@ -263,8 +263,11 @@ function getAllowedPatients(db, user, query) {
   const microArea = query.microArea ? String(query.microArea).trim() : "";
   const acsId = query.acsId ? String(query.acsId).trim() : "";
   const careCategory = query.careCategory ? String(query.careCategory).trim() : "";
+  // includeInactive=true allows managers to retrieve inactive patients explicitly
+  const includeInactive = String(query.includeInactive || "").trim() === "true";
 
   return db.patients.filter((p) => {
+    if (!includeInactive && p.inactive) return false;
     if (!canAccessPatient(user, p)) return false;
     if (microArea && p.microArea !== microArea) return false;
     if (acsId && p.assignedAcsId !== acsId) return false;
