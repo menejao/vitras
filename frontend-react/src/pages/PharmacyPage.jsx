@@ -3,10 +3,6 @@ import { isPharmacist } from "../utils/roles";
 import { fetchPrescriptions } from "../api";
 import { printPrescription } from "../utils/printDoc";
 import PageHeader from "../components/layout/PageHeader";
-import PageShell from "../components/layout/PageShell";
-import PageToolbar from "../components/layout/PageToolbar";
-import KpiGrid from "../components/layout/KpiGrid";
-import MainContent from "../components/layout/MainContent";
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
 import Select from "../components/ui/Select";
@@ -378,7 +374,7 @@ function PharmacyPage({
 
   if (!canRead) {
     return (
-      <PageShell className="pharmacy-page">
+      <div className="pharmacy-page">
         <PageHeader
           eyebrow="GESTÃO DE MEDICAMENTOS"
           title="Farmácia UBS"
@@ -388,12 +384,12 @@ function PharmacyPage({
           <IconWarning />
           Sua sessao atual nao possui permissao para consultar a farmacia.
         </div>
-      </PageShell>
+      </div>
     );
   }
 
   return (
-    <PageShell className="pharmacy-page">
+    <div className="pharmacy-page">
       <PageHeader
         eyebrow="GESTÃO DE MEDICAMENTOS"
         title="Farmácia UBS"
@@ -408,12 +404,12 @@ function PharmacyPage({
         </div>
       ) : null}
 
-      <KpiGrid className="pharma-kpis">
+      <div className="pharma-kpis">
         <KPI label="Total de itens" value={stock.length} className="card" />
         <KPI label="Estoque baixo" value={lowStock.length} className={`card${lowStock.length > 0 ? " kpi--warning" : ""}`} />
         <KPI label="Sem estoque" value={outStock.length} className={`card${outStock.length > 0 ? " kpi--danger" : ""}`} />
         <KPI label="Dispensações hoje" value={dispensasHoje} className="card kpi--info" />
-      </KpiGrid>
+      </div>
 
       <div className="pharma-tabs-bar">
         <Tabs>
@@ -423,10 +419,10 @@ function PharmacyPage({
         </Tabs>
       </div>
 
-      <MainContent className="pharma-body">
+      <div className="pharma-body">
         {pharmaTab === "stock" && (
           <>
-            <PageToolbar className="pharma-toolbar">
+            <div className="pharma-toolbar">
               <div className="pharma-search">
                 <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar medicamento, categoria ou localizacao..." />
               </div>
@@ -439,7 +435,7 @@ function PharmacyPage({
                 {showLowOnly ? "So baixo" : "Filtrar baixo"}
               </Button>
               {canUseWriteFlow ? <Button size="sm" onClick={() => setEditItem({ item: null, mode: "add" })}>+ Novo medicamento</Button> : null}
-            </PageToolbar>
+            </div>
 
             <div className="card card--noPad overflow-hidden">
               <table className="patients-table" style={{ width: "100%" }}>
@@ -502,12 +498,12 @@ function PharmacyPage({
               </span>
             </div>
 
-            <PageToolbar className="pharma-toolbar">
+            <div className="pharma-toolbar">
               <div className="pharma-search" style={{ maxWidth: 380 }}>
                 <Input value={logSearch} onChange={(e) => setLogSearch(e.target.value)} placeholder="Buscar por medicamento, paciente, prescritor ou receita..." />
               </div>
               <Button onClick={() => exportPharmacyCsv(filteredLog)}>Exportar CSV (ANVISA)</Button>
-            </PageToolbar>
+            </div>
 
             <div className="card card--noPad overflow-hidden">
               <table className="patients-table" style={{ width: "100%" }}>
@@ -566,11 +562,11 @@ function PharmacyPage({
         )}
         {pharmaTab === "prescriptions" && (
           <>
-            <PageToolbar className="pharma-toolbar">
+            <div className="pharma-toolbar">
               <div className="pharma-search">
                 <Input value={rxSearch} onChange={e => setRxSearch(e.target.value)} placeholder="Buscar paciente ou medicamento..." />
               </div>
-            </PageToolbar>
+            </div>
             <div className="card card--noPad overflow-hidden">
               <table className="patients-table" style={{ width: "100%" }}>
                 <thead>
@@ -618,7 +614,7 @@ function PharmacyPage({
             </div>
           </>
         )}
-      </MainContent>
+      </div>
 
       {dispenseItem && canUseWriteFlow ? (
         <DispenseModal
@@ -639,7 +635,7 @@ function PharmacyPage({
           onClose={() => setEditItem(null)}
         />
       ) : null}
-    </PageShell>
+    </div>
   );
 }
 
