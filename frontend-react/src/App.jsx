@@ -281,6 +281,7 @@ function AppInner() {
           openEditPatient={openEditPatient} removePatient={removePatient} openViewPatient={openViewPatient}
           openEditTemplate={openEditTemplate} removeTemplate={removeTemplate}
           openEditUser={openEditUser} removeUser={removeUser}
+          openProfile={openProfile}
           recordForm={recordForm} setRecordForm={setRecordForm} recordVaccines={recordVaccines} setRecordVaccines={setRecordVaccines}
           appointmentForm={appointmentForm} setAppointmentForm={setAppointmentForm} taskForm={taskForm} setTaskForm={setTaskForm}
           messageText={messageText} setMessageText={setMessageText}

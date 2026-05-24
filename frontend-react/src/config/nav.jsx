@@ -30,7 +30,8 @@ export const NAV_ICON = {
   diagnostics: <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M2 2h12v12H2z" stroke="currentColor" strokeWidth="1.4"/><path d="M4.5 11V8.5M8 11V5M11.5 11V7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><path d="M4 4h8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>,
   acs_tasks: <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M3 3h10v10H3z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/><path d="M5.5 8l2 2 3-3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>,
   access_requests: <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><circle cx="6" cy="5" r="2.5" stroke="currentColor" strokeWidth="1.4"/><path d="M1 13c0-2.761 2.239-5 5-5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><path d="M10 8h5M12.5 5.5v5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>,
-  audit_log: <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="12" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.4"/><path d="M5 5.5h6M5 8h6M5 10.5h4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
+  audit_log: <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="12" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.4"/><path d="M5 5.5h6M5 8h6M5 10.5h4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>,
+  equipe: <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><circle cx="5.5" cy="5" r="2.5" stroke="currentColor" strokeWidth="1.4"/><path d="M1 14c0-2.761 2.239-5 4.5-5S10 11.239 10 14" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><circle cx="12" cy="5" r="2" stroke="currentColor" strokeWidth="1.3"/><path d="M10.5 14c0-2 .9-3.5 2.5-3.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
 };
 
 export function buildNavItems(user, canManageUser) {
@@ -76,10 +77,7 @@ export function buildNavItems(user, canManageUser) {
     items.push({ id: "insumos", label: "Insumos", section: "" });
   }
 
-  if ((canManageUser || admin) && !isNursingTech(user)) {
-    items.push({ id: "acs", label: "ACS", section: "Equipe" });
-    items.push({ id: "doctors", label: "Médicos", section: "" });
-  }
+  items.push({ id: "equipe", label: "Equipe", section: "Equipe" });
 
   if (canManageUser || admin) items.push({ id: "gestor", label: "Gestão à Vista", section: "Gestão" });
   if (canReadReports) items.push({ id: "reports", label: "Relatórios", section: "" });

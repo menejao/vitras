@@ -1,0 +1,143 @@
+/* 05-patterns/equipe.css
+   Layout e componentes da página Equipe.
+*/
+
+.equipe-page {
+  display: flex;
+  flex-direction: column;
+}
+
+.equipe-page > .page-header,
+.equipe-page > .hero { margin: var(--s-6) var(--s-6) 0; }
+
+/* ── Toolbar ──────────────────────────────────────────────────── */
+.equipe-toolbar {
+  display: flex;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+  align-items: center;
+  padding: var(--s-4) var(--s-6);
+}
+
+.equipe-count {
+  font: 400 var(--t-sm) var(--font-sans);
+  color: var(--text-dim);
+  flex-shrink: 0;
+  padding: 0 var(--s-1);
+}
+
+/* ── Body ─────────────────────────────────────────────────────── */
+.equipe-body {
+  padding: 0 var(--s-6) var(--s-8);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-6);
+}
+
+/* ── Group section ────────────────────────────────────────────── */
+.equipe-group__header {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin-bottom: var(--s-3);
+  padding-bottom: var(--s-2);
+  border-bottom: 1px solid var(--border);
+}
+
+.equipe-group__label {
+  font: 700 var(--t-xs) var(--font-sans);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--text-muted);
+}
+
+.equipe-group__count {
+  font: 500 11px var(--font-mono);
+  color: var(--text-dim);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+  padding: 0 var(--s-2);
+  min-width: 20px;
+  text-align: center;
+}
+
+/* ── Member grid ──────────────────────────────────────────────── */
+.equipe-group__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--s-3);
+}
+
+/* ── Member card ──────────────────────────────────────────────── */
+.equipe-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: var(--s-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  transition: box-shadow var(--d-fast);
+}
+
+.equipe-card:hover { box-shadow: var(--shadow-sm); }
+
+.equipe-card--self {
+  border-color: var(--accent-soft-2);
+  background: var(--accent-soft);
+}
+
+.equipe-card__top {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.equipe-card__you {
+  font: 700 var(--t-xs) var(--font-sans);
+  padding: 1px var(--s-2);
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  color: var(--text-on-accent);
+}
+
+.equipe-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.equipe-card__name {
+  font: 700 var(--t-base) var(--font-sans);
+  color: var(--text);
+}
+
+.equipe-card__role {
+  font: 600 var(--t-sm) var(--font-sans);
+  color: var(--accent-text);
+}
+
+.equipe-card__meta {
+  font: 400 var(--t-xs) var(--font-sans);
+  color: var(--text-dim);
+}
+
+.equipe-card__email {
+  font: 400 var(--t-xs) var(--font-sans);
+  color: var(--text-muted);
+  word-break: break-all;
+}
+
+.equipe-card__footer {
+  padding-top: var(--s-2);
+  border-top: 1px solid var(--accent-soft-2);
+}
+
+/* ── Responsive ───────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .equipe-page > .hero,
+  .equipe-toolbar,
+  .equipe-body { padding-left: var(--s-4); padding-right: var(--s-4); }
+  .equipe-group__grid { grid-template-columns: 1fr; }
+}

@@ -1,8 +1,9 @@
 import { lazy, Suspense } from "react";
 import Button from "./ui/Button";
-import UserList from "./UserList";
 import ProtocolsTab from "./ProtocolsTab";
-import { isAdmin, isGestor, isManager } from "../utils/roles";
+import { isAdmin, isGestor } from "../utils/roles";
+
+const EquipePage = lazy(() => import("../pages/EquipePage"));
 
 const AccessRequestsPage = lazy(() => import("../pages/AccessRequestsPage"));
 const AuditLogPanel      = lazy(() => import("../pages/AuditLogPanel"));
@@ -48,6 +49,7 @@ export function TabContent({
   openEditPatient, removePatient, openViewPatient,
   openEditTemplate, removeTemplate,
   openEditUser, removeUser,
+  openProfile,
   recordForm, setRecordForm, recordVaccines, setRecordVaccines,
   appointmentForm, setAppointmentForm, taskForm, setTaskForm,
   messageText, setMessageText,
@@ -126,11 +128,8 @@ export function TabContent({
         <ProtocolsTab templates={templates} canManageUser={canManageUser} onEdit={openEditTemplate} onDelete={removeTemplate}/>
       )}
 
-      {tab === "acs" && (
-        <UserList title="ACS" users={users.filter(u => u.role === "acs")} isManagerUser={isManager(user)} onEdit={openEditUser} onDelete={removeUser}/>
-      )}
-      {tab === "doctors" && (
-        <UserList title="Médicos e Técnicos" users={users.filter(u => ["doctor", "nursing_tech", "pharmacist"].includes(u.role))} isManagerUser={isManager(user)} onEdit={openEditUser} onDelete={removeUser}/>
+      {tab === "equipe" && (
+        <EquipePage users={allUsers && allUsers.length ? allUsers : users} user={user} onOpenProfile={openProfile} />
       )}
 
       {tab === "vaccines" && (
