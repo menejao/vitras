@@ -19,7 +19,7 @@ import {
   detectConsultationSpecialtyFromTitle, normalizeConsultationTitle
 } from "../utils/helpers.js";
 import {
-  getAllowedPatients, canAccessPatient, getPatientOrError, buildPatientHistory
+  getAllowedPatients, canAccessPatient, getPatientOrError, buildPatientHistory, maskSensitivePatientFields
 } from "../utils/patients.js";
 import { buildProtocolSummary, restrictSummaryAlertsForForeignTeam } from "../utils/protocol-eval.js";
 import { validateClinicalRecordPayload, buildMonthlyDemandMetric, buildDataQualityMetric } from "../utils/metrics.js";
@@ -82,7 +82,7 @@ router.get("/patients", async (req, res) => {
       }
     });
   });
-  res.json(patients);
+  res.json(patients.map(maskSensitivePatientFields));
 });
 
 router.get("/patients/protocol-summaries", async (req, res) => {

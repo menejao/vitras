@@ -7,7 +7,7 @@ import {
 } from "../utils/domain.js";
 import { canonicalRole, isManager, isDoctor, hasCapability } from "../utils/helpers.js";
 import { buildMonthlyDemandMetric, buildDataQualityMetric } from "../utils/metrics.js";
-import { getAllowedPatients } from "../utils/patients.js";
+import { getAllowedPatients, maskSensitivePatientFields } from "../utils/patients.js";
 import {
   buildSeedPatient, buildSeedClinicalRecords, buildSeedAppointments,
   buildSeedMessages, buildSeedTasks, pickRandom
@@ -115,7 +115,7 @@ router.get("/bootstrap", requireAuth, async (req, res) => {
         breakGlass: req.user.breakGlass?.active ? req.user.breakGlass : null
       }
     ),
-    patients,
+    patients: patients.map(maskSensitivePatientFields),
     users,
     tasks,
     protocolTemplates,

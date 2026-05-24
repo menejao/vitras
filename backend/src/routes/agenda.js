@@ -90,6 +90,7 @@ function listScopedAgendaEntries(db, user, filters = {}) {
     .filter((entry) => {
       if (!canReadAgenda(user)) return false;
       if (!canAccessTeam(user, entry.teamId)) return false;
+      if (String(entry.status || "") === "cancelled") return false;
       if (from && String(entry.date || "") < from) return false;
       if (to && String(entry.date || "") > to) return false;
       if (doctorId && String(entry.doctorId || "") !== doctorId) return false;
@@ -237,12 +238,21 @@ router.delete("/agenda/:id", async (req, res) => {
       return { error: { status: 403, message: "Sem permissão para este agendamento" } };
     }
 
-    db.agendaEntries.splice(index, 1);
-    addAuditLog(db, req.user, "agenda.entry_deleted", "agenda_entry", removed.id, {
+    const now = new Date().toISOString();
+    const cancellationReason = String(req.body?.reason || req.headers["x-justification"] || "").trim();
+    db.agendaEntries[index] = {
+      ...removed,
+      status: "cancelled",
+      cancelledAt: now,
+      cancelledById: req.user.id,
+      cancellationReason
+    };
+    addAuditLog(db, req.user, "agenda.cancelled", "agenda_entry", removed.id, {
       patientId: removed.patientId,
       teamId: removed.teamId,
+      cancellationReason,
       before: buildAgendaSnapshot(removed),
-      after: null
+      after: buildAgendaSnapshot(db.agendaEntries[index])
     });
     return { ok: true };
   });

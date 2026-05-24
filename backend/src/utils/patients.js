@@ -315,6 +315,15 @@ function buildPatientHistory(db, patientId) {
   });
 }
 
+function maskSensitivePatientFields(patient) {
+  if (!patient) return patient;
+  const masked = { ...patient };
+  if (masked.cpf) masked.cpf = "***.***.***-**";
+  if (masked.cns) masked.cns = "***.***.***.*****-**";
+  if (masked.cnsCpf) masked.cnsCpf = "***.***.***-**";
+  return masked;
+}
+
 export {
   isAnonymizedPatient,
   getPatientActivityDate,
@@ -324,5 +333,6 @@ export {
   canAccessPatient,
   getAllowedPatients,
   getPatientOrError,
-  buildPatientHistory
+  buildPatientHistory,
+  maskSensitivePatientFields
 };
