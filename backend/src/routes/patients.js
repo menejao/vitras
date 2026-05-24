@@ -15,7 +15,7 @@ import {
 } from "../utils/domain.js";
 import { syncPatientFamilyGroup } from "../utils/family-groups.js";
 import {
-  isManager, isDoctor, isAcs, normalizeDemandType,
+  isManager, isDoctor, isAcs, hasCapability, normalizeDemandType,
   detectConsultationSpecialtyFromTitle, normalizeConsultationTitle
 } from "../utils/helpers.js";
 import {
@@ -528,6 +528,16 @@ router.post("/patients/:id/records", validate(RecordCreateSchema), async (req, r
 
   if (!allowedTypes.includes(type)) {
     return res.status(400).json({ error: "Tipo de registro inválido" });
+  }
+
+  // CRT-04: guard de capability — apenas roles com records.write podem criar registros clínicos
+  if (!hasCapability(req.user, "records.write")) {
+    return res.status(403).json({ error: "Sem permissão para criar registros clínicos" });
+  }
+
+  // ACS tem records.write mas só pode registrar visitas domiciliares
+  if (isAcs(req.user) && type !== "visit") {
+    return res.status(403).json({ error: "ACS só pode criar registros do tipo visita" });
   }
 
   const db = await readDb();

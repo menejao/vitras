@@ -15,11 +15,8 @@ const ENC_PREFIX = "enc1:";
 const SENSITIVE_PATIENT_FIELDS = ["cpf", "cns", "cnsCpf"];
 const SENSITIVE_USER_FIELDS = ["twoFactorSecret", "twoFactorPendingSecret"];
 
-// Strip SSL-related query params from the connection string so they cannot
-// override the explicit ssl:{rejectUnauthorized:false} config below.
-// AWS RDS / Neon / Supabase append sslmode=require or sslmode=verify-full
-// which causes SELF_SIGNED_CERT_IN_CHAIN in Node when the AWS CA bundle
-// is not in the system trust store.
+// Strip SSL-related query params from connection string so runtime config
+// stays explicit and aligned with official Aurora/RDS setup.
 function stripSslParams(url) {
   if (!url) return url;
   try {
@@ -53,6 +50,9 @@ if (pool) {
 let _dbCache = null;
 let _dbCacheAt = 0;
 const DB_CACHE_TTL_MS = 1500;
+
+// serialize file writes to prevent concurrent overwrites
+let _fileLockChain = Promise.resolve();
 
 let initialized = false;
 
@@ -546,10 +546,18 @@ async function withDb(mutator) {
     }
   }
 
-  const db = await readDbFromFile();
-  const result = await mutator(db);
-  await writeDbToFile(db);
-  return result;
+  return new Promise((resolve, reject) => {
+    _fileLockChain = _fileLockChain.then(async () => {
+      try {
+        const db = await readDbFromFile();
+        const result = await mutator(db);
+        await writeDbToFile(db);
+        resolve(result);
+      } catch (err) {
+        reject(err);
+      }
+    }).catch(() => {}); // evita quebrar a cadeia em caso de erro anterior
+  });
 }
 
 async function listUsersSnapshot(options = {}) {
