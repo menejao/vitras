@@ -3,6 +3,7 @@ import { parseLocalDate } from "../utils/dates";
 import { gestationalAgeInfo, ageInMonths, getBaseAgeGroup, matchesPatientSearch } from "../utils/clinical";
 import { initials, fmtDate } from "../utils/formatting";
 import { VACCINE_OPTIONS } from "../config/constants";
+import { printVaccineCard } from "../utils/printDoc";
 import PageHeader from "../components/layout/PageHeader";
 import Button from "../components/ui/Button";
 import Avatar from "../components/ui/Avatar";
@@ -333,6 +334,25 @@ function VaccinesPage({ patients, users, templates, token, canManageUser, user }
 
   const norm = s => String(s || "").toLowerCase().replace(/[^a-z0-9]/g," ").trim();
 
+  function printCard() {
+    const allVaccines = [...lifeVaccines, ...condVaccines];
+    const vaccineRows = allVaccines.map(v => {
+      const applied = vaccineApplied(v, appliedList, selectedPatient?.birthDate);
+      const records = appliedList.filter(a =>
+        v.aliases.some(alias => norm(a.title).includes(norm(alias)))
+      ).sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+      const last = records[0];
+      const by = last
+        ? (String(last.details || "").match(/Aplicado por: ([^—\n]+)/)?.[1]?.trim() || null)
+        : null;
+      return { name: v.name, doseLabel: v.doseLabel, ageGroup: v.ageGroup, applied, date: last?.date ? fmtDate(last.date) : null, by };
+    });
+    const extraApplied = appliedList.filter(a =>
+      !PNI_CALENDAR.some(v => v.aliases.some(alias => norm(a.title).includes(norm(alias))))
+    );
+    printVaccineCard({ patient: selectedPatient, vaccineRows, extraApplied });
+  }
+
   function VaccRow({ v, applied, cond }) {
     const records = appliedList.filter(a =>
       v.aliases.some(alias => norm(a.title).includes(norm(alias)))
@@ -455,15 +475,18 @@ function VaccinesPage({ patients, users, templates, token, canManageUser, user }
                     </div>
                   </div>
                 </div>
-                {canManageUser && (
-                  <Button
-                    variant={applying ? "ghost" : "primary"}
-                    size="sm"
-                    onClick={() => setApplying(v => !v)}
-                  >
-                    {applying ? "Cancelar" : "Registrar vacina"}
-                  </Button>
-                )}
+                <div style={{ display:"flex", gap:"var(--s-2)" }}>
+                  <Button variant="ghost" size="sm" onClick={printCard}>Imprimir carteira</Button>
+                  {canManageUser && (
+                    <Button
+                      variant={applying ? "ghost" : "primary"}
+                      size="sm"
+                      onClick={() => setApplying(v => !v)}
+                    >
+                      {applying ? "Cancelar" : "Registrar vacina"}
+                    </Button>
+                  )}
+                </div>
               </div>
 
               {/* Apply form */}

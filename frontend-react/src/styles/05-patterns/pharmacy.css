@@ -8,7 +8,8 @@
   height: 100%;
 }
 
-.pharmacy-page > .page-header {
+.pharmacy-page > .page-header,
+.pharmacy-page > .hero {
   margin: var(--s-6) var(--s-6) 0;
 }
 
