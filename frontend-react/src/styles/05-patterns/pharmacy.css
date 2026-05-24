@@ -12,31 +12,24 @@
   margin: var(--s-6) var(--s-6) 0;
 }
 
-/* ── Session info in header ─────────────────────────────────── */
-.pharma-session {
-  display: flex;
-  align-items: center;
-  gap: var(--s-2);
-}
-
-.pharma-session__info { text-align: right; }
-
-.pharma-session__name {
-  font: 700 var(--t-sm) var(--font-sans);
-  color: var(--accent-text);
-}
-
-.pharma-session__sub {
-  font: 400 var(--t-xs) var(--font-sans);
-  color: var(--text-dim);
-}
-
 /* ── KPI row ────────────────────────────────────────────────── */
 .pharma-kpis {
   display: flex;
   gap: var(--s-3);
   padding: var(--s-3) var(--s-6);
   flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+/* ── Tabs bar ───────────────────────────────────────────────── */
+.pharma-tabs-bar {
+  flex-shrink: 0;
+  padding: 0 var(--s-6);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.pharma-tabs-bar .tabs {
+  border-bottom: none;
+  padding: 0;
 }
 
 .pharma-kpis .kpi { flex: 1 1 130px; }
@@ -58,7 +51,6 @@
 .pharma-toolbar {
   display: flex;
   gap: var(--s-2);
-  margin-bottom: var(--s-4);
   flex-wrap: wrap;
   align-items: center;
 }
@@ -67,6 +59,8 @@
   position: relative;
   flex: 1 1 200px;
 }
+
+.pharma-filter-cat { min-width: 160px; }
 
 
 /* Filter toggle active state — scoped to pharmacy page to avoid bleeding into sidebar nav */
@@ -147,7 +141,7 @@
   display: flex;
   align-items: center;
   gap: var(--s-2);
-  margin-top: var(--s-3);
+  margin: 0 var(--s-6);
   padding: var(--s-3) var(--s-4);
   border-radius: var(--r-md);
   font: 400 var(--t-sm) var(--font-sans);

@@ -380,9 +380,9 @@ function PharmacyPage({
     return (
       <PageShell className="pharmacy-page">
         <PageHeader
-          eyebrow="Gestao de Medicamentos"
-          title="Farmacia UBS"
-          subtitle="Controle de estoque, dispensacao e rastreabilidade de medicamentos."
+          eyebrow="GESTÃO DE MEDICAMENTOS"
+          title="Farmácia UBS"
+          subtitle="Controle de estoque, dispensação e rastreabilidade de medicamentos."
         />
         <div className="pharma-auth-notice">
           <IconWarning />
@@ -395,26 +395,16 @@ function PharmacyPage({
   return (
     <PageShell className="pharmacy-page">
       <PageHeader
-        eyebrow="Gestao de Medicamentos"
-        title="Farmacia UBS"
-        subtitle="Controle de estoque, dispensacao e rastreabilidade de medicamentos."
-        actions={(
-          <div className="pharma-session">
-            <div className="pharma-session__info">
-              <div className="pharma-session__name">{user?.name || "Usuario"}</div>
-              <div className="pharma-session__sub">
-                {canUseWriteFlow ? "Sessao de farmacia com escrita" : "Sessao institucional somente leitura"}
-              </div>
-            </div>
-          </div>
-        )}
+        eyebrow="GESTÃO DE MEDICAMENTOS"
+        title="Farmácia UBS"
+        subtitle="Controle de estoque, dispensação e rastreabilidade de medicamentos."
       />
 
       {error ? <div className="error error-banner">{error}</div> : null}
       {!canUseWriteFlow ? (
         <div className="pharma-auth-notice">
           <IconWarning />
-          Seu perfil pode consultar estoque e historico, mas nao pode dispensar nem ajustar medicamentos.
+          Seu perfil pode consultar estoque e histórico, mas não pode dispensar nem ajustar medicamentos.
         </div>
       ) : null}
 
@@ -422,25 +412,25 @@ function PharmacyPage({
         <KPI label="Total de itens" value={stock.length} className="card" />
         <KPI label="Estoque baixo" value={lowStock.length} className={`card${lowStock.length > 0 ? " kpi--warning" : ""}`} />
         <KPI label="Sem estoque" value={outStock.length} className={`card${outStock.length > 0 ? " kpi--danger" : ""}`} />
-        <KPI label="Dispensacoes hoje" value={dispensasHoje} className="card kpi--info" />
+        <KPI label="Dispensações hoje" value={dispensasHoje} className="card kpi--info" />
       </KpiGrid>
 
-      <PageToolbar>
+      <div className="pharma-tabs-bar">
         <Tabs>
           <Tab active={pharmaTab === "stock"} onClick={() => setPharmaTab("stock")}>Estoque</Tab>
-          <Tab active={pharmaTab === "log"} onClick={() => setPharmaTab("log")}>Log de Movimentacoes</Tab>
-          <Tab active={pharmaTab === "prescriptions"} onClick={() => setPharmaTab("prescriptions")}>Prescricoes</Tab>
+          <Tab active={pharmaTab === "log"} onClick={() => setPharmaTab("log")}>Log de Movimentações</Tab>
+          <Tab active={pharmaTab === "prescriptions"} onClick={() => setPharmaTab("prescriptions")}>Prescrições</Tab>
         </Tabs>
-      </PageToolbar>
+      </div>
 
       <MainContent className="pharma-body">
-        {pharmaTab === "stock" ? (
+        {pharmaTab === "stock" && (
           <>
             <PageToolbar className="pharma-toolbar">
               <div className="pharma-search">
                 <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar medicamento, categoria ou localizacao..." />
               </div>
-              <div style={{ minWidth: 160 }}>
+              <div className="pharma-filter-cat">
                 <Select value={catFilter} onChange={(e) => setCatFilter(e.target.value)}>
                   {categories.map((category) => <option key={category}>{category}</option>)}
                 </Select>
@@ -503,11 +493,12 @@ function PharmacyPage({
               </table>
             </div>
           </>
-        ) : (
+        )}
+        {pharmaTab === "log" && (
           <>
             <div className="pharma-anvisa-notice">
               <span>
-                <strong>ANVISA RDC 20/2011:</strong> a escrituracao de dispensacao deve ser conservada por no minimo <strong>5 anos</strong>. O historico abaixo vem do backend oficial e nao pode depender de navegador local.
+                <strong>ANVISA RDC 20/2011:</strong> a escrituração de dispensação deve ser conservada por no mínimo <strong>5 anos</strong>. O histórico abaixo vem do backend oficial e não pode depender de navegador local.
               </span>
             </div>
 
@@ -593,13 +584,13 @@ function PharmacyPage({
                 </thead>
                 <tbody>
                   {rxLoading ? (
-                    <tr><td colSpan={5} style={{ textAlign: "center", padding: "2rem", color: "var(--text-2)" }}>Carregando prescricoes...</td></tr>
+                    <tr><td colSpan={5} style={{ textAlign: "center", padding: "2rem", color: "var(--text-2)" }}>Carregando prescrições...</td></tr>
                   ) : prescriptions.filter(rx => {
                     if (!rxSearch) return true;
                     const q = rxSearch.toLowerCase();
                     return String(rx.patientName || "").toLowerCase().includes(q) || String(rx.title || "").toLowerCase().includes(q);
                   }).length === 0 ? (
-                    <tr><td colSpan={5} style={{ textAlign: "center", padding: "2rem", color: "var(--text-2)" }}>Nenhuma prescricao encontrada.</td></tr>
+                    <tr><td colSpan={5} style={{ textAlign: "center", padding: "2rem", color: "var(--text-2)" }}>Nenhuma prescrição encontrada.</td></tr>
                   ) : prescriptions.filter(rx => {
                     if (!rxSearch) return true;
                     const q = rxSearch.toLowerCase();
