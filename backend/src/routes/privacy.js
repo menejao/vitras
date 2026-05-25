@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import express from "express";
 import { v4 as uuidv4 } from "uuid";
 import { readDb, withDb } from "../db.js";
@@ -151,6 +152,36 @@ router.post("/privacy/requests/:id/execute", requireManager, async (req, res) =>
   const id = String(req.params.id || "").trim();
   const payload = req.body || {};
 
+  // S8-02: For deletion requests, emit pre-flight audit in a SEPARATE withDb
+  // transaction BEFORE the main anonymization begins. This ensures forensic
+  // evidence of the attempt is persisted even if the anonymization rolls back.
+  const preflightDb = await readDb();
+  ensureDbShape(preflightDb);
+  const preflightRequest = preflightDb.privacyRequests?.find(
+    (item) => item.id === id && item.teamId === req.user.teamId
+  );
+  const preflightPatient = preflightRequest
+    ? preflightDb.patients?.find((p) => p.id === preflightRequest.patientId && p.teamId === req.user.teamId)
+    : null;
+
+  let deletionCorrelationId = null;
+  if (preflightRequest?.type === "deletion" && preflightPatient && !isAnonymizedPatient(preflightPatient)) {
+    deletionCorrelationId = crypto.randomUUID();
+    const preflightReason = String(payload.reason || preflightRequest.notes || "").trim();
+    await withDb((pDb) => {
+      ensureDbShape(pDb);
+      addAuditLog(pDb, req.user, "anonymization_warning_acknowledged", "patient", preflightPatient.id, {
+        outcome: "preflight",
+        requestId: preflightRequest.id,
+        actorId: String(req.user?.id || ""),
+        patientId: preflightPatient.id,
+        reason: preflightReason,
+        correlationId: deletionCorrelationId,
+        note: "CFM 1821/2007 clinical snapshot residue acknowledged — pre-flight record persisted before anonymization begins"
+      });
+    });
+  }
+
   const outcome = await withDb((db) => {
     ensureDbShape(db);
     const reqIndex = db.privacyRequests.findIndex((item) => item.id === id && item.teamId === req.user.teamId);
@@ -223,16 +254,6 @@ router.post("/privacy/requests/:id/execute", requireManager, async (req, res) =>
       }
       const reason = String(payload.reason || requestItem.notes || "").trim();
 
-      // ITEM 8: Pre-flight audit — fires BEFORE anonymization as a pre-flight record
-      addAuditLog(db, req.user, "anonymization_warning_acknowledged", "patient", patient.id, {
-        outcome: "preflight",
-        requestId: requestItem.id,
-        actorId: String(req.user?.id || ""),
-        patientId: patient.id,
-        reason,
-        note: "Pre-flight record: anonymization about to execute. CFM 1821/2007 clinical snapshot residue acknowledged."
-      });
-
       const anonymize = anonymizePatientBundle(db, req.user, patient, reason, requestItem.id);
 
       result = { anonymized: anonymize.changed, stats: anonymize.stats };
@@ -247,6 +268,7 @@ router.post("/privacy/requests/:id/execute", requireManager, async (req, res) =>
       addAuditLog(db, req.user, "privacy.request_executed_deletion", "privacy_request", requestItem.id, {
         patientId: patient.id,
         stats: anonymize.stats,
+        correlationId: deletionCorrelationId,
         before,
         after: buildPrivacyRequestAuditSnapshot(requestItem)
       });
@@ -271,6 +293,42 @@ router.post("/privacy/retention/anonymize", requireManager, async (req, res) => 
 
   const cutoff = Date.now() - (olderThanDays * 24 * 60 * 60 * 1000);
   const cutoffIso = new Date(cutoff).toISOString();
+
+  // S8-02: For non-dry-run, emit pre-flight audits for all candidates in a
+  // SEPARATE withDb transaction BEFORE the main anonymization loop begins.
+  // This ensures forensic records are committed even if anonymization rolls back.
+  let bulkCorrelationId = null;
+  let preflightCandidateIds = [];
+  if (!dryRun) {
+    bulkCorrelationId = crypto.randomUUID();
+    const snapshotDb = await readDb();
+    ensureDbShape(snapshotDb);
+    const preflightCandidates = snapshotDb.patients.filter((patient) => {
+      if (patient.teamId !== req.user.teamId) return false;
+      if (isAnonymizedPatient(patient)) return false;
+      const activity = getPatientActivityDate(snapshotDb, patient.id) || patient.updatedAt || patient.createdAt;
+      if (!activity) return false;
+      return String(activity) < cutoffIso;
+    });
+    preflightCandidateIds = preflightCandidates.map((p) => p.id);
+
+    if (preflightCandidates.length > 0) {
+      await withDb((pDb) => {
+        ensureDbShape(pDb);
+        for (const patient of preflightCandidates) {
+          addAuditLog(pDb, req.user, "anonymization_warning_acknowledged", "patient", patient.id, {
+            outcome: "preflight",
+            requestId: "",
+            actorId: String(req.user?.id || ""),
+            patientId: patient.id,
+            reason: `Retenção automática: sem atividade desde antes de ${cutoffIso}`,
+            correlationId: bulkCorrelationId,
+            note: "CFM 1821/2007 clinical snapshot residue acknowledged — pre-flight record persisted before bulk anonymization begins"
+          });
+        }
+      });
+    }
+  }
 
   const result = await withDb((db) => {
     ensureDbShape(db);
@@ -306,16 +364,6 @@ router.post("/privacy/retention/anonymize", requireManager, async (req, res) => 
     };
 
     for (const patient of candidates) {
-      // ITEM 8: Pre-flight audit for each patient in bulk anonymization
-      addAuditLog(db, req.user, "anonymization_warning_acknowledged", "patient", patient.id, {
-        outcome: "preflight",
-        requestId: "",
-        actorId: String(req.user?.id || ""),
-        patientId: patient.id,
-        reason: `Retenção automática: sem atividade desde antes de ${cutoffIso}`,
-        note: "Bulk retention pre-flight. CFM 1821/2007 clinical snapshot residue acknowledged."
-      });
-
       const output = anonymizePatientBundle(
         db,
         req.user,
@@ -336,6 +384,8 @@ router.post("/privacy/retention/anonymize", requireManager, async (req, res) => 
       olderThanDays,
       candidates: candidates.length,
       anonymizedCount,
+      correlationId: bulkCorrelationId,
+      preflightCandidateCount: preflightCandidateIds.length,
       stats
     });
 
