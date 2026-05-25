@@ -18,8 +18,8 @@ function canWriteAgenda(user) {
 
 function canAccessTeam(user, teamId) {
   const currentTeamId = String(user?.teamId || "").trim();
-  if (currentTeamId && currentTeamId === String(teamId || "")) return true;
-  return !currentTeamId && hasCapability(user, "team.manage");
+  if (!currentTeamId) return false; // fail-safe: no teamId = no access
+  return currentTeamId === String(teamId || "").trim();
 }
 
 function normalizeAgendaStatus(value) {

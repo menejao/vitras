@@ -103,7 +103,7 @@ const ROLE_CAPABILITIES = {
   ],
   acs: [
     "dashboard.read",
-    "patients.read.all",
+    "patients.read.scoped",
     "records.read",
     "records.write",
     "referrals.read",
@@ -321,9 +321,10 @@ function isAcs(user) {
 }
 
 function canAccessAllPatients(user) {
+  if (isAcs(user)) return false; // ACS always team-scoped via patients.read.scoped
   if (hasCapability(user, "patients.read.all")) return true;
   const role = canonicalRole(user?.role);
-  return role === "gestor" || role === "nurse_manager" || role === "doctor" || role === "acs";
+  return role === "gestor" || role === "nurse_manager" || role === "doctor";
 }
 
 function canAccessScopedPatients(user) {

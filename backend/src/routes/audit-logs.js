@@ -7,6 +7,7 @@ import { ensureDbShape } from "../utils/domain.js";
 import { addAuditLog } from "../services/audit.js";
 
 const PRUNE_ALLOWED_ROLES = new Set(["gestor", "security_auditor", "break_glass_admin"]);
+const AUDIT_GLOBAL_ROLES = new Set(["gestor", "security_auditor", "break_glass_admin"]);
 
 function requirePruneRole(req, res, next) {
   const role = canonicalRole(req.user?.role);
@@ -55,6 +56,25 @@ function matchesAuditFilters(log, filters) {
 }
 
 router.get("/audit-logs", requireManagerOrDoctor, async (req, res) => {
+  const userRole = canonicalRole(req.user?.role);
+  const canReadAllAuditTeams = AUDIT_GLOBAL_ROLES.has(userRole);
+  const userTeamId = String(req.user?.teamId || "").trim();
+  const requestedTeamId = req.query.teamId ? String(req.query.teamId).trim() : "";
+
+  if (!canReadAllAuditTeams && requestedTeamId && requestedTeamId !== userTeamId) {
+    await withDb((auditDb) => {
+      ensureDbShape(auditDb);
+      addAuditLog(auditDb, req.user, "audit.cross_tenant_blocked", "audit_log", req.user?.teamId || "global", {
+        outcome: "denied",
+        requestedTeamId,
+        userRole
+      });
+    });
+    return res.status(403).json({ error: "Sem permissão para ler audit logs de outro team" });
+  }
+
+  const effectiveTeamId = canReadAllAuditTeams ? requestedTeamId : userTeamId;
+
   const filters = {
     patientId: req.query.patientId ? String(req.query.patientId) : "",
     category: req.query.category ? String(req.query.category).trim().toLowerCase() : "",
@@ -62,7 +82,7 @@ router.get("/audit-logs", requireManagerOrDoctor, async (req, res) => {
     action: req.query.action ? String(req.query.action).trim() : "",
     entity: req.query.entity ? String(req.query.entity).trim() : "",
     outcome: req.query.outcome ? String(req.query.outcome).trim().toLowerCase() : "",
-    teamId: req.query.teamId ? String(req.query.teamId).trim() : "",
+    teamId: effectiveTeamId,
     from: req.query.from ? String(req.query.from).trim() : "",
     to: req.query.to ? String(req.query.to).trim() : "",
     cursor: req.query.cursor ? String(req.query.cursor).trim() : ""
@@ -104,6 +124,25 @@ router.get("/audit-logs", requireManagerOrDoctor, async (req, res) => {
 });
 
 router.get("/audit-logs/export", requireManagerOrDoctor, async (req, res) => {
+  const exportUserRole = canonicalRole(req.user?.role);
+  const canExportAllTeams = AUDIT_GLOBAL_ROLES.has(exportUserRole);
+  const exportUserTeamId = String(req.user?.teamId || "").trim();
+  const exportRequestedTeamId = req.query.teamId ? String(req.query.teamId).trim() : "";
+
+  if (!canExportAllTeams && exportRequestedTeamId && exportRequestedTeamId !== exportUserTeamId) {
+    await withDb((auditDb) => {
+      ensureDbShape(auditDb);
+      addAuditLog(auditDb, req.user, "audit.cross_tenant_blocked", "audit_log", req.user?.teamId || "global", {
+        outcome: "denied",
+        requestedTeamId: exportRequestedTeamId,
+        userRole: exportUserRole,
+        resource: "export"
+      });
+    });
+    return res.status(403).json({ error: "Sem permissão para exportar audit logs de outro team" });
+  }
+
+  const exportEffectiveTeamId = canExportAllTeams ? exportRequestedTeamId : exportUserTeamId;
   const format = String(req.query.format || "json").trim().toLowerCase();
   const filters = {
     patientId: req.query.patientId ? String(req.query.patientId) : "",
@@ -112,7 +151,7 @@ router.get("/audit-logs/export", requireManagerOrDoctor, async (req, res) => {
     action: req.query.action ? String(req.query.action).trim() : "",
     entity: req.query.entity ? String(req.query.entity).trim() : "",
     outcome: req.query.outcome ? String(req.query.outcome).trim().toLowerCase() : "",
-    teamId: req.query.teamId ? String(req.query.teamId).trim() : "",
+    teamId: exportEffectiveTeamId,
     from: req.query.from ? String(req.query.from).trim() : "",
     to: req.query.to ? String(req.query.to).trim() : "",
     cursor: ""

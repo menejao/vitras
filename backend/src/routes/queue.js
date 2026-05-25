@@ -60,7 +60,7 @@ function getScopedQueueEntries(db, user) {
     const entryStatus = String(entry.status || "");
     if (entryStatus === "removed" || entryStatus === "cleared") return false;
     if (teamId && String(entry.teamId || "") === teamId) return true;
-    return !teamId && hasCapability(user, "team.manage");
+    return false; // fail-safe: no teamId = no access
   });
 }
 

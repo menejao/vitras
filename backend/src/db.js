@@ -686,7 +686,12 @@ async function listAppointmentsByPatientId(patientId) {
 async function listAuditLogsSnapshot(filters = {}, options = {}) {
   if (!isPostgresMode()) {
     const db = await readDb();
-    const list = Array.isArray(db.auditLogs) ? db.auditLogs : [];
+    let list = Array.isArray(db.auditLogs) ? db.auditLogs : [];
+    if (filters.teamId) list = list.filter((l) => String(l.teamId || "") === String(filters.teamId));
+    if (filters.category) list = list.filter((l) => String(l.category || "") === filters.category);
+    if (filters.action) list = list.filter((l) => String(l.action || "") === filters.action);
+    if (filters.from) list = list.filter((l) => String(l.createdAt || "") >= filters.from);
+    if (filters.to) list = list.filter((l) => String(l.createdAt || "") <= filters.to);
     return options.limit ? list.slice(0, options.limit) : list;
   }
   await initialize();

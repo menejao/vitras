@@ -15,7 +15,7 @@ import {
 } from "../utils/domain.js";
 import { syncPatientFamilyGroup } from "../utils/family-groups.js";
 import {
-  isManager, isDoctor, isAcs, hasCapability, normalizeDemandType,
+  isManager, isDoctor, isAcs, hasCapability, normalizeDemandType, canonicalRole,
   detectConsultationSpecialtyFromTitle, normalizeConsultationTitle
 } from "../utils/helpers.js";
 import {
@@ -24,6 +24,9 @@ import {
 import { buildProtocolSummary, restrictSummaryAlertsForForeignTeam } from "../utils/protocol-eval.js";
 import { validateClinicalRecordPayload, buildMonthlyDemandMetric, buildDataQualityMetric } from "../utils/metrics.js";
 import { addAuditLog } from "../services/audit.js";
+
+const CLINICAL_PRESCRIBER_ROLES = new Set(["doctor", "dentist"]);
+const DOCTOR_ONLY_TYPES = new Set(["prescription", "medical_attest"]);
 
 const router = express.Router();
 
@@ -540,6 +543,18 @@ router.post("/patients/:id/records", validate(RecordCreateSchema), async (req, r
     return res.status(403).json({ error: "ACS só pode criar registros do tipo visita" });
   }
 
+  // Prescrições e atestados médicos são exclusivos de médico e dentista
+  if (DOCTOR_ONLY_TYPES.has(type) && !CLINICAL_PRESCRIBER_ROLES.has(canonicalRole(req.user.role))) {
+    await withDb((auditDb) => {
+      ensureDbShape(auditDb);
+      addAuditLog(auditDb, req.user, "record.creation_blocked", "clinical_record", id, {
+        type,
+        reason: "Tipo reservado para médico/dentista"
+      });
+    });
+    return res.status(403).json({ error: "Apenas médico pode criar prescrição ou atestado médico" });
+  }
+
   const db = await readDb();
   ensureDbShape(db);
   const lookup = getPatientOrError(db, req.user, id);
@@ -587,6 +602,17 @@ router.post("/patients/:id/records", validate(RecordCreateSchema), async (req, r
   await withDb((mutableDb) => {
     ensureDbShape(mutableDb);
     mutableDb.clinicalRecords.push(record);
+
+    const actorTeamId = String(req.user.teamId || "").trim();
+    const patientTeamId = String(lookup.patient.teamId || "").trim();
+    if (actorTeamId && patientTeamId && actorTeamId !== patientTeamId) {
+      addAuditLog(mutableDb, req.user, "cross_team_patient_access", "patient", id, {
+        actorTeamId,
+        patientTeamId,
+        resource: "clinical_record.create"
+      });
+    }
+
     addAuditLog(mutableDb, req.user, "clinical_record.created", "clinical_record", record.id, {
       patientId: id,
       type: record.type,
