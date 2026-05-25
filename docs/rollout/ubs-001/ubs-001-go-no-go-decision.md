@@ -1,3 +1,5 @@
+> **SUPERSEDED** — See `ubs-001-final-go-no-go.md` for current GO/NO-GO decision (2026-05-25).
+
 # UBS #1 GO/NO-GO Decision Record
 
 **Date:** 2026-05-25
