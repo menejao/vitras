@@ -342,10 +342,14 @@ router.post(
         db.units.push({ id: unitId, name: unitName, createdAt: now });
 
         // Assign unitId to gestor user
+        // S7-01: Guard against gestor being deleted between validation and mutation.
+        // If the user has disappeared, throw to abort the transaction entirely —
+        // prevents a partially-created unit with no associated gestor.
         const gestorIndex = db.users.findIndex((u) => String(u.id || "") === gestorUserId);
-        if (gestorIndex >= 0) {
-          db.users[gestorIndex] = { ...db.users[gestorIndex], unitId, updatedAt: now };
+        if (gestorIndex < 0) {
+          throw new Error("GESTOR_NOT_FOUND_IN_MUTATOR");
         }
+        db.users[gestorIndex] = { ...db.users[gestorIndex], unitId, updatedAt: now };
 
         addAuditLog(db, buildAdminAuditActor(req), "unit_bootstrap", "unit", unitId, {
           outcome: "success",
@@ -379,6 +383,12 @@ router.post(
         message: `Unidade '${result.unitId}' criada e gestor associado com sucesso`
       });
     } catch (err) {
+      // S7-01: Gestor disappeared between validation and mutation — abort
+      if (err.message === "GESTOR_NOT_FOUND_IN_MUTATOR") {
+        return res.status(409).json({
+          error: "Gestor não encontrado durante criação da unidade — operação abortada"
+        });
+      }
       return res.status(500).json({ error: err.message });
     }
   }
