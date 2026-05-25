@@ -34,6 +34,18 @@ function _cbRecordFailure() {
     _cbWindowStart = now;
   }
   _cbFailureCount += 1;
+  // S5-01: If probe fails during HALF_OPEN, reopen immediately
+  if (_cbState === "HALF_OPEN") {
+    _cbState = "OPEN";
+    _cbOpenedAt = Date.now();
+    logWarn("circuit_breaker_reopened", {
+      event: "circuit_breaker_reopened",
+      reason: "half_open_probe_failed",
+      timestamp: new Date().toISOString()
+    });
+    recordMetric("circuit_breaker_reopened", 1, { subsystem: "redis", reason: "half_open_probe_failed" });
+    return;
+  }
   if (_cbState === "CLOSED" && _cbFailureCount >= CB_FAILURE_THRESHOLD) {
     _cbState = "OPEN";
     _cbOpenedAt = now;
