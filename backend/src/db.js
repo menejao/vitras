@@ -164,11 +164,19 @@ function buildDefaultState() {
 
   return {
     protocolTemplates,
+    units: [
+      {
+        id: "unit-default",
+        name: "Unidade Padrão",
+        createdAt: now
+      }
+    ],
     teams: [
       {
         id: "team-ana",
         name: "Equipe Enfermeira Ana",
         managerUserId: "u1",
+        unitId: "unit-default",
         createdAt: now
       }
     ],
@@ -184,6 +192,7 @@ function buildDefaultState() {
           email: "ana@clinica.local",
           password: hashDefaultPassword("123456"),
           teamId: "team-ana",
+          unitId: "unit-default",
           councilType: "COREN",
           councilNumber: "123456",
           councilUf: "SP",
@@ -196,6 +205,7 @@ function buildDefaultState() {
           email: "carlos@clinica.local",
           password: hashDefaultPassword("123456"),
           teamId: "team-ana",
+          unitId: "unit-default",
           createdAt: now
         }
       ];
@@ -285,6 +295,7 @@ function batchInsert(cols, rows) {
 
 async function syncShadowTables(client, state) {
   const users = Array.isArray(state?.users) ? state.users : [];
+  const units = Array.isArray(state?.units) ? state.units : [];
   const refreshTokens = Array.isArray(state?.refreshTokens) ? state.refreshTokens : [];
   const auditLogs = Array.isArray(state?.auditLogs) ? state.auditLogs : [];
   const patients = Array.isArray(state?.patients) ? state.patients : [];
@@ -295,6 +306,7 @@ async function syncShadowTables(client, state) {
   const userRows = users.map((user) => [
     String(user?.id || ""),
     String(user?.teamId || ""),
+    String(user?.unitId || ""),
     String(user?.role || ""),
     String(user?.email || ""),
     String(user?.name || ""),
@@ -304,12 +316,34 @@ async function syncShadowTables(client, state) {
     user?.updatedAt || user?.createdAt || null,
     JSON.stringify(user || {})
   ]);
-  const userBatch = batchInsert(["id","team_id","role","email","name","inactive","two_factor_enabled","created_at","updated_at","payload"], userRows);
+  const userBatch = batchInsert(["id","team_id","unit_id","role","email","name","inactive","two_factor_enabled","created_at","updated_at","payload"], userRows);
   if (userBatch) {
     await client.query(
-      `INSERT INTO app_users (id,team_id,role,email,name,inactive,two_factor_enabled,created_at,updated_at,payload) VALUES ${userBatch.text}`,
+      `INSERT INTO app_users (id,team_id,unit_id,role,email,name,inactive,two_factor_enabled,created_at,updated_at,payload) VALUES ${userBatch.text}`,
       userBatch.values
     );
+  }
+
+  // Units shadow table (added in migration 004)
+  try {
+    await client.query("DELETE FROM app_units");
+    const unitRows = units.map((unit) => [
+      String(unit?.id || ""),
+      String(unit?.name || ""),
+      Boolean(unit?.inactive || false),
+      unit?.createdAt || null,
+      unit?.updatedAt || unit?.createdAt || null,
+      JSON.stringify(unit || {})
+    ]);
+    const unitBatch = batchInsert(["id","name","inactive","created_at","updated_at","payload"], unitRows);
+    if (unitBatch) {
+      await client.query(
+        `INSERT INTO app_units (id,name,inactive,created_at,updated_at,payload) VALUES ${unitBatch.text}`,
+        unitBatch.values
+      );
+    }
+  } catch {
+    // table may not exist if migration 004 hasn't run yet — safe to ignore
   }
 
   await client.query("DELETE FROM app_refresh_tokens");

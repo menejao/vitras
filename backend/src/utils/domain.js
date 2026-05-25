@@ -151,6 +151,7 @@ function normalizeLookupText(value) {
 /* ── DB shape enforcement ── */
 
 function ensureDbShape(db) {
+  ensureArray(db, "units");
   ensureArray(db, "teams");
   ensureArray(db, "users");
   ensureArray(db, "patients");
@@ -185,10 +186,24 @@ function ensureDbShape(db) {
       id: defaultTeamId,
       name: "Equipe Enfermeira Ana",
       managerUserId: "u1",
+      unitId: "unit-default",
       createdAt: new Date().toISOString()
     });
     db.users = db.users.map((u) => ({ ...u, teamId: u.teamId || defaultTeamId }));
   }
+
+  // Ensure default unit exists (backward compat: existing deployments without units)
+  if (!db.units.length) {
+    db.units.push({ id: "unit-default", name: "Unidade Padrão", createdAt: new Date().toISOString() });
+  }
+  // Ensure all teams have unitId (assign default if missing — backward compat migration)
+  db.teams = db.teams.map((t) => t.unitId ? t : { ...t, unitId: "unit-default" });
+  // Ensure all users have unitId (derive from team or default — backward compat migration)
+  db.users = db.users.map((u) => {
+    if (u.unitId) return u;
+    const team = db.teams.find((t) => t.id === u.teamId);
+    return { ...u, unitId: team?.unitId || "unit-default" };
+  });
 
   const byId = new Set(db.teams.map((t) => String(t.id || "").trim().toLowerCase()));
   const byName = new Set(db.teams.map((t) => String(t.name || "").trim().toLowerCase()));

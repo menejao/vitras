@@ -1,4 +1,4 @@
-import { canAccessAllPatients, canAccessScopedPatients, normalizeDemandType, eventDate } from "./helpers.js";
+import { canAccessAllPatients, canAccessScopedPatients, normalizeDemandType, eventDate, canonicalRole } from "./helpers.js";
 import { ensureArray, getProtocolTemplateMap, normalizeCategory, normalizeChronicConditions } from "./domain.js";
 
 function isAnonymizedPatient(patient) {
@@ -259,12 +259,33 @@ function canAccessPatient(user, patient) {
   return false;
 }
 
+function buildGestorUnitTeamIds(db, user) {
+  const userUnitId = String(user?.unitId || "").trim();
+  if (!userUnitId) return null; // null = gestor without unitId = no access
+  return new Set(
+    (db.teams || []).filter((t) => String(t.unitId || "").trim() === userUnitId).map((t) => t.id)
+  );
+}
+
 function getAllowedPatients(db, user, query) {
   const microArea = query.microArea ? String(query.microArea).trim() : "";
   const acsId = query.acsId ? String(query.acsId).trim() : "";
   const careCategory = query.careCategory ? String(query.careCategory).trim() : "";
-  // includeInactive=true allows managers to retrieve inactive patients explicitly
   const includeInactive = String(query.includeInactive || "").trim() === "true";
+
+  // Gestor: unit-scoped access — can only see patients in teams of their unit
+  if (canonicalRole(user?.role) === "gestor") {
+    const unitTeamIds = buildGestorUnitTeamIds(db, user);
+    if (!unitTeamIds) return []; // fail-safe: gestor without unitId sees nothing
+    return db.patients.filter((p) => {
+      if (!includeInactive && p.inactive) return false;
+      if (!unitTeamIds.has(String(p.teamId || "").trim())) return false;
+      if (microArea && p.microArea !== microArea) return false;
+      if (acsId && p.assignedAcsId !== acsId) return false;
+      if (careCategory && p.careCategory !== careCategory) return false;
+      return true;
+    });
+  }
 
   return db.patients.filter((p) => {
     if (!includeInactive && p.inactive) return false;
@@ -279,6 +300,17 @@ function getAllowedPatients(db, user, query) {
 function getPatientOrError(db, user, patientId) {
   const patient = db.patients.find((p) => p.id === patientId);
   if (!patient) return { error: { status: 404, message: "Paciente não encontrado" } };
+
+  // Gestor: unit-scoped access check
+  if (canonicalRole(user?.role) === "gestor") {
+    const unitTeamIds = buildGestorUnitTeamIds(db, user);
+    if (!unitTeamIds) return { error: { status: 403, message: "Gestor sem unidade definida" } };
+    if (!unitTeamIds.has(String(patient.teamId || "").trim())) {
+      return { error: { status: 403, message: "Sem permissão para este paciente" } };
+    }
+    return { patient };
+  }
+
   if (!canAccessPatient(user, patient)) {
     return { error: { status: 403, message: "Sem permissão para este paciente" } };
   }

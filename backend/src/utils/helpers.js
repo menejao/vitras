@@ -320,6 +320,16 @@ function isAcs(user) {
   return canonicalRole(user?.role) === "acs";
 }
 
+function isGestor(user) {
+  return canonicalRole(user?.role) === "gestor";
+}
+
+function canAccessUnit(user, unitId) {
+  const userUnitId = String(user?.unitId || "").trim();
+  if (!userUnitId) return false; // fail-safe: no unitId = no unit-scoped access
+  return userUnitId === String(unitId || "").trim();
+}
+
 function canAccessAllPatients(user) {
   if (isAcs(user)) return false; // ACS always team-scoped via patients.read.scoped
   if (hasCapability(user, "patients.read.all")) return true;
@@ -608,6 +618,8 @@ export {
   isManager,
   isDoctor,
   isAcs,
+  isGestor,
+  canAccessUnit,
   canAccessAllPatients,
   canAccessScopedPatients,
   isAnaAdminUser,
