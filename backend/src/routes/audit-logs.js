@@ -5,7 +5,7 @@ import { requireManager, requireManagerOrDoctor, requireRoles } from "../middlew
 import { exportRateLimit } from "../middlewares/rate-limits.js";
 import { canonicalRole } from "../utils/helpers.js";
 import { ensureDbShape } from "../utils/domain.js";
-import { addAuditLog, verifyAuditLogChain } from "../services/audit.js";
+import { addAuditLog, verifyAuditLogChain, getAuditReport } from "../services/audit.js";
 
 const PRUNE_ALLOWED_ROLES = new Set(["gestor", "security_auditor", "break_glass_admin"]);
 const AUDIT_GLOBAL_ROLES = new Set(["gestor", "security_auditor", "break_glass_admin"]);
@@ -349,6 +349,137 @@ router.get(
     });
 
     return res.json(result);
+  }
+);
+
+// ── ITEM 4: Operational Governance Reports ────────────────────────────────────
+const REPORT_ALLOWED_ROLES = new Set(["security_auditor", "break_glass_admin"]);
+
+function requireReportRole(req, res, next) {
+  const role = canonicalRole(req.user?.role);
+  if (!REPORT_ALLOWED_ROLES.has(role)) {
+    return res.status(403).json({ error: "Sem permissão para acessar relatórios operacionais" });
+  }
+  return next();
+}
+
+/**
+ * GET /audit-logs/reports/cross-team-access
+ * Returns cross_team_patient_access events with masked identifiers.
+ */
+router.get(
+  "/audit-logs/reports/cross-team-access",
+  exportRateLimit,
+  requireReportRole,
+  async (req, res) => {
+    const db = await readDb();
+    ensureDbShape(db);
+
+    const entries = getAuditReport(db, "cross_team_patient_access", { limit: 200 });
+
+    const items = entries.map((e) => ({
+      id: e.id,
+      timestamp: e.createdAt,
+      actorId: String(e.userId || "").slice(0, 8),
+      actorRole: e.userRole,
+      patientId: String(e.entityId || e.details?.patientId || "").slice(0, 8),
+      teamId: e.teamId || "",
+      reason: String(e.details?.reason || "")
+    }));
+
+    await withDb((auditDb) => {
+      ensureDbShape(auditDb);
+      addAuditLog(auditDb, req.user, "audit.report.cross_team_access_read", "audit_log", "report", {
+        outcome: "success",
+        returnedCount: items.length
+      });
+    });
+
+    return res.json({ generatedAt: new Date().toISOString(), total: items.length, items });
+  }
+);
+
+/**
+ * GET /audit-logs/reports/auth-failures
+ * Returns auth failure events with masked identifiers.
+ * Query params: since (ISO), until (ISO), limit (max 500)
+ */
+router.get(
+  "/audit-logs/reports/auth-failures",
+  exportRateLimit,
+  requireReportRole,
+  async (req, res) => {
+    const since = req.query.since ? String(req.query.since).trim() : "";
+    const until = req.query.until ? String(req.query.until).trim() : "";
+    const limit = Math.min(parsePositiveInteger(req.query.limit, 100), 500);
+
+    const db = await readDb();
+    ensureDbShape(db);
+
+    const entries = getAuditReport(db, "auth.login_failed", { since, until, limit });
+
+    // NO email in response — maskEmail already applied at audit creation
+    const items = entries.map((e) => ({
+      id: e.id,
+      timestamp: e.createdAt,
+      actorId: String(e.userId || "").slice(0, 8),
+      outcome: e.outcome || "denied",
+      ip: e.ip ? String(e.ip).slice(0, 15) : undefined,
+      emailMasked: e.details?.emailMasked || undefined
+    }));
+
+    await withDb((auditDb) => {
+      ensureDbShape(auditDb);
+      addAuditLog(auditDb, req.user, "audit.report.auth_failures_read", "audit_log", "report", {
+        outcome: "success",
+        since,
+        until,
+        returnedCount: items.length
+      });
+    });
+
+    return res.json({ generatedAt: new Date().toISOString(), total: items.length, items });
+  }
+);
+
+/**
+ * GET /audit-logs/reports/rate-limit-abuse
+ * Returns rate_limit_hit events grouped by identifier prefix.
+ */
+router.get(
+  "/audit-logs/reports/rate-limit-abuse",
+  exportRateLimit,
+  requireReportRole,
+  async (req, res) => {
+    const db = await readDb();
+    ensureDbShape(db);
+
+    // rate_limit_hit events are stored as metric events, but also logged via logWarn("rate_limit_exceeded")
+    // Aggregate from audit logs where action contains rate_limit
+    const entries = getAuditReport(db, "rate_limit_exceeded", { limit: 500 });
+
+    // Group by prefix
+    const grouped = {};
+    for (const e of entries) {
+      const prefix = String(e.details?.prefix || "unknown");
+      if (!grouped[prefix]) grouped[prefix] = { prefix, count: 0, lastSeen: "" };
+      grouped[prefix].count += 1;
+      if (e.createdAt > grouped[prefix].lastSeen) {
+        grouped[prefix].lastSeen = e.createdAt;
+      }
+    }
+
+    const items = Object.values(grouped).sort((a, b) => b.count - a.count);
+
+    await withDb((auditDb) => {
+      ensureDbShape(auditDb);
+      addAuditLog(auditDb, req.user, "audit.report.rate_limit_abuse_read", "audit_log", "report", {
+        outcome: "success",
+        returnedCount: items.length
+      });
+    });
+
+    return res.json({ generatedAt: new Date().toISOString(), total: entries.length, groups: items });
   }
 );
 
