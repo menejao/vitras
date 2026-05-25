@@ -526,6 +526,52 @@ function snapshotProtocolTemplateVersion(db, actorUser, action, template) {
   });
 }
 
+/**
+ * ITEM 7: Validate inputs for unit bootstrap operation.
+ * Checks: unitId uniqueness, gestorUserId exists with correct role and no conflicting unitId.
+ * @returns {{ valid: boolean, error?: string }}
+ */
+function validateUnitBootstrap(db, { unitId, unitName, gestorUserId }) {
+  const cleanUnitId = String(unitId || "").trim();
+  const cleanUnitName = String(unitName || "").trim();
+  const cleanGestorId = String(gestorUserId || "").trim();
+
+  if (!cleanUnitId || cleanUnitId.length > 50) {
+    return { valid: false, error: "unitId inválido (máximo 50 caracteres)" };
+  }
+  if (!cleanUnitName || cleanUnitName.length > 200) {
+    return { valid: false, error: "unitName inválido (máximo 200 caracteres)" };
+  }
+  if (!cleanGestorId) {
+    return { valid: false, error: "gestorUserId obrigatório" };
+  }
+
+  // unitId must not already exist
+  const existingUnit = (db.units || []).find((u) => String(u.id || "") === cleanUnitId);
+  if (existingUnit) {
+    return { valid: false, error: `unitId '${cleanUnitId}' já existe`, conflict: "unit_exists" };
+  }
+
+  // gestorUserId must exist
+  const gestor = (db.users || []).find((u) => String(u.id || "") === cleanGestorId);
+  if (!gestor) {
+    return { valid: false, error: `Usuário '${cleanGestorId}' não encontrado` };
+  }
+
+  // gestorUserId must have role "gestor"
+  const role = canonicalRole(gestor.role);
+  if (role !== "gestor") {
+    return { valid: false, error: `Usuário '${cleanGestorId}' não tem role 'gestor' (role atual: ${role})` };
+  }
+
+  // gestorUserId must not already be assigned to a DIFFERENT unit
+  if (gestor.unitId && gestor.unitId !== cleanUnitId && gestor.unitId !== "unit-default") {
+    return { valid: false, error: `Gestor '${cleanGestorId}' já está associado a outra unidade: ${gestor.unitId}` };
+  }
+
+  return { valid: true };
+}
+
 export {
   ensureArray,
   DEFAULT_CARE_PROTOCOLS,
@@ -542,5 +588,6 @@ export {
   buildAccessContextUser,
   getProtocolTemplateMap,
   sanitizeProtocolTemplatePayload,
-  snapshotProtocolTemplateVersion
+  snapshotProtocolTemplateVersion,
+  validateUnitBootstrap
 };
