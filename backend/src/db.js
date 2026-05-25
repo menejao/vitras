@@ -4,7 +4,7 @@ import path from "node:path";
 import crypto from "node:crypto";
 import { Pool } from "pg";
 import { canonicalRole, getRoleCapabilities } from "./utils/helpers.js";
-import { logWarn } from "./utils/logger.js";
+import { logInfo, logWarn, logError } from "./utils/logger.js";
 
 const DB_PATH = process.env.TEST_DB_PATH
   ? path.resolve(process.env.TEST_DB_PATH)
@@ -42,9 +42,9 @@ const pool = DATABASE_URL_CLEAN
   : null;
 
 if (pool) {
-  console.log("[db] SSL enabled — rejectUnauthorized=false (RDS/Neon compatible)");
+  logInfo("db_pool_created", { event: "db_pool_created", message: "SSL enabled — rejectUnauthorized=false (RDS/Neon compatible)" });
   pool.on("error", (err) => {
-    console.error("[db:pool] idle client error:", err.message, err.code);
+    logError("db_pool_idle_error", { event: "db_pool_idle_error", message: err.message, code: err.code });
   });
 }
 
@@ -453,35 +453,35 @@ async function initialize() {
   if (initialized) return;
 
   if (DB_DRIVER === "postgres") {
-    console.log("[db:init] pool.connect — início");
+    logInfo("db_init_connect_start", { event: "db_init_connect_start" });
     const client = await pool.connect();
-    console.log("[db:init] pool.connect — OK");
+    logInfo("db_init_connect_ok", { event: "db_init_connect_ok" });
     try {
-      console.log("[db:init] ensurePostgresState — início");
+      logInfo("db_init_ensure_state_start", { event: "db_init_ensure_state_start" });
       await ensurePostgresState(client);
-      console.log("[db:init] ensurePostgresState — OK");
+      logInfo("db_init_ensure_state_ok", { event: "db_init_ensure_state_ok" });
 
-      console.log("[db:init] SELECT app_state — início");
+      logInfo("db_init_select_state_start", { event: "db_init_select_state_start" });
       const result = await client.query("SELECT data FROM app_state WHERE id = 1");
-      console.log("[db:init] SELECT app_state — OK");
+      logInfo("db_init_select_state_ok", { event: "db_init_select_state_ok" });
 
-      console.log("[db:init] deserializeStateFromStorage — início");
+      logInfo("db_init_deserialize_start", { event: "db_init_deserialize_start" });
       const snapshot = deserializeStateFromStorage(result.rows[0]?.data || {});
       const userCount = Array.isArray(snapshot?.users) ? snapshot.users.length : 0;
       const patientCount = Array.isArray(snapshot?.patients) ? snapshot.patients.length : 0;
-      console.log(`[db:init] deserialize — OK users=${userCount} patients=${patientCount}`);
+      logInfo("db_init_deserialize_ok", { event: "db_init_deserialize_ok", userCount, patientCount });
 
-      console.log("[db:init] syncShadowTables — início");
+      logInfo("db_init_sync_shadow_start", { event: "db_init_sync_shadow_start" });
       await syncShadowTables(client, snapshot);
-      console.log("[db:init] syncShadowTables — OK");
+      logInfo("db_init_sync_shadow_ok", { event: "db_init_sync_shadow_ok" });
     } finally {
       client.release();
-      console.log("[db:init] client.release — OK");
+      logInfo("db_init_client_released", { event: "db_init_client_released" });
     }
   }
 
   initialized = true;
-  console.log(`[db:init] initialized — driver=${DB_DRIVER}`);
+  logInfo("db_initialized", { event: "db_initialized", driver: DB_DRIVER });
 }
 
 async function readDbFromPostgres() {
@@ -496,21 +496,21 @@ async function readDbFromPostgres() {
   const usersEmpty = !Array.isArray(data.users) || data.users.length === 0;
   const patientsEmpty = !Array.isArray(data.patients) || data.patients.length === 0;
   if (usersEmpty || patientsEmpty) {
-    console.log(`[db:seed] app_state vazio (users=${usersEmpty} patients=${patientsEmpty}) — seeding`);
+    logInfo("db_seed_start", { event: "db_seed_start", usersEmpty, patientsEmpty });
     let seeded = buildDefaultState();
     try {
-      console.log("[db:seed] readDbFromFile — início");
+      logInfo("db_seed_read_file_start", { event: "db_seed_read_file_start" });
       const fileSnapshot = await readDbFromFile();
       const hasUsersInFile = Array.isArray(fileSnapshot?.users) && fileSnapshot.users.length > 0;
       const hasPatientsInFile = Array.isArray(fileSnapshot?.patients) && fileSnapshot.patients.length > 0;
-      console.log(`[db:seed] readDbFromFile — OK usersInFile=${hasUsersInFile} patientsInFile=${hasPatientsInFile}`);
+      logInfo("db_seed_read_file_ok", { event: "db_seed_read_file_ok", hasUsersInFile, hasPatientsInFile });
       if (hasUsersInFile || hasPatientsInFile) {
         seeded = fileSnapshot;
       }
     } catch (e) {
-      console.log(`[db:seed] readDbFromFile — falhou (${e?.message}) — usando buildDefaultState`);
+      logWarn("db_seed_read_file_failed", { event: "db_seed_read_file_failed", message: e?.message });
     }
-    console.log(`[db:seed] gravando no Postgres users=${seeded.users?.length} patients=${seeded.patients?.length}`);
+    logInfo("db_seed_writing", { event: "db_seed_writing", userCount: seeded.users?.length, patientCount: seeded.patients?.length });
     const client = await pool.connect();
     try {
       await client.query("BEGIN");
@@ -518,9 +518,9 @@ async function readDbFromPostgres() {
         "UPDATE app_state SET data = $1::jsonb, updated_at = NOW() WHERE id = 1",
         [JSON.stringify(seeded)]
       );
-      console.log("[db:seed] syncShadowTables — início");
+      logInfo("db_seed_sync_shadow_start", { event: "db_seed_sync_shadow_start" });
       await syncShadowTables(client, seeded);
-      console.log("[db:seed] syncShadowTables — OK");
+      logInfo("db_seed_sync_shadow_ok", { event: "db_seed_sync_shadow_ok" });
       await client.query("COMMIT");
     } catch (error) {
       await client.query("ROLLBACK");
@@ -528,7 +528,7 @@ async function readDbFromPostgres() {
     } finally {
       client.release();
     }
-    console.log("[db:seed] seed concluído");
+    logInfo("db_seed_completed", { event: "db_seed_completed" });
     _dbCache = seeded;
     _dbCacheAt = Date.now();
     return seeded;

@@ -2,6 +2,7 @@ import { withDb } from "../db.js";
 import { ensureDbShape } from "../utils/domain.js";
 import { hashPassword } from "./crypto.js";
 import { backfillFamilyGroups } from "../utils/family-groups.js";
+import { logInfo } from "../utils/logger.js";
 
 const TEAM_ID = "team-rosa";
 const TEAM_NAME = "Equipe Rosa";
@@ -174,14 +175,14 @@ function buildPatient(def, careCategory) {
 export async function seedDemoTeamRosa() {
   if (process.env.SEED_DEMO_DATA !== "true") return { skipped: true };
 
-  console.log("[seed] SEED_DEMO_DATA=true — iniciando");
+  logInfo("seed_demo_start", { event: "seed_demo_start" });
 
   const stats = await withDb((db) => {
     ensureDbShape(db);
 
     // ── Clean old seed data (prefix-based, safe) ──────────────────────────
     const oldSeedCount = db.patients.filter((x) => x.id?.startsWith("seed-p-")).length;
-    console.log(`[seed] removendo ${oldSeedCount} pacientes antigos seed-p-`);
+    logInfo("seed_demo_removing_old", { event: "seed_demo_removing_old", oldSeedCount });
     db.patients          = db.patients.filter((x) => !x.id?.startsWith("seed-p-"));
     db.clinicalRecords   = db.clinicalRecords.filter((x) => !x.id?.startsWith("seed-rec-"));
     db.appointments      = db.appointments.filter((x) => !x.id?.startsWith("seed-appt-"));
@@ -220,7 +221,7 @@ export async function seedDemoTeamRosa() {
     upsert(db.users, { ...baseUser, id: ENF_ID,  name: "Enf. Patrícia Lima",email: "patricia.enf@vitras.com.br",role: "nurse_manager",     teamId: TEAM_ID, teamName: TEAM_NAME, password: hashPassword("Demo@2026"), councilType: "COREN", councilNumber: "12345", councilUf: "SP" });
 
     // ── Patients ──────────────────────────────────────────────────────────
-    console.log("[seed] criando 41 pacientes");
+    logInfo("seed_demo_creating_patients", { event: "seed_demo_creating_patients" });
     for (const def of GENERAL_DEFS)   db.patients.push(buildPatient(def, "general"));
     for (const def of PREGNANT_DEFS)  db.patients.push(buildPatient(def, "pregnant"));
     for (const def of PUERPERAL_DEFS) db.patients.push(buildPatient(def, "puerperal"));
@@ -229,8 +230,15 @@ export async function seedDemoTeamRosa() {
 
     const seedPatients = db.patients.filter((p) => p.id?.startsWith("seed-p-"));
     const countCat = (cat) => seedPatients.filter((p) => p.careCategory === cat).length;
-    console.log(`[seed] total patients after seed=${seedPatients.length}`);
-    console.log(`[seed] categoria counts: general=${countCat("general")} pregnant=${countCat("pregnant")} puerperal=${countCat("puerperal")} child_followup=${countCat("child_followup")} elderly=${countCat("elderly")}`);
+    logInfo("seed_demo_patients_created", {
+      event: "seed_demo_patients_created",
+      total: seedPatients.length,
+      general: countCat("general"),
+      pregnant: countCat("pregnant"),
+      puerperal: countCat("puerperal"),
+      child_followup: countCat("child_followup"),
+      elderly: countCat("elderly")
+    });
 
     // ── Clinical records ──────────────────────────────────────────────────
     const recs = [];
@@ -775,7 +783,7 @@ export async function seedDemoTeamRosa() {
 
     // ── Family groups (auto-generated from patient addresses) ────────────
     const fgResult = backfillFamilyGroups(db, { id: JOAO_ID, name: "João Dev", teamId: TEAM_ID });
-    console.log(`[seed] family groups gerados: ${fgResult.groups}`);
+    logInfo("seed_demo_family_groups", { event: "seed_demo_family_groups", groups: fgResult.groups });
 
     return {
       removedPatients: oldSeedCount,
@@ -792,6 +800,6 @@ export async function seedDemoTeamRosa() {
     };
   });
 
-  console.log("[seed] persist OK");
+  logInfo("seed_demo_persist_ok", { event: "seed_demo_persist_ok" });
   return { ok: true, ...stats };
 }

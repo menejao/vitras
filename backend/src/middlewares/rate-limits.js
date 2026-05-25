@@ -83,14 +83,17 @@ function buildRateLimitMiddleware({ prefix, maxRequests, windowMs, message, skip
     }
 
     try {
-      const { success } = await limiter.limit(getClientIp(req));
+      const userId = req.user?.id || "";
+      const ip = getClientIp(req);
+      const identifier = userId ? `${prefix}:${ip}:${userId}` : `${prefix}:${ip}`;
+      const { success } = await limiter.limit(identifier);
       if (!success) {
         logWarn("rate_limit_exceeded", {
           event: "rate_limit_exceeded",
           prefix,
           path: req.path,
-          userId: req.user?.id,
-          ip: getClientIp(req)
+          userId: userId ? userId.slice(0, 8) : undefined,
+          ip
         });
         return res.status(429).json({ error: message });
       }

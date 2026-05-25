@@ -232,10 +232,10 @@ router.post("/patients", requireManagerOrDoctor, validate(PatientCreateSchema), 
       syncPatientFamilyGroup(db, patient, req.user, "Cadastro de novo paciente");
     });
   } catch (err) {
-    if (err.code === "CPF_DUPLICATE") {
+    if (err.code === "CPF_DUPLICATE" || (err.code === "23505" && err.detail?.includes("cpf"))) {
       return res.status(409).json({ error: "Paciente com este CPF já existe" });
     }
-    if (err.code === "CNS_DUPLICATE") {
+    if (err.code === "CNS_DUPLICATE" || (err.code === "23505" && err.detail?.includes("cns"))) {
       return res.status(409).json({ error: "Paciente com este CNS já existe" });
     }
     throw err;

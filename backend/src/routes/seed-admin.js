@@ -5,6 +5,7 @@ import { withDb } from "../db.js";
 import { ensureDbShape } from "../utils/domain.js";
 import { backfillFamilyGroups } from "../utils/family-groups.js";
 import { hasRole } from "../utils/helpers.js";
+import { logInfo, logError } from "../utils/logger.js";
 
 const router = express.Router();
 
@@ -26,16 +27,16 @@ router.post("/admin/run-demo-seed", requireSeedAdminRole, async (req, res) => {
     return res.status(401).json({ error: "x-admin-seed-key inválido ou ausente" });
   }
 
-  console.log("[seed-admin] start");
+  logInfo("seed_admin_start", { event: "seed_admin_start" });
   try {
     const result = await seedDemoTeamRosa();
-    console.log("[seed-admin] persisted");
+    logInfo("seed_admin_persisted", { event: "seed_admin_persisted" });
 
     if (result?.skipped) {
       return res.status(400).json({ error: "SEED_DEMO_DATA não está habilitado no servidor" });
     }
 
-    console.log("[seed-admin] done");
+    logInfo("seed_admin_done", { event: "seed_admin_done", totalPatients: result.totalPatients, createdPatients: result.createdPatients });
     return res.json({
       ok: true,
       totalPatients:    result.totalPatients,
@@ -44,7 +45,7 @@ router.post("/admin/run-demo-seed", requireSeedAdminRole, async (req, res) => {
       countsByCategory: result.countsByCategory,
     });
   } catch (err) {
-    console.error("[seed-admin] error:", err.message);
+    logError("seed_admin_error", { event: "seed_admin_error", message: err.message });
     return res.status(500).json({ error: `Seed falhou: ${err.message}` });
   }
 });
@@ -64,7 +65,7 @@ router.post("/admin/backfill-family-groups", requireSeedAdminRole, async (req, r
     });
     return res.json({ ok: true, ...result });
   } catch (err) {
-    console.error("[backfill] error:", err.message);
+    logError("backfill_error", { event: "backfill_error", message: err.message });
     return res.status(500).json({ error: `Backfill falhou: ${err.message}` });
   }
 });

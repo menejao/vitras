@@ -10,6 +10,7 @@
  */
 
 import { Pool } from "pg";
+import { logInfo, logWarn } from "../utils/logger.js";
 
 const DATABASE_URL = String(process.env.DATABASE_URL || "").trim();
 
@@ -26,13 +27,13 @@ function stripSslParams(url) {
 
 async function runMigrations() {
   if (!DATABASE_URL) {
-    console.log("[migration] modo arquivo — sem migrations SQL");
+    logInfo("migration_skipped_file_mode", { event: "migration_skipped_file_mode", message: "modo arquivo — sem migrations SQL" });
     return;
   }
 
   const pool = new Pool({
     connectionString: stripSslParams(DATABASE_URL),
-    ssl: { rejectUnauthorized: false },
+    ssl: { rejectUnauthorized: true },
     max: 2,
     connectionTimeoutMillis: 10000,
     idleTimeoutMillis: 10000,
@@ -56,11 +57,11 @@ async function runMigrations() {
         [migration.id]
       );
       if (rows.length > 0) {
-        console.log(`[migration] ${migration.id} — já aplicada, pulando`);
+        logInfo("migration_already_applied", { event: "migration_already_applied", migrationId: migration.id });
         continue;
       }
 
-      console.log(`[migration] applying ${migration.id}...`);
+      logInfo("migration_applying", { event: "migration_applying", migrationId: migration.id });
       await client.query("BEGIN");
       try {
         await migration.up(client);
@@ -69,14 +70,14 @@ async function runMigrations() {
           [migration.id]
         );
         await client.query("COMMIT");
-        console.log(`[migration] ${migration.id} — OK`);
+        logInfo("migration_applied_ok", { event: "migration_applied_ok", migrationId: migration.id });
       } catch (err) {
         await client.query("ROLLBACK");
         throw new Error(`Migration ${migration.id} falhou: ${err.message}`);
       }
     }
 
-    console.log("[migration] todas as migrations aplicadas");
+    logInfo("migration_all_applied", { event: "migration_all_applied" });
   } finally {
     client.release();
     await pool.end();
