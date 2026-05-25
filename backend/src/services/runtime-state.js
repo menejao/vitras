@@ -61,6 +61,20 @@ function isDegraded() {
   return _startupPhase === "degraded";
 }
 
+/**
+ * S2-01: Clears degraded mode, returning the system to "ready" state.
+ * Only has effect if currently in degraded mode.
+ * Returns true if the system was degraded and has been cleared; false otherwise.
+ */
+function clearDegraded(reason = "") {
+  if (_startupPhase === "degraded") {
+    _startupPhase = "ready";
+    _degradedReason = null;
+    return true; // was degraded, now cleared
+  }
+  return false; // was not degraded
+}
+
 function getDegradedReason() {
   return _degradedReason;
 }
@@ -87,5 +101,6 @@ export {
   getRuntimeState,
   setDegraded,
   isDegraded,
-  getDegradedReason
+  getDegradedReason,
+  clearDegraded
 };

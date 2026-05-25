@@ -19,6 +19,7 @@ import { getCouncilIntegrationConfig } from "../utils/council.js";
 import { requireAuth, requireRoles } from "../middlewares/auth.js";
 import { logInfo } from "../utils/logger.js";
 import { getMetrics } from "../middlewares/logging.js";
+import { isDegraded, clearDegraded } from "../services/runtime-state.js";
 
 
 const router = express.Router();
@@ -391,6 +392,44 @@ router.post(
       }
       return res.status(500).json({ error: err.message });
     }
+  }
+);
+
+// ── S2-01: Clear Degraded Mode ────────────────────────────────────────────────
+
+/**
+ * POST /admin/system/clear-degraded
+ * Auth: break_glass_admin OR security_auditor
+ * Clears degraded mode and returns the system to ready state.
+ */
+router.post(
+  "/admin/system/clear-degraded",
+  requireAuth,
+  requireRoles(["break_glass_admin", "security_auditor"], "Apenas break_glass_admin ou security_auditor podem limpar modo degradado"),
+  async (req, res) => {
+    if (!isDegraded()) {
+      return res.status(200).json({ ok: true, message: "System was not in degraded mode" });
+    }
+
+    clearDegraded();
+
+    const timestamp = new Date().toISOString();
+    await withDb((db) => {
+      ensureDbShape(db);
+      addAuditLog(db, buildAdminAuditActor(req), "degraded.cleared", "system", "runtime_state", {
+        outcome: "success",
+        clearedBy: String(req.user?.id || "").slice(0, 8),
+        timestamp
+      });
+    });
+
+    logInfo("system.degraded_cleared", {
+      event: "system.degraded_cleared",
+      clearedBy: String(req.user?.id || "").slice(0, 8),
+      timestamp
+    });
+
+    return res.status(200).json({ ok: true, message: "Degraded mode cleared — system returned to ready state" });
   }
 );
 
