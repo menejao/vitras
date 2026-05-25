@@ -2,8 +2,26 @@ import express from "express";
 import { AUDIT_LOG_DEFAULT_LIMIT, AUDIT_LOG_MAX_LIMIT, AUDIT_LOG_RETENTION_DAYS } from "../config.js";
 import { readDb, withDb, listAuditLogsSnapshot } from "../db.js";
 import { requireManager, requireManagerOrDoctor } from "../middlewares/auth.js";
+import { canonicalRole } from "../utils/helpers.js";
 import { ensureDbShape } from "../utils/domain.js";
 import { addAuditLog } from "../services/audit.js";
+
+const PRUNE_ALLOWED_ROLES = new Set(["gestor", "security_auditor", "break_glass_admin"]);
+
+function requirePruneRole(req, res, next) {
+  const role = canonicalRole(req.user?.role);
+  if (!PRUNE_ALLOWED_ROLES.has(role)) {
+    withDb((db) => {
+      ensureDbShape(db);
+      addAuditLog(db, req.user, "audit.prune_attempt_blocked", "audit_log", req.user?.teamId || "global", {
+        outcome: "denied",
+        userRole: role
+      });
+    }).catch(() => {});
+    return res.status(403).json({ error: "Sem permissão para purgar logs de auditoria" });
+  }
+  return next();
+}
 
 const router = express.Router();
 
@@ -148,7 +166,7 @@ router.get("/audit-logs/export", requireManagerOrDoctor, async (req, res) => {
   });
 });
 
-router.post("/audit-logs/retention/prune", requireManager, async (req, res) => {
+router.post("/audit-logs/retention/prune", requirePruneRole, async (req, res) => {
   const payload = req.body || {};
   const olderThanDays = parsePositiveInteger(payload.olderThanDays, AUDIT_LOG_RETENTION_DAYS);
   const dryRun = Boolean(payload.dryRun);

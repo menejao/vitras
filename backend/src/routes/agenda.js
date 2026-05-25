@@ -137,6 +137,22 @@ router.post("/agenda", validate(AgendaCreateSchema), async (req, res) => {
       return { error: { status: 404, message: "Profissional não encontrado" } };
     }
 
+    const apptDate = String(payload.date || "").trim();
+    const apptTime = String(payload.time || "").trim();
+
+    if (doctorId && apptDate && apptTime) {
+      const doctorConflict = db.agendaEntries.find(
+        (item) =>
+          item.doctorId === doctorId &&
+          String(item.date || "") === apptDate &&
+          String(item.time || "") === apptTime &&
+          item.status !== "cancelled"
+      );
+      if (doctorConflict) {
+        return { error: { status: 409, message: "Profissional já tem agendamento neste horário" } };
+      }
+    }
+
     const now = new Date().toISOString();
     const entry = {
       id: uuidv4(),

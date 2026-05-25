@@ -172,29 +172,34 @@ function buildDefaultState() {
         createdAt: now
       }
     ],
-    users: [
-      {
-        id: "u1",
-        name: "Enfermeira Ana",
-        role: "nurse_manager",
-        email: "ana@clinica.local",
-        password: hashDefaultPassword("123456"),
-        teamId: "team-ana",
-        councilType: "COREN",
-        councilNumber: "123456",
-        councilUf: "SP",
-        createdAt: now
-      },
-      {
-        id: "u2",
-        name: "ACS Carlos",
-        role: "acs",
-        email: "carlos@clinica.local",
-        password: hashDefaultPassword("123456"),
-        teamId: "team-ana",
-        createdAt: now
-      }
-    ],
+    users: (function buildDefaultUsers() {
+      const isProd = String(process.env.NODE_ENV || "").trim().toLowerCase() === "production";
+      const enableDefaultUsers = String(process.env.ENABLE_DEFAULT_USERS || "").trim().toLowerCase() === "true";
+      if (isProd || !enableDefaultUsers) return [];
+      return [
+        {
+          id: "u1",
+          name: "Enfermeira Ana",
+          role: "nurse_manager",
+          email: "ana@clinica.local",
+          password: hashDefaultPassword("123456"),
+          teamId: "team-ana",
+          councilType: "COREN",
+          councilNumber: "123456",
+          councilUf: "SP",
+          createdAt: now
+        },
+        {
+          id: "u2",
+          name: "ACS Carlos",
+          role: "acs",
+          email: "carlos@clinica.local",
+          password: hashDefaultPassword("123456"),
+          teamId: "team-ana",
+          createdAt: now
+        }
+      ];
+    }()),
     patients: [],
     queueEntries: [],
     agendaEntries: [],

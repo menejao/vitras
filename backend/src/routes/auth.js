@@ -36,6 +36,18 @@ import {
 
 const router = express.Router();
 
+function maskEmail(email) {
+  const raw = String(email || "").trim();
+  if (!raw || !raw.includes("@")) return "[email inválido]";
+  const [local, domain] = raw.split("@");
+  const maskedLocal = local.length > 0 ? `${local[0]}***` : "***";
+  const dotIndex = domain.lastIndexOf(".");
+  const maskedDomain = dotIndex > 0
+    ? `${domain[0]}***${domain.slice(dotIndex)}`
+    : `${domain[0]}***`;
+  return `${maskedLocal}@${maskedDomain}`;
+}
+
 function buildAuditActorFromRequest(req, identity = {}) {
   return {
     id: String(identity.id || ""),
@@ -297,7 +309,7 @@ router.post("/auth/login", authRateLimit, validate(LoginSchema), async (req, res
         "auth.login_failed",
         "auth",
         normalizedEmail || "anonymous",
-        { outcome: "denied", email: normalizedEmail }
+        { outcome: "denied", emailMasked: maskEmail(normalizedEmail) }
       );
     });
     return res.status(401).json({ error: "Credenciais inválidas" });
