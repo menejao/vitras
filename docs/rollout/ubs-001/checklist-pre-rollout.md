@@ -71,6 +71,8 @@
 
 ## UBS Bootstrap
 
+- [ ] break_glass_admin account created via `provision-remote-enterprise-user.mjs` (see docs/runbooks/production-bootstrap.md)
+- [ ] Bootstrap script ran successfully — verified with audit log event `user.enterprise_provisioned`
 - [ ] Unit created: POST /admin/units/bootstrap (break_glass_admin)
 - [ ] Gestor user created with unitId matching bootstrap
 - [ ] Team(s) created with correct unitId

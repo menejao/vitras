@@ -81,28 +81,13 @@ The DR drill requires comparing the post-restore patient count to the pre-restor
 
 ### Gap 6: break_glass_admin Creation is a Chicken-and-Egg Problem (CONFIRMED)
 
-`docs/onboarding/first-admin.md` documents how to create the first admin, mentioning a seed script `scripts/seed-tenant-admin.js`. **This script does not exist in the repository.** The scripts directory contains only: `populate-db-file.ps1`, `seed-massive-teams.ps1`, `restore-backup.js`, `rotate-encryption-key.js`, `smoke-production.js`, and a few dev-scenario scripts.
+**Status:** CLOSED — script exists at `backend/scripts/provision-remote-enterprise-user.mjs`
 
-**Confirmed issue:** `POST /admin/units/bootstrap` (in `backend/src/routes/admin.js`) requires a `break_glass_admin` JWT token. There is no API endpoint to CREATE a `break_glass_admin` account via the API (this would be a circular dependency — you need break_glass to create break_glass). The only way to create the first `break_glass_admin` account is via direct database insertion before the server is started in production.
+`docs/onboarding/first-admin.md` previously referenced a non-existent script `scripts/seed-tenant-admin.js`. The correct script is `backend/scripts/provision-remote-enterprise-user.mjs`, which supports `PROVISION_USER_ROLE=break_glass_admin` and uses `ALLOW_ENTERPRISE_REMOTE_PROVISIONING=true` as a guard.
 
-**The gap is real and is a pre-go-live blocker.** Without a documented first-admin bootstrap procedure, the Tech Lead cannot perform `POST /admin/units/bootstrap` to set up UBS #1.
+**Action:** RESOLVED — `backend/scripts/provision-remote-enterprise-user.mjs` handles break_glass_admin creation. `docs/onboarding/first-admin.md` updated to reference correct script. `docs/runbooks/production-bootstrap.md` created with full step-by-step procedure.
 
-**Required procedure (to be documented before go-live):**
-1. Connect to production RDS via psql (requires direct DB access or bastion host)
-2. Insert a `break_glass_admin` user record directly into the `users` table with a hashed password
-3. Log this insertion in an out-of-band operational log (cannot use the audit log yet — system not started)
-4. Start the server; use the direct-DB-created credentials to call `POST /admin/units/bootstrap`
-5. After bootstrap: the audit chain begins from this point forward
-6. Document the initial DB insertion as an audit event manually (record in operational log with timestamp, what was created, and why)
-
-The `scripts/provision-dev-user.mjs` and `scripts/provision-remote-enterprise-user.mjs` scripts may offer a pattern for this — review them before drafting the production procedure.
-
-**Action:**
-1. Review `scripts/provision-remote-enterprise-user.mjs` to understand if it can create a `break_glass_admin` role.
-2. Write `docs/onboarding/first-admin-production.md` with the exact production bootstrap procedure.
-3. Test this procedure on staging before production go-live.
-
-**Priority:** CRITICAL — this must be resolved before UBS #1 can be bootstrapped. Cannot create ANY users without a working break_glass_admin account.
+**Priority:** RESOLVED — pre-go-live blocker cleared.
 
 ---
 
@@ -128,7 +113,7 @@ The `scripts/provision-dev-user.mjs` and `scripts/provision-remote-enterprise-us
 | `docs/rollout/ubs-001/pre-deploy-validation.md` | Add EB CLI verification section | MEDIUM | Updated in this batch |
 | `docs/operations/incident-response.md` | Add AWS account emergency access procedure (Gap 1) | MEDIUM | PENDING |
 | `docs/rollout/ubs-001/aceite-operacional.md` | Add LGPD anonymization hold clause (KI-02 constraint) | MEDIUM | PENDING |
-| `docs/onboarding/first-admin.md` | Clarify break_glass_admin bootstrap procedure for single-tenant pilot | HIGH | PENDING (verify seed script) |
+| `docs/onboarding/first-admin.md` | Clarify break_glass_admin bootstrap procedure for single-tenant pilot | HIGH | CLOSED — updated to reference `backend/scripts/provision-remote-enterprise-user.mjs`; `docs/runbooks/production-bootstrap.md` created |
 
 ---
 

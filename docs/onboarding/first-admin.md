@@ -20,6 +20,8 @@ Permitir criação pública de conta de administrador é um vetor crítico de se
 
 ### Opção 1 — Superadmin VALENS (recomendado)
 
+> **Nota:** Apenas para plataforma multi-tenant centralizada VALENS. Para implantações standalone, use Opção 2.
+
 O superadmin da plataforma cria o primeiro usuário admin via painel interno:
 
 ```
@@ -32,22 +34,34 @@ POST /admin/tenants/{tenantId}/users
 }
 ```
 
-### Opção 2 — Script de seed interno
+### Opção 2 — Script de provisionamento enterprise (para UBS standalone)
+
+Para implantações VITRAS standalone (sem superadmin VALENS), use o script existente:
 
 ```bash
-# Executar no servidor com acesso ao banco
-node scripts/seed-tenant-admin.js \
-  --tenant municipio-xyz \
-  --email joao@secretaria.gov.br \
-  --name "João Silva"
+# Criar primeiro break_glass_admin em produção/staging
+ALLOW_ENTERPRISE_REMOTE_PROVISIONING=true \
+PROVISION_USER_EMAIL="admin@ubs.gov.br" \
+PROVISION_USER_PASSWORD="[senha-forte-gerada]" \
+PROVISION_USER_NAME="Administrador UBS" \
+PROVISION_USER_ROLE="break_glass_admin" \
+PROVISION_REASON="Bootstrap UBS #1 — primeiro admin" \
+node backend/scripts/provision-remote-enterprise-user.mjs
 ```
 
-O script gera uma senha temporária e envia por e-mail ao usuário.
+**Requisitos:**
+- `DATABASE_URL` configurado no ambiente (aponta para banco correto)
+- `DATA_ENCRYPTION_KEY` configurado (mesma chave do ambiente alvo)
+- `PATIENT_LOOKUP_HASH_KEY` configurado
+- Senha deve ter ≥ 12 caracteres, gerada aleatoriamente
+- Executar APENAS no servidor com acesso ao banco de dados alvo
+- Gera audit log `user.enterprise_provisioned` automaticamente
 
-### Opção 3 — Processo de onboarding do tenant
+**Após criar o break_glass_admin:**
+1. Login via `POST /auth/login` → obter JWT token
+2. Executar bootstrap da UBS: `POST /admin/units/bootstrap` com token
 
-Durante a contratação do tenant, a equipe VALENS executa o script de provisionamento
-que cria o admin inicial com uma senha de primeiro acesso que expira após 24h.
+Ver: `docs/runbooks/production-bootstrap.md`
 
 ## Fluxo após o primeiro admin
 
