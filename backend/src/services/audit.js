@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from "uuid";
 import { canonicalRole } from "../utils/helpers.js";
 import { ensureArray } from "../utils/domain.js";
 import { logWarn } from "../utils/logger.js";
+import { recordMetric } from "./metrics.js";
 
 // MEM-01: Cap for the in-memory auditLogs array (file-mode / memory cache only).
 // Oldest entries are evicted when the cap is exceeded.
@@ -235,6 +236,14 @@ function verifyAuditLogChain(db) {
       ? "orphaned"
       : "valid";
 
+  if (status === "broken" || status === "orphaned") {
+    recordMetric("audit_chain_failure", 1, {
+      status,
+      broken: brokenCount,
+      orphaned: orphanedCount
+    });
+  }
+
   return {
     status,
     checked: entries.length,
@@ -246,4 +255,31 @@ function verifyAuditLogChain(db) {
   };
 }
 
-export { hashAuditPayload, getLastAuditHash, addAuditLog, classifyAuditAction, verifyAuditLogChain };
+/**
+ * ITEM 4 — Audit report helper.
+ * Filters audit logs by event type(s) without exposing PII beyond what's already stored.
+ * @param {object} db - The database snapshot
+ * @param {string|string[]} types - Action(s) to filter on
+ * @param {object} filters - { since?, until?, limit?, unitId? }
+ */
+function getAuditReport(db, types, filters = {}) {
+  const typeSet = new Set(Array.isArray(types) ? types : [types]);
+  const { since, until, limit = 500, unitId } = filters;
+
+  const logs = Array.isArray(db.auditLogs) ? db.auditLogs : [];
+  const results = [];
+
+  for (const entry of logs) {
+    if (!typeSet.has(entry.action)) continue;
+    if (since && String(entry.createdAt || "") < since) continue;
+    if (until && String(entry.createdAt || "") > until) continue;
+    // Multi-UBS isolation: if unitId filter provided, only include entries for that unit
+    if (unitId && entry.details?.unitId && entry.details.unitId !== unitId) continue;
+    results.push(entry);
+    if (results.length >= limit) break;
+  }
+
+  return results;
+}
+
+export { hashAuditPayload, getLastAuditHash, addAuditLog, classifyAuditAction, verifyAuditLogChain, getAuditReport };

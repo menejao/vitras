@@ -2,6 +2,7 @@
 import express from "express";
 import { setupHelmet, setupCors, securityHeadersMiddleware, contentTypeMiddleware } from "./middlewares/security.js";
 import { requestLoggingMiddleware } from "./middlewares/logging.js";
+import { requestMetricsMiddleware } from "./middlewares/metrics.js";
 import { globalRateLimit } from "./middlewares/rate-limits.js";
 import { requireAuth } from "./middlewares/auth.js";
 import { requireCsrfForCookieAuth } from "./middlewares/csrf.js";
@@ -41,6 +42,7 @@ app.use(securityHeadersMiddleware);
 app.use(contentTypeMiddleware);
 app.use(express.json({ limit: "1mb" }));
 app.use(requestLoggingMiddleware);
+app.use(requestMetricsMiddleware);
 app.use(globalRateLimit);
 
 app.use(healthRouter);

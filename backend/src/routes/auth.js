@@ -33,6 +33,7 @@ import {
   issueSessionCookies,
   parseCookies
 } from "../utils/session-cookies.js";
+import { recordMetric } from "../services/metrics.js";
 
 const router = express.Router();
 
@@ -314,6 +315,7 @@ router.post("/auth/login", authRateLimit, validate(LoginSchema), async (req, res
   }
   if (!user) {
     trackLoginAttempt(false);
+    recordMetric("auth_failure", 1, { reason: "invalid_credentials" });
     await withDb((auditDb) => {
       ensureDbShape(auditDb);
       addAuditLog(

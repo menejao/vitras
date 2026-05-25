@@ -6,6 +6,7 @@ import { Pool } from "pg";
 import { canonicalRole, getRoleCapabilities } from "./utils/helpers.js";
 import { logInfo, logWarn, logError } from "./utils/logger.js";
 import { PATIENT_LOOKUP_HASH_KEY } from "./config.js";
+import { recordMetric } from "./services/metrics.js";
 
 const DB_PATH = process.env.TEST_DB_PATH
   ? path.resolve(process.env.TEST_DB_PATH)
@@ -623,6 +624,7 @@ async function _withDbPostgresAttempt(mutator, attempt) {
     if (attempt < WITHDB_MAX_RETRIES && TRANSIENT_PG_CODES.has(error.code)) {
       const delay = 50 + Math.floor(Math.random() * 100);
       logWarn("db_deadlock_retry", { event: "db_deadlock_retry", attempt, code: error.code, message: error.message, delayMs: delay });
+      recordMetric("deadlock_retry", 1, { attempt, code: error.code });
       await new Promise((r) => setTimeout(r, delay));
       return _withDbPostgresAttempt(mutator, attempt + 1);
     }
@@ -633,8 +635,11 @@ async function _withDbPostgresAttempt(mutator, attempt) {
 }
 
 async function withDb(mutator) {
+  const _dbWriteStart = Date.now();
   if (DB_DRIVER === "postgres") {
-    return _withDbPostgresAttempt(mutator, 1);
+    const result = await _withDbPostgresAttempt(mutator, 1);
+    recordMetric("db_write_duration_ms", Date.now() - _dbWriteStart, { driver: "postgres" });
+    return result;
   }
 
   return new Promise((resolve, reject) => {
