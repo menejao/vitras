@@ -222,6 +222,17 @@ router.post("/privacy/requests/:id/execute", requireManager, async (req, res) =>
         return { error: { status: 409, message: "Paciente já anonimizado anteriormente" } };
       }
       const reason = String(payload.reason || requestItem.notes || "").trim();
+
+      // ITEM 8: Pre-flight audit — fires BEFORE anonymization as a pre-flight record
+      addAuditLog(db, req.user, "anonymization_warning_acknowledged", "patient", patient.id, {
+        outcome: "preflight",
+        requestId: requestItem.id,
+        actorId: String(req.user?.id || ""),
+        patientId: patient.id,
+        reason,
+        note: "Pre-flight record: anonymization about to execute. CFM 1821/2007 clinical snapshot residue acknowledged."
+      });
+
       const anonymize = anonymizePatientBundle(db, req.user, patient, reason, requestItem.id);
 
       result = { anonymized: anonymize.changed, stats: anonymize.stats };
@@ -295,6 +306,16 @@ router.post("/privacy/retention/anonymize", requireManager, async (req, res) => 
     };
 
     for (const patient of candidates) {
+      // ITEM 8: Pre-flight audit for each patient in bulk anonymization
+      addAuditLog(db, req.user, "anonymization_warning_acknowledged", "patient", patient.id, {
+        outcome: "preflight",
+        requestId: "",
+        actorId: String(req.user?.id || ""),
+        patientId: patient.id,
+        reason: `Retenção automática: sem atividade desde antes de ${cutoffIso}`,
+        note: "Bulk retention pre-flight. CFM 1821/2007 clinical snapshot residue acknowledged."
+      });
+
       const output = anonymizePatientBundle(
         db,
         req.user,
