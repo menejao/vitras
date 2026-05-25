@@ -48,9 +48,12 @@ app.use(globalRateLimit);
 app.use(healthRouter);
 app.use(authRouter);
 app.use(labPublicRouter);
-app.use(adminRouter);
 app.use(usersRouter);
 
+// S10-03: adminRouter must be AFTER global requireAuth so any new admin route
+// added without an inline requireAuth call is still protected by the global
+// middleware. Admin routes retain their own inline requireAuth calls for
+// defense-in-depth.
 app.use(requireAuth);
 app.use(requireCsrfForCookieAuth);
 app.use((req, res, next) => {
@@ -60,6 +63,7 @@ app.use((req, res, next) => {
   next();
 });
 
+app.use(adminRouter);
 app.use(meRouter);
 app.use(seedAdminRouter);
 app.use(patientsRouter);
