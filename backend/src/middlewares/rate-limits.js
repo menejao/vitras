@@ -21,7 +21,7 @@ if (IS_PROD && (!UPSTASH_URL || !UPSTASH_TOKEN)) {
   });
 }
 
-function buildRateLimitMiddleware({ prefix, maxRequests, windowMs, message, skip }) {
+function buildRateLimitMiddleware({ prefix, maxRequests, windowMs, message, skip, keyGenerator }) {
   if (!UPSTASH_URL || !UPSTASH_TOKEN) {
     // Dev/test permissive fallback — already warned above for production.
     return rateLimit({
@@ -31,7 +31,17 @@ function buildRateLimitMiddleware({ prefix, maxRequests, windowMs, message, skip
       legacyHeaders: false,
       message: { error: message },
       skip,
-      keyGenerator: (req) => getClientIp(req)
+      keyGenerator: keyGenerator ? keyGenerator : (req) => getClientIp(req),
+      handler: (req, res) => {
+        logWarn("rate_limit_exceeded", {
+          event: "rate_limit_exceeded",
+          prefix,
+          path: req.path,
+          userId: req.user?.id,
+          ip: getClientIp(req)
+        });
+        res.status(429).json({ error: message });
+      }
     });
   }
 
@@ -74,7 +84,16 @@ function buildRateLimitMiddleware({ prefix, maxRequests, windowMs, message, skip
 
     try {
       const { success } = await limiter.limit(getClientIp(req));
-      if (!success) return res.status(429).json({ error: message });
+      if (!success) {
+        logWarn("rate_limit_exceeded", {
+          event: "rate_limit_exceeded",
+          prefix,
+          path: req.path,
+          userId: req.user?.id,
+          ip: getClientIp(req)
+        });
+        return res.status(429).json({ error: message });
+      }
     } catch (err) {
       logError("rate_limit_upstash_error", { event: "rate_limit_upstash_error", prefix, message: err.message });
       // REDIS-01: fail-closed in production; permissive fallback in dev/test.
@@ -103,4 +122,24 @@ const globalRateLimit = buildRateLimitMiddleware({
   skip: (req) => req.path === "/health"
 });
 
-export { buildRateLimitMiddleware, authRateLimit, globalRateLimit };
+// Sensitive bulk-data endpoints — 30 req/min, keyed by IP + userId (patient list)
+const sensitiveDataRateLimit = buildRateLimitMiddleware({
+  prefix: "sensitive",
+  maxRequests: 30,
+  windowMs: 60 * 1000,
+  message: "Muitas requisições para dados sensíveis. Aguarde 1 minuto.",
+  skip: (req) => req.path === "/health",
+  keyGenerator: (req) => `${getClientIp(req)}:${req.user?.id || "anon"}`
+});
+
+// Export/report endpoints — 10 req/min, keyed by userId (heavier operations)
+const exportRateLimit = buildRateLimitMiddleware({
+  prefix: "export",
+  maxRequests: 10,
+  windowMs: 60 * 1000,
+  message: "Limite de exportações atingido. Aguarde 1 minuto.",
+  skip: (req) => req.path === "/health",
+  keyGenerator: (req) => `${req.user?.id || getClientIp(req)}`
+});
+
+export { buildRateLimitMiddleware, authRateLimit, globalRateLimit, sensitiveDataRateLimit, exportRateLimit };

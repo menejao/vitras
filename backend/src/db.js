@@ -740,6 +740,24 @@ async function listAuditLogsSnapshot(filters = {}, options = {}) {
     if (filters.action) list = list.filter((l) => String(l.action || "") === filters.action);
     if (filters.from) list = list.filter((l) => String(l.createdAt || "") >= filters.from);
     if (filters.to) list = list.filter((l) => String(l.createdAt || "") <= filters.to);
+    if (filters.patientId) {
+      const pid = String(filters.patientId);
+      list = list.filter((l) => (
+        (l.entity === "patient" && String(l.entityId || "") === pid) ||
+        String((l.details && l.details.patientId) || "") === pid ||
+        String((l.after && l.after.patientId) || "") === pid ||
+        String((l.before && l.before.patientId) || "") === pid
+      ));
+    }
+    if (filters.severity) list = list.filter((l) => String(l.severity || "") === String(filters.severity));
+    if (filters.entity) list = list.filter((l) => String(l.entity || "") === String(filters.entity));
+    if (filters.outcome) list = list.filter((l) => String(l.outcome || "") === String(filters.outcome));
+    // Sort most-recent first (mirrors Postgres ORDER BY created_at DESC) before cursor/limit
+    list = list.slice().sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+    // cursor: skip entries with createdAt >= cursor (same semantics as Postgres created_at < $cursor)
+    if (filters.cursor) {
+      list = list.filter((l) => String(l.createdAt || "") < filters.cursor);
+    }
     return options.limit ? list.slice(0, options.limit) : list;
   }
   await initialize();

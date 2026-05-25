@@ -24,6 +24,7 @@ import {
 import { buildProtocolSummary, restrictSummaryAlertsForForeignTeam } from "../utils/protocol-eval.js";
 import { validateClinicalRecordPayload, buildMonthlyDemandMetric, buildDataQualityMetric } from "../utils/metrics.js";
 import { addAuditLog } from "../services/audit.js";
+import { sensitiveDataRateLimit } from "../middlewares/rate-limits.js";
 
 const CLINICAL_PRESCRIBER_ROLES = new Set(["doctor", "dentist"]);
 const DOCTOR_ONLY_TYPES = new Set(["prescription", "medical_attest"]);
@@ -62,7 +63,7 @@ async function logPatientRead(req, patient, action, details = {}) {
   });
 }
 
-router.get("/patients", async (req, res) => {
+router.get("/patients", sensitiveDataRateLimit, async (req, res) => {
   const db = await readDb();
   ensureDbShape(db);
   const snapshotPatients = await listPatientsSnapshot({
@@ -198,19 +199,47 @@ router.post("/patients", requireManagerOrDoctor, validate(PatientCreateSchema), 
     createdBy: req.user.id
   };
 
-  await withDb((db) => {
-    ensureDbShape(db);
-    db.patients.push(patient);
-    addAuditLog(db, req.user, "patient.created", "patient", patient.id, {
-      name: patient.name,
-      teamId: patient.teamId,
-      microArea: patient.microArea,
-      assignedAcsId: patient.assignedAcsId,
-      careCategory: patient.careCategory,
-      after: buildPatientAuditSnapshot(patient)
+  try {
+    await withDb((db) => {
+      ensureDbShape(db);
+      const cpfValue = String(patient.cpf || "").trim();
+      if (cpfValue) {
+        const existing = db.patients.find(
+          (p) => String(p.cpf || "").trim() === cpfValue && !p.inactive
+        );
+        if (existing) {
+          throw Object.assign(new Error("CPF já cadastrado"), { statusCode: 409, code: "CPF_DUPLICATE" });
+        }
+      }
+      const cnsValue = String(patient.cns || "").trim();
+      if (cnsValue) {
+        const existingCns = db.patients.find(
+          (p) => String(p.cns || "").trim() === cnsValue && !p.inactive
+        );
+        if (existingCns) {
+          throw Object.assign(new Error("CNS já cadastrado"), { statusCode: 409, code: "CNS_DUPLICATE" });
+        }
+      }
+      db.patients.push(patient);
+      addAuditLog(db, req.user, "patient.created", "patient", patient.id, {
+        name: patient.name,
+        teamId: patient.teamId,
+        microArea: patient.microArea,
+        assignedAcsId: patient.assignedAcsId,
+        careCategory: patient.careCategory,
+        after: buildPatientAuditSnapshot(patient)
+      });
+      syncPatientFamilyGroup(db, patient, req.user, "Cadastro de novo paciente");
     });
-    syncPatientFamilyGroup(db, patient, req.user, "Cadastro de novo paciente");
-  });
+  } catch (err) {
+    if (err.code === "CPF_DUPLICATE") {
+      return res.status(409).json({ error: "Paciente com este CPF já existe" });
+    }
+    if (err.code === "CNS_DUPLICATE") {
+      return res.status(409).json({ error: "Paciente com este CNS já existe" });
+    }
+    throw err;
+  }
 
   return res.status(201).json(patient);
 });

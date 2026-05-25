@@ -2,6 +2,7 @@ import express from "express";
 import { AUDIT_LOG_DEFAULT_LIMIT, AUDIT_LOG_MAX_LIMIT, AUDIT_LOG_RETENTION_DAYS, AUDIT_PRUNE_ENABLED } from "../config.js";
 import { readDb, withDb, listAuditLogsSnapshot } from "../db.js";
 import { requireManager, requireManagerOrDoctor } from "../middlewares/auth.js";
+import { exportRateLimit } from "../middlewares/rate-limits.js";
 import { canonicalRole } from "../utils/helpers.js";
 import { ensureDbShape } from "../utils/domain.js";
 import { addAuditLog } from "../services/audit.js";
@@ -123,7 +124,7 @@ router.get("/audit-logs", requireManagerOrDoctor, async (req, res) => {
   });
 });
 
-router.get("/audit-logs/export", requireManagerOrDoctor, async (req, res) => {
+router.get("/audit-logs/export", exportRateLimit, requireManagerOrDoctor, async (req, res) => {
   const exportUserRole = canonicalRole(req.user?.role);
   const canExportAllTeams = AUDIT_GLOBAL_ROLES.has(exportUserRole);
   const exportUserTeamId = String(req.user?.teamId || "").trim();
