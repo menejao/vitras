@@ -10,6 +10,67 @@ import {
 } from "../config.js";
 import { getClientIp } from "../utils/helpers.js";
 import { logWarn, logError } from "../utils/logger.js";
+import { recordMetric } from "../services/metrics.js";
+
+// ── Circuit breaker state for Redis/Upstash ──────────────────────────────────
+// States: "CLOSED" (normal) → "OPEN" (failing) → "HALF_OPEN" (testing)
+const CB_FAILURE_THRESHOLD = 5;      // consecutive failures to open
+const CB_WINDOW_MS = 60 * 1000;      // 60s window for counting failures
+const CB_HALF_OPEN_DELAY_MS = 30000; // wait 30s before probing
+
+let _cbState = "CLOSED";
+let _cbFailureCount = 0;
+let _cbWindowStart = Date.now();
+let _cbOpenedAt = 0;
+
+function getCircuitBreakerState() {
+  return _cbState;
+}
+
+function _cbRecordFailure() {
+  const now = Date.now();
+  if (now - _cbWindowStart > CB_WINDOW_MS) {
+    _cbFailureCount = 0;
+    _cbWindowStart = now;
+  }
+  _cbFailureCount += 1;
+  if (_cbState === "CLOSED" && _cbFailureCount >= CB_FAILURE_THRESHOLD) {
+    _cbState = "OPEN";
+    _cbOpenedAt = now;
+    logWarn("circuit_breaker_opened", {
+      event: "circuit_breaker_opened",
+      failures: _cbFailureCount,
+      window_ms: CB_WINDOW_MS,
+      timestamp: new Date().toISOString()
+    });
+    recordMetric("circuit_breaker_opened", 1, { subsystem: "redis" });
+  }
+}
+
+function _cbRecordSuccess() {
+  if (_cbState === "HALF_OPEN") {
+    _cbState = "CLOSED";
+    _cbFailureCount = 0;
+    _cbWindowStart = Date.now();
+    logWarn("circuit_breaker_closed", {
+      event: "circuit_breaker_closed",
+      timestamp: new Date().toISOString()
+    });
+    recordMetric("circuit_breaker_closed", 1, { subsystem: "redis" });
+  }
+}
+
+function _cbCheckHalfOpen() {
+  if (_cbState === "OPEN" && Date.now() - _cbOpenedAt >= CB_HALF_OPEN_DELAY_MS) {
+    _cbState = "HALF_OPEN";
+    logWarn("circuit_breaker_half_open", {
+      event: "circuit_breaker_half_open",
+      timestamp: new Date().toISOString()
+    });
+    recordMetric("circuit_breaker_half_open", 1, { subsystem: "redis" });
+  }
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 // REDIS-01: Emit a single critical warning at module load time when running in
 // production without Upstash configured.
@@ -50,6 +111,7 @@ function buildRateLimitMiddleware({ prefix, maxRequests, windowMs, message, skip
           userId: req.user?.id ? req.user.id.slice(0, 8) : undefined,
           ip: getClientIp(req)
         });
+        recordMetric("rate_limit_hit", 1, { prefix });
         res.status(429).json({ error: message });
       }
     });
@@ -72,11 +134,24 @@ function buildRateLimitMiddleware({ prefix, maxRequests, windowMs, message, skip
 
   return async (req, res, next) => {
     if (skip?.(req)) return next();
+
+    // ITEM 5: Circuit breaker — if OPEN, fail-closed immediately without calling Upstash
+    _cbCheckHalfOpen();
+    if (_cbState === "OPEN") {
+      if (IS_PROD) {
+        logError("rate_limit_circuit_open", { event: "rate_limit_circuit_open", path: req.path });
+        return res.status(503).json({ error: "Serviço temporariamente indisponível" });
+      }
+      logWarn("rate_limit_circuit_open_dev", { event: "rate_limit_circuit_open_dev", path: req.path });
+      return next();
+    }
+
     if (!limiter) {
       if (!initPromise) {
         initPromise = initLimiter().catch((err) => {
           logError("rate_limit_upstash_init_failed", { event: "rate_limit_upstash_init_failed", prefix, message: err.message });
           initPromise = null;
+          _cbRecordFailure();
         });
       }
       await initPromise;
@@ -95,6 +170,7 @@ function buildRateLimitMiddleware({ prefix, maxRequests, windowMs, message, skip
     try {
       const identifier = getIdentifier(req);
       const { success } = await limiter.limit(identifier);
+      _cbRecordSuccess(); // successful Upstash call
       if (!success) {
         logWarn("rate_limit_exceeded", {
           event: "rate_limit_exceeded",
@@ -103,9 +179,11 @@ function buildRateLimitMiddleware({ prefix, maxRequests, windowMs, message, skip
           userId: req.user?.id ? req.user.id.slice(0, 8) : undefined,
           ip: getClientIp(req)
         });
+        recordMetric("rate_limit_hit", 1, { prefix });
         return res.status(429).json({ error: message });
       }
     } catch (err) {
+      _cbRecordFailure();
       logError("rate_limit_upstash_error", { event: "rate_limit_upstash_error", prefix, message: err.message });
       // REDIS-01: fail-closed in production; permissive fallback in dev/test.
       if (IS_PROD) {
@@ -154,4 +232,4 @@ const exportRateLimit = buildRateLimitMiddleware({
   skip: (req) => req.path === "/health"
 });
 
-export { buildRateLimitMiddleware, authRateLimit, globalRateLimit, sensitiveDataRateLimit, exportRateLimit };
+export { buildRateLimitMiddleware, authRateLimit, globalRateLimit, sensitiveDataRateLimit, exportRateLimit, getCircuitBreakerState };
