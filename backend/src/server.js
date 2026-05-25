@@ -13,6 +13,63 @@ import {
 } from "./services/runtime-state.js";
 import { logError, logInfo, logWarn } from "./utils/logger.js";
 
+// LOG-01: Module-level declarations so gracefulShutdown can reference `server`
+// even when errors occur before app.listen() is called.
+let isShuttingDown = false;
+let server; // populated by startServer() after app.listen()
+
+function gracefulShutdown(exitCode, reason) {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+
+  try {
+    logError("fatal_shutdown_initiated", { event: "fatal_shutdown_initiated", reason, exitCode, timestamp: new Date().toISOString() });
+  } catch (_) {
+    console.error("[FATAL] shutdown:", reason);
+  }
+
+  const timeout = setTimeout(() => process.exit(exitCode), 5000);
+  timeout.unref();
+
+  if (server) {
+    server.close(() => process.exit(exitCode));
+  } else {
+    process.exit(exitCode);
+  }
+}
+
+// LOG-01: Registered at module level — covers errors thrown during startup
+// (before app.listen) as well as runtime errors after the server is up.
+process.on("uncaughtException", (err) => {
+  try {
+    logError("uncaught_exception", {
+      event: "uncaught_exception",
+      timestamp: new Date().toISOString(),
+      name: err.name,
+      message: err.message,
+      stack: err.stack
+    });
+  } catch (_) {
+    console.error("[FATAL] uncaughtException:", err);
+  }
+  gracefulShutdown(1, `uncaughtException: ${err.message}`);
+});
+
+process.on("unhandledRejection", (reason) => {
+  try {
+    logError("unhandled_rejection", {
+      event: "unhandled_rejection",
+      timestamp: new Date().toISOString(),
+      reason: reason instanceof Error
+        ? { name: reason.name, message: reason.message, stack: reason.stack }
+        : String(reason)
+    });
+  } catch (_) {
+    console.error("[FATAL] unhandledRejection:", reason);
+  }
+  gracefulShutdown(1, `unhandledRejection: ${reason instanceof Error ? reason.message : String(reason)}`);
+});
+
 function withTimeout(label, promise, ms = 30000) {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
@@ -62,7 +119,7 @@ async function startServer() {
   setStartupChecks([{ name: "config", status: "ok" }]);
   logInfo("startup.server.starting", { port: PORT });
 
-  let server;
+  // Assign to module-level `server` so gracefulShutdown can close it
   await new Promise((resolve, reject) => {
     server = app.listen(PORT, (err) => {
       if (err) { reject(err); return; }
@@ -106,41 +163,9 @@ async function startServer() {
     });
   });
 
-  // LOG-01: Global error handlers — must be registered after server variable is in scope
-  process.on("unhandledRejection", (reason) => {
-    logError("unhandled_rejection", {
-      event: "unhandled_rejection",
-      timestamp: new Date().toISOString(),
-      reason: reason instanceof Error
-        ? { name: reason.name, message: reason.message, stack: reason.stack }
-        : String(reason)
-    });
-    // Do not exit — log and continue (Node 15+ already warns; graceful shutdown
-    // can be wired here if stricter policy is required in a future iteration).
-  });
-
-  process.on("uncaughtException", (err) => {
-    // Process is in an undefined state after uncaughtException — must exit.
-    try {
-      logError("uncaught_exception", {
-        event: "uncaught_exception",
-        timestamp: new Date().toISOString(),
-        name: err.name,
-        message: err.message,
-        stack: err.stack
-      });
-    } catch (_) {
-      console.error("[FATAL] uncaughtException:", err);
-    }
-    // Safety-timeout ensures exit even if server.close() stalls.
-    const exitTimeout = setTimeout(() => process.exit(1), 5000);
-    exitTimeout.unref();
-    if (server) {
-      server.close(() => process.exit(1));
-    } else {
-      process.exit(1);
-    }
-  });
+  // LOG-01: uncaughtException and unhandledRejection are registered at module
+  // level (above startServer) and reference `server` via closure — no need to
+  // re-register them here.
 
   runStartupTasks().catch((err) => {
     setReadiness(true, err);

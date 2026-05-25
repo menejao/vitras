@@ -124,8 +124,41 @@ function addAuditLog(db, user, action, entity, entityId, details = {}) {
   // writes are unaffected.
   if (db.auditLogs.length > MAX_AUDIT_LOGS) {
     const excess = db.auditLogs.length - MAX_AUDIT_LOGS;
+
+    // Capture anchor data BEFORE splice so forensic tools can verify the eviction
+    // was legitimate (not tampered deletion). Stored in a separate array to avoid
+    // recursive push → truncation → anchor → push loop.
+    const evictedEntries = db.auditLogs.slice(0, excess);
+    const oldestEvictedHash = evictedEntries[0]?.hash || null;
+    const newestEvictedHash = evictedEntries[evictedEntries.length - 1]?.hash || null;
+    const remainingFirstEntry = db.auditLogs[excess]; // will be index 0 after splice
+    const remainingFirstHash = remainingFirstEntry?.hash || null;
+    const remainingFirstPrevHash = remainingFirstEntry?.prevHash || null;
+
     db.auditLogs.splice(0, excess);
-    logWarn("audit_log_truncated", { event: "audit_log_truncated", removed: excess, retained: MAX_AUDIT_LOGS });
+
+    // MEM-01: Store anchor in db.auditLogChainAnchors (separate from auditLogs to
+    // avoid recursion). In Postgres mode, withDb serializes `db` into app_state JSONB
+    // so anchors are persisted there — no explicit DB writes needed.
+    if (!Array.isArray(db.auditLogChainAnchors)) db.auditLogChainAnchors = [];
+    db.auditLogChainAnchors.push({
+      event: "audit_log_eviction_anchor",
+      truncatedAt: new Date().toISOString(),
+      evictedCount: excess,
+      oldestEvictedHash,
+      newestEvictedHash,
+      remainingFirstHash,
+      remainingFirstPrevHash
+    });
+
+    logWarn("audit_log_truncated", {
+      event: "audit_log_truncated",
+      removed: excess,
+      retained: MAX_AUDIT_LOGS,
+      oldestEvictedHash,
+      newestEvictedHash,
+      remainingFirstPrevHash
+    });
   }
 }
 
