@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Vitras. Todos os direitos reservados.
 import app from "./app.js";
 import {
+  IS_PROD,
   PORT,
   APP_VERSION,
   LOG_FORMAT,
@@ -103,11 +104,30 @@ async function runStartupTasks() {
       logInfo("startup.migrations.completed");
     } catch (err) {
       tasks.push({ name: "runMigrations", status: "failed", message: err.message });
-      logWarn("startup.migrations.failed_non_fatal", { message: err.message });
+      if (IS_PROD) {
+        logError("startup.migrations.failed_fatal", {
+          event: "startup.migrations.failed_fatal",
+          error: err.message,
+          stack: err.stack
+        });
+        throw err; // caught by runStartupTasks().catch → gracefulShutdown via unhandledRejection
+      } else {
+        logWarn("startup.migrations.failed_non_fatal", {
+          event: "startup.migrations.failed_non_fatal",
+          message: err.message
+        });
+      }
     }
   } else {
     tasks.push({ name: "runMigrations", status: "skipped" });
     logInfo("startup.migrations.skipped");
+    // Warn in production when migrations are not being applied
+    if (IS_PROD && process.env.DATABASE_URL) {
+      logWarn("boot_migrations_skipped", {
+        event: "boot_migrations_skipped",
+        message: "RUN_MIGRATIONS não está definido — migrations não serão aplicadas neste deploy. Verifique se todos os schemas estão atualizados."
+      });
+    }
   }
 
   logInfo("startup.password_migration.started");

@@ -22,6 +22,16 @@ if (IS_PROD && (!UPSTASH_URL || !UPSTASH_TOKEN)) {
 }
 
 function buildRateLimitMiddleware({ prefix, maxRequests, windowMs, message, skip, keyGenerator }) {
+  // Shared identifier computation used by BOTH MemoryStore and Upstash paths.
+  // If a custom keyGenerator is provided it takes precedence; otherwise compose
+  // prefix:ip:userId (userId omitted when absent).
+  function getIdentifier(req) {
+    if (keyGenerator) return keyGenerator(req);
+    const ip = getClientIp(req);
+    const uid = req.user?.id || "";
+    return uid ? `${prefix}:${ip}:${uid}` : `${prefix}:${ip}`;
+  }
+
   if (!UPSTASH_URL || !UPSTASH_TOKEN) {
     // Dev/test permissive fallback — already warned above for production.
     return rateLimit({
@@ -31,13 +41,13 @@ function buildRateLimitMiddleware({ prefix, maxRequests, windowMs, message, skip
       legacyHeaders: false,
       message: { error: message },
       skip,
-      keyGenerator: keyGenerator ? keyGenerator : (req) => getClientIp(req),
+      keyGenerator: getIdentifier,
       handler: (req, res) => {
         logWarn("rate_limit_exceeded", {
           event: "rate_limit_exceeded",
           prefix,
           path: req.path,
-          userId: req.user?.id,
+          userId: req.user?.id ? req.user.id.slice(0, 8) : undefined,
           ip: getClientIp(req)
         });
         res.status(429).json({ error: message });
@@ -83,17 +93,15 @@ function buildRateLimitMiddleware({ prefix, maxRequests, windowMs, message, skip
     }
 
     try {
-      const userId = req.user?.id || "";
-      const ip = getClientIp(req);
-      const identifier = userId ? `${prefix}:${ip}:${userId}` : `${prefix}:${ip}`;
+      const identifier = getIdentifier(req);
       const { success } = await limiter.limit(identifier);
       if (!success) {
         logWarn("rate_limit_exceeded", {
           event: "rate_limit_exceeded",
           prefix,
           path: req.path,
-          userId: userId ? userId.slice(0, 8) : undefined,
-          ip
+          userId: req.user?.id ? req.user.id.slice(0, 8) : undefined,
+          ip: getClientIp(req)
         });
         return res.status(429).json({ error: message });
       }

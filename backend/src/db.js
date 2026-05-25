@@ -5,6 +5,7 @@ import crypto from "node:crypto";
 import { Pool } from "pg";
 import { canonicalRole, getRoleCapabilities } from "./utils/helpers.js";
 import { logInfo, logWarn, logError } from "./utils/logger.js";
+import { PATIENT_LOOKUP_HASH_KEY } from "./config.js";
 
 const DB_PATH = process.env.TEST_DB_PATH
   ? path.resolve(process.env.TEST_DB_PATH)
@@ -100,6 +101,16 @@ function decryptText(value, key) {
   decipher.setAuthTag(tag);
   const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
   return decrypted.toString("utf8");
+}
+
+// Deterministic HMAC-SHA256 hash of plaintext CPF/CNS for unique-index lookup.
+// Uses PATIENT_LOOKUP_HASH_KEY (falls back to DATA_ENCRYPTION_KEY at startup).
+// Returns null when value or key is empty so partial indexes exclude missing data.
+function computeLookupHash(value, key) {
+  if (!value || !key) return null;
+  const normalised = String(value).trim();
+  if (!normalised) return null;
+  return crypto.createHmac("sha256", key).update(normalised).digest("hex");
 }
 
 function cloneState(value) {
@@ -367,25 +378,52 @@ async function syncShadowTables(client, state) {
   }
 
   await client.query("DELETE FROM app_patients");
-  const patientRows = patients.map((patient) => [
-    String(patient?.id || ""),
-    String(patient?.teamId || ""),
-    String(patient?.assignedAcsId || ""),
-    String(patient?.careCategory || ""),
-    Boolean(patient?.inactive),
-    Boolean(patient?.incompleteProfile),
-    String(patient?.name || ""),
-    String(patient?.microArea || ""),
-    patient?.createdAt || null,
-    patient?.updatedAt || patient?.createdAt || null,
-    JSON.stringify(patient || {})
-  ]);
-  const patientBatch = batchInsert(["id","team_id","assigned_acs_id","care_category","inactive","incomplete_profile","name","micro_area","created_at","updated_at","payload"], patientRows);
-  if (patientBatch) {
-    await client.query(
-      `INSERT INTO app_patients (id,team_id,assigned_acs_id,care_category,inactive,incomplete_profile,name,micro_area,created_at,updated_at,payload) VALUES ${patientBatch.text}`,
-      patientBatch.values
-    );
+  const patientRows = patients.map((patient) => {
+    const cpfHash = computeLookupHash(patient?.cpf, PATIENT_LOOKUP_HASH_KEY);
+    const cnsHash = computeLookupHash(patient?.cns, PATIENT_LOOKUP_HASH_KEY);
+    return [
+      String(patient?.id || ""),
+      String(patient?.teamId || ""),
+      String(patient?.assignedAcsId || ""),
+      String(patient?.careCategory || ""),
+      Boolean(patient?.inactive),
+      Boolean(patient?.incompleteProfile),
+      String(patient?.name || ""),
+      String(patient?.microArea || ""),
+      patient?.createdAt || null,
+      patient?.updatedAt || patient?.createdAt || null,
+      JSON.stringify(patient || {}),
+      cpfHash || null,
+      cnsHash || null
+    ];
+  });
+  // cpf_hash / cns_hash columns are added by migration 006; use a try/catch so
+  // syncShadowTables stays backwards-compatible when that migration hasn't run yet.
+  const patientColsFull = ["id","team_id","assigned_acs_id","care_category","inactive","incomplete_profile","name","micro_area","created_at","updated_at","payload","cpf_hash","cns_hash"];
+  const patientColsBase = ["id","team_id","assigned_acs_id","care_category","inactive","incomplete_profile","name","micro_area","created_at","updated_at","payload"];
+  try {
+    const patientBatch = batchInsert(patientColsFull, patientRows);
+    if (patientBatch) {
+      await client.query(
+        `INSERT INTO app_patients (${patientColsFull.join(",")}) VALUES ${patientBatch.text}`,
+        patientBatch.values
+      );
+    }
+  } catch (hashColErr) {
+    // Fall back to base columns if cpf_hash/cns_hash columns don't exist yet
+    const baseRows = patientRows.map((r) => r.slice(0, patientColsBase.length));
+    const patientBatch = batchInsert(patientColsBase, baseRows);
+    if (patientBatch) {
+      await client.query(
+        `INSERT INTO app_patients (${patientColsBase.join(",")}) VALUES ${patientBatch.text}`,
+        patientBatch.values
+      );
+    }
+    logWarn("sync_shadow_patients_hash_col_missing", {
+      event: "sync_shadow_patients_hash_col_missing",
+      message: "cpf_hash/cns_hash columns not yet present — migration 006 required",
+      error: hashColErr.message
+    });
   }
 
   await client.query("DELETE FROM app_appointments");
@@ -854,6 +892,7 @@ async function closeDbPool() {
 
 export {
   isPostgresMode,
+  computeLookupHash,
   readDb,
   readDbForBackup,
   withDb,

@@ -232,10 +232,10 @@ router.post("/patients", requireManagerOrDoctor, validate(PatientCreateSchema), 
       syncPatientFamilyGroup(db, patient, req.user, "Cadastro de novo paciente");
     });
   } catch (err) {
-    if (err.code === "CPF_DUPLICATE" || (err.code === "23505" && err.detail?.includes("cpf"))) {
+    if (err.code === "CPF_DUPLICATE" || (err.code === "23505" && err.detail?.toLowerCase().includes("cpf_hash"))) {
       return res.status(409).json({ error: "Paciente com este CPF já existe" });
     }
-    if (err.code === "CNS_DUPLICATE" || (err.code === "23505" && err.detail?.includes("cns"))) {
+    if (err.code === "CNS_DUPLICATE" || (err.code === "23505" && err.detail?.toLowerCase().includes("cns_hash"))) {
       return res.status(409).json({ error: "Paciente com este CNS já existe" });
     }
     throw err;
@@ -252,13 +252,36 @@ router.put("/patients/:id", validate(PatientUpdateSchema), async (req, res) => {
     return res.status(403).json({ error: "Sem permissão para editar paciente" });
   }
 
-  const updated = await withDb((db) => {
+  let updated;
+  try {
+  updated = await withDb((db) => {
     ensureDbShape(db);
     const index = db.patients.findIndex((p) => p.id === id);
     if (index < 0) return null;
 
     const current = db.patients[index];
     if (!canAccessPatient(req.user, current)) return "forbidden";
+
+    // Duplicate CPF/CNS check — skip the patient being updated (compare by id)
+    const incomingCpf = payload?.cpf !== undefined ? String(payload.cpf || "").trim() : null;
+    const incomingCns = payload?.cns !== undefined ? String(payload.cns || "").trim() : null;
+    if (incomingCpf) {
+      const dupCpf = db.patients.find(
+        (p) => p.id !== id && String(p.cpf || "").trim() === incomingCpf && !p.inactive
+      );
+      if (dupCpf) {
+        throw Object.assign(new Error("CPF já cadastrado"), { statusCode: 409, code: "CPF_DUPLICATE" });
+      }
+    }
+    if (incomingCns) {
+      const dupCns = db.patients.find(
+        (p) => p.id !== id && String(p.cns || "").trim() === incomingCns && !p.inactive
+      );
+      if (dupCns) {
+        throw Object.assign(new Error("CNS já cadastrado"), { statusCode: 409, code: "CNS_DUPLICATE" });
+      }
+    }
+
     const before = buildPatientAuditSnapshot(current);
     const protocolMap = getProtocolTemplateMap(db, req.user.teamId);
     const doctorAllowed = new Set([
@@ -377,6 +400,15 @@ router.put("/patients/:id", validate(PatientUpdateSchema), async (req, res) => {
 
     return next;
   });
+  } catch (err) {
+    if (err.code === "CPF_DUPLICATE" || (err.code === "23505" && err.detail?.toLowerCase().includes("cpf_hash"))) {
+      return res.status(409).json({ error: "Paciente com este CPF já existe" });
+    }
+    if (err.code === "CNS_DUPLICATE" || (err.code === "23505" && err.detail?.toLowerCase().includes("cns_hash"))) {
+      return res.status(409).json({ error: "Paciente com este CNS já existe" });
+    }
+    throw err;
+  }
 
   if (!updated) {
     return res.status(404).json({ error: "Paciente não encontrado" });

@@ -4,6 +4,7 @@ import {
   DATABASE_URL,
   JWT_SECRET,
   DATA_ENCRYPTION_KEY,
+  PATIENT_LOOKUP_HASH_KEY,
   UPSTASH_URL,
   UPSTASH_TOKEN,
   AUDIT_PRUNE_ENABLED
@@ -124,6 +125,11 @@ function validateProductionConfig() {
   // Encryption
   if (!DATA_ENCRYPTION_KEY) {
     errors.push("DATA_ENCRYPTION_KEY não configurado em produção — dados sensíveis sem criptografia");
+  }
+
+  // Patient lookup hash key (HMAC for CPF/CNS unique-index)
+  if (!PATIENT_LOOKUP_HASH_KEY) {
+    errors.push("PATIENT_LOOKUP_HASH_KEY não configurado — unicidade CPF/CNS em Postgres inoperante");
   }
 
   // Redis/Upstash
