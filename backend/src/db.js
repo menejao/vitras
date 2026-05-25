@@ -4,6 +4,7 @@ import path from "node:path";
 import crypto from "node:crypto";
 import { Pool } from "pg";
 import { canonicalRole, getRoleCapabilities } from "./utils/helpers.js";
+import { logWarn } from "./utils/logger.js";
 
 const DB_PATH = process.env.TEST_DB_PATH
   ? path.resolve(process.env.TEST_DB_PATH)
@@ -554,35 +555,48 @@ async function readDbForBackup() {
   return readDbSnapshotFromFileStorage();
 }
 
+// RACE-01: Transient Postgres error codes eligible for retry
+const TRANSIENT_PG_CODES = new Set(["40P01", "40001", "55P03"]);
+const WITHDB_MAX_RETRIES = 3;
+
+async function _withDbPostgresAttempt(mutator, attempt) {
+  await initialize();
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const result = await client.query("SELECT data FROM app_state WHERE id = 1 FOR UPDATE");
+    const db = deserializeStateFromStorage(result.rows[0]?.data || {});
+
+    const mutatorResult = await mutator(db);
+
+    await client.query(
+      "UPDATE app_state SET data = $1::jsonb, updated_at = NOW() WHERE id = 1",
+      [JSON.stringify(serializeStateForStorage(db))]
+    );
+    await syncShadowTables(client, db);
+
+    await client.query("COMMIT");
+    _dbCache = db;
+    _dbCacheAt = Date.now();
+    return mutatorResult;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    _dbCache = null;
+    if (attempt < WITHDB_MAX_RETRIES && TRANSIENT_PG_CODES.has(error.code)) {
+      const delay = 50 + Math.floor(Math.random() * 100);
+      logWarn("db_deadlock_retry", { event: "db_deadlock_retry", attempt, code: error.code, message: error.message, delayMs: delay });
+      await new Promise((r) => setTimeout(r, delay));
+      return _withDbPostgresAttempt(mutator, attempt + 1);
+    }
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 async function withDb(mutator) {
   if (DB_DRIVER === "postgres") {
-    await initialize();
-    const client = await pool.connect();
-
-    try {
-      await client.query("BEGIN");
-      const result = await client.query("SELECT data FROM app_state WHERE id = 1 FOR UPDATE");
-      const db = deserializeStateFromStorage(result.rows[0]?.data || {});
-
-      const mutatorResult = await mutator(db);
-
-      await client.query(
-        "UPDATE app_state SET data = $1::jsonb, updated_at = NOW() WHERE id = 1",
-        [JSON.stringify(serializeStateForStorage(db))]
-      );
-      await syncShadowTables(client, db);
-
-      await client.query("COMMIT");
-      _dbCache = db;
-      _dbCacheAt = Date.now();
-      return mutatorResult;
-    } catch (error) {
-      await client.query("ROLLBACK");
-      _dbCache = null;
-      throw error;
-    } finally {
-      client.release();
-    }
+    return _withDbPostgresAttempt(mutator, 1);
   }
 
   return new Promise((resolve, reject) => {

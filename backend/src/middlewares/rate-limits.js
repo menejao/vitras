@@ -9,14 +9,21 @@ import {
   GLOBAL_RATE_LIMIT_MAX_REQUESTS
 } from "../config.js";
 import { getClientIp } from "../utils/helpers.js";
+import { logWarn, logError } from "../utils/logger.js";
+
+// REDIS-01: Emit a single critical warning at module load time when running in
+// production without Upstash configured.
+if (IS_PROD && (!UPSTASH_URL || !UPSTASH_TOKEN)) {
+  logWarn("rate_limit_misconfigured", {
+    event: "rate_limit_misconfigured",
+    env: "production",
+    message: "UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN ausentes — usando MemoryStore em produção"
+  });
+}
 
 function buildRateLimitMiddleware({ prefix, maxRequests, windowMs, message, skip }) {
   if (!UPSTASH_URL || !UPSTASH_TOKEN) {
-    if (IS_PROD) {
-      console.warn(
-        `[aviso] rate-limit "${prefix}" usando MemoryStore em produção — configure UPSTASH_REDIS_REST_URL e UPSTASH_REDIS_REST_TOKEN para persistência entre restarts`
-      );
-    }
+    // Dev/test permissive fallback — already warned above for production.
     return rateLimit({
       windowMs,
       limit: maxRequests,
@@ -40,7 +47,7 @@ function buildRateLimitMiddleware({ prefix, maxRequests, windowMs, message, skip
       limiter: Ratelimit.slidingWindow(maxRequests, `${Math.ceil(windowMs / 1000)} s`),
       prefix: `rl:${prefix}`
     });
-    console.log(`[rate-limit] "${prefix}" usando Upstash Redis`);
+    logWarn("rate_limit_upstash_ready", { event: "rate_limit_upstash_ready", prefix });
   }
 
   return async (req, res, next) => {
@@ -48,18 +55,34 @@ function buildRateLimitMiddleware({ prefix, maxRequests, windowMs, message, skip
     if (!limiter) {
       if (!initPromise) {
         initPromise = initLimiter().catch((err) => {
-          console.error(`[rate-limit] Upstash init falhou (${prefix}):`, err.message);
+          logError("rate_limit_upstash_init_failed", { event: "rate_limit_upstash_init_failed", prefix, message: err.message });
           initPromise = null;
         });
       }
       await initPromise;
     }
-    if (!limiter) return next();
+
+    // REDIS-01: fail-closed in production when Upstash is configured but unavailable.
+    if (!limiter) {
+      if (IS_PROD) {
+        logError("rate_limit_store_unavailable", { event: "rate_limit_store_unavailable", path: req.path, ip: req.ip });
+        return res.status(503).json({ error: "Serviço temporariamente indisponível" });
+      }
+      logWarn("rate_limit_fallback_active", { event: "rate_limit_fallback_active", prefix, path: req.path });
+      return next();
+    }
+
     try {
       const { success } = await limiter.limit(getClientIp(req));
       if (!success) return res.status(429).json({ error: message });
     } catch (err) {
-      console.error(`[rate-limit] Upstash erro (${prefix}):`, err.message);
+      logError("rate_limit_upstash_error", { event: "rate_limit_upstash_error", prefix, message: err.message });
+      // REDIS-01: fail-closed in production; permissive fallback in dev/test.
+      if (IS_PROD) {
+        logError("rate_limit_store_unavailable", { event: "rate_limit_store_unavailable", path: req.path, ip: req.ip });
+        return res.status(503).json({ error: "Serviço temporariamente indisponível" });
+      }
+      logWarn("rate_limit_fallback_active", { event: "rate_limit_fallback_active", prefix, path: req.path });
     }
     next();
   };

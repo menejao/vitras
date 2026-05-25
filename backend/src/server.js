@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Vitras. Todos os direitos reservados.
 import app from "./app.js";
 import { PORT } from "./config.js";
-import { migrateLegacyPlaintextPasswords, alignJoaoTeamOnStartup } from "./services/startup.js";
+import { migrateLegacyPlaintextPasswords } from "./services/startup.js";
 import { runMigrations } from "./migrations/runner.js";
 import { closeDbPool } from "./db.js";
 import {
@@ -55,16 +55,6 @@ async function runStartupTasks() {
     logWarn("startup.password_migration.failed_non_fatal", { message: err.message });
   }
 
-  logInfo("startup.joao_alignment.started");
-  try {
-    await withTimeout("alignJoaoTeamOnStartup", alignJoaoTeamOnStartup(), 30000);
-    tasks.push({ name: "alignJoaoTeamOnStartup", status: "ok" });
-    logInfo("startup.joao_alignment.completed");
-  } catch (err) {
-    tasks.push({ name: "alignJoaoTeamOnStartup", status: "failed", message: err.message });
-    logWarn("startup.joao_alignment.failed_non_fatal", { message: err.message });
-  }
-
   setStartupTasks(tasks);
 }
 
@@ -114,6 +104,42 @@ async function startServer() {
       logError("shutdown.failed", { signal: "SIGINT", error });
       process.exit(1);
     });
+  });
+
+  // LOG-01: Global error handlers — must be registered after server variable is in scope
+  process.on("unhandledRejection", (reason) => {
+    logError("unhandled_rejection", {
+      event: "unhandled_rejection",
+      timestamp: new Date().toISOString(),
+      reason: reason instanceof Error
+        ? { name: reason.name, message: reason.message, stack: reason.stack }
+        : String(reason)
+    });
+    // Do not exit — log and continue (Node 15+ already warns; graceful shutdown
+    // can be wired here if stricter policy is required in a future iteration).
+  });
+
+  process.on("uncaughtException", (err) => {
+    // Process is in an undefined state after uncaughtException — must exit.
+    try {
+      logError("uncaught_exception", {
+        event: "uncaught_exception",
+        timestamp: new Date().toISOString(),
+        name: err.name,
+        message: err.message,
+        stack: err.stack
+      });
+    } catch (_) {
+      console.error("[FATAL] uncaughtException:", err);
+    }
+    // Safety-timeout ensures exit even if server.close() stalls.
+    const exitTimeout = setTimeout(() => process.exit(1), 5000);
+    exitTimeout.unref();
+    if (server) {
+      server.close(() => process.exit(1));
+    } else {
+      process.exit(1);
+    }
   });
 
   runStartupTasks().catch((err) => {

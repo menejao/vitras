@@ -2,6 +2,11 @@ import crypto from "node:crypto";
 import { v4 as uuidv4 } from "uuid";
 import { canonicalRole } from "../utils/helpers.js";
 import { ensureArray } from "../utils/domain.js";
+import { logWarn } from "../utils/logger.js";
+
+// MEM-01: Cap for the in-memory auditLogs array (file-mode / memory cache only).
+// Oldest entries are evicted when the cap is exceeded.
+const MAX_AUDIT_LOGS = Number(process.env.AUDIT_LOG_MAX_ENTRIES) || 10000;
 
 function hashAuditPayload(payload) {
   return crypto.createHash("sha256").update(JSON.stringify(payload)).digest("hex");
@@ -113,6 +118,15 @@ function addAuditLog(db, user, action, entity, entityId, details = {}) {
   };
   const hash = hashAuditPayload({ ...logEntry, prevHash });
   db.auditLogs.push({ ...logEntry, prevHash, hash });
+
+  // MEM-01: Evict oldest entries when the in-memory cap is exceeded.
+  // This applies only to the in-memory array (file-mode / cache); Postgres
+  // writes are unaffected.
+  if (db.auditLogs.length > MAX_AUDIT_LOGS) {
+    const excess = db.auditLogs.length - MAX_AUDIT_LOGS;
+    db.auditLogs.splice(0, excess);
+    logWarn("audit_log_truncated", { event: "audit_log_truncated", removed: excess, retained: MAX_AUDIT_LOGS });
+  }
 }
 
 export { hashAuditPayload, getLastAuditHash, addAuditLog, classifyAuditAction };
