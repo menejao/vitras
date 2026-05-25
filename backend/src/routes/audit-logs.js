@@ -1,5 +1,5 @@
 import express from "express";
-import { AUDIT_LOG_DEFAULT_LIMIT, AUDIT_LOG_MAX_LIMIT, AUDIT_LOG_RETENTION_DAYS } from "../config.js";
+import { AUDIT_LOG_DEFAULT_LIMIT, AUDIT_LOG_MAX_LIMIT, AUDIT_LOG_RETENTION_DAYS, AUDIT_PRUNE_ENABLED } from "../config.js";
 import { readDb, withDb, listAuditLogsSnapshot } from "../db.js";
 import { requireManager, requireManagerOrDoctor } from "../middlewares/auth.js";
 import { canonicalRole } from "../utils/helpers.js";
@@ -206,6 +206,11 @@ router.get("/audit-logs/export", requireManagerOrDoctor, async (req, res) => {
 });
 
 router.post("/audit-logs/retention/prune", requirePruneRole, async (req, res) => {
+  // Gate: disabled by default — must explicitly set AUDIT_PRUNE_ENABLED=true
+  if (!AUDIT_PRUNE_ENABLED) {
+    return res.status(403).json({ error: "Prune está desabilitado. Configure AUDIT_PRUNE_ENABLED=true para habilitar." });
+  }
+
   const payload = req.body || {};
   const olderThanDays = parsePositiveInteger(payload.olderThanDays, AUDIT_LOG_RETENTION_DAYS);
   const dryRun = Boolean(payload.dryRun);
@@ -216,40 +221,97 @@ router.post("/audit-logs/retention/prune", requirePruneRole, async (req, res) =>
 
   const cutoffIso = new Date(Date.now() - (olderThanDays * 24 * 60 * 60 * 1000)).toISOString();
 
-  const result = await withDb((db) => {
-    ensureDbShape(db);
-    const candidates = db.auditLogs.filter((item) => String(item.createdAt || "") < cutoffIso);
-    const sample = candidates.slice(0, 20).map((item) => ({
-      id: item.id,
-      createdAt: item.createdAt,
-      action: item.action,
-      category: item.category || "",
-      severity: item.severity || ""
-    }));
+  let result;
+  try {
+    result = await withDb((db) => {
+      ensureDbShape(db);
+      const candidates = db.auditLogs.filter((item) => String(item.createdAt || "") < cutoffIso);
+      const sample = candidates.slice(0, 20).map((item) => ({
+        id: item.id,
+        createdAt: item.createdAt,
+        action: item.action,
+        category: item.category || "",
+        severity: item.severity || ""
+      }));
 
-    if (dryRun) {
-      return {
-        dryRun: true,
-        cutoffIso,
-        candidateCount: candidates.length,
-        sample
+      if (dryRun) {
+        return {
+          dryRun: true,
+          cutoffIso,
+          candidateCount: candidates.length,
+          sample
+        };
+      }
+
+      // Build forensic export payload
+      const exportPayload = {
+        exportedAt: new Date().toISOString(),
+        exportedBy: req.user?.id,
+        pruneReason: String(req.body?.reason || "").slice(0, 300),
+        olderThanDays,
+        cutoffDate: cutoffIso,
+        totalCandidates: candidates.length,
+        chainHash: candidates[candidates.length - 1]?.hash || null,
+        oldestEntry: candidates[0]
+          ? { id: candidates[0].id, createdAt: candidates[0].createdAt, hash: candidates[0].hash }
+          : null,
+        newestEntry: candidates[candidates.length - 1]
+          ? {
+              id: candidates[candidates.length - 1].id,
+              createdAt: candidates[candidates.length - 1].createdAt,
+              hash: candidates[candidates.length - 1].hash
+            }
+          : null,
+        entries: candidates
       };
-    }
 
-    db.auditLogs = db.auditLogs.filter((item) => String(item.createdAt || "") >= cutoffIso);
-    addAuditLog(db, req.user, "audit.retention_prune", "audit_log", req.user.teamId || "global", {
-      outcome: "success",
-      olderThanDays,
-      cutoffIso,
-      prunedCount: candidates.length
+      // Store forensic export BEFORE deletion — abort if this fails
+      if (!Array.isArray(db.auditPruneExports)) db.auditPruneExports = [];
+      db.auditPruneExports.push({
+        id: `prune-export-${Date.now()}`,
+        ...exportPayload,
+        entries: candidates
+      });
+
+      // Audit: export created (metadata only — no full entries to avoid recursion)
+      addAuditLog(db, req.user, "audit.prune_export_created", "audit_log", req.user?.teamId || "global", {
+        outcome: "success",
+        olderThanDays,
+        cutoffDate: cutoffIso,
+        totalCandidates: candidates.length,
+        chainHash: exportPayload.chainHash
+      });
+
+      // Audit: prune started
+      addAuditLog(db, req.user, "audit.prune_started", "audit_log", req.user?.teamId || "global", {
+        outcome: "pending",
+        olderThanDays,
+        cutoffIso,
+        candidateCount: candidates.length
+      });
+
+      // Perform actual deletion
+      db.auditLogs = db.auditLogs.filter((item) => String(item.createdAt || "") >= cutoffIso);
+
+      // Audit: prune completed
+      addAuditLog(db, req.user, "audit.prune_completed", "audit_log", req.user?.teamId || "global", {
+        outcome: "success",
+        olderThanDays,
+        cutoffIso,
+        prunedCount: candidates.length,
+        remainingCount: db.auditLogs.length
+      });
+
+      return {
+        dryRun: false,
+        cutoffIso,
+        prunedCount: candidates.length,
+        remainingCount: db.auditLogs.length
+      };
     });
-    return {
-      dryRun: false,
-      cutoffIso,
-      prunedCount: candidates.length,
-      remainingCount: db.auditLogs.length
-    };
-  });
+  } catch (err) {
+    return res.status(500).json({ error: "Export de segurança falhou — prune abortado." });
+  }
 
   return res.json(result);
 });

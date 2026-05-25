@@ -1,7 +1,15 @@
 // Copyright (c) 2026 Vitras. Todos os direitos reservados.
 import app from "./app.js";
-import { PORT } from "./config.js";
-import { migrateLegacyPlaintextPasswords } from "./services/startup.js";
+import {
+  PORT,
+  APP_VERSION,
+  LOG_FORMAT,
+  UPSTASH_URL,
+  UPSTASH_TOKEN,
+  DATA_ENCRYPTION_KEY,
+  AUDIT_PRUNE_ENABLED
+} from "./config.js";
+import { migrateLegacyPlaintextPasswords, validateProductionConfig } from "./services/startup.js";
 import { runMigrations } from "./migrations/runner.js";
 import { closeDbPool } from "./db.js";
 import {
@@ -116,6 +124,9 @@ async function runStartupTasks() {
 }
 
 async function startServer() {
+  // Validate production config BEFORE making any DB connections
+  validateProductionConfig();
+
   setStartupChecks([{ name: "config", status: "ok" }]);
   logInfo("startup.server.starting", { port: PORT });
 
@@ -126,6 +137,19 @@ async function startServer() {
       logInfo("startup.server.listening", { port: PORT });
       resolve();
     });
+  });
+
+  logInfo("server_started", {
+    event: "server_started",
+    port: PORT,
+    env: process.env.NODE_ENV,
+    driver: process.env.DATABASE_URL ? "postgres" : "file",
+    version: APP_VERSION,
+    logFormat: LOG_FORMAT,
+    upstashConfigured: !!(UPSTASH_URL && UPSTASH_TOKEN),
+    encryptionEnabled: !!DATA_ENCRYPTION_KEY,
+    auditPruneEnabled: AUDIT_PRUNE_ENABLED,
+    timestamp: new Date().toISOString()
   });
 
   markBootCompleted();

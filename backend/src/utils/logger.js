@@ -1,4 +1,32 @@
-const LOG_FORMAT = String(process.env.LOG_FORMAT || "text").trim().toLowerCase();
+const IS_PROD = String(process.env.NODE_ENV || "").trim().toLowerCase() === "production";
+const LOG_FORMAT = String(process.env.LOG_FORMAT || (IS_PROD ? "json" : "text")).trim().toLowerCase();
+const SENSITIVE_KEY_PATTERN = /(authorization|cookie|token|secret|password|cpf|cns|set-cookie)/i;
+
+function redactValue(key, value) {
+  if (SENSITIVE_KEY_PATTERN.test(String(key || ""))) {
+    return "[REDACTED]";
+  }
+  return value;
+}
+
+function sanitizeValue(value, key = "") {
+  const direct = redactValue(key, value);
+  if (direct !== value) return direct;
+
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizeValue(item, key));
+  }
+
+  if (value && typeof value === "object" && !(value instanceof Error)) {
+    const next = {};
+    for (const [childKey, childValue] of Object.entries(value)) {
+      next[childKey] = sanitizeValue(childValue, childKey);
+    }
+    return next;
+  }
+
+  return value;
+}
 
 function normalizeMeta(meta = {}) {
   const clean = {};
@@ -13,7 +41,7 @@ function normalizeMeta(meta = {}) {
       };
       continue;
     }
-    clean[key] = value;
+    clean[key] = sanitizeValue(value, key);
   }
   return clean;
 }

@@ -169,6 +169,7 @@ function ensureDbShape(db) {
   ensureArray(db, "messages");
   ensureArray(db, "auditLogs");
   ensureArray(db, "auditLogChainAnchors");
+  ensureArray(db, "auditPruneExports");
   ensureArray(db, "notifications");
   ensureArray(db, "familyGroups");
   ensureArray(db, "labIntegrations");

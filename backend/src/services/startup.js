@@ -1,11 +1,15 @@
 import { v4 as uuidv4 } from "uuid";
-import { IS_PROD } from "../config.js";
-import { isPostgresMode, withDb } from "../db.js";
 import {
-  ensureDbShape,
-  isJoaoDevVerificationUser,
-  JOAO_DEV_TARGET_TEAM_ID
-} from "../utils/domain.js";
+  IS_PROD,
+  DATABASE_URL,
+  JWT_SECRET,
+  DATA_ENCRYPTION_KEY,
+  UPSTASH_URL,
+  UPSTASH_TOKEN,
+  AUDIT_PRUNE_ENABLED
+} from "../config.js";
+import { withDb } from "../db.js";
+import { ensureDbShape } from "../utils/domain.js";
 import { hashPassword, isHashedPassword } from "./crypto.js";
 
 async function migrateLegacyPlaintextPasswords() {
@@ -100,36 +104,58 @@ async function ensureDemoManagerIfNeeded(email, password) {
   });
 }
 
-async function alignJoaoTeamOnStartup() {
-  const storage = isPostgresMode() ? "postgres" : "file";
-  console.log(`[startup:joao-align] storage=${storage}`);
+function validateProductionConfig() {
+  if (!IS_PROD) return; // dev/test: skip
 
-  await withDb((db) => {
-    const preAlign = (Array.isArray(db.users) ? db.users : []).filter(isJoaoDevVerificationUser);
-    if (!preAlign.length) {
-      console.log("[startup:joao-align] user not found before align");
-    } else {
-      for (const u of preAlign) {
-        console.log(`[startup:joao-align] before id=${u.id} email=${u.email} teamId=${u.teamId || "(empty)"}`);
-      }
+  const warnings = [];
+  const errors = [];
+
+  // RDS / DB check — derive driver the same way db.js does
+  const dbDriver = DATABASE_URL ? "postgres" : "file";
+  if (!DATABASE_URL && dbDriver === "file") {
+    errors.push("DATABASE_URL não configurado em produção — banco de dados em arquivo não é permitido");
+  }
+
+  // JWT
+  if (!JWT_SECRET || JWT_SECRET.length < 32) {
+    errors.push("JWT_SECRET ausente ou fraco (mínimo 32 caracteres)");
+  }
+
+  // Encryption
+  if (!DATA_ENCRYPTION_KEY) {
+    errors.push("DATA_ENCRYPTION_KEY não configurado em produção — dados sensíveis sem criptografia");
+  }
+
+  // Redis/Upstash
+  if (!UPSTASH_URL || !UPSTASH_TOKEN) {
+    warnings.push("UPSTASH_REDIS_REST_URL/TOKEN não configurados — rate limiting usando MemoryStore local (fail-open em multi-instância)");
+  }
+
+  // Audit prune status
+  if (AUDIT_PRUNE_ENABLED) {
+    warnings.push("AUDIT_PRUNE_ENABLED=true — prune de audit logs habilitado em produção");
+  }
+
+  for (const w of warnings) {
+    try {
+      // dynamic import avoided — logger may not be ready; use console as safe fallback
+      console.warn(JSON.stringify({ level: "warn", event: "boot_config_warning", message: w, timestamp: new Date().toISOString() }));
+    } catch (_) {
+      console.warn("[boot_config_warning]", w);
     }
+  }
 
-    ensureDbShape(db);
-
-    const postAlign = db.users.filter(isJoaoDevVerificationUser);
-    if (!postAlign.length) {
-      console.log("[startup:joao-align] user not found after align");
-    } else {
-      for (const u of postAlign) {
-        console.log(`[startup:joao-align] after  id=${u.id} email=${u.email} teamId=${u.teamId}`);
-      }
+  for (const e of errors) {
+    try {
+      console.error(JSON.stringify({ level: "error", event: "boot_config_error", message: e, timestamp: new Date().toISOString() }));
+    } catch (_) {
+      console.error("[boot_config_error]", e);
     }
+  }
 
-    const outsideRosa = db.patients.filter(
-      (p) => String(p?.teamId || "") !== JOAO_DEV_TARGET_TEAM_ID
-    ).length;
-    console.log(`[startup:joao-align] patients outside team-rosa=${outsideRosa}`);
-  });
+  if (errors.length > 0) {
+    throw new Error(`Configuração de produção inválida: ${errors.join("; ")}`);
+  }
 }
 
-export { migrateLegacyPlaintextPasswords, ensureDemoManagerIfNeeded, alignJoaoTeamOnStartup };
+export { migrateLegacyPlaintextPasswords, ensureDemoManagerIfNeeded, validateProductionConfig };

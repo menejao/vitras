@@ -16,6 +16,7 @@ const RegisterSchema = z.object({
   password: z.string().min(1).max(1024),
   role: z.string().min(1).max(50),
   teamId: z.string().max(100).optional(),
+  unitId: z.string().max(100).optional(),
   councilNumber: z.string().max(30).optional(),
   councilUf: z.string().max(2).optional()
 });
