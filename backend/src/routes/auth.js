@@ -305,7 +305,7 @@ router.post("/auth/login", authRateLimit, validate(LoginSchema), async (req, res
       ensureDbShape(auditDb);
       addAuditLog(
         auditDb,
-        buildAuditActorFromRequest(req, { email: normalizedEmail }),
+        buildAuditActorFromRequest(req, { email: maskEmail(normalizedEmail), name: maskEmail(normalizedEmail) }),
         "auth.login_failed",
         "auth",
         normalizedEmail || "anonymous",
