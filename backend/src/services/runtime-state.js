@@ -1,5 +1,6 @@
-// Possible values: "booting" | "migrating" | "ready" | "degraded" | "shutting_down"
+// Possible values: "booting" | "migrating" | "warming" | "ready" | "degraded" | "shutting_down"
 let _startupPhase = "booting";
+let _degradedReason = null;
 
 const runtimeState = {
   startedAt: new Date().toISOString(),
@@ -46,6 +47,24 @@ function getStartupPhase() {
   return _startupPhase;
 }
 
+/**
+ * Transitions the server into degraded mode.
+ * Degraded = still serving traffic but a subsystem is impaired.
+ * Does NOT set readiness.ready to false — instance stays in EB rotation.
+ */
+function setDegraded(reason) {
+  _startupPhase = "degraded";
+  _degradedReason = String(reason || "unknown");
+}
+
+function isDegraded() {
+  return _startupPhase === "degraded";
+}
+
+function getDegradedReason() {
+  return _degradedReason;
+}
+
 function getRuntimeState() {
   return {
     ...runtimeState,
@@ -65,5 +84,8 @@ export {
   setReadiness,
   setStartupPhase,
   getStartupPhase,
-  getRuntimeState
+  getRuntimeState,
+  setDegraded,
+  isDegraded,
+  getDegradedReason
 };
