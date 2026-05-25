@@ -128,8 +128,9 @@ function validateProductionConfig() {
   }
 
   // Patient lookup hash key (HMAC for CPF/CNS unique-index)
+  // F-01: Must be set independently from DATA_ENCRYPTION_KEY — silent fallback is disabled in production.
   if (!PATIENT_LOOKUP_HASH_KEY) {
-    errors.push("PATIENT_LOOKUP_HASH_KEY não configurado — unicidade CPF/CNS em Postgres inoperante");
+    errors.push("PATIENT_LOOKUP_HASH_KEY não configurado — exigido para unicidade CPF/CNS em produção (chave separada de DATA_ENCRYPTION_KEY, mínimo 32 caracteres)");
   }
 
   // Redis/Upstash

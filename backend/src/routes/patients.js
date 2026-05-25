@@ -642,6 +642,27 @@ router.post("/patients/:id/records", validate(RecordCreateSchema), async (req, r
     ? normalizeConsultationTitle(payload.title, consultationSpecialty)
     : String(payload.title);
 
+  // B-05: Capture a clinical-legal snapshot at record creation time for high-stakes record types.
+  // Preserves patient and actor context even if records are later anonymised or patient is updated.
+  // Snapshot is stored on the record itself — append-only records mean it persists forever.
+  const SNAPSHOT_TYPES = new Set(["prescription", "medical_attest", "referral"]);
+  const clinicalSnapshot = SNAPSHOT_TYPES.has(type)
+    ? {
+        capturedAt: new Date().toISOString(),
+        patient: {
+          name: String(lookup.patient.name || ""),
+          cpfMasked: maskSensitivePatientFields(lookup.patient).cpf || "",
+          birthDate: String(lookup.patient.birthDate || ""),
+          teamId: String(lookup.patient.teamId || "")
+        },
+        actor: {
+          name: String(req.user.name || ""),
+          role: String(req.user.role || ""),
+          teamId: String(req.user.teamId || "")
+        }
+      }
+    : undefined;
+
   const record = {
     id: uuidv4(),
     patientId: id,
@@ -656,6 +677,7 @@ router.post("/patients/:id/records", validate(RecordCreateSchema), async (req, r
       ...incomingMetadata,
       ...(type === "consultation" ? { specialty: consultationSpecialty } : {})
     },
+    ...(clinicalSnapshot !== undefined ? { clinicalSnapshot } : {}),
     createdBy: req.user.id,
     createdAt: new Date().toISOString()
   };

@@ -133,24 +133,25 @@ const globalRateLimit = buildRateLimitMiddleware({
   skip: (req) => req.path === "/health"
 });
 
-// Sensitive bulk-data endpoints — 30 req/min, keyed by IP + userId (patient list)
+// D-04: sensitiveDataRateLimit now uses getIdentifier from buildRateLimitMiddleware
+// (prefix:ip:userId) instead of a custom keyGenerator. Unauthenticated requests fall back
+// to IP only — consistent with auth and global rate limits.
 const sensitiveDataRateLimit = buildRateLimitMiddleware({
   prefix: "sensitive",
   maxRequests: 30,
   windowMs: 60 * 1000,
   message: "Muitas requisições para dados sensíveis. Aguarde 1 minuto.",
-  skip: (req) => req.path === "/health",
-  keyGenerator: (req) => `${getClientIp(req)}:${req.user?.id || "anon"}`
+  skip: (req) => req.path === "/health"
 });
 
-// Export/report endpoints — 10 req/min, keyed by userId (heavier operations)
+// D-04: exportRateLimit now uses getIdentifier from buildRateLimitMiddleware
+// instead of a custom keyGenerator — consistent key format across all rate limiters.
 const exportRateLimit = buildRateLimitMiddleware({
   prefix: "export",
   maxRequests: 10,
   windowMs: 60 * 1000,
   message: "Limite de exportações atingido. Aguarde 1 minuto.",
-  skip: (req) => req.path === "/health",
-  keyGenerator: (req) => `${req.user?.id || getClientIp(req)}`
+  skip: (req) => req.path === "/health"
 });
 
 export { buildRateLimitMiddleware, authRateLimit, globalRateLimit, sensitiveDataRateLimit, exportRateLimit };

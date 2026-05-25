@@ -62,8 +62,11 @@ const PatientBaseShape = {
 };
 
 const PatientCreateSchema = z.object(PatientBaseShape);
+// D-02: .strict() rejects unknown keys to prevent mass-assignment of internal fields
 const PatientUpdateSchema = z.object({
+  name: optionalShortString(300),
   motherName: optionalShortString(300),
+  guardianName: optionalShortString(300),
   phone: optionalShortString(30),
   phoneAlt: optionalShortString(30),
   cpf: optionalShortString(20),
@@ -97,7 +100,7 @@ const PatientUpdateSchema = z.object({
   comorbidities: optionalShortString(4000),
   medications: optionalShortString(4000),
   allergies: optionalShortString(4000)
-});
+}).strict();
 
 const TaskCreateSchema = z.object({
   patientId: z.string().trim().min(1).max(100),
@@ -229,6 +232,7 @@ const ExamAttachmentCreateSchema = z.object({
   dataBase64: z.string().trim().min(1).max(25 * 1024 * 1024)
 });
 
+// D-02: .strict() rejects unknown keys to prevent mass-assignment on clinical records
 const RecordCreateSchema = z.object({
   type: z.enum(["visit", "consultation", "vaccine", "procedure", "note", "prescription", "exam_request", "referral", "nursing", "evolution", "attendance_attest", "medical_attest"]),
   date: z.string().trim().min(1).max(50),
@@ -236,8 +240,9 @@ const RecordCreateSchema = z.object({
   details: optionalShortString(20000),
   protocolTag: optionalShortString(100),
   metadata: z.record(z.any()).optional()
-});
+}).strict();
 
+// D-02: .strict() on queue schemas rejects unknown keys (prevents mass-assignment)
 const QueueCreateSchema = z.object({
   patientId: z.string().trim().min(1).max(100),
   priority: z.enum(["urgent", "elderly", "pregnant", "child", "normal"]),
@@ -245,7 +250,7 @@ const QueueCreateSchema = z.object({
   demandType: z.enum(["scheduled", "spontaneous"]).optional(),
   destination: z.enum(["doctor", "nurse"]).optional(),
   agendaRef: optionalShortString(100)
-});
+}).strict();
 
 const QueuePatchSchema = z.object({
   status: z.enum(["waiting", "triage", "ready", "attending", "done"]).optional(),
@@ -256,7 +261,7 @@ const QueuePatchSchema = z.object({
   triageStart: optionalDateString(),
   triageDone: optionalDateString(),
   vitals: z.record(z.any()).optional()
-});
+}).strict();
 
 const PrivacyRequestCreateSchema = z.object({
   patientId: z.string().min(1).max(100),

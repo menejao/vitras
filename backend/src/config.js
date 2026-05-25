@@ -51,7 +51,11 @@ const PUBLIC_SELF_REGISTER_ROLES = String(
   .filter(Boolean);
 const DATABASE_URL = String(process.env.DATABASE_URL || "").trim();
 const DATA_ENCRYPTION_KEY = String(process.env.DATA_ENCRYPTION_KEY || "").trim();
-const PATIENT_LOOKUP_HASH_KEY = String(process.env.PATIENT_LOOKUP_HASH_KEY || process.env.DATA_ENCRYPTION_KEY || "").trim();
+// F-01: In production, PATIENT_LOOKUP_HASH_KEY must be explicitly set — no silent fallback
+// to DATA_ENCRYPTION_KEY. In dev/test, fall back to DATA_ENCRYPTION_KEY for local convenience.
+const PATIENT_LOOKUP_HASH_KEY = String(
+  process.env.PATIENT_LOOKUP_HASH_KEY || (!IS_PROD ? process.env.DATA_ENCRYPTION_KEY : "") || ""
+).trim();
 const AUDIT_PRUNE_ENABLED = String(process.env.AUDIT_PRUNE_ENABLED || "").trim().toLowerCase() === "true";
 const LOG_FORMAT = String(process.env.LOG_FORMAT || (IS_PROD ? "json" : "text")).trim().toLowerCase();
 const APP_VERSION = String(process.env.APP_VERSION || process.env.npm_package_version || "unknown").trim();

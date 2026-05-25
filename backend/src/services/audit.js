@@ -162,4 +162,88 @@ function addAuditLog(db, user, action, entity, entityId, details = {}) {
   }
 }
 
-export { hashAuditPayload, getLastAuditHash, addAuditLog, classifyAuditAction };
+/**
+ * B-02: Verify the integrity of the in-memory audit log hash chain.
+ *
+ * Each entry's `hash` is SHA256(JSON.stringify({...entry_fields, prevHash})) — i.e., the hash
+ * covers all fields EXCEPT `hash` itself. We recompute it by stripping `hash` before hashing.
+ *
+ * For the first entry in a truncated window, prevHash is checked against auditLogChainAnchors
+ * to distinguish "genesis" (prevHash=""), "eviction-valid" (prevHash matches an anchor), and
+ * "orphaned" (prevHash present but no matching anchor found).
+ *
+ * Returns a summary object; does NOT modify `db`.
+ */
+function verifyAuditLogChain(db) {
+  const entries = Array.isArray(db.auditLogs) ? db.auditLogs : [];
+  const anchors = Array.isArray(db.auditLogChainAnchors) ? db.auditLogChainAnchors : [];
+
+  if (entries.length === 0) {
+    return { status: "valid", checked: 0, message: "No entries to verify" };
+  }
+
+  const results = [];
+  let broken = false;
+
+  for (let i = 0; i < entries.length; i++) {
+    const entry = entries[i];
+    const prev = i > 0 ? entries[i - 1] : null;
+
+    // Recompute the entry's hash by stripping the `hash` field (it was not present when
+    // the hash was originally computed — the input was { ...logEntry, prevHash }).
+    const { hash: storedHash, ...withoutHash } = entry;
+    const expectedHash = hashAuditPayload(withoutHash);
+
+    if (storedHash !== expectedHash) {
+      results.push({ id: entry.id, status: "broken", reason: "hash_mismatch" });
+      broken = true;
+      continue;
+    }
+
+    // Verify chain continuity
+    if (i === 0) {
+      // First visible entry: prevHash="" means genesis; otherwise check eviction anchors
+      if (!entry.prevHash) {
+        results.push({ id: entry.id, status: "valid" });
+      } else {
+        const isTruncatedValid = anchors.some((a) => a.newestEvictedHash === entry.prevHash);
+        if (isTruncatedValid) {
+          results.push({ id: entry.id, status: "truncated-valid", reason: "eviction_anchor_found" });
+        } else {
+          results.push({ id: entry.id, status: "orphaned", reason: "prevHash_not_in_anchors" });
+          broken = true;
+        }
+      }
+    } else {
+      // Subsequent entries: prevHash must match the previous entry's stored hash
+      if (entry.prevHash !== prev.hash) {
+        results.push({ id: entry.id, status: "broken", reason: "chain_break" });
+        broken = true;
+      } else {
+        results.push({ id: entry.id, status: "valid" });
+      }
+    }
+  }
+
+  const brokenCount = results.filter((r) => r.status === "broken").length;
+  const orphanedCount = results.filter((r) => r.status === "orphaned").length;
+  const truncatedCount = results.filter((r) => r.status === "truncated-valid").length;
+
+  const status = broken
+    ? "broken"
+    : orphanedCount > 0
+      ? "orphaned"
+      : "valid";
+
+  return {
+    status,
+    checked: entries.length,
+    broken: brokenCount,
+    orphaned: orphanedCount,
+    truncatedValid: truncatedCount,
+    anchorsChecked: anchors.length,
+    firstBrokenId: results.find((r) => r.status === "broken")?.id || null
+  };
+}
+
+export { hashAuditPayload, getLastAuditHash, addAuditLog, classifyAuditAction, verifyAuditLogChain };

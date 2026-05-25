@@ -1,11 +1,11 @@
 import express from "express";
 import { AUDIT_LOG_DEFAULT_LIMIT, AUDIT_LOG_MAX_LIMIT, AUDIT_LOG_RETENTION_DAYS, AUDIT_PRUNE_ENABLED } from "../config.js";
 import { readDb, withDb, listAuditLogsSnapshot } from "../db.js";
-import { requireManager, requireManagerOrDoctor } from "../middlewares/auth.js";
+import { requireManager, requireManagerOrDoctor, requireRoles } from "../middlewares/auth.js";
 import { exportRateLimit } from "../middlewares/rate-limits.js";
 import { canonicalRole } from "../utils/helpers.js";
 import { ensureDbShape } from "../utils/domain.js";
-import { addAuditLog } from "../services/audit.js";
+import { addAuditLog, verifyAuditLogChain } from "../services/audit.js";
 
 const PRUNE_ALLOWED_ROLES = new Set(["gestor", "security_auditor", "break_glass_admin"]);
 const AUDIT_GLOBAL_ROLES = new Set(["gestor", "security_auditor", "break_glass_admin"]);
@@ -316,5 +316,40 @@ router.post("/audit-logs/retention/prune", requirePruneRole, async (req, res) =>
 
   return res.json(result);
 });
+
+// B-02: Read-only hash chain integrity check — security_auditor and break_glass_admin only
+router.get(
+  "/audit-logs/integrity",
+  requireRoles(["security_auditor", "break_glass_admin"], "Sem permissão para verificar integridade dos logs de auditoria"),
+  async (req, res) => {
+    const db = await readDb();
+    ensureDbShape(db);
+
+    await withDb((auditDb) => {
+      ensureDbShape(auditDb);
+      addAuditLog(auditDb, req.user, "audit.chain_verification_started", "audit", "integrity", {});
+    });
+
+    const result = verifyAuditLogChain(db);
+
+    await withDb((auditDb) => {
+      ensureDbShape(auditDb);
+      if (result.status === "broken" || result.status === "orphaned") {
+        addAuditLog(auditDb, req.user, "audit.chain_verification_failed", "audit", "integrity", {
+          status: result.status,
+          broken: result.broken,
+          orphaned: result.orphaned
+        });
+      } else {
+        addAuditLog(auditDb, req.user, "audit.chain_verification_passed", "audit", "integrity", {
+          checked: result.checked,
+          status: result.status
+        });
+      }
+    });
+
+    return res.json(result);
+  }
+);
 
 export default router;

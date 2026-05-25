@@ -180,43 +180,6 @@ function withTimeout(label, promise, ms = 30000) {
 
 async function runStartupTasks() {
   const tasks = [];
-  const shouldRunMigrations =
-    String(process.env.RUN_MIGRATIONS || "").trim().toLowerCase() === "true";
-
-  if (shouldRunMigrations) {
-    logInfo("startup.migrations.started");
-    try {
-      await withTimeout("runMigrations", runMigrations(), 60000);
-      tasks.push({ name: "runMigrations", status: "ok" });
-      logInfo("startup.migrations.completed");
-    } catch (err) {
-      tasks.push({ name: "runMigrations", status: "failed", message: err.message });
-      if (IS_PROD) {
-        logError("startup.migrations.failed_fatal", {
-          event: "startup.migrations.failed_fatal",
-          error: err.message,
-          stack: err.stack
-        });
-        throw err; // caught by runStartupTasks().catch → gracefulShutdown via unhandledRejection
-      } else {
-        logWarn("startup.migrations.failed_non_fatal", {
-          event: "startup.migrations.failed_non_fatal",
-          message: err.message
-        });
-      }
-    }
-  } else {
-    tasks.push({ name: "runMigrations", status: "skipped" });
-    logInfo("startup.migrations.skipped");
-    // Informational only: RUN_MIGRATIONS not set. Critical migration guard (EB-01)
-    // already ran before app.listen() and would have aborted boot if 006 was missing.
-    if (IS_PROD && process.env.DATABASE_URL) {
-      logInfo("boot_migrations_skipped", {
-        event: "boot_migrations_skipped",
-        message: "RUN_MIGRATIONS não está definido — migrations não serão aplicadas neste deploy. Schemas verificados pelo boot guard (EB-01)."
-      });
-    }
-  }
 
   logInfo("startup.password_migration.started");
   try {
@@ -238,8 +201,44 @@ async function startServer() {
   setStartupChecks([{ name: "config", status: "ok" }]);
   logInfo("startup.server.starting", { port: PORT });
 
-  // EB-01: Fatal guard — abort boot if critical migrations are missing in prod+postgres.
-  // Must run BEFORE app.listen() so the server never accepts traffic without required schema.
+  // F-08: Run migrations BEFORE app.listen() so EB never routes traffic before schema is ready.
+  const shouldRunMigrations =
+    String(process.env.RUN_MIGRATIONS || "").trim().toLowerCase() === "true";
+
+  if (shouldRunMigrations) {
+    try {
+      logInfo("migrations.started", { event: "migrations.started", timestamp: new Date().toISOString() });
+      await withTimeout("runMigrations", runMigrations(), 60000);
+      logInfo("migrations.completed", { event: "migrations.completed", timestamp: new Date().toISOString() });
+    } catch (err) {
+      if (IS_PROD) {
+        logError("migrations.failed_fatal", {
+          event: "migrations.failed_fatal",
+          error: err.message,
+          stack: err.stack
+        });
+        throw err; // → process.exit(1) via startServer().catch
+      } else {
+        logWarn("migrations.failed_non_fatal", {
+          event: "migrations.failed_non_fatal",
+          error: err.message
+        });
+      }
+    }
+  } else {
+    logInfo("startup.migrations.skipped");
+    // Informational only: RUN_MIGRATIONS not set. Critical migration guard (EB-01)
+    // runs below and would abort boot if 006 was missing in prod+postgres.
+    if (IS_PROD && process.env.DATABASE_URL) {
+      logInfo("boot_migrations_skipped", {
+        event: "boot_migrations_skipped",
+        message: "RUN_MIGRATIONS não está definido — migrations não serão aplicadas neste deploy. Schemas verificados pelo boot guard (EB-01)."
+      });
+    }
+  }
+
+  // EB-01: Fatal guard — verify critical migrations were applied (post-migration check).
+  // Runs after runMigrations() so it validates the final state before accepting traffic.
   await withTimeout("checkCriticalMigrations", checkCriticalMigrations(), 15000);
 
   // Assign to module-level `server` so gracefulShutdown can close it
