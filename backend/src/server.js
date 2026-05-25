@@ -8,7 +8,8 @@ import {
   UPSTASH_URL,
   UPSTASH_TOKEN,
   DATA_ENCRYPTION_KEY,
-  AUDIT_PRUNE_ENABLED
+  AUDIT_PRUNE_ENABLED,
+  DATABASE_URL
 } from "./config.js";
 import { migrateLegacyPlaintextPasswords, validateProductionConfig } from "./services/startup.js";
 import { runMigrations } from "./migrations/runner.js";
@@ -21,6 +22,92 @@ import {
   setStartupTasks
 } from "./services/runtime-state.js";
 import { logError, logInfo, logWarn } from "./utils/logger.js";
+import { Pool } from "pg";
+
+// EB-01: Critical migrations that must be applied before the server accepts traffic.
+// Column name in schema_migrations is `id` (see migrations/runner.js).
+const CRITICAL_MIGRATIONS = ["006_patient_hash_columns"];
+
+function _stripSslParamsForMigrationCheck(url) {
+  if (!url) return url;
+  try {
+    const u = new URL(url);
+    ["sslmode", "sslcert", "sslkey", "sslrootcert", "sslpassword"].forEach((p) => u.searchParams.delete(p));
+    return u.toString();
+  } catch {
+    return url;
+  }
+}
+
+/**
+ * Verifies that all CRITICAL_MIGRATIONS have been applied in the schema_migrations
+ * table before the server begins accepting traffic.
+ *
+ * Only runs when IS_PROD=true AND DATABASE_URL is set (postgres mode).
+ * Throws on missing migrations so startServer() aborts before app.listen().
+ */
+async function checkCriticalMigrations() {
+  if (!IS_PROD || !DATABASE_URL) return; // dev/test/file-mode: skip
+
+  const checkPool = new Pool({
+    connectionString: _stripSslParamsForMigrationCheck(DATABASE_URL),
+    ssl: { rejectUnauthorized: false },
+    max: 1,
+    connectionTimeoutMillis: 10000,
+    idleTimeoutMillis: 10000,
+  });
+
+  let client;
+  try {
+    client = await checkPool.connect();
+
+    // Check whether schema_migrations table exists yet
+    const tableCheck = await client.query(`
+      SELECT EXISTS (
+        SELECT 1 FROM information_schema.tables
+        WHERE table_name = 'schema_migrations'
+      ) AS exists
+    `);
+
+    if (!tableCheck.rows[0]?.exists) {
+      logError("boot_migrations_required", {
+        event: "boot_migrations_required",
+        missing: CRITICAL_MIGRATIONS,
+        message: "Tabela schema_migrations não existe. Execute com RUN_MIGRATIONS=true antes de aceitar tráfego.",
+        timestamp: new Date().toISOString()
+      });
+      throw new Error("Boot abortado: schema_migrations não encontrada. Configure RUN_MIGRATIONS=true.");
+    }
+
+    // schema_migrations uses column `id` (see migrations/runner.js)
+    const result = await client.query(
+      `SELECT id FROM schema_migrations WHERE id = ANY($1)`,
+      [CRITICAL_MIGRATIONS]
+    );
+
+    const applied = new Set(result.rows.map((r) => r.id));
+    const missing = CRITICAL_MIGRATIONS.filter((id) => !applied.has(id));
+
+    if (missing.length > 0) {
+      logError("boot_migrations_required", {
+        event: "boot_migrations_required",
+        missing,
+        message: `Migrations críticas não aplicadas: ${missing.join(", ")}. Configure RUN_MIGRATIONS=true no próximo deploy.`,
+        timestamp: new Date().toISOString()
+      });
+      throw new Error(`Boot abortado: migrations críticas não aplicadas: ${missing.join(", ")}`);
+    }
+
+    logInfo("boot_migrations_ok", {
+      event: "boot_migrations_ok",
+      verified: CRITICAL_MIGRATIONS,
+      timestamp: new Date().toISOString()
+    });
+  } finally {
+    client?.release();
+    await checkPool.end().catch(() => {});
+  }
+}
 
 // LOG-01: Module-level declarations so gracefulShutdown can reference `server`
 // even when errors occur before app.listen() is called.
@@ -121,11 +208,12 @@ async function runStartupTasks() {
   } else {
     tasks.push({ name: "runMigrations", status: "skipped" });
     logInfo("startup.migrations.skipped");
-    // Warn in production when migrations are not being applied
+    // Informational only: RUN_MIGRATIONS not set. Critical migration guard (EB-01)
+    // already ran before app.listen() and would have aborted boot if 006 was missing.
     if (IS_PROD && process.env.DATABASE_URL) {
-      logWarn("boot_migrations_skipped", {
+      logInfo("boot_migrations_skipped", {
         event: "boot_migrations_skipped",
-        message: "RUN_MIGRATIONS não está definido — migrations não serão aplicadas neste deploy. Verifique se todos os schemas estão atualizados."
+        message: "RUN_MIGRATIONS não está definido — migrations não serão aplicadas neste deploy. Schemas verificados pelo boot guard (EB-01)."
       });
     }
   }
@@ -149,6 +237,10 @@ async function startServer() {
 
   setStartupChecks([{ name: "config", status: "ok" }]);
   logInfo("startup.server.starting", { port: PORT });
+
+  // EB-01: Fatal guard — abort boot if critical migrations are missing in prod+postgres.
+  // Must run BEFORE app.listen() so the server never accepts traffic without required schema.
+  await withTimeout("checkCriticalMigrations", checkCriticalMigrations(), 15000);
 
   // Assign to module-level `server` so gracefulShutdown can close it
   await new Promise((resolve, reject) => {
