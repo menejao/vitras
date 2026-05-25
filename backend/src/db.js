@@ -891,6 +891,7 @@ async function closeDbPool() {
 }
 
 export {
+  pool,
   isPostgresMode,
   computeLookupHash,
   readDb,

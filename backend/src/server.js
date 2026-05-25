@@ -19,7 +19,8 @@ import {
   markShuttingDown,
   setReadiness,
   setStartupChecks,
-  setStartupTasks
+  setStartupTasks,
+  setStartupPhase
 } from "./services/runtime-state.js";
 import { logError, logInfo, logWarn } from "./utils/logger.js";
 import { Pool } from "pg";
@@ -207,6 +208,7 @@ async function startServer() {
 
   if (shouldRunMigrations) {
     try {
+      setStartupPhase("migrating");
       logInfo("migrations.started", { event: "migrations.started", timestamp: new Date().toISOString() });
       await withTimeout("runMigrations", runMigrations(), 60000);
       logInfo("migrations.completed", { event: "migrations.completed", timestamp: new Date().toISOString() });
@@ -265,6 +267,7 @@ async function startServer() {
 
   markBootCompleted();
   setReadiness(true);
+  setStartupPhase("ready");
 
   const shutdown = async (signal) => {
     logWarn("shutdown.started", { signal });

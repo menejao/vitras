@@ -1,3 +1,6 @@
+// Possible values: "booting" | "migrating" | "ready" | "degraded" | "shutting_down"
+let _startupPhase = "booting";
+
 const runtimeState = {
   startedAt: new Date().toISOString(),
   bootCompletedAt: null,
@@ -17,6 +20,7 @@ function markBootCompleted() {
 function markShuttingDown() {
   runtimeState.shuttingDown = true;
   runtimeState.readiness.ready = false;
+  _startupPhase = "shutting_down";
 }
 
 function setStartupChecks(checks = []) {
@@ -32,6 +36,14 @@ function setReadiness(ready, lastError = null) {
   runtimeState.readiness.lastError = lastError
     ? { message: String(lastError.message || lastError), at: new Date().toISOString() }
     : null;
+}
+
+function setStartupPhase(phase) {
+  _startupPhase = phase;
+}
+
+function getStartupPhase() {
+  return _startupPhase;
 }
 
 function getRuntimeState() {
@@ -51,5 +63,7 @@ export {
   setStartupChecks,
   setStartupTasks,
   setReadiness,
+  setStartupPhase,
+  getStartupPhase,
   getRuntimeState
 };

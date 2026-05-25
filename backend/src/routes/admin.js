@@ -1,6 +1,7 @@
 import express from "express";
-import { readDb, readDbForBackup, withDb } from "../db.js";
-import { BACKUP_EXPORT_KEY, ADMIN_SEED_KEY, ENABLE_ADMIN_SEED, ENABLE_BACKUP_EXPORT } from "../config.js";
+import { readDb, readDbForBackup, withDb, pool } from "../db.js";
+import { BACKUP_EXPORT_KEY, ADMIN_SEED_KEY, ENABLE_ADMIN_SEED, ENABLE_BACKUP_EXPORT, IS_PROD } from "../config.js";
+import { rebuildPatientHashes } from "../services/hashRebuild.js";
 import {
   ensureDbShape, getProtocolTemplateMap, sanitizeUser, getTeamNameById, buildAccessContextUser,
   DEFAULT_CARE_PROTOCOLS, DEMO_POPULATE_SIZE_COMPLETE, DEMO_POPULATE_SIZE_INCOMPLETE
@@ -253,6 +254,48 @@ router.get("/metrics/internal", requireAuth, async (req, res) => {
     });
   });
   return res.json(getMetrics());
+});
+
+// F-07: POST /admin/rebuild-patient-hashes
+// Rebuilds cpf_hash/cns_hash for all active patients using the current PATIENT_LOOKUP_HASH_KEY.
+// Required after key rotation to restore uniqueness enforcement integrity.
+// Protected by: requireAuth + backup.export capability + x-backup-key header (same as backup export).
+// IS_PROD guard: only runs in production where Postgres hashes are used; dev/file-mode is a no-op.
+router.post("/admin/rebuild-patient-hashes", requireAuth, requireSensitiveAdmin, async (req, res) => {
+  // Double-check key header using same pattern as /admin/backup/export
+  const providedKey = String(req.headers["x-backup-key"] || "").trim();
+  if (!BACKUP_EXPORT_KEY || providedKey !== BACKUP_EXPORT_KEY) {
+    return res.status(403).json({ error: "Acesso negado — chave administrativa inválida" });
+  }
+
+  // Only meaningful in Postgres mode; in file mode hashes are recomputed on every syncShadowTables
+  if (!pool) {
+    return res.status(400).json({
+      error: "Rebuild de hashes não aplicável em modo arquivo — hashes são recalculados automaticamente"
+    });
+  }
+
+  const dryRun = String(req.query.dryRun || req.body?.dryRun || "false").toLowerCase() === "true";
+
+  try {
+    const db = await readDb();
+    const result = await rebuildPatientHashes(pool, db, { dryRun });
+
+    await withDb((auditDb) => {
+      ensureDbShape(auditDb);
+      addAuditLog(auditDb, buildAdminAuditActor(req), "admin.hash_rebuild", "system", "patient_hashes", {
+        outcome: "success",
+        ...result
+      });
+    });
+
+    return res.json({ ok: true, ...result });
+  } catch (err) {
+    if (err.code === "REBUILD_IN_PROGRESS") {
+      return res.status(409).json({ error: err.message });
+    }
+    return res.status(500).json({ error: err.message });
+  }
 });
 
 export default router;

@@ -116,13 +116,14 @@ const TaskPatchSchema = z.object({
   notes: optionalShortString(4000)
 });
 
+// D-02: .strict() rejects unknown keys to prevent mass-assignment on appointments
 const AppointmentCreateSchema = z.object({
   date: z.string().trim().min(1).max(50),
   summary: z.string().trim().min(1).max(10000),
   demandType: optionalShortString(40),
   conduct: optionalShortString(4000),
   nextStep: optionalShortString(4000)
-});
+}).strict();
 
 const AgendaCreateSchema = z.object({
   patientId: z.string().trim().min(1).max(100),
@@ -143,6 +144,7 @@ const AgendaPatchSchema = z.object({
   status: z.enum(["scheduled", "arrived", "attending", "done", "absent"]).optional()
 });
 
+// D-02: .strict() rejects unknown keys to prevent mass-assignment on referrals
 const ReferralCreateSchema = z.object({
   patientId: z.string().trim().min(1).max(100),
   specialty: z.string().trim().min(1).max(120),
@@ -151,7 +153,7 @@ const ReferralCreateSchema = z.object({
   date: z.string().trim().min(1).max(50),
   notes: optionalShortString(4000),
   status: z.enum(["pending", "regulated", "scheduled", "done", "cancelled"]).optional()
-});
+}).strict();
 
 const ReferralPatchSchema = z.object({
   specialty: z.string().trim().min(1).max(120).optional(),
