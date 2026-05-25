@@ -267,7 +267,7 @@ function getAuditReport(db, types, filters = {}) {
   const { since, until, limit = 500, unitId } = filters;
 
   const logs = Array.isArray(db.auditLogs) ? db.auditLogs : [];
-  const results = [];
+  const filtered = [];
 
   for (const entry of logs) {
     if (!typeSet.has(entry.action)) continue;
@@ -275,11 +275,15 @@ function getAuditReport(db, types, filters = {}) {
     if (until && String(entry.createdAt || "") > until) continue;
     // Multi-UBS isolation: if unitId filter provided, only include entries for that unit
     if (unitId && entry.details?.unitId && entry.details.unitId !== unitId) continue;
-    results.push(entry);
-    if (results.length >= limit) break;
+    filtered.push(entry);
   }
 
-  return results;
+  // S4-03: Sort by createdAt descending (most recent first) before applying limit.
+  // In file-mode, logs are appended in insertion order which may not match
+  // createdAt ordering after eviction/replay. Postgres path uses SQL ORDER BY.
+  filtered.sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+
+  return filtered.slice(0, limit);
 }
 
 export { hashAuditPayload, getLastAuditHash, addAuditLog, classifyAuditAction, verifyAuditLogChain, getAuditReport };
