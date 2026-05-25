@@ -76,8 +76,45 @@ Use `eb printenv` or AWS Console → Configuration → Software.
 - [ ] dr-drill-report-[date].md exists and shows PASSED
 - [ ] Drill date ≤ 14 days before this deploy
 
+## EB CLI Verification
+
+Run these commands before opening the deploy window. Record outputs.
+
+- [ ] `eb status` returns correct app name and environment:
+  ```
+  Application Name: [expected app name]
+  Environment Name: [expected env name]
+  Environment ID:   [id]
+  Platform:         Node.js [version]
+  Tier:             WebServer-Standard-1.0
+  CNAME:            [url].elasticbeanstalk.com
+  Updated:          [date]
+  Status:           Ready
+  Health:           Green
+  ```
+  Actual output: [fill — paste status line or "App=[name], Env=[name], Status=Ready"]
+
+- [ ] `eb use [env-name]` correct environment selected (if multiple envs exist):
+  ```bash
+  eb use [env-name]
+  ```
+  Confirmed: [YES / N/A — only one environment]
+
+- [ ] Rollback version confirmed: `eb appversion` lists v1.0-pilot-governed:
+  ```bash
+  eb appversion
+  ```
+  Output includes v1.0-pilot-governed: [YES / NO]
+
+- [ ] AWS profile confirmed correct: `aws sts get-caller-identity`:
+  ```bash
+  aws sts get-caller-identity --query 'Account'
+  ```
+  Account ID matches expected: [YES / NO — record last 4 digits only: XXXX]
+
 ## Sign-off
 
 All validations passed: YES / NO
+EB CLI verified (see EB CLI Verification section): YES / NO
 Signed by Tech Lead: _________________________ Date: _______
 Approved for deploy: YES / NO

@@ -13,6 +13,10 @@
 - [ ] EB instances: minimum 1, recommended 2 (for rolling deploy safety)
 - [ ] EB health check URL: /readyz (not /health)
 - [ ] EB health check interval: 30s, unhealthy threshold: 3
+- [ ] EB CLI configured and verified: `eb status` returns correct app name and environment name
+- [ ] EB app version list confirmed: `eb appversion` lists v1.0-pilot-governed
+- [ ] break_glass_admin account created and credentials stored in secure vault
+- [ ] security_auditor account created
 
 ## Environment Variables (EB Configuration)
 
