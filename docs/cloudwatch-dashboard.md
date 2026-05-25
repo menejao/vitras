@@ -235,3 +235,85 @@ aws logs put-metric-filter \
 - `docs/disaster-recovery.md` — RTO/RPO e drill schedule
 - `docs/operational-resilience.md` — circuit breaker, degraded mode
 - `docs/runbooks/observability.md` — configuração existente
+
+---
+
+## Alarm Runbook Reference
+
+For each alarm, list: what it means, immediate action, escalation path.
+
+### startup.failed / migrations.failed_fatal
+**What:** EB instance failed to start or migrations did not complete.
+**Immediate action:**
+1. Check EB instance logs (/var/log/web.stdout.log or EB console)
+2. Look for `logLevel: "error"` entries with `event: "migrations.failed_fatal"`
+3. Verify `schema_migrations` table in RDS has 008 rows
+4. If migration missing: run migration manually or re-deploy
+5. If DB unreachable: check RDS status, security groups, VPC
+**Escalation:** Technical Lead immediately — treat as P0
+
+### 5xx Spike (>10 in 5min)
+**What:** Application errors affecting users.
+**Immediate action:**
+1. Check `GET /health` — is it degraded?
+2. Check CloudWatch Insights: `fields @message | filter status_code >= 500 | sort @timestamp desc | limit 20`
+3. Identify which endpoint is failing
+4. Check for recent deploy — rollback if correlated
+**Escalation:** P1 if <30% of requests affected; P0 if >30%
+
+### auth_failure Spike (>20 in 5min)
+**What:** Possible brute-force attempt or misconfigured client.
+**Immediate action:**
+1. Check `GET /admin/governance/reports/auth-failures` (security_auditor)
+2. Identify source pattern (masked identifiers in logs)
+3. If brute-force: review Upstash rate limit logs for block confirmations
+4. If rate limit not blocking: verify Upstash config and circuit breaker state
+**Escalation:** Security auditor + Technical Lead
+
+### circuit_breaker_opened / redis_unavailable
+**What:** Upstash/Redis unavailable. Rate limiting in fail-closed mode — all requests return 503.
+**Immediate action:**
+1. Check Upstash dashboard for outage
+2. If Upstash outage: wait for recovery (circuit breaker auto-recovers in HALF_OPEN after cooldown)
+3. Monitor `GET /health` for redis subsystem status
+4. If extended outage (>1 hour): consider disabling Upstash rate limit temporarily (requires code change + deploy)
+**User impact:** ALL user requests return 503 (except /health, /readyz) while circuit is OPEN
+**Escalation:** P0 if user impact >15 minutes
+
+### degraded_mode
+**What:** System entered degraded mode due to non-fatal error.
+**Immediate action:**
+1. Check `GET /health` — look at `degradedReason` field
+2. Identify root cause from CloudWatch logs
+3. If root cause resolved: `POST /admin/system/clear-degraded` (break_glass_admin or security_auditor)
+4. If root cause unresolved: restart EB instance
+**Note:** Degraded mode does not mean outage. System continues to serve requests.
+**Escalation:** P2 unless degraded reason is database-related (P1)
+
+### deadlock_retry Spike (>5 in 5min)
+**What:** Postgres deadlocks accumulating. Normal under heavy concurrent writes, but spikes indicate contention.
+**Immediate action:**
+1. Check current concurrent users / request rate
+2. Look for long-running transactions in RDS Performance Insights
+3. If RDS CPU >80%: consider scaling instance type
+4. If concentrated in specific operation: investigate `withDb` mutation size and locking order
+**Escalation:** P2 unless deadlocks are causing visible failures (P1)
+
+### backup.health_warning
+**What:** RDS automated backups appear disabled.
+**Immediate action:**
+1. Log into AWS Console > RDS > Your instance > Maintenance & backups
+2. Enable automated backups (minimum 7-day retention)
+3. Verify backup window does not conflict with peak usage hours
+4. Confirm at least one recent backup exists in the backup list
+**Escalation:** Ops team within 24h — data loss risk until resolved
+
+### audit_chain_failure
+**What:** Audit chain integrity check detected broken or orphaned entries.
+**Immediate action:**
+1. This is a potential data integrity or tampering event
+2. Treat as P0 immediately
+3. Do not clear or modify audit logs
+4. Technical Lead begins forensic investigation
+5. Notify DPO if tampering is suspected
+**Escalation:** P0 — forensic investigation required before any other action
