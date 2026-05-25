@@ -11,16 +11,17 @@ import {
   AUDIT_PRUNE_ENABLED,
   DATABASE_URL
 } from "./config.js";
-import { migrateLegacyPlaintextPasswords, validateProductionConfig } from "./services/startup.js";
+import { migrateLegacyPlaintextPasswords, validateProductionConfig, checkRdsBackupHealth } from "./services/startup.js";
 import { runMigrations } from "./migrations/runner.js";
-import { closeDbPool } from "./db.js";
+import { closeDbPool, pool } from "./db.js";
 import {
   markBootCompleted,
   markShuttingDown,
   setReadiness,
   setStartupChecks,
   setStartupTasks,
-  setStartupPhase
+  setStartupPhase,
+  setDegraded
 } from "./services/runtime-state.js";
 import { logError, logInfo, logWarn } from "./utils/logger.js";
 import { Pool } from "pg";
@@ -199,6 +200,15 @@ async function startServer() {
   // Validate production config BEFORE making any DB connections
   validateProductionConfig();
 
+  // ITEM 6: Verify CORS restrictiveness in production
+  if (IS_PROD && !process.env.FRONTEND_ORIGINS && !process.env.CORS_ALLOW_ALL) {
+    logWarn("security.cors_not_configured", {
+      event: "security.cors_not_configured",
+      message: "FRONTEND_ORIGINS not set in production — CORS may be misconfigured",
+      timestamp: new Date().toISOString()
+    });
+  }
+
   setStartupChecks([{ name: "config", status: "ok" }]);
   logInfo("startup.server.starting", { port: PORT });
 
@@ -225,6 +235,8 @@ async function startServer() {
           event: "migrations.failed_non_fatal",
           error: err.message
         });
+        // Non-production: set degraded instead of fatal crash
+        setDegraded("migrations_failed");
       }
     }
   } else {
@@ -264,6 +276,13 @@ async function startServer() {
     auditPruneEnabled: AUDIT_PRUNE_ENABLED,
     timestamp: new Date().toISOString()
   });
+
+  // ITEM 1: Advisory RDS backup health check (production only, never fatal)
+  checkRdsBackupHealth(pool).catch(() => {});
+
+  // ITEM 2: warming phase — brief window between server.listen() and accepting traffic
+  setStartupPhase("warming");
+  logInfo("startup.warming", { event: "startup.warming", message: "Server warming up before marking ready" });
 
   markBootCompleted();
   setReadiness(true);

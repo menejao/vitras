@@ -12,6 +12,7 @@ import {
 import { withDb } from "../db.js";
 import { ensureDbShape } from "../utils/domain.js";
 import { hashPassword, isHashedPassword } from "./crypto.js";
+import { logInfo, logWarn } from "../utils/logger.js";
 
 async function migrateLegacyPlaintextPasswords() {
   await withDb((db) => {
@@ -165,4 +166,46 @@ function validateProductionConfig() {
   }
 }
 
-export { migrateLegacyPlaintextPasswords, ensureDemoManagerIfNeeded, validateProductionConfig };
+/**
+ * ITEM 1 — Advisory check for RDS automated backup status.
+ * Only runs in production with Postgres. Never fatal — advisory only.
+ * Emits backup.health_warning if backups appear disabled.
+ * Always emits backup.restore_test_required to prompt operators.
+ */
+async function checkRdsBackupHealth(pool) {
+  if (!IS_PROD) return;
+
+  // Always emit reminder for operators to update last_tested date
+  logInfo("backup.restore_test_required", {
+    event: "backup.restore_test_required",
+    message: "Quarterly restore drill required. Update last_tested after completing drill.",
+    last_tested: "unknown",
+    drill_doc: "docs/runbooks/backup-restore-runbook.md",
+    timestamp: new Date().toISOString()
+  });
+
+  if (!pool) return; // file-mode: skip postgres query
+
+  let client;
+  try {
+    client = await pool.connect();
+    const result = await client.query("SHOW rds.automated_backups_enabled");
+    const value = result.rows[0]?.["rds.automated_backups_enabled"];
+    if (value === "off") {
+      logWarn("backup.health_warning", {
+        event: "backup.health_warning",
+        message: "RDS automated backups appear disabled",
+        parameter: "rds.automated_backups_enabled",
+        value,
+        action_required: "Enable automated backups via RDS console: minimum 7 days retention",
+        timestamp: new Date().toISOString()
+      });
+    }
+  } catch (_err) {
+    // Advisory only — parameter may not exist on non-RDS Postgres; silently ignore
+  } finally {
+    client?.release();
+  }
+}
+
+export { migrateLegacyPlaintextPasswords, ensureDemoManagerIfNeeded, validateProductionConfig, checkRdsBackupHealth };
