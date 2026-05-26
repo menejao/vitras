@@ -1,10 +1,10 @@
 # GO FINAL — Relatório de Prontidão UBS #1
 
-**Data:** 2026-05-26 (atualizado 2026-05-26 pós BT-01/BT-02)  
+**Data:** 2026-05-26 (atualizado 2026-05-26 pós BT-01/BT-02 + BO-01–04)  
 **Autor:** João Pedro (Tech Lead)  
 **Ambiente verificado:** vitras-drill-sa-3 (sa-east-1)  
 **Branch:** release/pilot-baseline  
-**Commits verificados:** c605119 (SSL fix) + 8ab586e (runbooks) + b5d74db (este relatório) → HEAD atual  
+**Commits verificados:** c605119 (SSL fix) + 8ab586e (runbooks) + b5d74db (relatório v1) + d8caa4a (BT-01/BT-02) → HEAD atual  
 **Supersede parcial:** `ubs-001-final-go-no-go.md` (atualiza estado vivo; mantém como referência de código)
 
 ---
@@ -118,41 +118,38 @@ Estes itens não dependem de código ou infra — dependem de coordenação huma
 
 ### BO-01: `contatos.md` com placeholders não preenchidos
 
-**Estado:** Todos os campos `[nome]`, `[contato]`, `[e-mail/telefone]` da UBS e do time AWS estão em branco.  
-**Requerido:** Nome real, telefone celular com DDD, e-mail de cada: Coordenador UBS, Médico responsável, Enfermeiro chefe, ACS de referência, Responsável TI prefeitura, DPO.  
-**Por quê bloqueia:** Sem contatos, incidente P0 às 21h = coordenação por memória = falha humana.  
-**Responsável:** João Pedro (time Vitras) + Coordenador UBS.
+**Estado:** Documento reestruturado em 2026-05-26 com seções claras por função (Vitras, UBS, DPO, AWS, escalation).  
+**Pendente (humano):** Coordenador UBS, Médico, Enfermeiro, ACS, TI Prefeitura, DPO — dados reais ainda ausentes.  
+**Responsável:** João Pedro (Seções A e D) + Coordenador UBS (Seções B e C).  
+**Prazo:** T-7 (antes do go-live). Usar o arquivo reestruturado: `contatos.md`.
 
 ---
 
 ### BO-02: `aceite-operacional.md` não assinado
 
-**Estado:** Documento existe, critérios de aceite definidos, campos de assinatura em branco.  
-**Requerido:**
-- UBS Coordinator: nome, assinatura, data
-- Médico responsável: nome, CRM, assinatura, data
-- Tech Lead (João Pedro): assinatura, data
-
-**Por quê bloqueia:** Sem aceite formal, deploy coloca responsabilidade civil ambígua. CFM exige responsabilidade médica documentada para prontuário eletrônico.  
-**Responsável:** UBS Coordinator + Médico responsável (assinaturas deles não podem ser geradas por sistema).
+**Estado:** Documento reestruturado em 2026-05-26 com critérios objetivos verificáveis (Seção A técnica + Seção B operacional) e registro formal de riscos aceitos (Seção C).  
+**Pendente (humano):** Assinaturas de UBS Coordinator, Médico responsável (CRM obrigatório), Tech Lead.  
+**Por quê bloqueia:** Responsabilidade civil e CFM exigem assinatura médica para prontuário eletrônico.  
+**Responsável:** UBS Coordinator + Médico (assinaturas não podem ser geradas por sistema).  
+**Documento atualizado:** `aceite-operacional.md`.
 
 ---
 
 ### BO-03: Tabletop exercise não executado com equipe
 
-**Estado:** Template criado e validado (`tabletop-exercise-report.md`, `tabletop-final-report.md`). Sessão com equipe não ocorreu.  
-**Requerido:** Sessão de ~2h com: João Pedro + Coordenador UBS + representante TI Prefeitura. Score mínimo 3/5.  
-**Por quê bloqueia:** Equipe da UBS não sabe o que fazer em incidente. Gap 3 (Redis outage → papel) e Gap 4 (LGPD erasure request) não foram praticados.  
-**Responsável:** João Pedro (agenda + facilitação).
+**Estado:** Agenda de execução criada em 2026-05-26 (`bo-03-tabletop-agenda.md`). 5 cenários estruturados em 2h: 503 geral, sistema irresponsivo, usuário sem acesso, paciente duplicado, suspeita LGPD, rollback de emergência.  
+**Pendente (humano):** Executar sessão com equipe. Score mínimo 3/5 em cada cenário.  
+**Responsável:** João Pedro (conductor) + Coordenador UBS + TI Prefeitura.  
+**Documento:** `bo-03-tabletop-agenda.md` (agenda condensada) + `tabletop-final-report.md` (registro de scores).
 
 ---
 
 ### BO-04: DR drill formal não executado contra staging
 
-**Estado:** Templates completos, procedimento documentado. Drill real contra vitras-staging com PITR não foi executado.  
-**Requerido:** Drill completo: snapshot → PITR → restore → validação contagem de pacientes → RTO ≤ 240 min confirmado.  
-**Por quê bloqueia:** RPO/RTO são suposição, não medido. Discovery de erros de restore só ocorre em drill.  
-**Responsável:** João Pedro. Estimativa: 2–4h em vitras-staging.
+**Estado:** Plano de execução step-by-step criado em 2026-05-26 (`bo-04-dr-drill-execution.md`). 10 passos: baseline → snapshot → restore → validação de dados → /readyz → RTO/RPO → cleanup.  
+**Pendente (humano/técnico):** Executar contra vitras-staging. RTO ≤ 240 min obrigatório.  
+**Responsável:** João Pedro. Estimativa: 2–4h (dominada pelo tempo de restore RDS).  
+**Documento:** `bo-04-dr-drill-execution.md` (checklist de execução) + `dr-drill-final-report.md` (registro completo).
 
 ---
 
@@ -266,10 +263,10 @@ curl -X PATCH https://[url]/me/password \
 
 ### Bloqueadores operacionais humanos (requerem coordenação)
 
-- [ ] **BO-01:** `contatos.md` preenchido — todos placeholders substituídos por dados reais
-- [ ] **BO-02:** `aceite-operacional.md` assinado — UBS Coordinator + Médico responsável + Tech Lead
-- [ ] **BO-03:** Tabletop executado — score ≥ 3/5 documentado em `tabletop-exercise-report.md`
-- [ ] **BO-04:** DR drill executado contra staging — RTO ≤ 240 min, `dr-drill-final-report.md` assinado
+- [ ] **BO-01:** `contatos.md` preenchido — usar doc reestruturado (Seções A–F), todos os dados reais inseridos
+- [ ] **BO-02:** `aceite-operacional.md` assinado — UBS Coordinator + Médico (CRM) + Tech Lead; critérios objetivos A-01..B-10 verificados
+- [ ] **BO-03:** Tabletop executado — usar `bo-03-tabletop-agenda.md`; score ≥ 3/5 em cada cenário; registrado em `tabletop-final-report.md`
+- [ ] **BO-04:** DR drill executado — usar `bo-04-dr-drill-execution.md`; RTO ≤ 240 min; registrado em `dr-drill-final-report.md`
 
 ### Antes de T-0 (não bloqueiam GO-CONDICIONADO mas devem anteceder deploy real)
 
