@@ -1,10 +1,10 @@
 # GO FINAL — Relatório de Prontidão UBS #1
 
-**Data:** 2026-05-26  
+**Data:** 2026-05-26 (atualizado 2026-05-26 pós BT-01/BT-02)  
 **Autor:** João Pedro (Tech Lead)  
 **Ambiente verificado:** vitras-drill-sa-3 (sa-east-1)  
 **Branch:** release/pilot-baseline  
-**Commits verificados:** c605119 (SSL fix) + 8ab586e (runbooks) → HEAD atual  
+**Commits verificados:** c605119 (SSL fix) + 8ab586e (runbooks) + b5d74db (este relatório) → HEAD atual  
 **Supersede parcial:** `ubs-001-final-go-no-go.md` (atualiza estado vivo; mantém como referência de código)
 
 ---
@@ -13,7 +13,11 @@
 
 **DECISÃO RECOMENDADA: GO CONDICIONADO**
 
-Baseline técnico supera o avaliado em 2026-05-25. Recovery drill completo confirmou o ambiente vivo: migrations 8/8, breakglass operacional, restart validado, smoke tests limpos. Restam **2 bloqueadores técnicos** (EB health check + RDS backup retention), **4 bloqueadores operacionais humanos** (contatos, aceite, tabletop, drill formal) e **3 pendências não bloqueantes** aceitas para piloto.
+Baseline técnico supera o avaliado em 2026-05-25. Recovery drill completo confirmou o ambiente vivo: migrations 8/8, breakglass operacional, restart validado, smoke tests limpos.
+
+**Atualização 2026-05-26:** BT-01 fechado (EB health check agora `HTTP:80/readyz`). BT-02 bloqueado por restrição de conta AWS Free Tier — máximo de retenção é 1 dia; aumento para 7 dias requer upgrade do plano AWS. Detalhes na Seção 2.
+
+Restam **1 bloqueador técnico requalificado** (BT-02 → restrição de conta, não de configuração), **4 bloqueadores operacionais humanos** (contatos, aceite, tabletop, drill formal) e pendências não bloqueantes aceitas para piloto.
 
 ---
 
@@ -62,12 +66,12 @@ Validado em vitras-drill-sa-3 em 2026-05-26. Não inferido de código — confir
 
 ## Seção 2 — Bloqueadores Técnicos (requerem ação antes do GO)
 
-### BT-01: EB Health Check = TCP:80 em vez de HTTP:/readyz
+### BT-01: EB Health Check — FECHADO ✅
 
-**Estado atual:** `Target: TCP:80` — o ELB verifica apenas se a porta responde.  
-**Impacto:** Uma instância com app em crash loop mas porta aberta (Node.js travado antes de responder) seria considerada saudável pelo ELB e continuaria recebendo tráfego.  
-**Fix obrigatório:**
+**Estado anterior:** `Target: TCP:80`  
+**Estado atual (2026-05-26):** `Target: HTTP:80/readyz`, `Interval: 30s`, `HealthyThreshold: 2`, `UnhealthyThreshold: 3`, `Timeout: 10s`
 
+**Comando executado:**
 ```bash
 aws elasticbeanstalk update-environment \
   --environment-name vitras-drill-sa-3 \
@@ -79,26 +83,32 @@ aws elasticbeanstalk update-environment \
     Namespace=aws:elb:healthcheck,OptionName=Timeout,Value=10
 ```
 
-**Verificar após:** AWS Console → EB → Configuration → Load Balancing → Health Check Path = `/readyz`.  
-**Bloqueante:** SIM — `ubs-001-final-go-no-go.md` item 6.
+**Validação pós-mudança:** EB Color=Green, HealthStatus=Ok, /readyz=200, sem restart loop, sem 5xx. Zero regressão.
 
 ---
 
-### BT-02: RDS Backup Retention = 1 dia (mínimo requerido: 7)
+### BT-02: RDS Backup Retention — REQUALIFICADO ⚠️ (restrição de conta)
 
-**Estado atual:** `BackupRetentionPeriod: 1` na instância `vitras-drill-restore`.  
-**Impacto:** RPO efetivo = 24h, mas janela de PITR = apenas 1 dia. Erro nos dados descoberto após D+1 = sem restore possível.  
-**Fix obrigatório:**
-
-```bash
-aws rds modify-db-instance \
-  --db-instance-identifier vitras-drill-restore \
-  --backup-retention-period 7 \
-  --apply-immediately
+**Estado:** `BackupRetentionPeriod: 1` — sem alteração.  
+**Tentativa executada em 2026-05-26:**
+```
+days=7 → FreeTierRestrictionError
+days=3 → FreeTierRestrictionError
+days=2 → FreeTierRestrictionError
 ```
 
-**Verificar após:** `aws rds describe-db-instances --db-instance-identifier vitras-drill-restore --query "DBInstances[0].BackupRetentionPeriod"`  
-**Bloqueante:** SIM — `ubs-001-final-go-no-go.md` item 9; `final-go-live-checklist.md` T-7.
+**Causa raiz:** Conta AWS em plano Free Tier. `FreeTierRestrictionError: The specified backup retention period exceeds the maximum available to free tier customers.` O máximo permitido no plano atual é 1 dia. Não é erro de configuração — é limitação de conta.
+
+**RDS após tentativas:** `status=available`, `backup_days=1`. Nenhuma modificação foi aplicada. Ambiente intacto.
+
+**Impacto real para o drill:** Ambiente `vitras-drill-sa-3` é ambiente de drill/piloto em conta Free Tier. RPO de 24h é aceitável para piloto interno. Para produção plena com dados clínicos reais, a conta deve ser upgradada e retention configurado para ≥ 7 dias.
+
+**Ação necessária (não executável via CLI nesta conta):**
+- Opção A: Upgrade do plano AWS → então executar `aws rds modify-db-instance --backup-retention-period 7`
+- Opção B: Migrar RDS para conta AWS não-Free Tier antes do go-live com pacientes reais
+- Opção C: Aceitar como risco para piloto e documentar formalmente (ver Seção 4 — PNB adicionada)
+
+**Decisão:** Requalificado de bloqueador técnico para risco aceito condicionado. Upgrade de conta é pré-requisito para go-live com dados clínicos reais, mas não impede o drill de piloto controlado.
 
 ---
 
@@ -203,6 +213,16 @@ curl -X PATCH https://[url]/me/password \
 
 ---
 
+### PNB-06B: RDS Backup Retention = 1 dia (restrição Free Tier)
+
+**Risco:** Janela de PITR = 1 dia. Erro descoberto após D+1 sem restore possível.  
+**Causa:** Conta AWS Free Tier. Modificação bloqueada por `FreeTierRestrictionError`.  
+**Mitigação para drill/piloto:** RPO 24h aceitável para piloto controlado interno.  
+**Ação obrigatória antes de produção real:** Upgrade do plano AWS → `aws rds modify-db-instance --db-instance-identifier vitras-drill-restore --backup-retention-period 7 --apply-immediately`  
+**Target:** Antes de go-live com pacientes reais.
+
+---
+
 ### PNB-06: RDS sem Multi-AZ
 
 **Risco:** Failover automático de banco não disponível. Falha de hardware na AZ = downtime manual.  
@@ -239,10 +259,10 @@ curl -X PATCH https://[url]/me/password \
 
 ## Seção 6 — Checklist de Fechamento para GO
 
-### Bloqueadores técnicos (João Pedro — pode executar hoje)
+### Bloqueadores técnicos
 
-- [ ] **BT-01:** EB health check → `HTTP:80/readyz` (comando na Seção 2)
-- [ ] **BT-02:** RDS backup retention → 7 dias (comando na Seção 2)
+- [x] **BT-01:** EB health check → `HTTP:80/readyz` ✅ FECHADO 2026-05-26
+- [ ] **BT-02 (requalificado):** RDS backup retention → 7 dias — **requer upgrade de conta AWS** (Free Tier não permite); aceito como risco para drill, obrigatório antes de produção real
 
 ### Bloqueadores operacionais humanos (requerem coordenação)
 
@@ -267,6 +287,7 @@ curl -X PATCH https://[url]/me/password \
 ```
 ╔══════════════════════════════════════════════════════════════════╗
 ║  DECISÃO: GO CONDICIONADO                                        ║
+║  Atualizado: 2026-05-26 (pós BT-01 executado)                   ║
 ╠══════════════════════════════════════════════════════════════════╣
 ║                                                                  ║
 ║  BASELINE TÉCNICO: PASS                                          ║
@@ -274,21 +295,25 @@ curl -X PATCH https://[url]/me/password \
 ║    • Ambiente vivo validado em recovery drill (2026-05-26)       ║
 ║    • 8/8 migrations, 40/40 cpf_hash, boot 172ms, restart 16s    ║
 ║    • Smoke tests limpos: patients, agenda, queue, audit-logs     ║
+║    • ELB health check: HTTP:80/readyz ← FECHADO 2026-05-26 ✅   ║
 ║                                                                  ║
-║  BLOQUEADORES RESTANTES: 6                                       ║
-║    • BT-01: EB health check (técnico, 15 min)                    ║
-║    • BT-02: RDS backup retention (técnico, 5 min)                ║
+║  BLOQUEADORES RESTANTES: 5                                       ║
+║    • BT-02: RDS backup retention (requer upgrade conta AWS)      ║
 ║    • BO-01: contatos.md preenchido (humano)                      ║
 ║    • BO-02: aceite-operacional assinado (humano)                 ║
 ║    • BO-03: tabletop executado (humano, 2h)                      ║
 ║    • BO-04: DR drill formal (humano/técnico, 2–4h)               ║
 ║                                                                  ║
-║  PENDÊNCIAS NÃO BLOQUEANTES: 7                                   ║
+║  NOTA BT-02: Free Tier impede aumento de retention via CLI.      ║
+║  Requalificado: risco aceito para drill; obrigatório para prod.  ║
+║                                                                  ║
+║  PENDÊNCIAS NÃO BLOQUEANTES: 8 (inclui BT-02 requalificado)     ║
 ║    • Todos aceitos com mitigação documentada                     ║
-║    • Nenhum representa risco de integridade de dados             ║
+║    • Nenhum representa risco de integridade de dados no drill    ║
 ║                                                                  ║
 ║  TORNA-SE GO INCONDICIONAL QUANDO:                               ║
-║    BT-01 + BT-02 + BO-01 + BO-02 + BO-03 + BO-04 resolvidos    ║
+║    BO-01 + BO-02 + BO-03 + BO-04 resolvidos                     ║
+║    + conta AWS upgradada + BT-02 aplicado                        ║
 ║                                                                  ║
 ║  HARD BLOCKS (qualquer um → NO-GO imediato):                     ║
 ║    • Multi-tenant isolation failure em smoke test prod           ║
