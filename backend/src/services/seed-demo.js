@@ -2,11 +2,13 @@ import { withDb } from "../db.js";
 import { ensureDbShape } from "../utils/domain.js";
 import { hashPassword } from "./crypto.js";
 import { backfillFamilyGroups } from "../utils/family-groups.js";
-import { logInfo } from "../utils/logger.js";
+import { logInfo, logWarn } from "../utils/logger.js";
 
 const TEAM_ID = "team-rosa";
 const TEAM_NAME = "Equipe Rosa";
-const JOAO_ID = "seed-user-joao";
+const BREAKGLASS_ID = "seed-user-joao";
+const BREAKGLASS_NAME = "Break Glass Admin";
+const BREAKGLASS_EMAIL = "breakglass@vitras.com.br";
 const DRA_ID = "seed-user-dra";
 const ACS_ID = "seed-user-acs";
 const ENF_ID = "seed-user-enf";
@@ -18,6 +20,54 @@ function upsert(arr, item) {
 }
 
 function hasId(arr, id) { return arr.some((x) => x.id === id); }
+
+// Break glass admin is an operational emergency account, not a demo user.
+// Never overwrite a hardened password or identity — only update safe operational fields.
+function upsertBreakGlassUser(db) {
+  const idx = db.users.findIndex((u) => u.id === BREAKGLASS_ID);
+  if (idx >= 0) {
+    db.users[idx] = {
+      ...db.users[idx],
+      name: BREAKGLASS_NAME,
+      email: BREAKGLASS_EMAIL,
+      role: "break_glass_admin",
+      teamId: TEAM_ID,
+      teamName: TEAM_NAME,
+    };
+    return;
+  }
+
+  const envHash = process.env.BREAKGLASS_PASSWORD_HASH;
+  if (!envHash) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error(
+        "SEED_DEMO: BREAKGLASS_PASSWORD_HASH not set — refusing to create break_glass_admin with a weak default in production"
+      );
+    }
+    logWarn("seed_demo_breakglass_dev_fallback", {
+      event: "seed_demo_breakglass_dev_fallback",
+      message: "BREAKGLASS_PASSWORD_HASH not set — using Demo@2026 fallback (dev/test only, never use in production)"
+    });
+  }
+
+  const baseFields = {
+    councilType: "", councilNumber: "", councilUf: "",
+    twoFactorEnabled: false, twoFactorSecret: "",
+    twoFactorPendingSecret: "", twoFactorPendingCreatedAt: "",
+    lastLoginAt: "", lastSeenAt: "", lastSeenIp: "",
+    createdAt: tsAgo(180), updatedAt: NOW,
+  };
+  db.users.push({
+    ...baseFields,
+    id: BREAKGLASS_ID,
+    name: BREAKGLASS_NAME,
+    email: BREAKGLASS_EMAIL,
+    role: "break_glass_admin",
+    teamId: TEAM_ID,
+    teamName: TEAM_NAME,
+    password: envHash || hashPassword("Demo@2026"),
+  });
+}
 
 function dAgo(n) {
   const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10);
@@ -155,9 +205,9 @@ function buildPatient(def, careCategory) {
     medications: "",
     allergies: "",
     createdAt: tsAgo(180),
-    createdBy: JOAO_ID,
+    createdBy: BREAKGLASS_ID,
     updatedAt: tsAgo(30),
-    updatedBy: JOAO_ID,
+    updatedBy: BREAKGLASS_ID,
   };
 
   if (def.weeksGest != null) {
@@ -203,7 +253,7 @@ export async function seedDemoTeamRosa() {
 
     // ── Team ──────────────────────────────────────────────────────────────
     if (!db.teams.some((t) => t.id === TEAM_ID)) {
-      db.teams.push({ id: TEAM_ID, name: TEAM_NAME, managerUserId: JOAO_ID, createdAt: NOW });
+      db.teams.push({ id: TEAM_ID, name: TEAM_NAME, managerUserId: BREAKGLASS_ID, createdAt: NOW });
     }
 
     // ── Users ─────────────────────────────────────────────────────────────
@@ -215,7 +265,7 @@ export async function seedDemoTeamRosa() {
       createdAt: tsAgo(180), updatedAt: NOW,
     };
 
-    upsert(db.users, { ...baseUser, id: JOAO_ID, name: "João Dev",          email: "joao@vitras.com.br",        role: "break_glass_admin", teamId: TEAM_ID, teamName: TEAM_NAME, password: hashPassword("Demo@2026") });
+    upsertBreakGlassUser(db);
     upsert(db.users, { ...baseUser, id: DRA_ID,  name: "Dra. Maria Rosa",   email: "dra.rosa@vitras.com.br",    role: "doctor",            teamId: TEAM_ID, teamName: TEAM_NAME, password: hashPassword("Demo@2026"), councilType: "CRM",   councilNumber: "88001", councilUf: "SP" });
     upsert(db.users, { ...baseUser, id: ACS_ID,  name: "Lucas ACS",         email: "lucas.acs@vitras.com.br",   role: "acs",               teamId: TEAM_ID, teamName: TEAM_NAME, password: hashPassword("Demo@2026") });
     upsert(db.users, { ...baseUser, id: ENF_ID,  name: "Enf. Patrícia Lima",email: "patricia.enf@vitras.com.br",role: "nurse_manager",     teamId: TEAM_ID, teamName: TEAM_NAME, password: hashPassword("Demo@2026"), councilType: "COREN", councilNumber: "12345", councilUf: "SP" });
@@ -568,7 +618,7 @@ export async function seedDemoTeamRosa() {
         notes: "Paciente aguarda aprovação do encaminhamento. Ligar para confirmar quando disponível.",
         status: "pending",
         dueDate: dAhead(14),
-        createdBy: JOAO_ID,
+        createdBy: BREAKGLASS_ID,
         createdAt: tsAgo(29),
         updatedAt: tsAgo(29),
       });
@@ -708,9 +758,9 @@ export async function seedDemoTeamRosa() {
           minQty: item.minQty,
           location: item.location,
           createdAt: tsAgo(60),
-          createdBy: JOAO_ID,
+          createdBy: BREAKGLASS_ID,
           updatedAt: tsAgo(7),
-          updatedBy: JOAO_ID,
+          updatedBy: BREAKGLASS_ID,
         });
       }
     }
@@ -723,7 +773,7 @@ export async function seedDemoTeamRosa() {
     ];
     for (const log of pharmaLogs) {
       if (!hasId(db.pharmacyLogs, log.id)) {
-        db.pharmacyLogs.unshift({ ...log, teamId: TEAM_ID, pharma: "João Dev", pharmaId: JOAO_ID, dtReceita: dAgo(12) });
+        db.pharmacyLogs.unshift({ ...log, teamId: TEAM_ID, pharma: BREAKGLASS_NAME, pharmaId: BREAKGLASS_ID, dtReceita: dAgo(12) });
       }
     }
 
@@ -740,9 +790,9 @@ export async function seedDemoTeamRosa() {
           qty: item.qty,
           notes: "",
           createdAt: tsAgo(60),
-          createdBy: JOAO_ID,
+          createdBy: BREAKGLASS_ID,
           updatedAt: tsAgo(7),
-          updatedBy: JOAO_ID,
+          updatedBy: BREAKGLASS_ID,
         });
       }
     }
@@ -757,8 +807,8 @@ export async function seedDemoTeamRosa() {
         db.suppliesLogs.unshift({
           ...log,
           ts: `${log.date}T14:00:00.000Z`,
-          professionalId: JOAO_ID,
-          professionalName: "João Dev",
+          professionalId: BREAKGLASS_ID,
+          professionalName: BREAKGLASS_NAME,
           professionalRole: "break_glass_admin",
           teamId: TEAM_ID,
         });
@@ -773,7 +823,7 @@ export async function seedDemoTeamRosa() {
         patientName: "João Carlos Oliveira Santos",
         teamId: TEAM_ID,
         items: [{ id: "i41", qty: 30 }, { id: "i42", qty: 30 }],
-        profissional: "João Dev",
+        profissional: BREAKGLASS_NAME,
         dtInicio: dAgo(14),
         dtFim: "",
         ativo: true,
@@ -782,7 +832,7 @@ export async function seedDemoTeamRosa() {
     }
 
     // ── Family groups (auto-generated from patient addresses) ────────────
-    const fgResult = backfillFamilyGroups(db, { id: JOAO_ID, name: "João Dev", teamId: TEAM_ID });
+    const fgResult = backfillFamilyGroups(db, { id: BREAKGLASS_ID, name: BREAKGLASS_NAME, teamId: TEAM_ID });
     logInfo("seed_demo_family_groups", { event: "seed_demo_family_groups", groups: fgResult.groups });
 
     return {

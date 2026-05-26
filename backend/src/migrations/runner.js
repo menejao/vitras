@@ -33,7 +33,7 @@ async function runMigrations() {
 
   const pool = new Pool({
     connectionString: stripSslParams(DATABASE_URL),
-    ssl: { rejectUnauthorized: true },
+    ssl: { rejectUnauthorized: false },
     max: 2,
     connectionTimeoutMillis: 10000,
     idleTimeoutMillis: 10000,
