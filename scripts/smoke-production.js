@@ -83,6 +83,11 @@ await test("GET /health returns 200 with ok:true", async () => {
   assert(typeof body?.timestamp === "string", "Missing timestamp");
 });
 
+await test("GET /readyz returns 200 (liveness gate — EB health check path)", async () => {
+  const { res } = await get("/readyz");
+  assert(res.status === 200, `Expected 200, got ${res.status} — app not ready or postgres unreachable`);
+});
+
 await test("GET /health has security headers (HSTS, X-Frame-Options)", async () => {
   const res = await fetch(`${BASE}/health`);
   const hsts = res.headers.get("strict-transport-security");

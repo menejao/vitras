@@ -220,7 +220,7 @@ const globalRateLimit = buildRateLimitMiddleware({
   maxRequests: GLOBAL_RATE_LIMIT_MAX_REQUESTS,
   windowMs: GLOBAL_RATE_LIMIT_WINDOW_MS,
   message: "Muitas requisições. Tente novamente em instantes.",
-  skip: (req) => req.path === "/health"
+  skip: (req) => req.path === "/health" || req.path === "/readyz"
 });
 
 // D-04: sensitiveDataRateLimit now uses getIdentifier from buildRateLimitMiddleware
@@ -231,7 +231,7 @@ const sensitiveDataRateLimit = buildRateLimitMiddleware({
   maxRequests: 30,
   windowMs: 60 * 1000,
   message: "Muitas requisições para dados sensíveis. Aguarde 1 minuto.",
-  skip: (req) => req.path === "/health"
+  skip: (req) => req.path === "/health" || req.path === "/readyz"
 });
 
 // D-04: exportRateLimit now uses getIdentifier from buildRateLimitMiddleware
@@ -241,7 +241,7 @@ const exportRateLimit = buildRateLimitMiddleware({
   maxRequests: 10,
   windowMs: 60 * 1000,
   message: "Limite de exportações atingido. Aguarde 1 minuto.",
-  skip: (req) => req.path === "/health"
+  skip: (req) => req.path === "/health" || req.path === "/readyz"
 });
 
 export { buildRateLimitMiddleware, authRateLimit, globalRateLimit, sensitiveDataRateLimit, exportRateLimit, getCircuitBreakerState };
