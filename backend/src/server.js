@@ -28,7 +28,12 @@ import { Pool } from "pg";
 
 // EB-01: Critical migrations that must be applied before the server accepts traffic.
 // Column name in schema_migrations is `id` (see migrations/runner.js).
-const CRITICAL_MIGRATIONS = ["006_patient_hash_columns"];
+const CRITICAL_MIGRATIONS = [
+  "006_patient_hash_columns",
+  "009_add_unit_id_to_patients",
+  "010_add_municipality_id",
+  "011_add_executing_context_to_appointments",
+];
 
 function _stripSslParamsForMigrationCheck(url) {
   if (!url) return url;

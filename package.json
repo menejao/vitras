@@ -3,7 +3,13 @@
     "build": "cd frontend-react && npm ci --prefer-offline && npm run build",
     "build:backend": "cd backend && npm install",
     "deploy:frontend": "node -e \"console.log('Deploy oficial do frontend via AWS Amplify. Ver docs/deployment/aws-cloudflare.md')\"",
-    "deploy:backend": "node -e \"console.log('Deploy oficial do backend via AWS Elastic Beanstalk. Ver docs/deployment/aws-cloudflare.md')\""
+    "deploy:backend": "node -e \"console.log('Deploy oficial do backend via AWS Elastic Beanstalk. Ver docs/deployment/aws-cloudflare.md')\"",
+    "smoke": "node scripts/smoke-production.js",
+    "smoke:staging": "node scripts/smoke-production.js",
+    "verify:staging": "node scripts/smoke-production.js",
+    "env:check": "node scripts/check-env.js",
+    "health": "node -e \"require('http').get('http://localhost:3001/health', r => { process.exit(r.statusCode === 200 ? 0 : 1) })\"",
+    "migration:check": "cd backend && node src/migrations/check-status.js"
   },
   "dependencies": {
     "axios": "^1.13.6"

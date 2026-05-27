@@ -69,7 +69,7 @@ Use `eb printenv` or AWS Console → Configuration → Software.
 
 - [ ] Staging smoke test executed today (or within this week)
 - [ ] No blockers recorded in staging-smoke-test.md
-- [ ] Migrations verified on staging: `SELECT COUNT(*) FROM schema_migrations` = 8
+- [ ] Migrations verified on staging: `SELECT COUNT(*) FROM schema_migrations` = 11
 
 ## DR Drill
 

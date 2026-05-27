@@ -7,12 +7,17 @@
  * internal startup function), we test its logic by setting env vars and
  * running it through a mock-pool shim defined here.
  *
+ * NOTE: CRITICAL_MIGRATIONS below is a minimal fixture for unit-testing the
+ * boot-guard logic (skip/throw/resolve behaviour). The canonical production
+ * list lives in server.js and currently covers 006, 009, 010, 011.
+ *
  * Test matrix:
  *   1. IS_PROD=false  → resolves immediately without touching the DB
  *   2. DATABASE_URL absent → resolves immediately without touching the DB
  *   3. schema_migrations table missing → throws fatal error
  *   4. 006_patient_hash_columns absent → throws fatal error
  *   5. 006_patient_hash_columns present → resolves (boot_migrations_ok)
+ *   6. client.release() called even when query throws
  */
 
 import { describe, it } from "node:test";
