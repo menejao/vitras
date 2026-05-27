@@ -70,7 +70,7 @@
 
 .auth__right {
   background:
-    radial-gradient(ellipse 100% 50% at 50% -10%, rgba(20,184,166,.07), transparent),
+    radial-gradient(ellipse 100% 50% at 50% -10%, rgba(93,213,232,.07), transparent),
     var(--bg);
   display: flex;
   align-items: center;
@@ -160,7 +160,7 @@
 .auth-card .input:focus-within {
   background: var(--surface);
   border-color: var(--border-accent);
-  box-shadow: 0 0 0 3px rgba(20,184,166,.14);
+  box-shadow: 0 0 0 3px rgba(93,213,232,.14);
 }
 .auth-card .input--error:focus-within {
   box-shadow: 0 0 0 3px rgba(220,38,38,.14);
@@ -176,9 +176,9 @@
   transition: background-color 9999s ease-in-out 0s;
 }
 
-/* Select arrow teal no contexto auth */
+/* Select arrow accent no contexto auth */
 .auth-card .input select {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%230f766e' d='M0 0h10L5 6z'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%232FA9C2' d='M0 0h10L5 6z'/%3E%3C/svg%3E");
 }
 
 /* ── Botão primário — CTA premium ────────────────────────── */
@@ -193,8 +193,8 @@
   background: var(--accent);
   box-shadow:
     0 1px 0 rgba(255,255,255,.15) inset,
-    0 2px 4px rgba(13,148,136,.18),
-    0 8px 20px rgba(13,148,136,.14);
+    0 2px 4px rgba(47,169,194,.18),
+    0 8px 20px rgba(47,169,194,.14);
   transition:
     background    var(--d-fast) var(--ease),
     box-shadow    var(--d-base) var(--ease),
@@ -205,14 +205,14 @@
   transform: translateY(-1px);
   box-shadow:
     0 1px 0 rgba(255,255,255,.15) inset,
-    0 4px 8px rgba(13,148,136,.22),
-    0 12px 28px rgba(13,148,136,.20);
+    0 4px 8px rgba(47,169,194,.22),
+    0 12px 28px rgba(47,169,194,.20);
 }
 .auth-card .btn--primary:not(:disabled):active {
   transform: translateY(0) scale(.99);
   box-shadow:
     0 1px 0 rgba(255,255,255,.10) inset,
-    0 1px 2px rgba(13,148,136,.12);
+    0 1px 2px rgba(47,169,194,.12);
 }
 .auth-card .btn--primary:disabled {
   opacity: .55;
@@ -274,7 +274,7 @@
   gap: var(--s-3);
   padding: var(--s-3) var(--s-4);
   background: var(--accent-soft);
-  border: 1px solid rgba(20,184,166,.25);
+  border: 1px solid rgba(93,213,232,.25);
   border-radius: var(--r-md);
 }
 .auth-activate-token-badge__label {
@@ -453,7 +453,7 @@
   gap: var(--s-3);
   padding: var(--s-3) var(--s-4);
   background: var(--accent-soft);
-  border: 1px solid rgba(20,184,166,.25);
+  border: 1px solid rgba(93,213,232,.25);
   border-radius: var(--r-md);
 }
 .auth-activate-email-badge__label {

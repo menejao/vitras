@@ -31,7 +31,7 @@
   --sidebar-hover:        rgba(255,255,255,.06);
   --sidebar-active:       rgba(255,255,255,.08);
   --sidebar-active-text:  #fff;
-  --sidebar-active-bar:   var(--teal-400);
+  --sidebar-active-bar:   var(--accent);
 }
 
 .sidebar {
@@ -87,12 +87,12 @@
   width: 34px;
   height: 34px;
   border-radius: var(--r-md);
-  background: linear-gradient(135deg, var(--teal-500), #0f766e);
+  background: var(--accent-grad);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  box-shadow: 0 10px 24px rgba(20, 184, 166, .18);
+  box-shadow: 0 10px 24px rgba(93, 213, 232, .18);
 }
 
 .sidebar__brand-copy {
@@ -231,7 +231,7 @@
   width: 3px;
   background: var(--sidebar-active-bar);
   border-radius: 0 3px 3px 0;
-  box-shadow: 0 0 8px rgba(20,184,166,.45);
+  box-shadow: 0 0 8px rgba(93,213,232,.45);
 }
 .nav__count {
   margin-left: auto;

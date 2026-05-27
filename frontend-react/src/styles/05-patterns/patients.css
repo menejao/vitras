@@ -93,8 +93,8 @@
 }
 .filters input:focus,
 .filters select:focus {
-  border-color: var(--teal-500);
-  box-shadow: 0 0 0 3px rgba(20,184,166,.1);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(93,213,232,.1);
 }
 
 /* Table */
@@ -330,7 +330,7 @@
 .panel-banner--info {
   background: var(--teal-50, #f0fdfa);
   border-color: var(--teal-100, #ccfbf1);
-  color: var(--teal-700, #0f766e);
+  color: var(--accent-text, #2FA9C2);
 }
 
 /* Panel content block */
@@ -1624,7 +1624,7 @@
 }
 .aclin-pill:hover { border-color: var(--border-strong); color: var(--text); background: var(--surface-3); }
 .aclin-pill--active {
-  background: var(--accent-soft-2, rgba(20,184,166,.15));
+  background: var(--accent-soft-2, rgba(93,213,232,.15));
   border-color: var(--accent);
   color: var(--accent-text, var(--accent));
   font-weight: 600;
@@ -1735,8 +1735,8 @@
 .aclin-user-card:hover { border-color: var(--border-strong); background: var(--surface-2); box-shadow: 0 1px 4px rgba(0,0,0,.06); }
 .aclin-user-card--selected {
   border-color: var(--accent);
-  background: var(--accent-soft, rgba(20,184,166,.06));
-  box-shadow: 0 0 0 3px var(--accent-soft, rgba(20,184,166,.1));
+  background: var(--accent-soft, rgba(93,213,232,.06));
+  box-shadow: 0 0 0 3px var(--accent-soft, rgba(93,213,232,.1));
 }
 
 .aclin-user-card__avatar {
@@ -1998,7 +1998,7 @@
 }
 .pcb__option-role { font-size: .68rem; color: var(--text-muted); }
 
-.pcb__check { flex-shrink: 0; color: var(--teal-600, #0d9488); }
+.pcb__check { flex-shrink: 0; color: var(--accent, #5DD5E8); }
 .pcb__empty { padding: .75rem .65rem; font-size: var(--t-sm); color: var(--text-muted); text-align: center; }
 
 [data-theme="dark"] .pcb__option--active { background: rgba(13, 148, 136, .12); }

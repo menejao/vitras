@@ -1,5 +1,6 @@
 import { NAV_ICON, buildNavItems } from "../../config/nav";
 import Button from "../ui/Button";
+import { BrandMark } from "../brand/BrandMark";
 
 const IconChevronLeft = () => (
   <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -23,10 +24,7 @@ function Sidebar({ tab, setTab, mobileOpen, setMobileOpen, user, canManageUser, 
         <div className="sidebar__brand">
           <div className="sidebar__brand-lockup">
             <div className="sidebar__brand-icon" aria-hidden="true">
-              <svg width="16" height="16" viewBox="0 0 18 18" fill="none">
-                <rect x="7.25" y="1.75" width="3.5" height="14.5" rx="1.75" fill="white" />
-                <rect x="1.75" y="7.25" width="14.5" height="3.5" rx="1.75" fill="white" />
-              </svg>
+              <BrandMark variant="mono-white" size={28} />
             </div>
             <div className="sidebar__brand-copy">
               <strong>Vitras</strong>

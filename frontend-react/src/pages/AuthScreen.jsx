@@ -7,6 +7,7 @@ import Select from "../components/ui/Select";
 import Alert from "../components/ui/Alert";
 import KPI from "../components/ui/KPI";
 import { Tabs, Tab } from "../components/ui/Tabs";
+import { BrandMark } from "../components/brand/BrandMark";
 
 const VITRAS_SUBTITLE = "Plataforma integrada para gestão da saúde pública";
 
@@ -23,13 +24,6 @@ const CARGO_OPTIONS = [
   { value: "gestor", label: "Gestor(a)" },
   { value: "coordinator", label: "Coordenador(a)" },
 ];
-
-const IconMark = () => (
-  <svg width="20" height="20" viewBox="0 0 18 18" fill="none" aria-hidden="true">
-    <rect x="7.25" y="1.75" width="3.5" height="14.5" rx="1.75" fill="white" />
-    <rect x="1.75" y="7.25" width="14.5" height="3.5" rx="1.75" fill="white" />
-  </svg>
-);
 
 async function requestPasswordReset(email) {
   const res = await fetch(`${API_URL}/auth/password-reset/request`, {
@@ -234,7 +228,7 @@ function AuthScreen({ onLogin, onVerifyTwoFactor, loginChallenge, onCancelTwoFac
       <section className="auth__left">
         <div className="auth__brand">
           <div className="auth-brand-lockup">
-            <div className="auth-brand-lockup__icon"><IconMark /></div>
+            <div className="auth-brand-lockup__icon"><BrandMark variant="solid" size={40} /></div>
             <div className="auth-brand-lockup__copy">
               <strong>Vitras</strong>
               <span>{VITRAS_SUBTITLE}</span>

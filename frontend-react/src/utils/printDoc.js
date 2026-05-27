@@ -1,7 +1,7 @@
 const CSS = `
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Inter', Arial, sans-serif; font-size: 13px; color: #111; background: #fff; padding: 32px 40px; max-width: 800px; margin: 0 auto; }
+  body { font-family: 'IBM Plex Sans', Arial, sans-serif; font-size: 13px; color: #111; background: #fff; padding: 32px 40px; max-width: 800px; margin: 0 auto; }
   .doc-header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #111; padding-bottom: 14px; margin-bottom: 22px; }
   .doc-header__brand { font-size: 18px; font-weight: 700; letter-spacing: -.5px; color: #111; }
   .doc-header__unit { font-size: 11px; color: #555; margin-top: 3px; }

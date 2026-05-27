@@ -235,11 +235,11 @@ const HIST_TYPE_COLORS = {
   note:          ["#475569", "var(--surface-2)", "var(--border)"],
   task:          ["#d97706", "#fffbeb", "#fde68a"],
   message:       ["#0891b2", "#ecfeff", "#a5f3fc"],
-  exam:          ["#0f766e", "var(--surface-2)", "var(--border)"],
-  exam_request:  ["#0f766e", "var(--surface-2)", "var(--border)"],
+  exam:          ["#2FA9C2", "var(--surface-2)", "var(--border)"],
+  exam_request:  ["#2FA9C2", "var(--surface-2)", "var(--border)"],
   prescription:  ["#15803d", "#f0fdf4", "#bbf7d0"],
   referral:      ["#6366f1", "#eff6ff", "#c7d2fe"],
-  nursing:       ["#0d9488", "#f0fdfa", "#99f6e4"],
+  nursing:       ["#5DD5E8", "#EDF9FC", "#C5F0F7"],
   evolution:     ["#0891b2", "#ecfeff", "#a5f3fc"],
 };
 const HIST_INTERNAL_TYPES = new Set(["task", "message"]);
@@ -576,7 +576,7 @@ const INTERNAL_ROLE_LABEL = {
 };
 const INTERNAL_CLINICAL_ROLES = ["nurse_manager", "doctor", "dentist", "nursing_tech", "pharmacist", "pharmacy_tech"];
 function getRoleColor(role) {
-  const map = { nurse_manager: "#0d9488", doctor: "#2563eb", dentist: "#7c3aed", nursing_tech: "#059669", pharmacist: "#d97706", pharmacy_tech: "#d97706" };
+  const map = { nurse_manager: "#5DD5E8", doctor: "#2563eb", dentist: "#7c3aed", nursing_tech: "#059669", pharmacist: "#d97706", pharmacy_tech: "#d97706" };
   return map[role] || "#64748b";
 }
 
