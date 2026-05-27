@@ -48,7 +48,7 @@ Break Glass Admin              AWS Support                               Legal /
 7. **Decision point:** Rollback vs Hotfix
    - Rollback if: confirmed cross-tenant exposure, audit chain integrity failure, data corruption
    - Hotfix if: root cause identified, patch is minimal, rollback would cause greater disruption
-8. If rollback: follow `docs/operations/runbooks/RUNBOOK_BACKUP_RESTORE.md`
+8. If rollback: follow `docs/runbooks/backup-restore-runbook.md`
 9. After resolution: write incident report within 24 hours
 10. Root cause analysis within 72 hours
 
