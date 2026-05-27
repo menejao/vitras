@@ -327,14 +327,29 @@ async function syncShadowTables(client, state) {
     Boolean(user?.twoFactorEnabled),
     user?.createdAt || null,
     user?.updatedAt || user?.createdAt || null,
-    JSON.stringify(user || {})
+    JSON.stringify(user || {}),
+    String(user?.municipalityId || "")
   ]);
-  const userBatch = batchInsert(["id","team_id","unit_id","role","email","name","inactive","two_factor_enabled","created_at","updated_at","payload"], userRows);
-  if (userBatch) {
-    await client.query(
-      `INSERT INTO app_users (id,team_id,unit_id,role,email,name,inactive,two_factor_enabled,created_at,updated_at,payload) VALUES ${userBatch.text}`,
-      userBatch.values
-    );
+  const userColsFull = ["id","team_id","unit_id","role","email","name","inactive","two_factor_enabled","created_at","updated_at","payload","municipality_id"];
+  const userColsBase = ["id","team_id","unit_id","role","email","name","inactive","two_factor_enabled","created_at","updated_at","payload"];
+  try {
+    const userBatch = batchInsert(userColsFull, userRows);
+    if (userBatch) {
+      await client.query(
+        `INSERT INTO app_users (${userColsFull.join(",")}) VALUES ${userBatch.text}`,
+        userBatch.values
+      );
+    }
+  } catch {
+    // Fall back to base columns if municipality_id column doesn't exist yet (migration 010 not applied)
+    const baseRows = userRows.map((r) => r.slice(0, userColsBase.length));
+    const userBatch = batchInsert(userColsBase, baseRows);
+    if (userBatch) {
+      await client.query(
+        `INSERT INTO app_users (${userColsBase.join(",")}) VALUES ${userBatch.text}`,
+        userBatch.values
+      );
+    }
   }
 
   // Units shadow table (added in migration 004)
@@ -395,12 +410,16 @@ async function syncShadowTables(client, state) {
       patient?.updatedAt || patient?.createdAt || null,
       JSON.stringify(patient || {}),
       cpfHash || null,
-      cnsHash || null
+      cnsHash || null,
+      String(patient?.unitId || ""),
+      String(patient?.municipalityId || "")
     ];
   });
-  // cpf_hash / cns_hash columns are added by migration 006; use a try/catch so
-  // syncShadowTables stays backwards-compatible when that migration hasn't run yet.
-  const patientColsFull = ["id","team_id","assigned_acs_id","care_category","inactive","incomplete_profile","name","micro_area","created_at","updated_at","payload","cpf_hash","cns_hash"];
+  // cpf_hash / cns_hash columns are added by migration 006; unit_id by 009; municipality_id by 010.
+  // Use a cascade of try/catch so syncShadowTables stays backwards-compatible when migrations haven't run yet.
+  const patientColsFull = ["id","team_id","assigned_acs_id","care_category","inactive","incomplete_profile","name","micro_area","created_at","updated_at","payload","cpf_hash","cns_hash","unit_id","municipality_id"];
+  const patientColsNoMunicipality = ["id","team_id","assigned_acs_id","care_category","inactive","incomplete_profile","name","micro_area","created_at","updated_at","payload","cpf_hash","cns_hash","unit_id"];
+  const patientColsNoUnitId = ["id","team_id","assigned_acs_id","care_category","inactive","incomplete_profile","name","micro_area","created_at","updated_at","payload","cpf_hash","cns_hash"];
   const patientColsBase = ["id","team_id","assigned_acs_id","care_category","inactive","incomplete_profile","name","micro_area","created_at","updated_at","payload"];
   try {
     const patientBatch = batchInsert(patientColsFull, patientRows);
@@ -410,21 +429,55 @@ async function syncShadowTables(client, state) {
         patientBatch.values
       );
     }
-  } catch (hashColErr) {
-    // Fall back to base columns if cpf_hash/cns_hash columns don't exist yet
-    const baseRows = patientRows.map((r) => r.slice(0, patientColsBase.length));
-    const patientBatch = batchInsert(patientColsBase, baseRows);
-    if (patientBatch) {
-      await client.query(
-        `INSERT INTO app_patients (${patientColsBase.join(",")}) VALUES ${patientBatch.text}`,
-        patientBatch.values
-      );
+  } catch (fullColErr) {
+    // Try without municipality_id (migration 010 not yet applied)
+    try {
+      const rows = patientRows.map((r) => r.slice(0, patientColsNoMunicipality.length));
+      const patientBatch = batchInsert(patientColsNoMunicipality, rows);
+      if (patientBatch) {
+        await client.query(
+          `INSERT INTO app_patients (${patientColsNoMunicipality.join(",")}) VALUES ${patientBatch.text}`,
+          patientBatch.values
+        );
+      }
+      logWarn("sync_shadow_patients_municipality_col_missing", {
+        event: "sync_shadow_patients_municipality_col_missing",
+        message: "municipality_id column not yet present — migration 010 required",
+        error: fullColErr.message
+      });
+    } catch (noMunicipalityErr) {
+      // Try without unit_id + municipality_id (migration 009 not yet applied)
+      try {
+        const rows = patientRows.map((r) => r.slice(0, patientColsNoUnitId.length));
+        const patientBatch = batchInsert(patientColsNoUnitId, rows);
+        if (patientBatch) {
+          await client.query(
+            `INSERT INTO app_patients (${patientColsNoUnitId.join(",")}) VALUES ${patientBatch.text}`,
+            patientBatch.values
+          );
+        }
+        logWarn("sync_shadow_patients_unit_id_col_missing", {
+          event: "sync_shadow_patients_unit_id_col_missing",
+          message: "unit_id/municipality_id columns not yet present — migrations 009/010 required",
+          error: noMunicipalityErr.message
+        });
+      } catch (hashColErr) {
+        // Fall back to base columns if cpf_hash/cns_hash columns don't exist yet
+        const baseRows = patientRows.map((r) => r.slice(0, patientColsBase.length));
+        const patientBatch = batchInsert(patientColsBase, baseRows);
+        if (patientBatch) {
+          await client.query(
+            `INSERT INTO app_patients (${patientColsBase.join(",")}) VALUES ${patientBatch.text}`,
+            patientBatch.values
+          );
+        }
+        logWarn("sync_shadow_patients_hash_col_missing", {
+          event: "sync_shadow_patients_hash_col_missing",
+          message: "cpf_hash/cns_hash columns not yet present — migration 006 required",
+          error: hashColErr.message
+        });
+      }
     }
-    logWarn("sync_shadow_patients_hash_col_missing", {
-      event: "sync_shadow_patients_hash_col_missing",
-      message: "cpf_hash/cns_hash columns not yet present — migration 006 required",
-      error: hashColErr.message
-    });
   }
 
   await client.query("DELETE FROM app_appointments");
@@ -436,14 +489,30 @@ async function syncShadowTables(client, state) {
     String(appointment?.title || appointment?.summary || ""),
     String(appointment?.date || ""),
     appointment?.createdAt || null,
-    JSON.stringify(appointment || {})
+    JSON.stringify(appointment || {}),
+    String(appointment?.executingTeamId || ""),
+    String(appointment?.executingUnitId || "")
   ]);
-  const apptBatch = batchInsert(["id","patient_id","created_by","demand_type","title","date","created_at","payload"], apptRows);
-  if (apptBatch) {
-    await client.query(
-      `INSERT INTO app_appointments (id,patient_id,created_by,demand_type,title,date,created_at,payload) VALUES ${apptBatch.text}`,
-      apptBatch.values
-    );
+  const apptColsFull = ["id","patient_id","created_by","demand_type","title","date","created_at","payload","executing_team_id","executing_unit_id"];
+  const apptColsBase = ["id","patient_id","created_by","demand_type","title","date","created_at","payload"];
+  try {
+    const apptBatch = batchInsert(apptColsFull, apptRows);
+    if (apptBatch) {
+      await client.query(
+        `INSERT INTO app_appointments (${apptColsFull.join(",")}) VALUES ${apptBatch.text}`,
+        apptBatch.values
+      );
+    }
+  } catch {
+    // Fall back to base columns if executing_team_id/executing_unit_id don't exist yet (migration 011 not applied)
+    const baseRows = apptRows.map((r) => r.slice(0, apptColsBase.length));
+    const apptBatch = batchInsert(apptColsBase, baseRows);
+    if (apptBatch) {
+      await client.query(
+        `INSERT INTO app_appointments (${apptColsBase.join(",")}) VALUES ${apptBatch.text}`,
+        apptBatch.values
+      );
+    }
   }
 
   await client.query("DELETE FROM app_audit_logs");
@@ -458,14 +527,29 @@ async function syncShadowTables(client, state) {
     String(log?.userId || ""),
     String(log?.outcome || ""),
     log?.createdAt || null,
-    JSON.stringify(log || {})
+    JSON.stringify(log || {}),
+    String(log?.municipalityId || "")
   ]);
-  const auditBatch = batchInsert(["id","action","category","severity","entity","entity_id","team_id","user_id","outcome","created_at","payload"], auditRows);
-  if (auditBatch) {
-    await client.query(
-      `INSERT INTO app_audit_logs (id,action,category,severity,entity,entity_id,team_id,user_id,outcome,created_at,payload) VALUES ${auditBatch.text}`,
-      auditBatch.values
-    );
+  const auditColsFull = ["id","action","category","severity","entity","entity_id","team_id","user_id","outcome","created_at","payload","municipality_id"];
+  const auditColsBase = ["id","action","category","severity","entity","entity_id","team_id","user_id","outcome","created_at","payload"];
+  try {
+    const auditBatch = batchInsert(auditColsFull, auditRows);
+    if (auditBatch) {
+      await client.query(
+        `INSERT INTO app_audit_logs (${auditColsFull.join(",")}) VALUES ${auditBatch.text}`,
+        auditBatch.values
+      );
+    }
+  } catch {
+    // Fall back to base columns if municipality_id column doesn't exist yet (migration 010 not applied)
+    const baseRows = auditRows.map((r) => r.slice(0, auditColsBase.length));
+    const auditBatch = batchInsert(auditColsBase, baseRows);
+    if (auditBatch) {
+      await client.query(
+        `INSERT INTO app_audit_logs (${auditColsBase.join(",")}) VALUES ${auditBatch.text}`,
+        auditBatch.values
+      );
+    }
   }
 
   await client.query("DELETE FROM app_role_permissions");

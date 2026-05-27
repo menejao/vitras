@@ -171,7 +171,9 @@ router.post("/agenda", validate(AgendaCreateSchema), async (req, res) => {
       createdAt: now,
       createdBy: req.user.id,
       updatedAt: now,
-      updatedBy: req.user.id
+      updatedBy: req.user.id,
+      executingTeamId: String(req.user.teamId || ""),
+      executingUnitId: String(req.user.unitId || "")
     };
 
     db.agendaEntries.push(entry);

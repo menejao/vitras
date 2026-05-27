@@ -146,9 +146,16 @@ router.post("/patients", requireManagerOrDoctor, validate(PatientCreateSchema), 
     return res.status(400).json({ error: "Equipe responsável inválida" });
   }
 
+  // Derive unitId from the team that owns this patient
+  const patientTeam = db.teams.find((t) => t.id === patientTeamId);
+  const patientUnitId = String(patientTeam?.unitId || req.user.unitId || "");
+  const patientMunicipalityId = String(req.user.municipalityId || "3534401");
+
   const patient = {
     id: uuidv4(),
     teamId: patientTeamId,
+    unitId: patientUnitId,
+    municipalityId: patientMunicipalityId,
     name: String(payload.name).trim(),
     motherName: payload.motherName ? String(payload.motherName).trim() : "",
     cpf: payload.cpf ? String(payload.cpf).trim() : "",
@@ -515,6 +522,8 @@ router.post("/patients/:id/appointments", validate(AppointmentCreateSchema), asy
     demandType: normalizeDemandType(payload.demandType),
     conduct: payload.conduct ? String(payload.conduct) : "",
     nextStep: payload.nextStep ? String(payload.nextStep) : "",
+    executingTeamId: String(req.user.teamId || ""),
+    executingUnitId: String(req.user.unitId || ""),
     createdBy: req.user.id,
     createdAt: new Date().toISOString()
   };

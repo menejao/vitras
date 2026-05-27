@@ -17,6 +17,8 @@ function createToken(user, db, options = {}) {
       email: sessionUser.email,
       teamId: sessionUser.teamId,
       teamName: sessionUser.teamName,
+      unitId: sessionUser.unitId,
+      municipalityId: sessionUser.municipalityId,
       capabilities: sessionUser.capabilities,
       impersonation: sessionUser.impersonation,
       breakGlass: sessionUser.breakGlass

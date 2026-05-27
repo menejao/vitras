@@ -388,6 +388,8 @@ function buildAccessContextUser(actorUser, db, options = {}) {
     ...safeActor,
     teamId: scopeTeamId || safeActor.teamId || "",
     teamName: scopeTeamName || safeActor.teamName || "Sem equipe",
+    unitId: String(safeActor?.unitId || ""),
+    municipalityId: String(safeActor?.municipalityId || ""),
     capabilities,
     impersonation: options.impersonation ? {
       active: true,

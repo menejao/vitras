@@ -175,11 +175,16 @@ const ELDERLY_DEFS = [
 ];
 
 // ── buildPatient ──────────────────────────────────────────────────────────────
+const UNIT_ID = "unit-default";
+const MUNICIPALITY_ID = "3534401";
+
 function buildPatient(def, careCategory) {
   const chronicConditions = def.cond || [];
   const p = {
     id: `seed-p-${def.idx}`,
     teamId: TEAM_ID,
+    unitId: UNIT_ID,
+    municipalityId: MUNICIPALITY_ID,
     name: def.name,
     motherName: def.motherName || "",
     cpf: def.cpf,
@@ -253,7 +258,7 @@ export async function seedDemoTeamRosa() {
 
     // ── Team ──────────────────────────────────────────────────────────────
     if (!db.teams.some((t) => t.id === TEAM_ID)) {
-      db.teams.push({ id: TEAM_ID, name: TEAM_NAME, managerUserId: BREAKGLASS_ID, createdAt: NOW });
+      db.teams.push({ id: TEAM_ID, name: TEAM_NAME, managerUserId: BREAKGLASS_ID, unitId: "unit-default", createdAt: NOW });
     }
 
     // ── Users ─────────────────────────────────────────────────────────────
@@ -263,6 +268,8 @@ export async function seedDemoTeamRosa() {
       twoFactorPendingSecret: "", twoFactorPendingCreatedAt: "",
       lastLoginAt: "", lastSeenAt: "", lastSeenIp: "",
       createdAt: tsAgo(180), updatedAt: NOW,
+      unitId: UNIT_ID,
+      municipalityId: MUNICIPALITY_ID,
     };
 
     upsertBreakGlassUser(db);

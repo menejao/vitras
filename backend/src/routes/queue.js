@@ -111,6 +111,8 @@ router.post("/queue", validate(QueueCreateSchema), async (req, res) => {
       createdBy: req.user.id,
       updatedAt: now,
       updatedBy: req.user.id,
+      executingTeamId: String(req.user.teamId || ""),
+      executingUnitId: String(req.user.unitId || ""),
       triageBy: "",
       triageStart: "",
       triageDone: "",
