@@ -252,11 +252,8 @@ function anonymizePatientBundle(db, user, patient, reason = "", requestId = "") 
 
 function canAccessPatient(user, patient) {
   if (!patient) return false;
-  if (canAccessAllPatients(user)) return true;
-  if (canAccessScopedPatients(user)) {
-    return String(patient.teamId || "") === String(user?.teamId || "");
-  }
-  return false;
+  if (canonicalRole(user?.role) === "break_glass_admin") return true;
+  return String(patient.teamId || "") === String(user?.teamId || "");
 }
 
 function buildGestorUnitTeamIds(db, user) {

@@ -48,7 +48,7 @@ function requireManager(req, res, next) {
 }
 
 function requireManagerOrDoctor(req, res, next) {
-  if (!hasRole(req.user, ["nurse_manager", "doctor"]) && !hasCapability(req.user, "records.write")) {
+  if (!hasRole(req.user, ["nurse_manager", "doctor", "break_glass_admin"])) {
     return res.status(403).json({ error: "Apenas enfermeira ou médica podem executar esta ação" });
   }
   return next();

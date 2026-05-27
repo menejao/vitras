@@ -309,11 +309,12 @@ function hasRole(user, allowedRoles = []) {
 }
 
 function isManager(user) {
-  return canonicalRole(user?.role) === "nurse_manager" || hasCapability(user, "team.manage");
+  const role = canonicalRole(user?.role);
+  return role === "nurse_manager" || role === "break_glass_admin";
 }
 
 function isDoctor(user) {
-  return canonicalRole(user?.role) === "doctor" || hasCapability(user, "records.write");
+  return canonicalRole(user?.role) === "doctor";
 }
 
 function isAcs(user) {
@@ -331,10 +332,7 @@ function canAccessUnit(user, unitId) {
 }
 
 function canAccessAllPatients(user) {
-  if (isAcs(user)) return false; // ACS always team-scoped via patients.read.scoped
-  if (hasCapability(user, "patients.read.all")) return true;
-  const role = canonicalRole(user?.role);
-  return role === "gestor" || role === "nurse_manager" || role === "doctor";
+  return canonicalRole(user?.role) === "break_glass_admin";
 }
 
 function canAccessScopedPatients(user) {

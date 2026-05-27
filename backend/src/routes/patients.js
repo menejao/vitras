@@ -137,8 +137,7 @@ router.post("/patients", requireManagerOrDoctor, validate(PatientCreateSchema), 
     return res.status(400).json({ error: "Nome e telefone são obrigatórios" });
   }
 
-  const requestedTeamId = String(payload.teamId || "").trim();
-  const patientTeamId = requestedTeamId || req.user.teamId;
+  const patientTeamId = req.user.teamId;
   if (!patientTeamId) {
     return res.status(400).json({ error: "Equipe responsável é obrigatória" });
   }
@@ -831,7 +830,7 @@ router.get("/patients/:id/protocol-summary", async (req, res) => {
     alertCount: Array.isArray(summary?.alerts) ? summary.alerts.length : 0
   });
   if (lookup.patient.teamId && lookup.patient.teamId !== req.user.teamId) {
-    return res.json(restrictSummaryAlertsForForeignTeam(summary));
+    return res.status(403).json({ error: "Sem permissão para este paciente" });
   }
   return res.json(summary);
 });
