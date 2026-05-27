@@ -33,6 +33,8 @@ function upsertBreakGlassUser(db) {
       role: "break_glass_admin",
       teamId: TEAM_ID,
       teamName: TEAM_NAME,
+      unitId: UNIT_ID,
+      municipalityId: MUNICIPALITY_ID,
     };
     return;
   }
@@ -65,6 +67,8 @@ function upsertBreakGlassUser(db) {
     role: "break_glass_admin",
     teamId: TEAM_ID,
     teamName: TEAM_NAME,
+    unitId: UNIT_ID,
+    municipalityId: MUNICIPALITY_ID,
     password: envHash || hashPassword("Demo@2026"),
   });
 }

@@ -361,14 +361,29 @@ async function syncShadowTables(client, state) {
       Boolean(unit?.inactive || false),
       unit?.createdAt || null,
       unit?.updatedAt || unit?.createdAt || null,
-      JSON.stringify(unit || {})
+      JSON.stringify(unit || {}),
+      String(unit?.municipalityId || "")
     ]);
-    const unitBatch = batchInsert(["id","name","inactive","created_at","updated_at","payload"], unitRows);
-    if (unitBatch) {
-      await client.query(
-        `INSERT INTO app_units (id,name,inactive,created_at,updated_at,payload) VALUES ${unitBatch.text}`,
-        unitBatch.values
-      );
+    const unitColsFull = ["id","name","inactive","created_at","updated_at","payload","municipality_id"];
+    const unitColsBase = ["id","name","inactive","created_at","updated_at","payload"];
+    try {
+      const unitBatch = batchInsert(unitColsFull, unitRows);
+      if (unitBatch) {
+        await client.query(
+          `INSERT INTO app_units (${unitColsFull.join(",")}) VALUES ${unitBatch.text}`,
+          unitBatch.values
+        );
+      }
+    } catch {
+      // Fall back to base columns if municipality_id column doesn't exist yet (migration 010 not applied)
+      const baseRows = unitRows.map((r) => r.slice(0, unitColsBase.length));
+      const unitBatch = batchInsert(unitColsBase, baseRows);
+      if (unitBatch) {
+        await client.query(
+          `INSERT INTO app_units (${unitColsBase.join(",")}) VALUES ${unitBatch.text}`,
+          unitBatch.values
+        );
+      }
     }
   } catch {
     // table may not exist if migration 004 hasn't run yet — safe to ignore
