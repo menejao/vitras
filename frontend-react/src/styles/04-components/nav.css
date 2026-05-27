@@ -92,7 +92,7 @@
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  box-shadow: 0 10px 24px rgba(93, 213, 232, .18);
+  box-shadow: 0 10px 24px rgba(20, 184, 166, .18);
 }
 
 .sidebar__brand-copy {
@@ -119,6 +119,22 @@
   font: 500 10px/1.35 var(--font-sans);
   color: var(--sidebar-muted);
 }
+
+/* ── Brand logo / lockup SVG ─────────────────────────────── */
+.sidebar__brand-logo {
+  height: 28px;
+  width: auto;
+  max-width: 140px;
+  display: block;
+}
+.sidebar__brand-mark-only {
+  height: 28px;
+  width: 28px;
+  display: block;
+}
+.sidebar.is-collapsed .sidebar__brand-logo { display: none; }
+.sidebar.is-collapsed .sidebar__brand-mark-only { display: block; }
+.sidebar:not(.is-collapsed) .sidebar__brand-mark-only { display: none; }
 
 .sidebar__brand-badge {
   margin-left: auto;
@@ -231,7 +247,7 @@
   width: 3px;
   background: var(--sidebar-active-bar);
   border-radius: 0 3px 3px 0;
-  box-shadow: 0 0 8px rgba(93,213,232,.45);
+  box-shadow: 0 0 8px rgba(20,184,166,.45);
 }
 .nav__count {
   margin-left: auto;

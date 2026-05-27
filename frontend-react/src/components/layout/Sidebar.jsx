@@ -1,6 +1,7 @@
 import { NAV_ICON, buildNavItems } from "../../config/nav";
 import Button from "../ui/Button";
-import { BrandMark } from "../brand/BrandMark";
+import vitrasLockupDark from "../../brand/logos/primary/vitras-lockup-dark.svg";
+import vitrasMarkMonoWhite from "../../brand/symbol/svg/vitras-mark-mono-white.svg";
 
 const IconChevronLeft = () => (
   <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -23,12 +24,17 @@ function Sidebar({ tab, setTab, mobileOpen, setMobileOpen, user, canManageUser, 
       <div className="sidebar-inner">
         <div className="sidebar__brand">
           <div className="sidebar__brand-lockup">
-            <div className="sidebar__brand-icon" aria-hidden="true">
-              <BrandMark variant="mono-white" size={28} />
-            </div>
-            <div className="sidebar__brand-copy">
-              <strong>Vitras</strong>
-            </div>
+            <img
+              src={vitrasLockupDark}
+              alt="Vitras"
+              className="sidebar__brand-logo"
+            />
+            <img
+              src={vitrasMarkMonoWhite}
+              alt="Vitras"
+              className="sidebar__brand-mark-only"
+              aria-hidden="true"
+            />
           </div>
           <Button
             variant="ghost"

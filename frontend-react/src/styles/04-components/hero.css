@@ -62,7 +62,7 @@
   height: 6px;
   border-radius: 999px;
   background: var(--accent-2);
-  box-shadow: 0 0 12px rgba(93,213,232,.6);
+  box-shadow: 0 0 12px rgba(20,184,166,.6);
 }
 
 /* Compact */
@@ -78,7 +78,7 @@
   box-shadow: var(--shadow-xs);
 }
 .hero--light::before {
-  background: radial-gradient(420px 320px at 92% -10%, rgba(93,213,232,.10), transparent 60%);
+  background: radial-gradient(420px 320px at 92% -10%, rgba(20,184,166,.10), transparent 60%);
 }
 .hero--light::after { background: none; }
 .hero--light h1 { color: var(--text); }

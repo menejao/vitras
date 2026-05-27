@@ -439,7 +439,7 @@
 .ai-action-card.is-active {
   border-color: var(--accent);
   background: var(--accent-soft);
-  box-shadow: 0 0 0 2px var(--focus-ring-color, rgba(93, 213, 232, 0.2));
+  box-shadow: 0 0 0 2px var(--focus-ring-color, rgba(20, 184, 166, 0.2));
 }
 
 .ai-action-card:disabled {

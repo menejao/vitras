@@ -422,7 +422,7 @@
 .agenda-quick-patient {
   padding: var(--s-4);
   background: var(--accent-soft);
-  border: 1px solid rgba(93, 213, 232, .2);
+  border: 1px solid rgba(20, 184, 166, .2);
   border-radius: var(--r-md);
   display: flex;
   flex-direction: column;

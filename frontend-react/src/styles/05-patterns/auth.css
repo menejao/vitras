@@ -70,7 +70,7 @@
 
 .auth__right {
   background:
-    radial-gradient(ellipse 100% 50% at 50% -10%, rgba(93,213,232,.07), transparent),
+    radial-gradient(ellipse 100% 50% at 50% -10%, rgba(20,184,166,.07), transparent),
     var(--bg);
   display: flex;
   align-items: center;
@@ -160,7 +160,7 @@
 .auth-card .input:focus-within {
   background: var(--surface);
   border-color: var(--border-accent);
-  box-shadow: 0 0 0 3px rgba(93,213,232,.14);
+  box-shadow: 0 0 0 3px rgba(20,184,166,.14);
 }
 .auth-card .input--error:focus-within {
   box-shadow: 0 0 0 3px rgba(220,38,38,.14);
@@ -274,7 +274,7 @@
   gap: var(--s-3);
   padding: var(--s-3) var(--s-4);
   background: var(--accent-soft);
-  border: 1px solid rgba(93,213,232,.25);
+  border: 1px solid rgba(20,184,166,.25);
   border-radius: var(--r-md);
 }
 .auth-activate-token-badge__label {
@@ -453,7 +453,7 @@
   gap: var(--s-3);
   padding: var(--s-3) var(--s-4);
   background: var(--accent-soft);
-  border: 1px solid rgba(93,213,232,.25);
+  border: 1px solid rgba(20,184,166,.25);
   border-radius: var(--r-md);
 }
 .auth-activate-email-badge__label {

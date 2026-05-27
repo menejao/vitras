@@ -21,7 +21,7 @@ function DocHeader({ title }) {
   return (
     <div className="doc-header">
       <div className="doc-header__logo">
-        <div style={{ width: 28, height: 28, borderRadius: 6, background: "linear-gradient(135deg, #5DD5E8 0%, #2FA9C2 100%)", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+        <div style={{ width: 28, height: 28, borderRadius: 6, background: "linear-gradient(135deg, #14B8A6 0%, #0D9488 100%)", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
           <BrandMark variant="mono-white" size={20} />
         </div>
         <div>
