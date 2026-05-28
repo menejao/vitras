@@ -22,15 +22,30 @@ function setupCors(app) {
   app.use(
     cors({
       origin(origin, callback) {
+        // Requests sem Origin (curl, server-to-server, same-origin): negar
+        // silenciosamente — não refletir.
         if (!origin) {
-          return callback(null, true);
+          return callback(null, false);
         }
-        if (!FRONTEND_ORIGINS.length) {
-          if (!IS_PROD || CORS_ALLOW_ALL) return callback(null, true);
+
+        // Flag de escape explícita para desenvolvimento local. Só efetiva
+        // quando CORS_ALLOW_ALL=true está configurado conscientemente.
+        if (CORS_ALLOW_ALL) return callback(null, true);
+
+        // Lista configurada: aceitar apenas origens presentes na allowlist.
+        if (FRONTEND_ORIGINS.length) {
+          if (FRONTEND_ORIGINS.includes(origin)) return callback(null, true);
           return callback(new Error("Origem não permitida por CORS"));
         }
-        if (CORS_ALLOW_ALL) return callback(null, true);
-        if (FRONTEND_ORIGINS.includes(origin)) return callback(null, true);
+
+        // FRONTEND_ORIGINS vazia — sem lista configurada.
+        // Permitir apenas localhost em ambiente não-produção (dev local puro).
+        // Em qualquer outro caso (EB staging, prod, etc.) negar por padrão.
+        // Isso impede reflect-origin irrestrito quando a var não é setada.
+        if (!IS_PROD && /^https?:\/\/localhost(:\d+)?$/.test(origin)) {
+          return callback(null, true);
+        }
+
         return callback(new Error("Origem não permitida por CORS"));
       },
       credentials: true

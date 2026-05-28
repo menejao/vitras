@@ -172,6 +172,27 @@ await test("CORS without Origin is blocked outside localhost", async () => {
   );
 });
 
+await test("CORS reflect-origin: origem nao autorizada nao deve ser refletida", async () => {
+  if (BASE.includes("localhost")) return;
+  const ARBITRARY_ORIGIN = "http://attacker-test.example.com";
+  const res = await fetch(`${BASE}/auth/login`, {
+    method: "OPTIONS",
+    headers: {
+      Origin: ARBITRARY_ORIGIN,
+      "Access-Control-Request-Method": "POST",
+      "Access-Control-Request-Headers": "Content-Type"
+    }
+  });
+  const acao = res.headers.get("access-control-allow-origin");
+  // A resposta nao deve refletir a origem arbitraria de volta.
+  // Aceita: header ausente, "*" seria wildcard (tambem errado, mas diferente),
+  // ou qualquer valor que nao seja a origem enviada.
+  assert(
+    !acao || acao !== ARBITRARY_ORIGIN,
+    `CORS reflect-origin detectado: servidor refletiu origem nao autorizada "${acao}"`
+  );
+});
+
 // --- Authenticated tests (only if credentials provided) ---
 
 if (SMOKE_EMAIL && SMOKE_PASSWORD) {
