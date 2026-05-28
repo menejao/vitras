@@ -5,8 +5,8 @@
     "deploy:frontend": "node -e \"console.log('Deploy oficial do frontend via AWS Amplify. Ver docs/deployment/aws-cloudflare.md')\"",
     "deploy:backend": "node -e \"console.log('Deploy oficial do backend via AWS Elastic Beanstalk. Ver docs/deployment/aws-cloudflare.md')\"",
     "smoke": "node scripts/smoke-production.js --base https://api.vitras.com.br",
-    "smoke:staging": "node -e \"const b=process.env.BASE_URL||'https://saude-backend-staging.onrender.com';require('child_process').spawnSync('node',['scripts/smoke-production.js','--base',b],{stdio:'inherit',env:process.env})\"",
-    "verify:staging": "node -e \"const b=process.env.BASE_URL||'https://saude-backend-staging.onrender.com';require('child_process').spawnSync('node',['scripts/smoke-production.js','--base',b],{stdio:'inherit',env:process.env})\"",
+    "smoke:staging": "node -e \"const b=process.env.BASE_URL||'http://vitras-drill-sa-3.eba-pzqcqhqx.sa-east-1.elasticbeanstalk.com';require('child_process').spawnSync('node',['scripts/smoke-production.js','--base',b],{stdio:'inherit',env:process.env})\"",
+    "verify:staging": "node -e \"const b=process.env.BASE_URL||'http://vitras-drill-sa-3.eba-pzqcqhqx.sa-east-1.elasticbeanstalk.com';require('child_process').spawnSync('node',['scripts/smoke-production.js','--base',b],{stdio:'inherit',env:process.env})\"",
     "env:check": "node scripts/check-env.js",
     "health": "node -e \"require('http').get('http://localhost:3001/health', r => { process.exit(r.statusCode === 200 ? 0 : 1) })\"",
     "migration:check": "cd backend && node src/migrations/check-status.js"

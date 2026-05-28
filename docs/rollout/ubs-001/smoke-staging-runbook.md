@@ -11,9 +11,9 @@
 
 Antes de executar o smoke:
 
-1. Backend de staging rodando e respondendo em `https://saude-backend-staging.onrender.com`
-   (ou URL alternativa — ver secao 2)
-2. Banco Neon branch `staging` acessivel pelo backend de staging
+1. Backend de staging rodando e respondendo em `http://vitras-drill-sa-3.eba-pzqcqhqx.sa-east-1.elasticbeanstalk.com`
+   (ou URL alternativa via BASE_URL — ver secao 2)
+2. Banco de dados configurado no EB acessivel pelo backend de staging (ver DATABASE_URL no EB Console → Configuration → Software → Environment properties)
 3. Migrações aplicadas no banco de staging — verificar com:
    ```bash
    DATABASE_URL=<staging-database-url> node backend/src/migrations/check-status.js
@@ -33,7 +33,7 @@ Antes de executar o smoke:
 # Credenciais de gestor de teste via SMOKE_EMAIL e SMOKE_PASSWORD
 # SMOKE_ORIGIN deve ser a origem do frontend de staging
 
-BASE_URL=https://saude-backend-staging.onrender.com \
+BASE_URL=http://vitras-drill-sa-3.eba-pzqcqhqx.sa-east-1.elasticbeanstalk.com \
 SMOKE_EMAIL=<gestor-staging@vitras.com.br> \
 SMOKE_PASSWORD=<senha-do-gestor-de-staging> \
 SMOKE_BACKUP_KEY=<chave-backup-de-staging> \
@@ -44,7 +44,7 @@ npm run smoke:staging
 ### Invocação direta (equivalente)
 
 ```bash
-BASE_URL=https://saude-backend-staging.onrender.com
+BASE_URL=http://vitras-drill-sa-3.eba-pzqcqhqx.sa-east-1.elasticbeanstalk.com
 SMOKE_EMAIL=<email> SMOKE_PASSWORD=<senha> \
 node scripts/smoke-production.js --base $BASE_URL
 ```
@@ -68,9 +68,9 @@ Nao incluir valores reais neste documento. Obter de:
 |----------|-----------|-----------|
 | `SMOKE_EMAIL` | Email de um usuario gestor no banco staging | Admin do staging ou seed |
 | `SMOKE_PASSWORD` | Senha desse usuario | Idem |
-| `SMOKE_BACKUP_KEY` | Valor de `BACKUP_EXPORT_KEY` configurado no backend staging | Painel Render staging → env vars |
+| `SMOKE_BACKUP_KEY` | Valor de `BACKUP_EXPORT_KEY` configurado no backend staging | EB Console → Configuration → Software → Environment properties |
 | `SMOKE_ORIGIN` | URL do frontend de staging (para teste de CORS) — **OBRIGATORIA**: o script falha com exit 1 se ausente | URL do worker Cloudflare staging (Cloudflare Workers dashboard → dominio do worker de staging) |
-| `BASE_URL` | URL base do backend staging | Painel Render → Settings → URL |
+| `BASE_URL` | URL base do backend staging | EB Console → Configuration → Software → Environment properties (ou usar o default do script) |
 
 > Nunca usar credenciais de producao contra staging. Nunca usar credenciais de staging contra producao.
 
@@ -132,7 +132,7 @@ Se foram criados pacientes de teste no banco staging, podem ser removidos apos a
 ```sql
 DELETE FROM patients WHERE name LIKE 'Paciente Smoke Test%';
 ```
-Executar no banco Neon branch `staging` — nunca no banco de producao.
+Executar no banco de dados configurado no EB (ver DATABASE_URL no EB Console → Configuration → Software → Environment properties) — nunca no banco de producao.
 
 ---
 
