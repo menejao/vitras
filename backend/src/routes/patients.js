@@ -63,6 +63,10 @@ async function logPatientRead(req, patient, action, details = {}) {
   });
 }
 
+function hasSameTeamPatientAccess(user, patient) {
+  return canAccessPatient(user, patient);
+}
+
 router.get("/patients", sensitiveDataRateLimit, async (req, res) => {
   const db = await readDb();
   ensureDbShape(db);
@@ -817,6 +821,9 @@ router.get("/patients/:id/history", async (req, res) => {
 
   const lookup = getPatientOrError(db, req.user, id);
   if (lookup.error) return res.status(lookup.error.status).json({ error: lookup.error.message });
+  if (!hasSameTeamPatientAccess(req.user, lookup.patient)) {
+    return res.status(403).json({ error: "Sem permissão para este paciente" });
+  }
 
   const history = buildPatientHistory(db, id);
   await logPatientRead(req, lookup.patient, "patient.history_read", {
@@ -832,15 +839,15 @@ router.get("/patients/:id/protocol-summary", async (req, res) => {
 
   const lookup = getPatientOrError(db, req.user, id);
   if (lookup.error) return res.status(lookup.error.status).json({ error: lookup.error.message });
+  if (!hasSameTeamPatientAccess(req.user, lookup.patient)) {
+    return res.status(403).json({ error: "Sem permissão para este paciente" });
+  }
 
   const history = buildPatientHistory(db, id);
   const summary = buildProtocolSummary(lookup.patient, history, getProtocolTemplateMap(db, req.user.teamId));
   await logPatientRead(req, lookup.patient, "patient.protocol_summary_read", {
     alertCount: Array.isArray(summary?.alerts) ? summary.alerts.length : 0
   });
-  if (lookup.patient.teamId && lookup.patient.teamId !== req.user.teamId) {
-    return res.status(403).json({ error: "Sem permissão para este paciente" });
-  }
   return res.json(summary);
 });
 
@@ -851,6 +858,9 @@ router.get("/patients/:id/messages", async (req, res) => {
 
   const lookup = getPatientOrError(db, req.user, id);
   if (lookup.error) return res.status(lookup.error.status).json({ error: lookup.error.message });
+  if (!hasSameTeamPatientAccess(req.user, lookup.patient)) {
+    return res.status(403).json({ error: "Sem permissão para este paciente" });
+  }
 
   const messages = db.messages
     .filter((m) => m.patientId === id)
@@ -923,5 +933,4 @@ router.get("/metrics/data-quality", async (req, res) => {
 });
 
 export default router;
-
 

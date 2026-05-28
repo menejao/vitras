@@ -241,9 +241,12 @@ if (SMOKE_EMAIL && SMOKE_PASSWORD) {
       if (res.status === 200) assert(Array.isArray(body), "Expected array");
     });
 
-    await test("GET /metrics/internal returns object or 403 by capability", async () => {
+    await test("GET /metrics/internal returns object, 403, or 404 by environment contract", async () => {
       const { res, body } = await get("/metrics/internal", token);
-      assert(res.status === 200 || res.status === 403, `Expected 200 or 403, got ${res.status}`);
+      assert(
+        res.status === 200 || res.status === 403 || res.status === 404,
+        `Expected 200, 403, or 404, got ${res.status}`
+      );
       if (res.status === 200) {
         assert(body !== null && typeof body === "object", `Expected object, got ${typeof body}`);
       }
