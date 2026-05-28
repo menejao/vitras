@@ -250,9 +250,31 @@ function anonymizePatientBundle(db, user, patient, reason = "", requestId = "") 
   };
 }
 
-function canAccessPatient(user, patient) {
+// Roles com acesso de leitura clinica cross-UBS dentro do mesmo municipio (US-204)
+const CLINICAL_READ_ROLES = new Set(["doctor", "nurse_manager", "dentist", "nursing_tech"]);
+
+function canAccessPatient(user, patient, mode = "write") {
+  // Guard obrigatorio — PRIMEIRA linha, antes de qualquer branch de mode
   if (!patient) return false;
+  // break_glass_admin sempre tem acesso em qualquer modo
   if (canonicalRole(user?.role) === "break_glass_admin") return true;
+
+  if (mode === "read") {
+    const role = canonicalRole(user?.role);
+    if (!CLINICAL_READ_ROLES.has(role)) return false;
+    const userMuni = String(user?.municipalityId || "").trim();
+    const patientMuni = String(patient.municipalityId || "").trim();
+    // Fallback seguro: se municipalityId ausente em qualquer lado, exige teamId match
+    if (!userMuni || !patientMuni) {
+      return String(patient.teamId || "") === String(user?.teamId || "");
+    }
+    // Cross-municipio: sempre negar
+    if (userMuni !== patientMuni) return false;
+    // Mesmo municipio com role clinica: permitir leitura cross-UBS
+    return true;
+  }
+
+  // mode === "write" (default): comportamento original preservado integralmente
   return String(patient.teamId || "") === String(user?.teamId || "");
 }
 
@@ -294,11 +316,11 @@ function getAllowedPatients(db, user, query) {
   });
 }
 
-function getPatientOrError(db, user, patientId) {
+function getPatientOrError(db, user, patientId, mode = "write") {
   const patient = db.patients.find((p) => p.id === patientId);
   if (!patient) return { error: { status: 404, message: "Paciente não encontrado" } };
 
-  // Gestor: unit-scoped access check
+  // Gestor: unit-scoped access check — gestor tem path proprio, mode nao se aplica
   if (canonicalRole(user?.role) === "gestor") {
     const unitTeamIds = buildGestorUnitTeamIds(db, user);
     if (!unitTeamIds) return { error: { status: 403, message: "Gestor sem unidade definida" } };
@@ -308,7 +330,7 @@ function getPatientOrError(db, user, patientId) {
     return { patient };
   }
 
-  if (!canAccessPatient(user, patient)) {
+  if (!canAccessPatient(user, patient, mode)) {
     return { error: { status: 403, message: "Sem permissão para este paciente" } };
   }
   return { patient };

@@ -63,8 +63,8 @@ async function logPatientRead(req, patient, action, details = {}) {
   });
 }
 
-function hasSameTeamPatientAccess(user, patient) {
-  return canAccessPatient(user, patient);
+function hasSameTeamPatientAccess(user, patient, mode = "write") {
+  return canAccessPatient(user, patient, mode);
 }
 
 router.get("/patients", sensitiveDataRateLimit, async (req, res) => {
@@ -481,9 +481,9 @@ router.get("/patients/:id/appointments", async (req, res) => {
   const db = await readDb();
   ensureDbShape(db);
   const patient = await findPatientByIdSnapshot(id);
-  const lookup = patient ? { patient } : getPatientOrError(db, req.user, id);
+  const lookup = patient ? { patient } : getPatientOrError(db, req.user, id, "read");
   if (lookup.error) return res.status(lookup.error.status).json({ error: lookup.error.message });
-  if (patient && !canAccessPatient(req.user, patient)) {
+  if (patient && !canAccessPatient(req.user, patient, "read")) {
     return res.status(403).json({ error: "Sem permissão para este paciente" });
   }
 
@@ -819,9 +819,9 @@ router.get("/patients/:id/history", async (req, res) => {
   const db = await readDb();
   ensureDbShape(db);
 
-  const lookup = getPatientOrError(db, req.user, id);
+  const lookup = getPatientOrError(db, req.user, id, "read");
   if (lookup.error) return res.status(lookup.error.status).json({ error: lookup.error.message });
-  if (!hasSameTeamPatientAccess(req.user, lookup.patient)) {
+  if (!hasSameTeamPatientAccess(req.user, lookup.patient, "read")) {
     return res.status(403).json({ error: "Sem permissão para este paciente" });
   }
 
@@ -837,9 +837,9 @@ router.get("/patients/:id/protocol-summary", async (req, res) => {
   const db = await readDb();
   ensureDbShape(db);
 
-  const lookup = getPatientOrError(db, req.user, id);
+  const lookup = getPatientOrError(db, req.user, id, "read");
   if (lookup.error) return res.status(lookup.error.status).json({ error: lookup.error.message });
-  if (!hasSameTeamPatientAccess(req.user, lookup.patient)) {
+  if (!hasSameTeamPatientAccess(req.user, lookup.patient, "read")) {
     return res.status(403).json({ error: "Sem permissão para este paciente" });
   }
 
@@ -856,9 +856,9 @@ router.get("/patients/:id/messages", async (req, res) => {
   const db = await readDb();
   ensureDbShape(db);
 
-  const lookup = getPatientOrError(db, req.user, id);
+  const lookup = getPatientOrError(db, req.user, id, "read");
   if (lookup.error) return res.status(lookup.error.status).json({ error: lookup.error.message });
-  if (!hasSameTeamPatientAccess(req.user, lookup.patient)) {
+  if (!hasSameTeamPatientAccess(req.user, lookup.patient, "read")) {
     return res.status(403).json({ error: "Sem permissão para este paciente" });
   }
 

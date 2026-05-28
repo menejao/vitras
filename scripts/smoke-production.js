@@ -277,6 +277,16 @@ if (SMOKE_EMAIL && SMOKE_PASSWORD) {
       }
     });
 
+    await test("Cat.4 write isolation — cross-team patient access denied (US-204 regression guard)", async () => {
+      const crossTeamId = process.env.SMOKE_CROSS_TEAM_PATIENT_ID;
+      if (!crossTeamId) {
+        console.log("    (skipped — SMOKE_CROSS_TEAM_PATIENT_ID not set; configure para teste completo de Cat.4)");
+        return;
+      }
+      const { res } = await get(`/patients/${crossTeamId}`, token);
+      assert(res.status === 403, `Cat.4 write isolation: expected 403 got ${res.status}`);
+    });
+
     if (SMOKE_BACKUP_KEY) {
       await test("GET /admin/backup/export with valid key returns encrypted snapshot", async () => {
         const res = await fetch(`${BASE}/admin/backup/export`, {
