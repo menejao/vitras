@@ -26,7 +26,11 @@ const BASE = getArg("--base") || "http://localhost:3001";
 const SMOKE_EMAIL = process.env.SMOKE_EMAIL || "";
 const SMOKE_PASSWORD = process.env.SMOKE_PASSWORD || "";
 const SMOKE_BACKUP_KEY = process.env.SMOKE_BACKUP_KEY || "";
-const SMOKE_ORIGIN = process.env.SMOKE_ORIGIN || "";
+const SMOKE_ORIGIN = process.env.SMOKE_ORIGIN;
+if (!SMOKE_ORIGIN) {
+  console.error("ERRO: SMOKE_ORIGIN nao definido. Defina a URL do frontend de staging antes de executar o smoke.");
+  process.exit(1);
+}
 
 // ── test runner ───────────────────────────────────────────────────────────────
 
@@ -136,9 +140,7 @@ await test("GET /admin/backup/export with wrong key returns 401 or 403", async (
 });
 
 await test("CORS preflight from allowed origin returns 204", async () => {
-  const origin = SMOKE_ORIGIN || (BASE.includes("localhost")
-    ? "http://localhost:5174"
-    : "https://gestaopacientes.meneguccijao.workers.dev");
+  const origin = BASE.includes("localhost") ? "http://localhost:5174" : SMOKE_ORIGIN;
   const res = await fetch(`${BASE}/auth/login`, {
     method: "OPTIONS",
     headers: {
@@ -181,7 +183,7 @@ if (SMOKE_EMAIL && SMOKE_PASSWORD) {
     if (res.status === 200) {
       assert(body?.token || body?.accessToken, "Missing token in response");
       token = body.token || body.accessToken;
-    } else if (res.status === 403 && body?.requiresTwoFactor) {
+    } else if (res.status === 403 && body?.twoFactorRequired) {
       console.log("    (2FA required — skipping authenticated tests)");
       token = null;
     } else {

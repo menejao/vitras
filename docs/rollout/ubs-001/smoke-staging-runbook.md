@@ -69,7 +69,7 @@ Nao incluir valores reais neste documento. Obter de:
 | `SMOKE_EMAIL` | Email de um usuario gestor no banco staging | Admin do staging ou seed |
 | `SMOKE_PASSWORD` | Senha desse usuario | Idem |
 | `SMOKE_BACKUP_KEY` | Valor de `BACKUP_EXPORT_KEY` configurado no backend staging | Painel Render staging → env vars |
-| `SMOKE_ORIGIN` | URL do frontend de staging (para teste de CORS) | URL do worker Cloudflare staging |
+| `SMOKE_ORIGIN` | URL do frontend de staging (para teste de CORS) — **OBRIGATORIA**: o script falha com exit 1 se ausente | URL do worker Cloudflare staging (Cloudflare Workers dashboard → dominio do worker de staging) |
 | `BASE_URL` | URL base do backend staging | Painel Render → Settings → URL |
 
 > Nunca usar credenciais de producao contra staging. Nunca usar credenciais de staging contra producao.
