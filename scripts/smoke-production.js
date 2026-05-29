@@ -284,7 +284,10 @@ if (SMOKE_EMAIL && SMOKE_PASSWORD) {
         return;
       }
       const { res } = await get(`/patients/${crossTeamId}`, token);
-      assert(res.status === 403, `Cat.4 write isolation: expected 403 got ${res.status}`);
+      assert(
+        res.status === 403 || res.status === 404,
+        `Cat.4 write isolation: expected 403 or masked 404, got ${res.status} (200 = data leak FAIL)`
+      );
     });
 
     if (SMOKE_BACKUP_KEY) {
