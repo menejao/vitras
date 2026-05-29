@@ -1,8 +1,8 @@
-# security_auditor — Criação de Conta — UBS #1
+# security_auditor — Criação e Correção de Role — UBS #1
 
 **Data de criação:** 2026-05-29
 **Autor:** Tech Lead Vitras
-**Versão:** v1.0
+**Versão:** v1.1 (2026-05-29 — adicionado procedimento de correção de role)
 **Criticidade:** PRÉ-T-0 — antes do go-live
 **Referência:** `docs/rollout/ubs-001/go-final-readiness-report.md` — PNB-05
 **Script:** `backend/scripts/provision-remote-enterprise-user.mjs`
@@ -38,7 +38,7 @@ Sem essa conta, os acessos do break_glass ficam sem revisor independente — ris
 | Email | `security.auditor@vitras.com.br` |
 | Role | `security_auditor` |
 | Name | `Auditor de Segurança Vitras` |
-| TeamId | (deixar vazio — role global) |
+| TeamId | `team-rosa` (script exige não-vazio para não-BGA — não afeta permissões globais) |
 
 > A conta security_auditor **não precisa de teamId** — acessa audit logs de todas as equipes da unidade.
 
@@ -71,7 +71,7 @@ $env:ALLOW_ENTERPRISE_REMOTE_PROVISIONING = "true"
 $env:PROVISION_USER_EMAIL = "security.auditor@vitras.com.br"
 $env:PROVISION_USER_NAME = "Auditor de Segurança Vitras"
 $env:PROVISION_USER_ROLE = "security_auditor"
-$env:PROVISION_USER_TEAM_ID = ""  # security_auditor não precisa de teamId
+$env:PROVISION_USER_TEAM_ID = "team-rosa"  # script exige não-vazio para não-BGA; teamId não afeta permissões globais de auditoria
 $env:PROVISION_REASON = "Criação de conta security_auditor pré-go-live UBS #1 - 2026-05-29"
 
 # Senha — definir sem aparecer em log
@@ -238,5 +238,91 @@ Assinatura: _________________________ Data: __________
 
 ---
 
+---
+
+## Correção de role — security.auditor@vitras.com.br criada com role errada
+
+**Problema detectado:** conta criada com `role=support_operator, team_id=team-rosa` em vez de `security_auditor`.
+
+**Causa raiz:** `PROVISION_USER_ROLE` passado incorretamente no primeiro run.
+
+**Impacto:** com `support_operator`, a conta NÃO consegue:
+- `GET /audit-logs/integrity` → 403 (requireRoles security_auditor only)
+- `GET /audit-logs/export` → 403 (AUDIT_GLOBAL_ROLES)
+- `GET /audit-logs/reports/cross-team-access` → 403 (REPORT_ALLOWED_ROLES)
+
+**Constraint do script:** `provision-remote-enterprise-user.mjs` linha 35 exige `PROVISION_USER_TEAM_ID` não-vazio para roles que não são `break_glass_admin`. Por isso, `team-rosa` deve ser mantido no re-run. O `teamId` não afeta as permissões globais de auditoria do `security_auditor`.
+
+### Procedimento de correção (João executa)
+
+```powershell
+# Navegar para backend
+cd C:\dev\vitras\backend
+
+# Env vars de infraestrutura (valores do EB Console)
+$env:DATABASE_URL = "<DATABASE_URL do staging>"
+$env:DATA_ENCRYPTION_KEY = "<DATA_ENCRYPTION_KEY do staging>"
+$env:PATIENT_LOOKUP_HASH_KEY = "<PATIENT_LOOKUP_HASH_KEY do staging>"
+$env:NODE_ENV = "production"
+
+# Env vars de provisionamento — CORREÇÃO DE ROLE
+$env:ALLOW_ENTERPRISE_REMOTE_PROVISIONING = "true"
+$env:PROVISION_USER_EMAIL = "security.auditor@vitras.com.br"
+$env:PROVISION_USER_NAME = "Auditor de Segurança Vitras"
+$env:PROVISION_USER_ROLE = "security_auditor"       # ← CORRETO (era support_operator)
+$env:PROVISION_USER_TEAM_ID = "team-rosa"            # ← MANTER (script exige não-vazio para não-BGA)
+$env:PROVISION_REASON = "Correção role: support_operator → security_auditor — Gate 3 UBS-001 2026-05-29"
+$env:PROVISION_USER_PASSWORD = "<senha_atual_do_vault>"  # mesma senha já definida
+
+node scripts\provision-remote-enterprise-user.mjs
+```
+
+**Saída esperada:**
+```json
+{
+  "ok": true,
+  "mode": "updated",
+  "email": "security.auditor@vitras.com.br",
+  "role": "security_auditor",
+  "teamId": "team-rosa"
+}
+```
+
+### Verificação pós-correção
+
+```powershell
+# 1. Login
+$r = Invoke-RestMethod -Method POST `
+  -Uri "http://vitras-drill-sa-3.eba-pzqcqhqx.sa-east-1.elasticbeanstalk.com/auth/login" `
+  -ContentType "application/json" `
+  -Body (ConvertTo-Json @{ email="security.auditor@vitras.com.br"; password="<senha_vault>" })
+
+Write-Host "role=$($r.user.role)"
+# Esperado: role=security_auditor
+
+$t = $r.token
+
+# 2. Integrity check (era 403 com support_operator)
+$i = Invoke-RestMethod -Method GET `
+  -Uri "http://vitras-drill-sa-3.eba-pzqcqhqx.sa-east-1.elasticbeanstalk.com/audit-logs/integrity" `
+  -Headers @{ Authorization = "Bearer $t" }
+
+Write-Host "integrity=$($i.status)"
+# Esperado: status=ok  (NÃO mais 403)
+
+# 3. Limpar sessão
+Remove-Variable -Name ALLOW_ENTERPRISE_REMOTE_PROVISIONING,PROVISION_USER_PASSWORD,PROVISION_USER_ROLE,PROVISION_USER_EMAIL,PROVISION_REASON -Scope Env -ErrorAction SilentlyContinue
+```
+
+### Critério de fechamento da correção
+
+- [x] script retorna `"mode": "updated", "role": "security_auditor"`
+- [x] `POST /auth/login` retorna `role=security_auditor`
+- [x] `GET /audit-logs/integrity` retorna 200 (não 403)
+- [x] variáveis de sessão limpas
+
+---
+
 *Criado em: 2026-05-29 — Vitras Tech Lead*
+*v1.1: adicionado procedimento de correção de role (2026-05-29)*
 *Referência: go-final-readiness-report.md §PNB-05; provision-remote-enterprise-user.mjs*
