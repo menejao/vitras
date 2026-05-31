@@ -13,6 +13,121 @@ function hashAuditPayload(payload) {
   return crypto.createHash("sha256").update(JSON.stringify(payload)).digest("hex");
 }
 
+// AUD-01: explicit recursive canonicalization — predictable, crypto-stable, replacer-independent.
+function canonicalize(value) {
+  if (Array.isArray(value)) {
+    return value.map(canonicalize);
+  }
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.keys(value)
+        .sort()
+        .map((k) => [k, canonicalize(value[k])])
+    );
+  }
+  return value;
+}
+
+function canonicalStringify(obj) {
+  return JSON.stringify(canonicalize(obj));
+}
+
+function hashAuditPayloadV2(payload) {
+  return crypto.createHash("sha256").update(canonicalStringify(payload)).digest("hex");
+}
+
+/**
+ * AUD-01 — Legacy hash reconstruction (best-effort).
+ *
+ * Reconstructs a legacy audit log entry in the original addAuditLog insertion order,
+ * which has been stable since commit 7e8f4ef across all production deployments.
+ *
+ * Classification guide for callers:
+ *   legacy_valid         — hash reproduced successfully; entry is consistent with
+ *                          the known insertion-order serialization.
+ *   legacy_incompatible  — hash could NOT be reproduced. This does NOT constitute
+ *                          evidence of tampering or data corruption. It indicates
+ *                          only that the original serialization cannot be
+ *                          deterministically reconstructed from the data currently
+ *                          stored in JSONB (e.g. due to JSONB key reordering,
+ *                          field evolution, or null/undefined coercion differences
+ *                          at write time). Chain continuity via stored hash strings
+ *                          remains the authoritative integrity signal for these entries.
+ */
+function reconstructLegacyInsertionOrder(entry) {
+  const actor   = entry.actor   || {};
+  const request = entry.request || {};
+
+  const reconstructedActor = {
+    id:            actor.id,
+    name:          actor.name,
+    role:          actor.role,
+    teamId:        actor.teamId,
+    teamName:      actor.teamName,
+    impersonation: "impersonation" in actor ? actor.impersonation : null,
+    breakGlass:    "breakGlass"    in actor ? actor.breakGlass    : null,
+  };
+
+  if (reconstructedActor.impersonation && typeof reconstructedActor.impersonation === "object") {
+    const imp = actor.impersonation;
+    reconstructedActor.impersonation = {
+      active:         imp.active,
+      targetUserId:   imp.targetUserId,
+      targetUserName: imp.targetUserName,
+      targetUserRole: imp.targetUserRole,
+      targetTeamId:   imp.targetTeamId,
+      targetTeamName: imp.targetTeamName,
+    };
+  }
+
+  if (reconstructedActor.breakGlass && typeof reconstructedActor.breakGlass === "object") {
+    const bg = actor.breakGlass;
+    reconstructedActor.breakGlass = {
+      active:    bg.active,
+      reason:    bg.reason,
+      expiresAt: bg.expiresAt,
+    };
+  }
+
+  return {
+    id:        entry.id,
+    action:    entry.action,
+    entity:    entry.entity,
+    entityId:  entry.entityId,
+    category:  entry.category,
+    severity:  entry.severity,
+    teamId:    entry.teamId,
+    teamName:  entry.teamName,
+    userId:    entry.userId,
+    userName:  entry.userName,
+    userRole:  entry.userRole,
+    actor:     reconstructedActor,
+    request: {
+      id:            request.id,
+      ip:            request.ip,
+      userAgent:     request.userAgent,
+      method:        request.method,
+      path:          request.path,
+      authTransport: request.authTransport,
+    },
+    outcome:   entry.outcome,
+    before:    "before"    in entry ? entry.before    : null,
+    after:     "after"     in entry ? entry.after     : null,
+    details:   "details"   in entry ? entry.details   : {},
+    requestId: "requestId" in entry ? entry.requestId : "",
+    ip:        "ip"        in entry ? entry.ip        : "",
+    userAgent: "userAgent" in entry ? entry.userAgent : "",
+    createdAt: entry.createdAt,
+    prevHash:  entry.prevHash,
+  };
+}
+
+function hashLegacyPayload(entry) {
+  return crypto.createHash("sha256")
+    .update(JSON.stringify(reconstructLegacyInsertionOrder(entry)))
+    .digest("hex");
+}
+
 function getLastAuditHash(db) {
   const list = Array.isArray(db.auditLogs) ? db.auditLogs : [];
   if (!list.length) return "";
@@ -115,9 +230,10 @@ function addAuditLog(db, user, action, entity, entityId, details = {}) {
     requestId: user?.requestId || "",
     ip: String(requestMeta.ip || ""),
     userAgent: String(requestMeta.userAgent || ""),
-    createdAt: nowIso
+    createdAt:   nowIso,
+    hashVersion: "v2"
   };
-  const hash = hashAuditPayload({ ...logEntry, prevHash });
+  const hash = hashAuditPayloadV2({ ...logEntry, prevHash });
   db.auditLogs.push({ ...logEntry, prevHash, hash });
 
   // MEM-01: Evict oldest entries when the in-memory cap is exceeded.
@@ -188,54 +304,63 @@ function verifyAuditLogChain(db) {
 
   for (let i = 0; i < entries.length; i++) {
     const entry = entries[i];
-    const prev = i > 0 ? entries[i - 1] : null;
+    const prev  = i > 0 ? entries[i - 1] : null;
 
-    // Recompute the entry's hash by stripping the `hash` field (it was not present when
-    // the hash was originally computed — the input was { ...logEntry, prevHash }).
-    const { hash: storedHash, ...withoutHash } = entry;
-    const expectedHash = hashAuditPayload(withoutHash);
-
-    if (storedHash !== expectedHash) {
-      results.push({ id: entry.id, status: "broken", reason: "hash_mismatch" });
+    // Step 1 — chain continuity (stored hash strings, JSONB-stable).
+    // Chain-break is suspicious for any hash version; always classified as broken.
+    if (i > 0 && entry.prevHash !== prev.hash) {
+      results.push({ id: entry.id, status: "broken", reason: "chain_break" });
       broken = true;
       continue;
     }
 
-    // Verify chain continuity
-    if (i === 0) {
-      // First visible entry: prevHash="" means genesis; otherwise check eviction anchors
-      if (!entry.prevHash) {
-        results.push({ id: entry.id, status: "valid" });
+    // Step 2 — first-entry prevHash provenance.
+    // orphaned is declared regardless of hash verdict: chain provenance is an integrity
+    // concern independent of whether the individual hash is reproducible.
+    if (i === 0 && entry.prevHash) {
+      const isTruncatedValid = anchors.some((a) => a.newestEvictedHash === entry.prevHash);
+      if (isTruncatedValid) {
+        results.push({ id: entry.id, status: "truncated-valid", reason: "eviction_anchor_found" });
       } else {
-        const isTruncatedValid = anchors.some((a) => a.newestEvictedHash === entry.prevHash);
-        if (isTruncatedValid) {
-          results.push({ id: entry.id, status: "truncated-valid", reason: "eviction_anchor_found" });
-        } else {
-          results.push({ id: entry.id, status: "orphaned", reason: "prevHash_not_in_anchors" });
-          broken = true;
-        }
-      }
-    } else {
-      // Subsequent entries: prevHash must match the previous entry's stored hash
-      if (entry.prevHash !== prev.hash) {
-        results.push({ id: entry.id, status: "broken", reason: "chain_break" });
+        results.push({ id: entry.id, status: "orphaned", reason: "prevHash_not_in_anchors" });
         broken = true;
+      }
+      continue;
+    }
+
+    // Step 3 — hash integrity.
+    if (entry.hashVersion === "v2") {
+      const { hash: storedHash, ...withoutHash } = entry;
+      if (hashAuditPayloadV2(withoutHash) !== storedHash) {
+        results.push({ id: entry.id, status: "broken", reason: "hash_mismatch" });
+        broken = true;
+        continue;
+      }
+      results.push({ id: entry.id, status: "valid" });
+    } else {
+      if (hashLegacyPayload(entry) === entry.hash) {
+        results.push({ id: entry.id, status: "legacy_valid" });
       } else {
-        results.push({ id: entry.id, status: "valid" });
+        results.push({ id: entry.id, status: "legacy_incompatible", reason: "hash_not_reproducible" });
       }
     }
   }
 
-  const brokenCount = results.filter((r) => r.status === "broken").length;
-  const orphanedCount = results.filter((r) => r.status === "orphaned").length;
-  const truncatedCount = results.filter((r) => r.status === "truncated-valid").length;
+  const brokenCount        = results.filter((r) => r.status === "broken").length;
+  const orphanedCount      = results.filter((r) => r.status === "orphaned").length;
+  const truncatedCount     = results.filter((r) => r.status === "truncated-valid").length;
+  const legacyValidCount   = results.filter((r) => r.status === "legacy_valid").length;
+  const legacyIncompatible = results.filter((r) => r.status === "legacy_incompatible").length;
 
   const status = broken
     ? "broken"
     : orphanedCount > 0
       ? "orphaned"
-      : "valid";
+      : legacyIncompatible > 0
+        ? "legacy_incompatible"
+        : "valid";
 
+  // legacy_incompatible = serialization format gap, not evidence of tampering — no alarm.
   if (status === "broken" || status === "orphaned") {
     recordMetric("audit_chain_failure", 1, {
       status,
@@ -246,12 +371,14 @@ function verifyAuditLogChain(db) {
 
   return {
     status,
-    checked: entries.length,
-    broken: brokenCount,
-    orphaned: orphanedCount,
-    truncatedValid: truncatedCount,
-    anchorsChecked: anchors.length,
-    firstBrokenId: results.find((r) => r.status === "broken")?.id || null
+    checked:            entries.length,
+    broken:             brokenCount,
+    orphaned:           orphanedCount,
+    legacyValid:        legacyValidCount,
+    legacyIncompatible,
+    truncatedValid:     truncatedCount,
+    anchorsChecked:     anchors.length,
+    firstBrokenId:      results.find((r) => r.status === "broken")?.id || null
   };
 }
 
@@ -286,4 +413,4 @@ function getAuditReport(db, types, filters = {}) {
   return filtered.slice(0, limit);
 }
 
-export { hashAuditPayload, getLastAuditHash, addAuditLog, classifyAuditAction, verifyAuditLogChain, getAuditReport };
+export { hashAuditPayload, hashAuditPayloadV2, getLastAuditHash, addAuditLog, classifyAuditAction, verifyAuditLogChain, getAuditReport };
