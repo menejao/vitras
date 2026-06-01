@@ -3,7 +3,7 @@ import { z } from "zod";
 const shortString = (max) => z.string().trim().max(max);
 const optionalShortString = (max) => shortString(max).optional();
 const optionalDateString = () => z.string().trim().max(50).optional();
-const optionalNumberLike = () => z.union([z.string(), z.number()]).optional();
+const optionalNumberLike = () => z.union([z.string(), z.number()]).nullable().optional();
 
 const LoginSchema = z.object({
   email: z.string().min(1).max(255),
