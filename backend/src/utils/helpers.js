@@ -136,7 +136,6 @@ const ROLE_CAPABILITIES = {
   pharmacy_tech: [
     "dashboard.read",
     "pharmacy.read",
-    "pharmacy.write",
     "supplies.read",
     "supplies.write"
   ],
