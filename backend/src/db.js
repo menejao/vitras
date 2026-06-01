@@ -5,7 +5,7 @@ import crypto from "node:crypto";
 import { Pool } from "pg";
 import { canonicalRole, getRoleCapabilities } from "./utils/helpers.js";
 import { logInfo, logWarn, logError } from "./utils/logger.js";
-import { PATIENT_LOOKUP_HASH_KEY } from "./config.js";
+import { PATIENT_LOOKUP_HASH_KEY, DATA_ENCRYPTION_KEY, DATA_ENCRYPTION_KEY_REGISTRY, DATA_ENCRYPTION_ACTIVE_KID } from "./config.js";
 import { recordMetric } from "./services/metrics.js";
 
 const DB_PATH = process.env.TEST_DB_PATH
@@ -13,7 +13,6 @@ const DB_PATH = process.env.TEST_DB_PATH
   : path.resolve(process.cwd(), "data", "db.json");
 const DATABASE_URL = String(process.env.DATABASE_URL || "").trim();
 const DB_DRIVER = DATABASE_URL ? "postgres" : "file";
-const DATA_ENCRYPTION_KEY = String(process.env.DATA_ENCRYPTION_KEY || "").trim();
 const ENC_PREFIX = "enc1:";
 const SENSITIVE_PATIENT_FIELDS = ["cpf", "cns", "cnsCpf"];
 const SENSITIVE_USER_FIELDS = ["twoFactorSecret", "twoFactorPendingSecret"];
@@ -63,36 +62,65 @@ function isPostgresMode() {
   return DB_DRIVER === "postgres";
 }
 
-function getEncryptionKey() {
-  if (!DATA_ENCRYPTION_KEY) return null;
-  return crypto.createHash("sha256").update(DATA_ENCRYPTION_KEY).digest();
+function _deriveKey(raw) {
+  if (!raw) return null;
+  return crypto.createHash("sha256").update(String(raw)).digest();
+}
+
+function _getKeyById(kid) {
+  if (!kid) return null;
+  const raw = DATA_ENCRYPTION_KEY_REGISTRY[kid];
+  if (!raw) return null;
+  return _deriveKey(raw);
+}
+
+function _getActiveKid() {
+  return DATA_ENCRYPTION_ACTIVE_KID || null;
 }
 
 function isEncryptedText(value) {
   return typeof value === "string" && value.startsWith(ENC_PREFIX);
 }
 
-function encryptText(value, key) {
+function encryptText(value) {
   const raw = String(value || "");
   if (!raw) return "";
-  if (!key) return raw;
   if (isEncryptedText(raw)) return raw;
+
+  const kid = _getActiveKid();
+  const key = kid ? _getKeyById(kid) : null;
+  if (!key) return raw;
 
   const iv = crypto.randomBytes(12);
   const cipher = crypto.createCipheriv("aes-256-gcm", key, iv);
   const encrypted = Buffer.concat([cipher.update(raw, "utf8"), cipher.final()]);
   const tag = cipher.getAuthTag();
-  return `${ENC_PREFIX}${iv.toString("base64")}:${encrypted.toString("base64")}:${tag.toString("base64")}`;
+  return `${ENC_PREFIX}${kid}:${iv.toString("base64")}:${encrypted.toString("base64")}:${tag.toString("base64")}`;
 }
 
-function decryptText(value, key) {
+function decryptText(value) {
   const raw = String(value || "");
   if (!raw) return "";
   if (!isEncryptedText(raw)) return raw;
-  if (!key) throw new Error("DATA_ENCRYPTION_KEY ausente para descriptografar dados sensíveis");
 
   const [, payload] = raw.split(ENC_PREFIX);
-  const [ivB64, encB64, tagB64] = String(payload || "").split(":");
+  const parts = String(payload || "").split(":");
+
+  let kid, ivB64, encB64, tagB64;
+  if (parts.length === 4) {
+    // New format: kid:iv:enc:tag
+    [kid, ivB64, encB64, tagB64] = parts;
+  } else if (parts.length === 3) {
+    // Legacy format: iv:enc:tag — route to legacy key
+    kid = "legacy";
+    [ivB64, encB64, tagB64] = parts;
+  } else {
+    throw new Error("Formato inválido de dado criptografado");
+  }
+
+  const key = _getKeyById(kid);
+  if (!key) throw new Error("Chave de descriptografia ausente ou inválida");
+
   if (!ivB64 || !encB64 || !tagB64) throw new Error("Formato inválido de dado criptografado");
   const iv = Buffer.from(ivB64, "base64");
   const encrypted = Buffer.from(encB64, "base64");
@@ -122,11 +150,10 @@ function cloneState(value) {
 }
 
 function transformSensitiveState(state, mode) {
-  const key = getEncryptionKey();
   const data = cloneState(state || {});
   const transform = mode === "encrypt"
-    ? (value) => encryptText(value, key)
-    : (value) => decryptText(value, key);
+    ? (value) => encryptText(value)
+    : (value) => decryptText(value);
 
   if (Array.isArray(data.patients)) {
     data.patients = data.patients.map((patient) => {
@@ -994,6 +1021,8 @@ async function closeDbPool() {
   await pool.end();
 }
 
+const _testExports = { encryptText, decryptText };
+
 export {
   pool,
   isPostgresMode,
@@ -1011,5 +1040,6 @@ export {
   listAuditLogsSnapshot,
   listRolePermissionsSnapshot,
   checkDbHealth,
-  closeDbPool
+  closeDbPool,
+  _testExports
 };
