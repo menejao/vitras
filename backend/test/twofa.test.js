@@ -18,6 +18,7 @@ describe("2FA flow", () => {
       email,
       password,
       role: "gestor",
+      unitId: "unit-default",
       councilType: "COREN",
       councilNumber: "874987",
       councilUf: "MG"

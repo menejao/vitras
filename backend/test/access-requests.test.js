@@ -24,6 +24,7 @@ test("access requests flow persists submission and approval decision", async () 
     email: `gestor-access-${Date.now()}@ubs.local`,
     password: "TestPass@12345!",
     role: "gestor",
+    unitId: "unit-default",
     councilNumber: "874231",
     councilUf: "SP"
   });
