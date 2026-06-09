@@ -55,12 +55,27 @@
 
 | Risco | Aceito por | Data | Observação |
 |-------|-----------|------|------------|
-| RDS backup retention = 1 dia (Free Tier) | ____________ | ________ | Upgrade AWS necessário para prod real |
+| **B-07** RDS backup retention = 1 dia (Free Tier) — ver aceite formal abaixo | João Pedro + Coordenador UBS + Médico Resp. | ________ | **Upgrade AWS obrigatório antes de UBS #2** — ver condições abaixo |
 | CORS_ALLOW_ALL=true (temporário) | ____________ | ________ | Substituir quando domínio HTTPS definido |
 | COOKIE_SECURE=false (HTTP-only) | ____________ | ________ | Ativar quando HTTPS ativado |
 | Upstash não configurado (single-instance) | ____________ | ________ | Provisionar antes de UBS #2 |
 | Sem Multi-AZ no RDS | ____________ | ________ | Failover manual aceitável no piloto |
 | LGPD anonymization bloqueada (KI-02) | ____________ | ________ | Endpoint desabilitado até Sprint 5A |
+
+---
+
+### ACEITE FORMAL — RISCO B-07: RDS BACKUP RETENTION
+
+O risco de janela de PITR limitada a 24 horas é reconhecido e aceito para o piloto controlado UBS-001 com as seguintes condições ativas: (1) protocolo de papel paralelo ativo; (2) snapshots manuais antes de cada deploy; (3) Tech Lead on-call D+0–D+7 com RTO comprovado de 100 min 35 seg (medido em DR Drill 2026-06-09); (4) volume reduzido de pacientes torna re-lançamento manual viável em caso de restore necessário.
+
+**Causa raiz:** `FreeTierRestrictionError` — conta AWS Free Tier limita `--backup-retention-period` a 1 dia. Evidência: `go-final-readiness-report.md` BT-02 (requalificado em 2026-05-26).
+
+**Comprometimento irrevogável:** Upgrade AWS e execução de `aws rds modify-db-instance --db-instance-identifier vitras-drill-sa-3 --backup-retention-period 7 --apply-immediately` obrigatórios antes de qualquer expansão (UBS #2, novos municípios, ou aumento de volume além do piloto UBS-001). **Sem upgrade confirmado e documentado, UBS #2 não recebe GO.**
+
+**Aceito por:**
+- João Pedro — Tech Lead VITRAS: _________________________ Data: _____ / _____ / _______
+- Coordenador UBS-001: _________________________ Data: _____ / _____ / _______
+- Médico Responsável (CRM): _________________________ Data: _____ / _____ / _______
 
 ---
 
