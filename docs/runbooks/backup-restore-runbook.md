@@ -51,8 +51,8 @@ aws rds restore-db-instance-to-point-in-time \
   --target-db-instance-identifier vitras-prod-restored-$(date +%Y%m%d) \
   --restore-time "2026-05-25T10:00:00Z" \
   --db-instance-class db.t3.medium \
-  --vpc-security-group-ids sg-XXXXXXXX \
-  --db-subnet-group-name vitras-subnet-group \
+  --vpc-security-group-ids sg-0bb5e7e5b8f9133bb \
+  --db-subnet-group-name default-vpc-0793a0713e76b3d72 \
   --no-publicly-accessible
 
 # Aguardar a instância ficar disponível (pode levar 15-60 minutos)
@@ -106,7 +106,7 @@ node -e "import('./src/migrations/runner.js').then(m => m.runMigrations())"
 
 **Verificar resultado esperado:**
 - Log `migrations.completed` sem erros
-- Todas as migrations de 001 a 008 presentes em `schema_migrations`
+- Todas as migrations de 001 a 011 presentes em `schema_migrations`
 
 ### 2.2 Verificar Índices Hash (Migration 006)
 

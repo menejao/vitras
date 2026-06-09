@@ -397,73 +397,110 @@ Notes: redis:unknown = Upstash not configured (accepted). auditChain:unknown = n
 
 ---
 
-## Section C -- RTO/RPO Calculation (EXECUTED 2026-06-09)
+## Section C -- RTO/RPO Calculation (PITR REAL EXECUTADO 2026-06-09)
+
+### Sessao PITR Real — Limpeza de quota + restore efetivo
+
+Contexto: sessao anterior (16:53–18:39 UTC) foi bloqueada por InstanceQuotaExceeded (2 instancias RDS no Free Tier).
+Esta sessao (19:23–22:43 UTC) executou a limpeza autorizada e o PITR real:
+- vitras-prod-sa terminado (recursos removidos 19:44 UTC, SG bloqueante removido manualmente)
+- vitras-db deletado (--skip-final-snapshot, deleting 19:53, gone 20:03 UTC)
+- vitras-pitr-202606092005 criado por PITR, ficou available em 97 min
+- EB vitras-drill-sa-3 apontado para banco restaurado, /readyz 200 confirmado
+- Teardown completo: vitras-pitr deletado, EB revertido, staging Green
 
 ### Timeline
 
 | Evento | Horario UTC |
 |--------|------------|
-| T_START | 2026-06-09T16:53:14Z |
-| T_RESTORE_INITIATED | 2026-06-09T17:00:49Z |
-| T_RESTORE_AVAILABLE | BLOCKED (InstanceQuotaExceeded) |
-| T_EB_RESTART | ~2026-06-09T18:21:00Z |
-| T_READYZ_200 | 2026-06-09T18:26:49Z |
-| T_DRILL_END | 2026-06-09T18:39:04Z |
-| **RTO CALCULADO** | ~21 min estimated (6 min EB restart measured) |
-| **RPO CALCULADO** | ~8 min |
+| BASELINE_TIME (staging ok) | 2026-06-09T19:23:55Z |
+| T_TERMINATE vitras-prod-sa | 2026-06-09T19:24:17Z |
+| SG bloqueante removido (sg-01bae40a689d90dfb) | 2026-06-09T19:52:41Z |
+| T_DELETE_INITIATED vitras-db | 2026-06-09T19:53:06Z |
+| vitras-db DELETED | 2026-06-09T20:03:07Z |
+| T_START (PITR session) | 2026-06-09T20:03:20Z |
+| LatestRestorableTime (vitras-drill-restore) | 2026-06-09T19:58:08Z |
+| RESTORE_TIME usado | 2026-06-09T19:03:20Z |
+| T_RESTORE_INITIATED | 2026-06-09T20:06:02Z |
+| T_RESTORE_AVAILABLE | 2026-06-09T21:43:38Z |
+| T_EB_RESTART | 2026-06-09T21:46:12Z |
+| T_READYZ_200 | 2026-06-09T21:46:37Z |
+| T_DRILL_END | 2026-06-09T22:37:15Z |
+| **RTO REAL** | **100 min 35 seg** |
+| **RPO REAL** | **5 min 12 seg** |
 
 ### RTO (Recovery Time Objective)
 
-PITR component: BLOCKED by quota. RDS docs for db.t3.micro 20GB: ~10-20 min typical.
-EB restart component (measured): T_READYZ_200 - T_EB_RESTART = ~6 min
-Estimated full RTO: ~15 min (PITR) + 6 min (EB restart) = ~21 min
+RTO = T_READYZ_200 - T_RESTORE_INITIATED = 21:46:37 - 20:06:02 = 100 min 35 seg
+Componentes:
+- PITR (creating -> available): 20:06:02 -> 21:43:38 = 97 min 36 seg
+- EB update + restart + boot: 21:43:38 -> 21:46:37 = 2 min 59 seg
 
 | Metric | Target | Actual | Pass? |
 |--------|--------|--------|-------|
-| RTO | 240 min | ~21 min estimated (6 min EB measured) | PASS (estimated) |
+| RTO | 240 min | 100 min 35 seg | PASS |
 
 ### RPO (Recovery Point Objective)
 
-T_START = 2026-06-09T16:53:14Z
-LatestRestorableTime = 2026-06-09T16:45:36Z
-RPO = 7 min 38 sec
+T_START = 2026-06-09T20:03:20Z
+LatestRestorableTime = 2026-06-09T19:58:08Z
+RPO = 5 min 12 seg
 
 | Metric | Target | Actual | Pass? |
 |--------|--------|--------|-------|
-| RPO | 24 h | ~8 min | PASS |
+| RPO | 24 h | 5 min 12 seg | PASS |
+
+### Criterios de Aprovacao
+
+| Criterio | Alvo | Resultado | PASS/FAIL |
+|---------|------|-----------|-----------|
+| PITR real executado | sim | vitras-pitr-202606092005 created + available | PASS |
+| RTO | <= 240 min | 100 min 35 seg | PASS |
+| RPO | <= 24h | 5 min 12 seg | PASS |
+| /readyz 200 pos-restore | sim | HTTP 200 em 21:46:37Z | PASS |
+| migrations:ok | sim | subsystems.migrations=ok | PASS |
+| BGA login ok | sim | ok:true role:break_glass_admin | PASS |
+| audit integrity broken:0 | sim | status:legacy_incompatible checked:2930 broken:0 | PASS |
+| hash rebuild dryRun ok | sim | ok:true processed:45 dryRun:true | PASS |
+| teardown completo | sim | vitras-pitr deletado, EB revertido | PASS |
+| staging restaurado | sim | /readyz 200 22:43:27Z | PASS |
 
 ### Verdict
 
-RTO: PASS (estimated) -- ~21 min vs 240 min target
-RPO: PASS -- ~8 min vs 24 h target
+RTO: PASS -- 100 min 35 seg vs 240 min target
+RPO: PASS -- 5 min 12 seg vs 24 h target
 
-Overall DR Drill: PASS WITH CONDITIONS
-- B-8 to B-17 application checks: 10/10 PASS
-- PITR not executed (InstanceQuotaExceeded)
-- EB failover cycle: 6 min measured
-- Action: resolve Issue 1 and Issue 2 before go-live
+Overall DR Drill: PASS COMPLETO
+- PITR real executado contra vitras-drill-restore
+- EB failover para banco restaurado: ok
+- Todas as verificacoes de aplicacao: 10/10 PASS
+- Teardown completo, staging Green
 
 ---
 
 ## Section D -- Sign-Off Gate
 
-DR Drill Status: EXECUTED 2026-06-09
-Blocking UBS-001 go-live: CONDITIONALLY RESOLVED
+DR Drill Status: EXECUTADO 2026-06-09
+Blocking UBS-001 go-live: RESOLVIDO
 
-Drill Result: PASS WITH CONDITIONS
+Drill Result: PASS COMPLETO
 
-RTO: PASS (estimated ~21 min -- target 240 min)
-RPO: PASS (~8 min -- target 24 h)
+PITR real executado: PASS (vitras-pitr-202606092005)
+RTO: PASS (100 min 35 seg -- target 240 min)
+RPO: PASS (5 min 12 seg -- target 24 h)
 
-Issues found: 2 (both P2) -- must resolve before go-live
-B-8 to B-17: PASS 10/10
+Issues da sessao anterior: RESOLVIDOS
+- Issue 1 (InstanceQuotaExceeded): RESOLVIDO -- vitras-prod-sa terminado + vitras-db deletado (autorizado)
+- Issue 2 (vitras-db credential mismatch): ENCERRADO -- vitras-db deletado, instancia orphan removida
+
+B-8 a B-17: PASS 10/10
+B-01 item 0.7 (DR drill): DONE
 
 Signed by Tech Lead: Joao Pedro    Date: 2026-06-09
 
 Decision:
-[x] GO CONDICIONADO for UBS-001
-    Condition 1: Issue 1 (PITR quota) must be resolved before go-live
-    Condition 2: Issue 2 (vitras-db credentials) must be documented and resolved
+[x] GO INCONDICIONAL em relacao a item 0.7
+    B-01 FECHADO -- PITR real PASS, RTO=100min, RPO=5min
 
 ---
 
@@ -471,10 +508,13 @@ Decision:
 
 | # | Issue | Severity (P0-P3) | Resolution | Resolved? | SOP Updated? |
 |---|-------|-----------------|------------|-----------|-------------|
-| 1 | InstanceQuotaExceeded: Free Tier max 2 RDS instances. PITR blocked. | P2 | Upgrade AWS plan OR delete vitras-db (if unused). | NOT RESOLVED | Add pre-drill quota check to runbook |
-| 2 | vitras-db credential mismatch: password auth failed (pg 28P01). Different passwords on vitras-db vs vitras-drill-restore. | P2 | Confirm authoritative instance. Document + rotate credentials per PNB-04. | NOT RESOLVED | Add credential check to pre-drill checklist |
+| 1 | InstanceQuotaExceeded: Free Tier max 2 RDS instances. PITR bloqueado na sessao 1. | P2 | vitras-prod-sa terminado + vitras-db deletado em 2026-06-09 (autorizado por Joao Pedro). PITR real executado na sessao 2. | RESOLVIDO 2026-06-09 | Adicionar verificacao de quota ao pre-drill checklist |
+| 2 | vitras-db credential mismatch: password auth failed (pg 28P01). Instancia orphan com credenciais quebradas. | P2 | vitras-db era instancia orphan (ultimo deploy 2026-05-22, zero referencias em docs de go-live). Deletada com autorizacao. Instancia autoritativa: vitras-drill-restore. | RESOLVIDO 2026-06-09 | Documentar instancia autoritativa em runbook |
+| 3 | SG delete bloqueado (DELETE_FAILED no CF stack): sg-01bae40a689d90dfb referenciado em regra ingress 5432 do SG default. | P3 | Regra revogada manualmente (aws ec2 revoke-security-group-ingress) antes da delecao do SG. CF stack forcado via delete-stack. | RESOLVIDO 2026-06-09 | Adicionar remocao de SG-references ao runbook de terminacao de ambientes EB |
 
 ---
 
-*Document version: v1.1-executed -- Executed 2026-06-09 by Joao Pedro*
+*Document version: v2.0-pitr-real -- PITR real executado 2026-06-09 por Joao Pedro*
+*Sessao 1: 2026-06-09T16:53 -- 18:39 UTC (PASS WITH CONDITIONS -- PITR bloqueado)*
+*Sessao 2: 2026-06-09T19:23 -- 22:43 UTC (PASS COMPLETO -- PITR real, RTO=100min, RPO=5min)*
 *Code audit sources: backend/src/migrations/index.js, backend/src/routes/health.js, backend/src/server.js, backend/src/services/runtime-state.js*

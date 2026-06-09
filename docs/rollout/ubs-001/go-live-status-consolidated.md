@@ -48,7 +48,7 @@ Code-verified properties:
 | 0.4 | All EB env vars validated | PENDING | João Pedro | See `checklist-pre-rollout.md`; 12 vars required |
 | 0.5 | CloudWatch alarms (8) configured | PENDING | João Pedro | See `cloudwatch-alarm-setup.md`; ~3–5h |
 | 0.6 | CloudWatch log group receiving logs | PENDING | João Pedro | Log group: `/aws/elasticbeanstalk/vitras-prod/var/log/nodejs/nodejs.log` |
-| 0.7 | DR drill EXECUTED + PASSED | PENDING | João Pedro | Against vitras-staging; RTO ≤ 240 min, RPO ≤ 24h |
+| 0.7 | DR drill EXECUTED + PASSED | DONE 2026-06-09 | João Pedro | PITR real executado (vitras-pitr-202606092005). RTO=100min RPO=5min. Ambos PASS. |
 | 0.8 | Staging smoke test EXECUTED + PASSED (44 tests) | PENDING | João Pedro | Any Category 4 failure = NO-GO hard block |
 | 0.9 | contatos.md fully populated | PENDING | João Pedro + UBS | All [fill] placeholders replaced; DPO + Medical Director + TI Prefeitura |
 | 0.10 | Tabletop conducted with team | PENDING | João Pedro + team | 2h session; score ≥ 3/5 |
