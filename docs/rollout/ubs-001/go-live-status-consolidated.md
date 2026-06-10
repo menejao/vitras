@@ -1,4 +1,4 @@
-# UBS #1 GO-LIVE Status Dashboard
+﻿# UBS #1 GO-LIVE Status Dashboard
 
 **Last updated:** 2026-05-25
 **Version:** v1.0-pilot-governed
@@ -44,16 +44,16 @@ Code-verified properties:
 |---|------|--------|-------|-------|
 | 0.1 | break_glass_admin created | PENDING | João Pedro | Via `provision-remote-enterprise-user.mjs`; requires live EB + DB |
 | 0.2 | security_auditor created | PENDING | João Pedro | Strongly recommended; required for audit export |
-| 0.3 | EB health check = /readyz | PENDING | João Pedro | AWS Console: EB → Configuration → Load Balancer → /readyz |
+| 0.3 | EB health check = /readyz | DONE 2026-06-10 | João Pedro | CONFIRMED: `Application Healthcheck URL=/readyz` + ELB Target=`HTTP:80/readyz`. aws:elasticbeanstalk:application verified via describe-configuration-settings. |
 | 0.4 | All EB env vars validated | PENDING | João Pedro | See `checklist-pre-rollout.md`; 12 vars required |
 | 0.5 | CloudWatch alarms (8) configured | PENDING | João Pedro | See `cloudwatch-alarm-setup.md`; ~3–5h |
 | 0.6 | CloudWatch log group receiving logs | PENDING | João Pedro | Log group: `/aws/elasticbeanstalk/vitras-prod/var/log/nodejs/nodejs.log` |
 | 0.7 | DR drill EXECUTED + PASSED | DONE 2026-06-09 | João Pedro | PITR real executado (vitras-pitr-202606092005). RTO=100min RPO=5min. Ambos PASS. |
-| 0.8 | Staging smoke test EXECUTED + PASSED (44 tests) | PENDING | João Pedro | Any Category 4 failure = NO-GO hard block |
+| 0.8 | Staging smoke test EXECUTED + PASSED (44 tests) | DONE 2026-06-10 | Joao Pedro | 44/44 PASS - commit d20add9 (smoke-audit-fix-202606100957). B-02 CLOSED. Cat.4 isolation, CPF masking, audit integrity broken:0, gestor HTTP 200, SA export HTTP 200 all confirmed. |
 | 0.9 | contatos.md fully populated | PENDING | João Pedro + UBS | All [fill] placeholders replaced; DPO + Medical Director + TI Prefeitura |
 | 0.10 | Tabletop conducted with team | PENDING | João Pedro + team | 2h session; score ≥ 3/5 |
 | 0.11 | RDS backup retention ≥ 7 days verified | PENDING | João Pedro | AWS Console → RDS → Maintenance & Backups |
-| 0.12 | VPC security groups verify RDS = EB only | PENDING | João Pedro | KI-03 mitigation depends on VPC isolation |
+| 0.12 | VPC security groups verify RDS = EB only | DONE 2026-06-10 | João Pedro | PASS: RDS sg-0bb5e7e5b8f9133bb allows TCP 5432 from EB sg-084cb6f506c349f0f (vitras-drill-sa-3). No 0.0.0.0/0 exposure. Notes: orphaned rule from terminated vitras-prod-sa (sg-0ddff5f12da555213, harmless) + dev IP 179.228.203.46/32 (admin access). Remove before production. |
 | 0.13 | aceite-operacional.md signed by UBS coordinator | PENDING | UBS Coordinator | Requires coordination with UBS |
 | 0.14 | Paper documentation fallback confirmed with UBS | PENDING | UBS Coordinator | Critical for Scenario A (Redis outage) |
 | 0.15 | EB CLI pre-configured and `eb status` verified | PENDING | João Pedro | Gap 2 from lessons-learned; run before any deploy window |
@@ -75,7 +75,7 @@ Code-verified properties:
 | 2.2 | Deploy executed | PENDING | João Pedro | `eb deploy --version v1.0-pilot-governed` |
 | 2.3 | /readyz 200 confirmed (≤ T+15min) | PENDING | João Pedro | Record exact time |
 | 2.4 | server_started log in CloudWatch verified | PENDING | João Pedro | driver=postgres, version=v1.0-pilot-governed |
-| 2.5 | Migration count = 8 in schema_migrations | PENDING | João Pedro | SQL: `SELECT COUNT(*) FROM schema_migrations` |
+| 2.5 | Migration count = 11 in schema_migrations | PENDING | João Pedro | SQL: `SELECT COUNT(*) FROM schema_migrations` — expected 11 (001–011; CRITICAL_MIGRATIONS=[006,009,010,011]) |
 | 2.6 | /health subsystems all ok | PENDING | João Pedro | postgres ok, redis ok, migrations ok |
 | 2.7 | break_glass_admin login succeeded | PENDING | João Pedro | Token obtained; stored for bootstrap step |
 | 2.8 | Unit bootstrap executed (POST /admin/units/bootstrap) | PENDING | João Pedro | Record unitId |

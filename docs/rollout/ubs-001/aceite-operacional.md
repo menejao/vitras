@@ -19,7 +19,7 @@
 | A-01 | Deploy completado sem erros | `aws eb describe-environment-health` → Green | ____________ | __:__ | [ ] |
 | A-02 | `/readyz` retorna HTTP 200 com `ok: true` | `curl /readyz` | ____________ | __:__ | [ ] |
 | A-03 | `/health` mostra `postgres=ok, migrations=ok` | `curl /health` | ____________ | __:__ | [ ] |
-| A-04 | 8/8 migrations aplicadas | `/health subsystems.migrations=ok` | ____________ | __:__ | [ ] |
+| A-04 | 11/11 migrations aplicadas (001–011) | `/health subsystems.migrations=ok` + `SELECT COUNT(*) FROM schema_migrations` = 11 | ____________ | __:__ | [ ] |
 | A-05 | Login breakglass operacional | `POST /auth/login` → role=break_glass_admin | ____________ | __:__ | [ ] |
 | A-06 | Audit log registrando eventos | `GET /audit-logs` → eventos presentes | ____________ | __:__ | [ ] |
 | A-07 | EB health check = HTTP:/readyz | AWS Console → EB Configuration | ____________ | __:__ | [ ] |
