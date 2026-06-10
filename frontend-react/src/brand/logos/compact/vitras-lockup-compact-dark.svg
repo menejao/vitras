@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 40" width="200" height="40">
+
+  <g transform="translate(0 4) scale(1)"><path d="M4 4 H10 L16 18 L22 4 H28 V28 H4 Z" fill="#E8ECF1"></path></g>
+  <text x="42" y="30" font-family="IBM Plex Sans, system-ui, sans-serif" font-weight="500" font-size="32" letter-spacing="-1.6" fill="#E8ECF1">vitras</text>
+  <text x="120" y="30" font-family="IBM Plex Sans, system-ui, sans-serif" font-weight="500" font-size="32" fill="#5DD5E8">.</text>
+</svg>
