@@ -1,6 +1,6 @@
 # Final Go-Live Checklist — UBS #1 v1.0-pilot-governed
 
-**Version:** v1.0-pilot-governed (tag: 81a704d, branch: release/pilot-baseline)
+**Version:** v1.0-pilot-governed (tag: d20add9, branch: chore/rotate-data-encryption-key)
 **Operator:** João Pedro
 **Created:** 2026-05-25
 
@@ -11,6 +11,35 @@
 ---
 
 ## T-7 Days (1 Week Before Go-Live)
+
+### Legal and Compliance — LGPD (hard blocks for patient data)
+
+> These items must be confirmed at T-7. Do NOT proceed to deploy with patients if any is missing.
+
+- [ ] **DPO designated by Prefeitura** — LGPD Art. 41
+  - Reference: `lgpd-dpo-ripd-guide.md` — Parte A
+  - Evidence: designation order or contract; name + contact in `contatos.md` Seção C
+  - Blocking: YES
+
+- [ ] **RIPD completed and signed** by DPO and controller — LGPD Art. 38
+  - Reference: `lgpd-dpo-ripd-guide.md` — Parte B (fill template)
+  - Blocking: YES
+
+- [ ] **Política de privacidade published** — LGPD Art. 9
+  - Template: `politica-privacidade-template.md`
+  - Must be posted at UBS reception (physical) before first real patient registration
+  - Blocking: YES
+
+- [ ] **AWS DPA accepted** (AWS Artifact → accept + download PDF) — LGPD Art. 37-39
+  - Reference: `dpa-checklist.md`
+  - Blocking: YES (AWS processes all patient data)
+
+- [ ] **Instrumento jurídico Vitras-Prefeitura confirmed** (Lei 14.133/2021 or technical cooperation term)
+  - Blocking: YES
+
+- [ ] **Neon and Render confirmed as inactive** in production (or DPAs accepted if active)
+  - Reference: `dpa-checklist.md`
+  - Blocking: conditional
 
 ### Infrastructure — AWS (requires live access)
 
