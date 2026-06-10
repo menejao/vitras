@@ -1,7 +1,7 @@
 import express from "express";
 import { AUDIT_LOG_DEFAULT_LIMIT, AUDIT_LOG_MAX_LIMIT, AUDIT_LOG_RETENTION_DAYS, AUDIT_PRUNE_ENABLED } from "../config.js";
 import { readDb, withDb, listAuditLogsSnapshot } from "../db.js";
-import { requireManager, requireManagerOrDoctor, requireRoles } from "../middlewares/auth.js";
+import { requireRoles } from "../middlewares/auth.js";
 import { exportRateLimit } from "../middlewares/rate-limits.js";
 import { canonicalRole } from "../utils/helpers.js";
 import { ensureDbShape } from "../utils/domain.js";
@@ -56,7 +56,7 @@ function matchesAuditFilters(log, filters) {
   return true;
 }
 
-router.get("/audit-logs", requireManagerOrDoctor, async (req, res) => {
+router.get("/audit-logs", requireRoles(["nurse_manager", "doctor", "gestor", "security_auditor", "break_glass_admin"], "Sem permissão para ler audit logs"), async (req, res) => {
   const userRole = canonicalRole(req.user?.role);
   const canReadAllAuditTeams = AUDIT_GLOBAL_ROLES.has(userRole);
   const userTeamId = String(req.user?.teamId || "").trim();
@@ -124,7 +124,7 @@ router.get("/audit-logs", requireManagerOrDoctor, async (req, res) => {
   });
 });
 
-router.get("/audit-logs/export", exportRateLimit, requireManagerOrDoctor, async (req, res) => {
+router.get("/audit-logs/export", exportRateLimit, requireRoles(["nurse_manager", "doctor", "gestor", "security_auditor", "break_glass_admin"], "Sem permissão para exportar audit logs"), async (req, res) => {
   const exportUserRole = canonicalRole(req.user?.role);
   const canExportAllTeams = AUDIT_GLOBAL_ROLES.has(exportUserRole);
   const exportUserTeamId = String(req.user?.teamId || "").trim();
