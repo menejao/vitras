@@ -4,15 +4,9 @@ import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
 import Input from "../components/ui/Input";
 import Alert from "../components/ui/Alert";
+import { BrandLockup } from "../components/brand/BrandLockup";
 
 const SUBTITLE = "Plataforma integrada para gestão da saúde pública";
-
-const IconMark = () => (
-  <svg width="20" height="20" viewBox="0 0 18 18" fill="none" aria-hidden="true">
-    <rect x="7.25" y="1.75" width="3.5" height="14.5" rx="1.75" fill="white" />
-    <rect x="1.75" y="7.25" width="14.5" height="3.5" rx="1.75" fill="white" />
-  </svg>
-);
 
 async function validateToken(token) {
   const res = await fetch(
@@ -50,13 +44,7 @@ function LeftPanel({ eyebrow, heading, sub }) {
   return (
     <section className="auth__left">
       <div className="auth__brand">
-        <div className="auth-brand-lockup">
-          <div className="auth-brand-lockup__icon"><IconMark /></div>
-          <div className="auth-brand-lockup__copy">
-            <strong>Vitras</strong>
-            <span>{SUBTITLE}</span>
-          </div>
-        </div>
+        <BrandLockup variant="primary-dark" className="auth-lockup" />
       </div>
       <div className="auth__hero">
         <span className="auth-eyebrow">{eyebrow}</span>

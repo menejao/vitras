@@ -3,10 +3,6 @@ import { isPharmacist } from "../utils/roles";
 import { fetchPrescriptions } from "../api";
 import { printPrescription } from "../utils/printDoc";
 import PageHeader from "../components/layout/PageHeader";
-import PageShell from "../components/layout/PageShell";
-import PageToolbar from "../components/layout/PageToolbar";
-import KpiGrid from "../components/layout/KpiGrid";
-import MainContent from "../components/layout/MainContent";
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
 import Select from "../components/ui/Select";
@@ -378,69 +374,59 @@ function PharmacyPage({
 
   if (!canRead) {
     return (
-      <PageShell className="pharmacy-page">
+      <div className="pharmacy-page">
         <PageHeader
-          eyebrow="Gestao de Medicamentos"
-          title="Farmacia UBS"
-          subtitle="Controle de estoque, dispensacao e rastreabilidade de medicamentos."
+          eyebrow="GESTÃO DE MEDICAMENTOS"
+          title="Farmácia UBS"
+          subtitle="Controle de estoque, dispensação e rastreabilidade de medicamentos."
         />
         <div className="pharma-auth-notice">
           <IconWarning />
           Sua sessao atual nao possui permissao para consultar a farmacia.
         </div>
-      </PageShell>
+      </div>
     );
   }
 
   return (
-    <PageShell className="pharmacy-page">
+    <div className="pharmacy-page">
       <PageHeader
-        eyebrow="Gestao de Medicamentos"
-        title="Farmacia UBS"
-        subtitle="Controle de estoque, dispensacao e rastreabilidade de medicamentos."
-        actions={(
-          <div className="pharma-session">
-            <div className="pharma-session__info">
-              <div className="pharma-session__name">{user?.name || "Usuario"}</div>
-              <div className="pharma-session__sub">
-                {canUseWriteFlow ? "Sessao de farmacia com escrita" : "Sessao institucional somente leitura"}
-              </div>
-            </div>
-          </div>
-        )}
+        eyebrow="GESTÃO DE MEDICAMENTOS"
+        title="Farmácia UBS"
+        subtitle="Controle de estoque, dispensação e rastreabilidade de medicamentos."
       />
 
       {error ? <div className="error error-banner">{error}</div> : null}
       {!canUseWriteFlow ? (
         <div className="pharma-auth-notice">
           <IconWarning />
-          Seu perfil pode consultar estoque e historico, mas nao pode dispensar nem ajustar medicamentos.
+          Seu perfil pode consultar estoque e histórico, mas não pode dispensar nem ajustar medicamentos.
         </div>
       ) : null}
 
-      <KpiGrid className="pharma-kpis">
+      <div className="pharma-kpis">
         <KPI label="Total de itens" value={stock.length} className="card" />
         <KPI label="Estoque baixo" value={lowStock.length} className={`card${lowStock.length > 0 ? " kpi--warning" : ""}`} />
         <KPI label="Sem estoque" value={outStock.length} className={`card${outStock.length > 0 ? " kpi--danger" : ""}`} />
-        <KPI label="Dispensacoes hoje" value={dispensasHoje} className="card kpi--info" />
-      </KpiGrid>
+        <KPI label="Dispensações hoje" value={dispensasHoje} className="card kpi--info" />
+      </div>
 
-      <PageToolbar>
+      <div className="pharma-tabs-bar">
         <Tabs>
           <Tab active={pharmaTab === "stock"} onClick={() => setPharmaTab("stock")}>Estoque</Tab>
-          <Tab active={pharmaTab === "log"} onClick={() => setPharmaTab("log")}>Log de Movimentacoes</Tab>
-          <Tab active={pharmaTab === "prescriptions"} onClick={() => setPharmaTab("prescriptions")}>Prescricoes</Tab>
+          <Tab active={pharmaTab === "log"} onClick={() => setPharmaTab("log")}>Log de Movimentações</Tab>
+          <Tab active={pharmaTab === "prescriptions"} onClick={() => setPharmaTab("prescriptions")}>Prescrições</Tab>
         </Tabs>
-      </PageToolbar>
+      </div>
 
-      <MainContent className="pharma-body">
-        {pharmaTab === "stock" ? (
-          <>
-            <PageToolbar className="pharma-toolbar">
+      <div className="pharma-body">
+        {pharmaTab === "stock" && (
+          <div className="card card--noPad overflow-hidden">
+            <div className="pharma-toolbar">
               <div className="pharma-search">
                 <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar medicamento, categoria ou localizacao..." />
               </div>
-              <div style={{ minWidth: 160 }}>
+              <div className="pharma-filter-cat">
                 <Select value={catFilter} onChange={(e) => setCatFilter(e.target.value)}>
                   {categories.map((category) => <option key={category}>{category}</option>)}
                 </Select>
@@ -449,10 +435,8 @@ function PharmacyPage({
                 {showLowOnly ? "So baixo" : "Filtrar baixo"}
               </Button>
               {canUseWriteFlow ? <Button size="sm" onClick={() => setEditItem({ item: null, mode: "add" })}>+ Novo medicamento</Button> : null}
-            </PageToolbar>
-
-            <div className="card card--noPad overflow-hidden">
-              <table className="patients-table" style={{ width: "100%" }}>
+            </div>
+            <table className="patients-table" style={{ width: "100%" }}>
                 <thead>
                   <tr>
                     <th style={{ width: 40, textAlign: "center" }}>Status</th>
@@ -500,25 +484,24 @@ function PharmacyPage({
                     );
                   })}
                 </tbody>
-              </table>
-            </div>
-          </>
-        ) : (
+            </table>
+          </div>
+        )}
+        {pharmaTab === "log" && (
           <>
             <div className="pharma-anvisa-notice">
               <span>
-                <strong>ANVISA RDC 20/2011:</strong> a escrituracao de dispensacao deve ser conservada por no minimo <strong>5 anos</strong>. O historico abaixo vem do backend oficial e nao pode depender de navegador local.
+                <strong>ANVISA RDC 20/2011:</strong> a escrituração de dispensação deve ser conservada por no mínimo <strong>5 anos</strong>. O histórico abaixo vem do backend oficial e não pode depender de navegador local.
               </span>
             </div>
 
-            <PageToolbar className="pharma-toolbar">
-              <div className="pharma-search" style={{ maxWidth: 380 }}>
-                <Input value={logSearch} onChange={(e) => setLogSearch(e.target.value)} placeholder="Buscar por medicamento, paciente, prescritor ou receita..." />
-              </div>
-              <Button onClick={() => exportPharmacyCsv(filteredLog)}>Exportar CSV (ANVISA)</Button>
-            </PageToolbar>
-
             <div className="card card--noPad overflow-hidden">
+              <div className="pharma-toolbar">
+                <div className="pharma-search" style={{ maxWidth: 380 }}>
+                  <Input value={logSearch} onChange={(e) => setLogSearch(e.target.value)} placeholder="Buscar por medicamento, paciente, prescritor ou receita..." />
+                </div>
+                <Button onClick={() => exportPharmacyCsv(filteredLog)}>Exportar CSV (ANVISA)</Button>
+              </div>
               <table className="patients-table" style={{ width: "100%" }}>
                 <thead>
                   <tr>
@@ -574,13 +557,12 @@ function PharmacyPage({
           </>
         )}
         {pharmaTab === "prescriptions" && (
-          <>
-            <PageToolbar className="pharma-toolbar">
+          <div className="card card--noPad overflow-hidden">
+            <div className="pharma-toolbar">
               <div className="pharma-search">
                 <Input value={rxSearch} onChange={e => setRxSearch(e.target.value)} placeholder="Buscar paciente ou medicamento..." />
               </div>
-            </PageToolbar>
-            <div className="card card--noPad overflow-hidden">
+            </div>
               <table className="patients-table" style={{ width: "100%" }}>
                 <thead>
                   <tr>
@@ -593,13 +575,13 @@ function PharmacyPage({
                 </thead>
                 <tbody>
                   {rxLoading ? (
-                    <tr><td colSpan={5} style={{ textAlign: "center", padding: "2rem", color: "var(--text-2)" }}>Carregando prescricoes...</td></tr>
+                    <tr><td colSpan={5} style={{ textAlign: "center", padding: "2rem", color: "var(--text-2)" }}>Carregando prescrições...</td></tr>
                   ) : prescriptions.filter(rx => {
                     if (!rxSearch) return true;
                     const q = rxSearch.toLowerCase();
                     return String(rx.patientName || "").toLowerCase().includes(q) || String(rx.title || "").toLowerCase().includes(q);
                   }).length === 0 ? (
-                    <tr><td colSpan={5} style={{ textAlign: "center", padding: "2rem", color: "var(--text-2)" }}>Nenhuma prescricao encontrada.</td></tr>
+                    <tr><td colSpan={5} style={{ textAlign: "center", padding: "2rem", color: "var(--text-2)" }}>Nenhuma prescrição encontrada.</td></tr>
                   ) : prescriptions.filter(rx => {
                     if (!rxSearch) return true;
                     const q = rxSearch.toLowerCase();
@@ -624,10 +606,9 @@ function PharmacyPage({
                   ))}
                 </tbody>
               </table>
-            </div>
-          </>
+          </div>
         )}
-      </MainContent>
+      </div>
 
       {dispenseItem && canUseWriteFlow ? (
         <DispenseModal
@@ -648,7 +629,7 @@ function PharmacyPage({
           onClose={() => setEditItem(null)}
         />
       ) : null}
-    </PageShell>
+    </div>
   );
 }
 

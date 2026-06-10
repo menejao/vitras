@@ -36,18 +36,33 @@ async function fileToPayload(file) {
   };
 }
 
+function isExternalExam(exam) {
+  return exam.source === "externo" || String(exam.details || "").includes("[EXAME EXTERNO");
+}
+
 function ExamCard({ exam, canManage, onDelete, onPreview }) {
-  const isExternal = String(exam.details || "").includes("[EXAME EXTERNO");
+  const isExternal = isExternalExam(exam);
   const details = exam.details?.replace(/^\[EXAME.*?\]\n?/, "") || "";
+  const hasResult = exam.status === "result_available";
+  const isPendingResult = !isExternal && exam.status && exam.status !== "result_available";
 
   return (
-    <div className={`exams-card${isExternal ? " exams-card--externo" : ""}`}>
+    <div className={`exams-card${isExternal ? " exams-card--externo" : ""}${hasResult ? " exams-card--result" : ""}`}>
       <div className="exams-card__head">
-        <div>
+        <div style={{ flex: 1, minWidth: 0 }}>
           <div className="exams-card__title">{exam.title}</div>
-          <div className="exams-card__date">{fmtDate(exam.date)}</div>
+          <div className="exams-card__date">
+            {fmtDate(exam.date)}
+            {exam.lab ? <span className="exams-card__lab-name"> · {exam.lab}</span> : null}
+          </div>
         </div>
         <div className="exams-card__actions">
+          {hasResult && (
+            <span className="exams-card__status-chip exams-card__status-chip--done">Resultado</span>
+          )}
+          {isPendingResult && (
+            <span className="exams-card__status-chip exams-card__status-chip--pending">Enviado</span>
+          )}
           {Array.isArray(exam.attachments) && exam.attachments.length > 0 && (
             <span className="exams-card__badge">
               {exam.attachments.length} anexo{exam.attachments.length > 1 ? "s" : ""}
@@ -60,6 +75,9 @@ function ExamCard({ exam, canManage, onDelete, onPreview }) {
           )}
         </div>
       </div>
+      {hasResult && exam.resultDate && exam.resultDate !== exam.date && (
+        <div className="exams-card__result-date">Resultado recebido em {fmtDate(exam.resultDate)}</div>
+      )}
       {details && <pre className="exams-card__details">{details}</pre>}
       {Array.isArray(exam.attachments) && exam.attachments.length > 0 && (
         <div className="exams-card__attachments">
@@ -94,7 +112,10 @@ function ExamsPage({ patients, user, token, onNavigatePatient }) {
   const fileRef = useRef(null);
 
   const canManage = canManageExams(user);
-  const filteredPats = patients.filter((patient) => matchesPatientSearch(patient, search)).slice(0, 60);
+  const filteredPats = patients
+    .filter((patient) => matchesPatientSearch(patient, search))
+    .sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "pt-BR"))
+    .slice(0, 60);
   const selectedPatient = patients.find((patient) => patient.id === selectedId) || null;
 
   async function loadExams(patientId) {
@@ -148,7 +169,8 @@ function ExamsPage({ patients, user, token, onNavigatePatient }) {
       const created = await createExam(token, selectedId, {
         title,
         date: form.date,
-        notes
+        notes,
+        source: addMode === "externo" ? "externo" : "posto"
       });
 
       for (const file of files) {
@@ -191,12 +213,12 @@ function ExamsPage({ patients, user, token, onNavigatePatient }) {
     return bytes > 1048576 ? `${(bytes / 1048576).toFixed(1)}MB` : `${Math.round(bytes / 1024)}KB`;
   }
 
-  const posto = exams.filter((exam) => !String(exam.details || "").includes("[EXAME EXTERNO"));
-  const externo = exams.filter((exam) => String(exam.details || "").includes("[EXAME EXTERNO"));
+  const posto = exams.filter((exam) => !isExternalExam(exam));
+  const externo = exams.filter((exam) => isExternalExam(exam));
 
   return (
     <div className="exams-page">
-      <PageHeader eyebrow="Vitras" title="Exames" subtitle="Exames realizados na unidade e exames externos trazidos pelos pacientes." />
+      <PageHeader eyebrow="Laboratório" title="Exames" subtitle="Exames realizados na unidade e exames externos trazidos pelos pacientes." />
 
       <div className="exams-body">
         <div className="exams-sidebar">

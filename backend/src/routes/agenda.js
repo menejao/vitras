@@ -18,8 +18,8 @@ function canWriteAgenda(user) {
 
 function canAccessTeam(user, teamId) {
   const currentTeamId = String(user?.teamId || "").trim();
-  if (currentTeamId && currentTeamId === String(teamId || "")) return true;
-  return !currentTeamId && hasCapability(user, "team.manage");
+  if (!currentTeamId) return false; // fail-safe: no teamId = no access
+  return currentTeamId === String(teamId || "").trim();
 }
 
 function normalizeAgendaStatus(value) {
@@ -90,6 +90,7 @@ function listScopedAgendaEntries(db, user, filters = {}) {
     .filter((entry) => {
       if (!canReadAgenda(user)) return false;
       if (!canAccessTeam(user, entry.teamId)) return false;
+      if (String(entry.status || "") === "cancelled") return false;
       if (from && String(entry.date || "") < from) return false;
       if (to && String(entry.date || "") > to) return false;
       if (doctorId && String(entry.doctorId || "") !== doctorId) return false;
@@ -136,6 +137,22 @@ router.post("/agenda", validate(AgendaCreateSchema), async (req, res) => {
       return { error: { status: 404, message: "Profissional não encontrado" } };
     }
 
+    const apptDate = String(payload.date || "").trim();
+    const apptTime = String(payload.time || "").trim();
+
+    if (doctorId && apptDate && apptTime) {
+      const doctorConflict = db.agendaEntries.find(
+        (item) =>
+          item.doctorId === doctorId &&
+          String(item.date || "") === apptDate &&
+          String(item.time || "") === apptTime &&
+          item.status !== "cancelled"
+      );
+      if (doctorConflict) {
+        return { error: { status: 409, message: "Profissional já tem agendamento neste horário" } };
+      }
+    }
+
     const now = new Date().toISOString();
     const entry = {
       id: uuidv4(),
@@ -154,7 +171,9 @@ router.post("/agenda", validate(AgendaCreateSchema), async (req, res) => {
       createdAt: now,
       createdBy: req.user.id,
       updatedAt: now,
-      updatedBy: req.user.id
+      updatedBy: req.user.id,
+      executingTeamId: String(req.user.teamId || ""),
+      executingUnitId: String(req.user.unitId || "")
     };
 
     db.agendaEntries.push(entry);
@@ -237,12 +256,21 @@ router.delete("/agenda/:id", async (req, res) => {
       return { error: { status: 403, message: "Sem permissão para este agendamento" } };
     }
 
-    db.agendaEntries.splice(index, 1);
-    addAuditLog(db, req.user, "agenda.entry_deleted", "agenda_entry", removed.id, {
+    const now = new Date().toISOString();
+    const cancellationReason = String(req.body?.reason || req.headers["x-justification"] || "").trim();
+    db.agendaEntries[index] = {
+      ...removed,
+      status: "cancelled",
+      cancelledAt: now,
+      cancelledById: req.user.id,
+      cancellationReason
+    };
+    addAuditLog(db, req.user, "agenda.cancelled", "agenda_entry", removed.id, {
       patientId: removed.patientId,
       teamId: removed.teamId,
+      cancellationReason,
       before: buildAgendaSnapshot(removed),
-      after: null
+      after: buildAgendaSnapshot(db.agendaEntries[index])
     });
     return { ok: true };
   });

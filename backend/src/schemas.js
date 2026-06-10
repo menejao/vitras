@@ -3,7 +3,7 @@ import { z } from "zod";
 const shortString = (max) => z.string().trim().max(max);
 const optionalShortString = (max) => shortString(max).optional();
 const optionalDateString = () => z.string().trim().max(50).optional();
-const optionalNumberLike = () => z.union([z.string(), z.number()]).optional();
+const optionalNumberLike = () => z.union([z.string(), z.number()]).nullable().optional();
 
 const LoginSchema = z.object({
   email: z.string().min(1).max(255),
@@ -16,6 +16,7 @@ const RegisterSchema = z.object({
   password: z.string().min(1).max(1024),
   role: z.string().min(1).max(50),
   teamId: z.string().max(100).optional(),
+  unitId: z.string().max(100).optional(),
   councilNumber: z.string().max(30).optional(),
   councilUf: z.string().max(2).optional()
 });
@@ -61,8 +62,11 @@ const PatientBaseShape = {
 };
 
 const PatientCreateSchema = z.object(PatientBaseShape);
+// D-02: .strict() rejects unknown keys to prevent mass-assignment of internal fields
 const PatientUpdateSchema = z.object({
+  name: optionalShortString(300),
   motherName: optionalShortString(300),
+  guardianName: optionalShortString(300),
   phone: optionalShortString(30),
   phoneAlt: optionalShortString(30),
   cpf: optionalShortString(20),
@@ -96,7 +100,7 @@ const PatientUpdateSchema = z.object({
   comorbidities: optionalShortString(4000),
   medications: optionalShortString(4000),
   allergies: optionalShortString(4000)
-});
+}).strict();
 
 const TaskCreateSchema = z.object({
   patientId: z.string().trim().min(1).max(100),
@@ -108,16 +112,18 @@ const TaskCreateSchema = z.object({
 });
 
 const TaskPatchSchema = z.object({
-  status: z.enum(["pending", "in_progress", "done"])
+  status: z.enum(["pending", "in_progress", "done"]).optional(),
+  notes: optionalShortString(4000)
 });
 
+// D-02: .strict() rejects unknown keys to prevent mass-assignment on appointments
 const AppointmentCreateSchema = z.object({
   date: z.string().trim().min(1).max(50),
   summary: z.string().trim().min(1).max(10000),
   demandType: optionalShortString(40),
   conduct: optionalShortString(4000),
   nextStep: optionalShortString(4000)
-});
+}).strict();
 
 const AgendaCreateSchema = z.object({
   patientId: z.string().trim().min(1).max(100),
@@ -138,6 +144,7 @@ const AgendaPatchSchema = z.object({
   status: z.enum(["scheduled", "arrived", "attending", "done", "absent"]).optional()
 });
 
+// D-02: .strict() rejects unknown keys to prevent mass-assignment on referrals
 const ReferralCreateSchema = z.object({
   patientId: z.string().trim().min(1).max(100),
   specialty: z.string().trim().min(1).max(120),
@@ -145,8 +152,8 @@ const ReferralCreateSchema = z.object({
   priority: z.enum(["urgent", "priority", "routine"]).optional(),
   date: z.string().trim().min(1).max(50),
   notes: optionalShortString(4000),
-  status: z.enum(["pending", "scheduled", "done", "cancelled"]).optional()
-});
+  status: z.enum(["pending", "regulated", "scheduled", "done", "cancelled"]).optional()
+}).strict();
 
 const ReferralPatchSchema = z.object({
   specialty: z.string().trim().min(1).max(120).optional(),
@@ -154,7 +161,7 @@ const ReferralPatchSchema = z.object({
   priority: z.enum(["urgent", "priority", "routine"]).optional(),
   date: z.string().trim().min(1).max(50).optional(),
   notes: optionalShortString(4000),
-  status: z.enum(["pending", "scheduled", "done", "cancelled"]).optional()
+  status: z.enum(["pending", "regulated", "scheduled", "done", "cancelled"]).optional()
 });
 
 const PharmacyStockCreateSchema = z.object({
@@ -216,7 +223,8 @@ const CriticalActionReasonSchema = z.object({
 const ExamCreateSchema = z.object({
   title: z.string().trim().min(1).max(300),
   date: z.string().trim().min(1).max(50),
-  notes: optionalShortString(20000)
+  notes: optionalShortString(20000),
+  source: z.enum(["posto", "externo"]).optional()
 });
 
 const ExamAttachmentCreateSchema = z.object({
@@ -226,6 +234,7 @@ const ExamAttachmentCreateSchema = z.object({
   dataBase64: z.string().trim().min(1).max(25 * 1024 * 1024)
 });
 
+// D-02: .strict() rejects unknown keys to prevent mass-assignment on clinical records
 const RecordCreateSchema = z.object({
   type: z.enum(["visit", "consultation", "vaccine", "procedure", "note", "prescription", "exam_request", "referral", "nursing", "evolution", "attendance_attest", "medical_attest"]),
   date: z.string().trim().min(1).max(50),
@@ -233,8 +242,9 @@ const RecordCreateSchema = z.object({
   details: optionalShortString(20000),
   protocolTag: optionalShortString(100),
   metadata: z.record(z.any()).optional()
-});
+}).strict();
 
+// D-02: .strict() on queue schemas rejects unknown keys (prevents mass-assignment)
 const QueueCreateSchema = z.object({
   patientId: z.string().trim().min(1).max(100),
   priority: z.enum(["urgent", "elderly", "pregnant", "child", "normal"]),
@@ -242,7 +252,7 @@ const QueueCreateSchema = z.object({
   demandType: z.enum(["scheduled", "spontaneous"]).optional(),
   destination: z.enum(["doctor", "nurse"]).optional(),
   agendaRef: optionalShortString(100)
-});
+}).strict();
 
 const QueuePatchSchema = z.object({
   status: z.enum(["waiting", "triage", "ready", "attending", "done"]).optional(),
@@ -253,7 +263,7 @@ const QueuePatchSchema = z.object({
   triageStart: optionalDateString(),
   triageDone: optionalDateString(),
   vitals: z.record(z.any()).optional()
-});
+}).strict();
 
 const PrivacyRequestCreateSchema = z.object({
   patientId: z.string().min(1).max(100),

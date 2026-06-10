@@ -1,6 +1,6 @@
-# SIGUS Design System · `styles/`
+# Vitras Design System · `styles/`
 
-Implementação CSS oficial do design system SIGUS. **Light-first**, com dark mode derivado. Arquitetura em camadas inspirada em ITCSS.
+Implementação CSS oficial do Vitras Design System. **Light-first**, com dark mode derivado. Arquitetura em camadas inspirada em ITCSS.
 
 Drop-in para `frontend-react/src/styles/`.
 
@@ -126,7 +126,7 @@ document.documentElement.dataset.theme = '';      // volta para light (default)
 | Estado dinâmico (JS) | `is-` | `.is-active`, `.is-disabled` |
 | Helper / utility | `.{nome}` minúsculo | `.muted`, `.mono`, `.eyebrow` |
 
-**Não usar prefixos como `sigus-`** — o sistema é o único; namespacing pesado polui markup. Conflitos com libs externas raros e tratáveis caso a caso.
+**Não usar prefixos externos** — o sistema é o único; namespacing pesado polui markup. Conflitos com libs externas raros e tratáveis caso a caso.
 
 ---
 
@@ -173,4 +173,5 @@ Para overrides específicos por tema em componentes que precisam (ex: card ganha
 
 ## Atualizações
 
-- **v1.0** — sistema inicial light-first, derivado da arquitetura existente em `frontend-react/src/styles.css`. Mantém Inter + IBM Plex Mono, teal #14b8a6, slate-900 navy. Padroniza tabs (sempre retas), hover states, hero, KPI cards, sidebar dark.
+- **v1.0** — sistema inicial light-first, derivado da arquitetura existente em `frontend-react/src/styles.css`. Mantém IBM Plex Sans + IBM Plex Mono, Signal Cyan #5DD5E8, slate-900 navy. Padroniza tabs (sempre retas), hover states, hero, KPI cards, sidebar dark.
+- **v1.1** — rebranding para Vitras Design System. Inter substituído por IBM Plex Sans (300/400/500/600). Cor de marca teal substituída por Signal Cyan (#5DD5E8). Símbolo Facet substitui cruz inline.

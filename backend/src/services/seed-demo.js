@@ -1,10 +1,14 @@
 import { withDb } from "../db.js";
 import { ensureDbShape } from "../utils/domain.js";
 import { hashPassword } from "./crypto.js";
+import { backfillFamilyGroups } from "../utils/family-groups.js";
+import { logInfo, logWarn } from "../utils/logger.js";
 
 const TEAM_ID = "team-rosa";
 const TEAM_NAME = "Equipe Rosa";
-const JOAO_ID = "seed-user-joao";
+const BREAKGLASS_ID = "seed-user-joao";
+const BREAKGLASS_NAME = "Break Glass Admin";
+const BREAKGLASS_EMAIL = "breakglass@vitras.com.br";
 const DRA_ID = "seed-user-dra";
 const ACS_ID = "seed-user-acs";
 const ENF_ID = "seed-user-enf";
@@ -16,6 +20,58 @@ function upsert(arr, item) {
 }
 
 function hasId(arr, id) { return arr.some((x) => x.id === id); }
+
+// Break glass admin is an operational emergency account, not a demo user.
+// Never overwrite a hardened password or identity — only update safe operational fields.
+function upsertBreakGlassUser(db) {
+  const idx = db.users.findIndex((u) => u.id === BREAKGLASS_ID);
+  if (idx >= 0) {
+    db.users[idx] = {
+      ...db.users[idx],
+      name: BREAKGLASS_NAME,
+      email: BREAKGLASS_EMAIL,
+      role: "break_glass_admin",
+      teamId: TEAM_ID,
+      teamName: TEAM_NAME,
+      unitId: UNIT_ID,
+      municipalityId: MUNICIPALITY_ID,
+    };
+    return;
+  }
+
+  const envHash = process.env.BREAKGLASS_PASSWORD_HASH;
+  if (!envHash) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error(
+        "SEED_DEMO: BREAKGLASS_PASSWORD_HASH not set — refusing to create break_glass_admin with a weak default in production"
+      );
+    }
+    logWarn("seed_demo_breakglass_dev_fallback", {
+      event: "seed_demo_breakglass_dev_fallback",
+      message: "BREAKGLASS_PASSWORD_HASH not set — using Demo@2026 fallback (dev/test only, never use in production)"
+    });
+  }
+
+  const baseFields = {
+    councilType: "", councilNumber: "", councilUf: "",
+    twoFactorEnabled: false, twoFactorSecret: "",
+    twoFactorPendingSecret: "", twoFactorPendingCreatedAt: "",
+    lastLoginAt: "", lastSeenAt: "", lastSeenIp: "",
+    createdAt: tsAgo(180), updatedAt: NOW,
+  };
+  db.users.push({
+    ...baseFields,
+    id: BREAKGLASS_ID,
+    name: BREAKGLASS_NAME,
+    email: BREAKGLASS_EMAIL,
+    role: "break_glass_admin",
+    teamId: TEAM_ID,
+    teamName: TEAM_NAME,
+    unitId: UNIT_ID,
+    municipalityId: MUNICIPALITY_ID,
+    password: envHash || hashPassword("Demo@2026"),
+  });
+}
 
 function dAgo(n) {
   const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10);
@@ -64,7 +120,7 @@ const SUPPLIES_ITEMS = [
 ];
 
 // ── Patient definitions ───────────────────────────────────────────────────────
-// 45% geral (18) · 15% gestante (6) · 10% puérpera (4) · 15% criança (6) · 15% idoso (6) = 40
+// geral (18) · gestante (7) · puérpera (4) · criança (6) · idoso (6) = 41
 
 const GENERAL_DEFS = [
   { idx: "g01", name: "Thiago de Oliveira Braga",   birthDate: "1988-08-23", sexAtBirth: "male",   cond: [],                           microArea: "MA-1", phone: "(11) 91111-0001", address: "Rua Henrique, 214",             cpf: "001.001.001-01", situation: "ok" },
@@ -94,6 +150,7 @@ const PREGNANT_DEFS = [
   { idx: "pg04", name: "Ana Beatriz Ferreira Campos", birthDate: "1996-08-14", sexAtBirth: "female", microArea: "MA-6", phone: "(11) 92222-0004", address: "Av. das Flores, 200, apto 8", cpf: "002.002.004-04", weeksGest: 32 },
   { idx: "pg05", name: "Renata Souza Galvão",         birthDate: "1992-06-30", sexAtBirth: "female", microArea: "MA-6", phone: "(11) 92222-0005", address: "Rua Panorâmica, 19",          cpf: "002.002.005-05", weeksGest: 36 },
   { idx: "pg06", name: "Patrícia Vieira Moreira",     birthDate: "1989-04-05", sexAtBirth: "female", microArea: "MA-6", phone: "(11) 92222-0006", address: "Av. Principal, 450",          cpf: "002.002.006-06", weeksGest: 20 },
+  { idx: "pg07", name: "Simone Aparecida Nunes",      birthDate: "1991-02-17", sexAtBirth: "female", microArea: "MA-5", phone: "(11) 92222-0007", address: "Rua do Cedro, 88",            cpf: "002.002.007-07", weeksGest: 28 },
 ];
 
 const PUERPERAL_DEFS = [
@@ -122,11 +179,16 @@ const ELDERLY_DEFS = [
 ];
 
 // ── buildPatient ──────────────────────────────────────────────────────────────
+const UNIT_ID = "unit-default";
+const MUNICIPALITY_ID = "3534401";
+
 function buildPatient(def, careCategory) {
   const chronicConditions = def.cond || [];
   const p = {
     id: `seed-p-${def.idx}`,
     teamId: TEAM_ID,
+    unitId: UNIT_ID,
+    municipalityId: MUNICIPALITY_ID,
     name: def.name,
     motherName: def.motherName || "",
     cpf: def.cpf,
@@ -152,9 +214,9 @@ function buildPatient(def, careCategory) {
     medications: "",
     allergies: "",
     createdAt: tsAgo(180),
-    createdBy: JOAO_ID,
+    createdBy: BREAKGLASS_ID,
     updatedAt: tsAgo(30),
-    updatedBy: JOAO_ID,
+    updatedBy: BREAKGLASS_ID,
   };
 
   if (def.weeksGest != null) {
@@ -172,14 +234,14 @@ function buildPatient(def, careCategory) {
 export async function seedDemoTeamRosa() {
   if (process.env.SEED_DEMO_DATA !== "true") return { skipped: true };
 
-  console.log("[seed] SEED_DEMO_DATA=true — iniciando");
+  logInfo("seed_demo_start", { event: "seed_demo_start" });
 
   const stats = await withDb((db) => {
     ensureDbShape(db);
 
     // ── Clean old seed data (prefix-based, safe) ──────────────────────────
     const oldSeedCount = db.patients.filter((x) => x.id?.startsWith("seed-p-")).length;
-    console.log(`[seed] removendo ${oldSeedCount} pacientes antigos seed-p-`);
+    logInfo("seed_demo_removing_old", { event: "seed_demo_removing_old", oldSeedCount });
     db.patients          = db.patients.filter((x) => !x.id?.startsWith("seed-p-"));
     db.clinicalRecords   = db.clinicalRecords.filter((x) => !x.id?.startsWith("seed-rec-"));
     db.appointments      = db.appointments.filter((x) => !x.id?.startsWith("seed-appt-"));
@@ -188,13 +250,19 @@ export async function seedDemoTeamRosa() {
     db.exams             = db.exams.filter((x) => !x.id?.startsWith("seed-exam-"));
     db.tasks             = db.tasks.filter((x) => !x.id?.startsWith("seed-task-"));
     db.messages          = db.messages.filter((x) => !x.id?.startsWith("seed-msg-"));
+    if (!Array.isArray(db.notifications)) db.notifications = [];
+    db.notifications     = db.notifications.filter((x) => !x.id?.startsWith("seed-notif-"));
+    if (!Array.isArray(db.familyGroups)) db.familyGroups = [];
+    db.familyGroups      = db.familyGroups.filter((x) => x.teamId !== TEAM_ID);
+    if (!Array.isArray(db.labIntegrations)) db.labIntegrations = [];
+    db.labIntegrations   = db.labIntegrations.filter((x) => !x.id?.startsWith("seed-labint-"));
     db.pharmacyLogs      = db.pharmacyLogs.filter((x) => !x.id?.startsWith("seed-pharma-log-"));
     db.suppliesLogs      = db.suppliesLogs.filter((x) => !x.id?.startsWith("seed-supply-log-"));
     db.suppliesContinuous= db.suppliesContinuous.filter((x) => !x.id?.startsWith("seed-cont-"));
 
     // ── Team ──────────────────────────────────────────────────────────────
     if (!db.teams.some((t) => t.id === TEAM_ID)) {
-      db.teams.push({ id: TEAM_ID, name: TEAM_NAME, managerUserId: JOAO_ID, createdAt: NOW });
+      db.teams.push({ id: TEAM_ID, name: TEAM_NAME, managerUserId: BREAKGLASS_ID, unitId: "unit-default", createdAt: NOW });
     }
 
     // ── Users ─────────────────────────────────────────────────────────────
@@ -204,15 +272,17 @@ export async function seedDemoTeamRosa() {
       twoFactorPendingSecret: "", twoFactorPendingCreatedAt: "",
       lastLoginAt: "", lastSeenAt: "", lastSeenIp: "",
       createdAt: tsAgo(180), updatedAt: NOW,
+      unitId: UNIT_ID,
+      municipalityId: MUNICIPALITY_ID,
     };
 
-    upsert(db.users, { ...baseUser, id: JOAO_ID, name: "João Dev",          email: "joao@vitras.com.br",        role: "break_glass_admin", teamId: TEAM_ID, teamName: TEAM_NAME, password: hashPassword("Demo@2026") });
+    upsertBreakGlassUser(db);
     upsert(db.users, { ...baseUser, id: DRA_ID,  name: "Dra. Maria Rosa",   email: "dra.rosa@vitras.com.br",    role: "doctor",            teamId: TEAM_ID, teamName: TEAM_NAME, password: hashPassword("Demo@2026"), councilType: "CRM",   councilNumber: "88001", councilUf: "SP" });
     upsert(db.users, { ...baseUser, id: ACS_ID,  name: "Lucas ACS",         email: "lucas.acs@vitras.com.br",   role: "acs",               teamId: TEAM_ID, teamName: TEAM_NAME, password: hashPassword("Demo@2026") });
     upsert(db.users, { ...baseUser, id: ENF_ID,  name: "Enf. Patrícia Lima",email: "patricia.enf@vitras.com.br",role: "nurse_manager",     teamId: TEAM_ID, teamName: TEAM_NAME, password: hashPassword("Demo@2026"), councilType: "COREN", councilNumber: "12345", councilUf: "SP" });
 
     // ── Patients ──────────────────────────────────────────────────────────
-    console.log("[seed] criando 40 pacientes");
+    logInfo("seed_demo_creating_patients", { event: "seed_demo_creating_patients" });
     for (const def of GENERAL_DEFS)   db.patients.push(buildPatient(def, "general"));
     for (const def of PREGNANT_DEFS)  db.patients.push(buildPatient(def, "pregnant"));
     for (const def of PUERPERAL_DEFS) db.patients.push(buildPatient(def, "puerperal"));
@@ -221,8 +291,15 @@ export async function seedDemoTeamRosa() {
 
     const seedPatients = db.patients.filter((p) => p.id?.startsWith("seed-p-"));
     const countCat = (cat) => seedPatients.filter((p) => p.careCategory === cat).length;
-    console.log(`[seed] total patients after seed=${seedPatients.length}`);
-    console.log(`[seed] categoria counts: general=${countCat("general")} pregnant=${countCat("pregnant")} puerperal=${countCat("puerperal")} child_followup=${countCat("child_followup")} elderly=${countCat("elderly")}`);
+    logInfo("seed_demo_patients_created", {
+      event: "seed_demo_patients_created",
+      total: seedPatients.length,
+      general: countCat("general"),
+      pregnant: countCat("pregnant"),
+      puerperal: countCat("puerperal"),
+      child_followup: countCat("child_followup"),
+      elderly: countCat("elderly")
+    });
 
     // ── Clinical records ──────────────────────────────────────────────────
     const recs = [];
@@ -303,6 +380,10 @@ export async function seedDemoTeamRosa() {
     recs.push(r("seed-rec-pg06-c1", "pg06", "consultation", "1ª Consulta Pré-natal", "8ª semana. Exames solicitados. Suplementação iniciada.", dAgo(140), "pregnant", DRA_ID));
     recs.push(r("seed-rec-pg06-c2", "pg06", "consultation", "Pré-natal — 2ª consulta", "20ª semana. Morfológico de 2º trimestre solicitado. BCF 144bpm. Exames normais.", dAgo(56), "pregnant", DRA_ID));
     recs.push(r("seed-rec-pg06-v1", "pg06", "visit", "Visita ACS — Gestante", "Visita domiciliar. Gestante sem queixas. Caderneta em dia.", dAgo(70), "pregnant", ACS_ID));
+
+    // pg07 — 28 semanas, apenas 1 consulta (mínimo PNAB para IG≥26s = 3) → dispara alerta de perda de indicador
+    recs.push(r("seed-rec-pg07-c1", "pg07", "consultation", "1ª Consulta Pré-natal", "Captação tardia na 16ª semana. Exames solicitados. Ácido fólico + Sulfato Ferroso prescritos. Orientada sobre importância do pré-natal regular.", dAgo(112), "pregnant", DRA_ID));
+    recs.push(r("seed-rec-pg07-v1", "pg07", "visit", "Visita ACS — Gestante", "Visita domiciliar. Gestante faltou às consultas marcadas. Reorientada sobre importância do acompanhamento.", dAgo(30), "pregnant", ACS_ID));
 
     // — Puérperas —
     // pu01 — 5 dias
@@ -548,7 +629,7 @@ export async function seedDemoTeamRosa() {
         notes: "Paciente aguarda aprovação do encaminhamento. Ligar para confirmar quando disponível.",
         status: "pending",
         dueDate: dAhead(14),
-        createdBy: JOAO_ID,
+        createdBy: BREAKGLASS_ID,
         createdAt: tsAgo(29),
         updatedAt: tsAgo(29),
       });
@@ -595,15 +676,40 @@ export async function seedDemoTeamRosa() {
 
     // ── Exams (results) ───────────────────────────────────────────────────
     const exams = [
-      { id: "seed-exam-g09-1",  patientId: "seed-p-g09",  title: "Glicemia de Jejum",              date: dAgo(30),  details: "108 mg/dL — dentro do alvo terapêutico." },
-      { id: "seed-exam-g09-2",  patientId: "seed-p-g09",  title: "HbA1c",                           date: dAgo(30),  details: "6,8% — bom controle glicêmico." },
-      { id: "seed-exam-g12-1",  patientId: "seed-p-g12",  title: "Hemograma Completo",              date: dAgo(15),  details: "Sem alterações relevantes." },
-      { id: "seed-exam-g12-2",  patientId: "seed-p-g12",  title: "HbA1c",                           date: dAgo(15),  details: "7,1% — controle aceitável." },
-      { id: "seed-exam-el03-1", patientId: "seed-p-el03", title: "HbA1c",                           date: dAgo(60),  details: "7,8% — controle parcial. Ajuste indicado." },
-      { id: "seed-exam-el03-2", patientId: "seed-p-el03", title: "Glicemia de Jejum",               date: dAgo(60),  details: "165 mg/dL — acima da meta." },
-      { id: "seed-exam-el03-3", patientId: "seed-p-el03", title: "Creatinina + Ureia",              date: dAgo(60),  details: "Creatinina 1,1 mg/dL, Ureia 38 mg/dL — dentro da normalidade." },
-      { id: "seed-exam-el04-1", patientId: "seed-p-el04", title: "HbA1c",                           date: dAgo(50),  details: "8,2% na primeira dosagem; 7,4% após ajuste terapêutico." },
-      { id: "seed-exam-el04-2", patientId: "seed-p-el04", title: "Hemograma Completo",              date: dAgo(50),  details: "Sem anemia. Leucócitos normais." },
+      // Histórico laboratorial (source explícito)
+      { id: "seed-exam-g09-1",  patientId: "seed-p-g09",  source: "posto",   title: "Glicemia de Jejum",   date: dAgo(30),  details: "108 mg/dL — dentro do alvo terapêutico." },
+      { id: "seed-exam-g09-2",  patientId: "seed-p-g09",  source: "posto",   title: "HbA1c",               date: dAgo(30),  details: "6,8% — bom controle glicêmico." },
+      { id: "seed-exam-g12-1",  patientId: "seed-p-g12",  source: "posto",   title: "Hemograma Completo",  date: dAgo(15),  details: "Sem alterações relevantes." },
+      { id: "seed-exam-g12-2",  patientId: "seed-p-g12",  source: "posto",   title: "HbA1c",               date: dAgo(15),  details: "7,1% — controle aceitável." },
+      { id: "seed-exam-el03-1", patientId: "seed-p-el03", source: "posto",   title: "HbA1c",               date: dAgo(60),  details: "7,8% — controle parcial. Ajuste indicado." },
+      { id: "seed-exam-el03-2", patientId: "seed-p-el03", source: "posto",   title: "Glicemia de Jejum",   date: dAgo(60),  details: "165 mg/dL — acima da meta." },
+      { id: "seed-exam-el03-3", patientId: "seed-p-el03", source: "posto",   title: "Creatinina + Ureia",  date: dAgo(60),  details: "Creatinina 1,1 mg/dL, Ureia 38 mg/dL — dentro da normalidade." },
+      { id: "seed-exam-el04-1", patientId: "seed-p-el04", source: "posto",   title: "HbA1c",               date: dAgo(50),  details: "8,2% na primeira dosagem; 7,4% após ajuste terapêutico." },
+      { id: "seed-exam-el04-2", patientId: "seed-p-el04", source: "posto",   title: "Hemograma Completo",  date: dAgo(50),  details: "Sem anemia. Leucócitos normais." },
+      // Demo integração laboratorial — exame enviado, aguardando resultado
+      {
+        id: "seed-exam-g10-pending", patientId: "seed-p-g10",
+        title: "HbA1c", date: dAgo(100),
+        details: "[EXAME REALIZADO NO POSTO]",
+        source: "posto", status: "sent_to_lab",
+      },
+      // Demo integração laboratorial — resultado publicado pelo laboratório
+      {
+        id: "seed-exam-g14-result", patientId: "seed-p-g14",
+        title: "Hemograma Completo", date: dAgo(120),
+        details: "[EXAME REALIZADO NO POSTO]\nResultado: Hemoglobina 13,2 g/dL, Leucócitos 7.200/mm³ — dentro da normalidade.\nReferência: Hb 12–17 g/dL, Leuco 4.000–10.000/mm³",
+        source: "posto", status: "result_available",
+        resultDate: dAgo(115), lab: "Laboratório Municipal",
+        externalId: "SEED-LAB-G14-001",
+      },
+      // Demo — exame externo trazido pelo paciente
+      {
+        id: "seed-exam-g17-ext", patientId: "seed-p-g17",
+        title: "Endoscopia Digestiva Alta", date: dAgo(5),
+        details: "[EXAME EXTERNO — trazido pelo paciente]\nResultado: Gastrite leve. Sem lesões relevantes. H. pylori negativo.",
+        source: "externo", status: "result_available",
+        resultDate: dAgo(5), lab: "Clínica Diagnóstica Paulista",
+      },
     ];
     for (const ex of exams) {
       if (!hasId(db.exams, ex.id)) {
@@ -619,6 +725,37 @@ export async function seedDemoTeamRosa() {
       }
     }
 
+    // ── Notifications (lab result events) ────────────────────────────────
+    if (!hasId(db.notifications, "seed-notif-lab-g14")) {
+      db.notifications.push({
+        id: "seed-notif-lab-g14",
+        type: "info",
+        title: "Resultado disponível: Hemograma Completo",
+        detail: "Saiu o resultado do exame Hemograma Completo do paciente Marcelo Costa Barbosa.",
+        patientId: "seed-p-g14",
+        teamId: TEAM_ID,
+        examId: "seed-exam-g14-result",
+        createdAt: tsAgo(115),
+        read: false,
+      });
+    }
+
+    // ── Lab integration records (idempotency control) ────────────────────
+    if (!hasId(db.labIntegrations, "seed-labint-g14-001")) {
+      db.labIntegrations.push({
+        id: "seed-labint-g14-001",
+        requestId: "seed-req-g14-001",
+        idempotencyKey: "SEED-LAB-G14-001",
+        examId: "seed-exam-g14-result",
+        patientId: "seed-p-g14",
+        teamId: TEAM_ID,
+        examTitle: "Hemograma Completo",
+        status: "result_received",
+        lab: "Laboratório Municipal",
+        createdAt: tsAgo(115),
+      });
+    }
+
     // ── Pharmacy stock ────────────────────────────────────────────────────
     if (!db.pharmacyStock.some((i) => i.teamId === TEAM_ID)) {
       for (const item of PHARMACY_ITEMS) {
@@ -632,9 +769,9 @@ export async function seedDemoTeamRosa() {
           minQty: item.minQty,
           location: item.location,
           createdAt: tsAgo(60),
-          createdBy: JOAO_ID,
+          createdBy: BREAKGLASS_ID,
           updatedAt: tsAgo(7),
-          updatedBy: JOAO_ID,
+          updatedBy: BREAKGLASS_ID,
         });
       }
     }
@@ -647,7 +784,7 @@ export async function seedDemoTeamRosa() {
     ];
     for (const log of pharmaLogs) {
       if (!hasId(db.pharmacyLogs, log.id)) {
-        db.pharmacyLogs.unshift({ ...log, teamId: TEAM_ID, pharma: "João Dev", pharmaId: JOAO_ID, dtReceita: dAgo(12) });
+        db.pharmacyLogs.unshift({ ...log, teamId: TEAM_ID, pharma: BREAKGLASS_NAME, pharmaId: BREAKGLASS_ID, dtReceita: dAgo(12) });
       }
     }
 
@@ -664,9 +801,9 @@ export async function seedDemoTeamRosa() {
           qty: item.qty,
           notes: "",
           createdAt: tsAgo(60),
-          createdBy: JOAO_ID,
+          createdBy: BREAKGLASS_ID,
           updatedAt: tsAgo(7),
-          updatedBy: JOAO_ID,
+          updatedBy: BREAKGLASS_ID,
         });
       }
     }
@@ -681,8 +818,8 @@ export async function seedDemoTeamRosa() {
         db.suppliesLogs.unshift({
           ...log,
           ts: `${log.date}T14:00:00.000Z`,
-          professionalId: JOAO_ID,
-          professionalName: "João Dev",
+          professionalId: BREAKGLASS_ID,
+          professionalName: BREAKGLASS_NAME,
           professionalRole: "break_glass_admin",
           teamId: TEAM_ID,
         });
@@ -697,7 +834,7 @@ export async function seedDemoTeamRosa() {
         patientName: "João Carlos Oliveira Santos",
         teamId: TEAM_ID,
         items: [{ id: "i41", qty: 30 }, { id: "i42", qty: 30 }],
-        profissional: "João Dev",
+        profissional: BREAKGLASS_NAME,
         dtInicio: dAgo(14),
         dtFim: "",
         ativo: true,
@@ -705,10 +842,15 @@ export async function seedDemoTeamRosa() {
       });
     }
 
+    // ── Family groups (auto-generated from patient addresses) ────────────
+    const fgResult = backfillFamilyGroups(db, { id: BREAKGLASS_ID, name: BREAKGLASS_NAME, teamId: TEAM_ID });
+    logInfo("seed_demo_family_groups", { event: "seed_demo_family_groups", groups: fgResult.groups });
+
     return {
       removedPatients: oldSeedCount,
       createdPatients: seedPatients.length,
       totalPatients: db.patients.length,
+      familyGroups: fgResult.groups,
       countsByCategory: {
         general:       countCat("general"),
         pregnant:      countCat("pregnant"),
@@ -719,6 +861,6 @@ export async function seedDemoTeamRosa() {
     };
   });
 
-  console.log("[seed] persist OK");
+  logInfo("seed_demo_persist_ok", { event: "seed_demo_persist_ok" });
   return { ok: true, ...stats };
 }

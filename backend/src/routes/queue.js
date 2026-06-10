@@ -57,8 +57,10 @@ function getScopedQueueEntries(db, user) {
   const teamId = String(user?.teamId || "").trim();
   return db.queueEntries.filter((entry) => {
     if (!canReadQueue(user)) return false;
+    const entryStatus = String(entry.status || "");
+    if (entryStatus === "removed" || entryStatus === "cleared") return false;
     if (teamId && String(entry.teamId || "") === teamId) return true;
-    return !teamId && hasCapability(user, "team.manage");
+    return false; // fail-safe: no teamId = no access
   });
 }
 
@@ -109,6 +111,8 @@ router.post("/queue", validate(QueueCreateSchema), async (req, res) => {
       createdBy: req.user.id,
       updatedAt: now,
       updatedBy: req.user.id,
+      executingTeamId: String(req.user.teamId || ""),
+      executingUnitId: String(req.user.unitId || ""),
       triageBy: "",
       triageStart: "",
       triageDone: "",
@@ -193,12 +197,18 @@ router.delete("/queue/:id", async (req, res) => {
     if (String(current.teamId || "") !== String(req.user.teamId || "") && !hasCapability(req.user, "team.manage")) {
       return { error: { status: 403, message: "Sem permissão para esta fila" } };
     }
-    db.queueEntries.splice(index, 1);
-    addAuditLog(db, req.user, "queue.entry_deleted", "queue_entry", current.id, {
+    const now = new Date().toISOString();
+    db.queueEntries[index] = {
+      ...current,
+      status: "removed",
+      removedAt: now,
+      removedById: req.user.id
+    };
+    addAuditLog(db, req.user, "queue.entry_removed", "queue_entry", current.id, {
       patientId: current.patientId,
       teamId: current.teamId,
       before: buildQueueSnapshot(current),
-      after: null
+      after: buildQueueSnapshot(db.queueEntries[index])
     });
     return { ok: true };
   });
@@ -216,19 +226,22 @@ router.post("/queue/clear-done", async (req, res) => {
     ensureDbShape(db);
     const teamId = String(req.user.teamId || "");
     const beforeCount = db.queueEntries.length;
-    const removed = db.queueEntries.filter((entry) =>
-      String(entry.teamId || "") === teamId && String(entry.status || "") === "done"
-    );
-    db.queueEntries = db.queueEntries.filter((entry) =>
-      !(String(entry.teamId || "") === teamId && String(entry.status || "") === "done")
-    );
+    const now = new Date().toISOString();
+    let clearedCount = 0;
+    db.queueEntries = db.queueEntries.map((entry) => {
+      if (String(entry.teamId || "") === teamId && String(entry.status || "") === "done") {
+        clearedCount += 1;
+        return { ...entry, status: "cleared", clearedAt: now, clearedById: req.user.id };
+      }
+      return entry;
+    });
     addAuditLog(db, req.user, "queue.done_cleared", "queue_entry", teamId || "team", {
       teamId,
-      removedCount: removed.length,
+      clearedCount,
       beforeCount,
       afterCount: db.queueEntries.length
     });
-    return { removedCount: removed.length };
+    return { removedCount: clearedCount };
   });
 
   return res.json(result);

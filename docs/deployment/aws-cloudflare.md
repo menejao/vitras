@@ -24,7 +24,7 @@ Fluxo:
 - conta AWS com acesso a Amplify, Elastic Beanstalk, IAM, S3, CloudWatch e Aurora/RDS;
 - conta Cloudflare com zona do domínio;
 - variáveis de ambiente definidas por ambiente;
-- endpoint `/health` respondendo sem autenticação.
+- endpoints `/health` e `/readyz` respondendo sem autenticação.
 
 ## Frontend: AWS Amplify
 
@@ -65,14 +65,19 @@ Fluxo de deploy:
 2. Configurar diretório de aplicação para `backend/`.
 3. Instalar dependências com `npm install` ou `npm ci` durante pipeline.
 4. Publicar pacote da aplicação.
-5. Validar healthcheck em `/health`.
+5. Validar healthcheck em `/readyz`.
 
 Healthcheck recomendado:
 
-- path: `/health`
+- path: `/readyz`
 - método: `GET`
 - timeout curto
 - sem autenticação
+
+Nota: `/readyz` retorna 503 durante boot, migrations e warming, e 200 apenas quando o processo
+está pronto E o PostgreSQL está acessível. Não usar `/health` como HealthCheckPath do EB —
+`/health` retorna 200 mesmo quando o banco falha após o boot, o que impede o EB de detectar
+a instância degradada.
 
 ## Banco: Aurora/RDS
 
@@ -147,7 +152,7 @@ npm test
 Healthcheck:
 
 ```bash
-curl https://api.seu-dominio/health
+curl https://api.seu-dominio/readyz
 ```
 
 ## Rollback básico
@@ -162,7 +167,7 @@ Backend:
 
 1. selecionar versão anterior no Elastic Beanstalk;
 2. reimplantar ambiente estável;
-3. validar `/health`, autenticação e fluxo crítico.
+3. validar `/readyz`, autenticação e fluxo crítico.
 
 Banco:
 
@@ -176,7 +181,8 @@ Banco:
 |---|---|---|
 | Frontend não publica | log do Amplify | validar `amplify.yml`, `npm ci`, `npm run build` |
 | API fora do ar | health do Elastic Beanstalk | validar variáveis, porta, logs e status do ambiente |
-| `/health` com erro | conectividade com banco | revisar `DATABASE_URL`, SSL, SG e credenciais |
+| `/readyz` retorna 503 | app não pronto ou postgres inacessível | revisar `DATABASE_URL`, SSL, SG, credenciais e logs de boot |
+| `/health` com erro | conectividade com banco (modo degradado) | revisar `DATABASE_URL`, SSL, SG e credenciais |
 | CORS no browser | `FRONTEND_ORIGINS` | alinhar origem real sem barra final |
 | Login falha após deploy | segredos divergentes | revisar `JWT_SECRET`, cookies e domínio |
 | Lentidão | CloudWatch + banco | checar CPU, memória, pool e queries lentas |

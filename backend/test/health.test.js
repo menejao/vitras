@@ -1,9 +1,16 @@
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { startTestServer, stopTestServer, get } from "./helpers.js";
+import { setReadiness } from "../src/services/runtime-state.js";
 
 describe("GET /health", () => {
-  before(startTestServer);
+  before(async () => {
+    await startTestServer();
+    // Simulate server.js calling setReadiness(true) after app.listen().
+    // Tests use app.js directly (no server.js startup sequence), so we
+    // must mark the instance as ready manually.
+    setReadiness(true);
+  });
   after(stopTestServer);
 
   it("returns 200 with ok:true and timestamp", async () => {

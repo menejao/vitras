@@ -1,6 +1,7 @@
 import { roleLabel } from "../utils/roles";
 import Button from "./ui/Button";
 import Modal from "./ui/Modal";
+import { BrandMark } from "./brand/BrandMark";
 
 const IconPrint = () => (
   <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
@@ -20,10 +21,9 @@ function DocHeader({ title }) {
   return (
     <div className="doc-header">
       <div className="doc-header__logo">
-        <svg width="28" height="28" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-          <rect width="32" height="32" rx="8" fill="#0F766E" />
-          <path d="M16 7v18M7 16h18" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" />
-        </svg>
+        <div style={{ width: 28, height: 28, borderRadius: 6, background: "linear-gradient(135deg, #14B8A6 0%, #0D9488 100%)", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <BrandMark variant="mono-white" size={20} />
+        </div>
         <div>
           <div className="doc-header__org">Unidade Básica de Saúde</div>
           <div className="doc-header__city">Sistema de Saúde Municipal</div>

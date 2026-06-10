@@ -18,13 +18,13 @@ function canWriteReferrals(user) {
 
 function canAccessTeam(user, teamId) {
   const currentTeamId = String(user?.teamId || "").trim();
-  if (currentTeamId && currentTeamId === String(teamId || "")) return true;
-  return !currentTeamId && hasCapability(user, "team.manage");
+  if (!currentTeamId) return false; // fail-safe: no teamId = no access
+  return currentTeamId === String(teamId || "").trim();
 }
 
 function normalizeReferralStatus(value) {
   const raw = String(value || "").trim().toLowerCase();
-  if (["pending", "scheduled", "done", "cancelled"].includes(raw)) return raw;
+  if (["pending", "regulated", "scheduled", "done", "cancelled"].includes(raw)) return raw;
   return "pending";
 }
 
@@ -56,7 +56,7 @@ function buildReferralSnapshot(entry) {
 function listScopedReferrals(db, user) {
   ensureDbShape(db);
   return db.referrals
-    .filter((entry) => canReadReferrals(user) && canAccessTeam(user, entry.teamId))
+    .filter((entry) => canReadReferrals(user) && canAccessTeam(user, entry.teamId) && String(entry.status || "") !== "cancelled")
     .sort((left, right) => {
       const dateCmp = String(right.date || "").localeCompare(String(left.date || ""));
       if (dateCmp !== 0) return dateCmp;
@@ -177,12 +177,21 @@ router.delete("/referrals/:id", async (req, res) => {
       return { error: { status: 403, message: "Sem permissão para este encaminhamento" } };
     }
 
-    db.referrals.splice(index, 1);
-    addAuditLog(db, req.user, "referral.deleted", "referral", removed.id, {
+    const now = new Date().toISOString();
+    const cancellationReason = String(req.body?.reason || req.headers["x-justification"] || "").trim();
+    db.referrals[index] = {
+      ...removed,
+      status: "cancelled",
+      cancelledAt: now,
+      cancelledById: req.user.id,
+      cancellationReason
+    };
+    addAuditLog(db, req.user, "referral.cancelled", "referral", removed.id, {
       patientId: removed.patientId,
       teamId: removed.teamId,
+      cancellationReason,
       before: buildReferralSnapshot(removed),
-      after: null
+      after: buildReferralSnapshot(db.referrals[index])
     });
     return { ok: true };
   });

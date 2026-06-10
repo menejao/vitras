@@ -432,13 +432,13 @@
 }
 
 .ai-action-card:hover:not(:disabled) {
-  border-color: var(--teal-400);
+  border-color: var(--accent);
   box-shadow: var(--shadow-sm);
 }
 
 .ai-action-card.is-active {
-  border-color: var(--teal-500);
-  background: var(--teal-50);
+  border-color: var(--accent);
+  background: var(--accent-soft);
   box-shadow: 0 0 0 2px var(--focus-ring-color, rgba(20, 184, 166, 0.2));
 }
 

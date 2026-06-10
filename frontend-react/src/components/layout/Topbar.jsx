@@ -49,6 +49,7 @@ function Topbar({
   protocolByPatient,
   pharmacyStock,
   agenda,
+  labNotifications,
   onNavigatePatient,
   apiHealth,
   theme,
@@ -101,10 +102,12 @@ function Topbar({
           {theme === "dark" ? <IconSun /> : <IconMoon />}
         </Button>
         <NotificationBell
+          user={user}
           patients={patients || []}
           protocolByPatient={protocolByPatient || {}}
           pharmacyStock={pharmacyStock || []}
           agenda={agenda || []}
+          labNotifications={labNotifications || []}
           onNavigate={onNavigatePatient || (() => {})}
         />
         {selectedPatient ? <div className="topbar__divider" /> : null}

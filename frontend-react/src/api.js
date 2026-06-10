@@ -239,6 +239,10 @@ export async function listExams(token, patientId) {
   return api(`/patients/${patientId}/exams`, { method: "GET", retryCount: 2 }, token);
 }
 
+export async function listNotifications(token) {
+  return api("/notifications", { method: "GET", retryCount: 1 }, token);
+}
+
 export async function createExam(token, patientId, payload) {
   return api(`/patients/${patientId}/exams`, { method: "POST", body: JSON.stringify(payload) }, token);
 }
@@ -353,6 +357,28 @@ export async function deleteRecord(token, patientId, recordId, payload = {}) {
   return api(`/patients/${patientId}/records/${recordId}`, {
     method: "DELETE",
     body: JSON.stringify(payload || {})
+  }, token);
+}
+
+export async function inactivateRecord(token, patientId, recordId, reason, status = "inactive") {
+  return api(`/patients/${patientId}/records/${recordId}/inactivate`, {
+    method: "PATCH",
+    body: JSON.stringify({ reason: String(reason || "").trim(), status }),
+  }, token);
+}
+
+export async function verifyChartAccess(token, patientId, password, patientHint = null) {
+  const body = { patientId, password };
+  if (patientHint) {
+    body.patientHint = {
+      id: String(patientHint.id || "").trim(),
+      name: String(patientHint.name || "").trim(),
+      cpf: String(patientHint.cpf || patientHint.cnsCpf || "").trim(),
+    };
+  }
+  return api("/medical-records/access/verify", {
+    method: "POST",
+    body: JSON.stringify(body),
   }, token);
 }
 

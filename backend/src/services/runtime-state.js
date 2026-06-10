@@ -1,3 +1,7 @@
+// Possible values: "booting" | "migrating" | "warming" | "ready" | "degraded" | "shutting_down"
+let _startupPhase = "booting";
+let _degradedReason = null;
+
 const runtimeState = {
   startedAt: new Date().toISOString(),
   bootCompletedAt: null,
@@ -17,6 +21,7 @@ function markBootCompleted() {
 function markShuttingDown() {
   runtimeState.shuttingDown = true;
   runtimeState.readiness.ready = false;
+  _startupPhase = "shutting_down";
 }
 
 function setStartupChecks(checks = []) {
@@ -32,6 +37,46 @@ function setReadiness(ready, lastError = null) {
   runtimeState.readiness.lastError = lastError
     ? { message: String(lastError.message || lastError), at: new Date().toISOString() }
     : null;
+}
+
+function setStartupPhase(phase) {
+  _startupPhase = phase;
+}
+
+function getStartupPhase() {
+  return _startupPhase;
+}
+
+/**
+ * Transitions the server into degraded mode.
+ * Degraded = still serving traffic but a subsystem is impaired.
+ * Does NOT set readiness.ready to false — instance stays in EB rotation.
+ */
+function setDegraded(reason) {
+  _startupPhase = "degraded";
+  _degradedReason = String(reason || "unknown");
+}
+
+function isDegraded() {
+  return _startupPhase === "degraded";
+}
+
+/**
+ * S2-01: Clears degraded mode, returning the system to "ready" state.
+ * Only has effect if currently in degraded mode.
+ * Returns true if the system was degraded and has been cleared; false otherwise.
+ */
+function clearDegraded(reason = "") {
+  if (_startupPhase === "degraded") {
+    _startupPhase = "ready";
+    _degradedReason = null;
+    return true; // was degraded, now cleared
+  }
+  return false; // was not degraded
+}
+
+function getDegradedReason() {
+  return _degradedReason;
 }
 
 function getRuntimeState() {
@@ -51,5 +96,11 @@ export {
   setStartupChecks,
   setStartupTasks,
   setReadiness,
-  getRuntimeState
+  setStartupPhase,
+  getStartupPhase,
+  getRuntimeState,
+  setDegraded,
+  isDegraded,
+  getDegradedReason,
+  clearDegraded
 };

@@ -17,6 +17,7 @@ describe("Backup export endpoint", () => {
       email,
       password: "BackupGestor@123!",
       role: "gestor",
+      unitId: "unit-default",
       councilType: "COREN",
       councilNumber: "998877",
       councilUf: "SP"

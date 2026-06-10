@@ -36,6 +36,30 @@ jobs:
           REQUEST_LOG_ENABLED: "false"
           BACKUP_EXPORT_KEY: ci-test-backup-key-for-integration
 
+  migration-test:
+    name: Migration boot-guard tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline
+
+      - name: Run migration tests
+        run: node --test test/migrations.test.js
+        env:
+          NODE_ENV: test
+
   frontend-build:
     name: Frontend build
     runs-on: ubuntu-latest

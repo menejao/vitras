@@ -1,5 +1,5 @@
 {
-  "name": "nurse-patient-manager-backend",
+  "name": "vitras-backend",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -11,9 +11,13 @@
     "seed:dev-scenario": "node --env-file=.env.dev scripts/seed-dev-scenario.mjs",
     "seed:demo": "node scripts/seed-demo-team-rosa.mjs",
     "provision:remote-enterprise-user": "node scripts/provision-remote-enterprise-user.mjs",
-    "test": "node --test test/health.test.js && node --test test/auth.test.js && node --test test/patients.test.js && node --test test/queue.test.js && node --test test/agenda.test.js && node --test test/referrals.test.js && node --test test/pharmacy.test.js && node --test test/supplies.test.js && node --test test/exams.test.js && node --test test/access-requests.test.js && node --test test/twofa.test.js && node --test test/backup.test.js",
+    "test": "node --test test/health.test.js && node --test test/auth.test.js && node --test test/patients.test.js && node --test test/queue.test.js && node --test test/agenda.test.js && node --test test/referrals.test.js && node --test test/pharmacy.test.js && node --test test/supplies.test.js && node --test test/exams.test.js && node --test test/access-requests.test.js && node --test test/twofa.test.js && node --test test/backup.test.js && node --test test/migrations.test.js && node --test test/schema-validation.test.js",
     "test:legacy": "node src/ai.test.js",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "smoke": "node ../scripts/smoke-production.js",
+    "env:check": "node ../scripts/check-env.js",
+    "migration:check": "node src/migrations/check-status.js",
+    "health": "node -e \"require('http').get('http://localhost:3001/health', r => { process.exit(r.statusCode === 200 ? 0 : 1) })\""
   },
   "dependencies": {
     "@upstash/ratelimit": "^2.0.8",

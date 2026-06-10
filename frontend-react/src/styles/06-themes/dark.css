@@ -15,7 +15,7 @@
   --bg: #060D15;
   --bg-soft:
     radial-gradient(60% 50% at 18% 0%,  rgba(20,184,166,.10), transparent 60%),
-    radial-gradient(45% 45% at 92% 100%, rgba(34,211,238,.05), transparent 70%),
+    radial-gradient(45% 45% at 92% 100%, rgba(20,184,166,.05), transparent 70%),
     linear-gradient(180deg, #08121C 0%, #050B12 100%);
 
   --surface:        rgba(255,255,255,.025);
@@ -33,7 +33,7 @@
   --border:         rgba(255,255,255,.08);
   --border-strong:  rgba(255,255,255,.14);
   --border-subtle:  rgba(255,255,255,.05);
-  --border-accent:  rgba(94,234,212,.50);
+  --border-accent:  rgba(20,184,166,.50);
 
   /* ── Text ──────────────────────────────────────────────── */
   --text:           #F0F6FB;
@@ -43,14 +43,14 @@
   --text-on-accent: #042320;
 
   /* ── Accent (vibra mais no dark) ───────────────────────── */
-  --accent:         var(--teal-400);
-  --accent-hover:   var(--teal-300);
-  --accent-2:       var(--teal-500);
-  --accent-soft:    rgba(94,234,212,.10);
-  --accent-soft-2:  rgba(94,234,212,.20);
-  --accent-glow:    rgba(94,234,212,.28);
-  --accent-text:    var(--teal-300);
-  --accent-grad:    linear-gradient(135deg, #5EEAD4 0%, #2DD4BF 45%, #22D3EE 100%);
+  --accent:         #14B8A6;
+  --accent-hover:   #2DD4BF;
+  --accent-2:       #0D9488;
+  --accent-soft:    rgba(20,184,166,.10);
+  --accent-soft-2:  rgba(20,184,166,.20);
+  --accent-glow:    rgba(20,184,166,.28);
+  --accent-text:    #2DD4BF;
+  --accent-grad:    linear-gradient(135deg, #14B8A6 0%, #0D9488 100%);
 
   /* ── Status (soft em rgba para combinar com transparência) ─ */
   --success-soft: rgba(74,222,128,.14);
@@ -70,10 +70,10 @@
   --shadow-xs: 0 1px 2px rgba(0,0,0,.5);
   --shadow-sm: 0 4px 10px rgba(0,0,0,.4);
   --shadow-md: 0 10px 28px rgba(0,0,0,.42), 0 0 0 1px rgba(255,255,255,.04);
-  --shadow-lg: 0 28px 72px rgba(0,0,0,.5), 0 0 40px rgba(94,234,212,.05);
-  --shadow-glow: 0 0 24px rgba(94,234,212,.28);
+  --shadow-lg: 0 28px 72px rgba(0,0,0,.5), 0 0 40px rgba(20,184,166,.05);
+  --shadow-glow: 0 0 24px rgba(20,184,166,.28);
 
-  --focus-ring: 0 0 0 3px rgba(94,234,212,.26), 0 0 18px rgba(94,234,212,.18);
+  --focus-ring: 0 0 0 3px rgba(20,184,166,.26), 0 0 18px rgba(20,184,166,.18);
 }
 
 /* ── Overrides componente-específicos em dark ─────────────
@@ -113,5 +113,5 @@
 
 /* Hero kicker ganha um pulso de glow extra no dark */
 [data-theme="dark"] .hero__kicker {
-  text-shadow: 0 0 18px rgba(94,234,212,.25);
+  text-shadow: 0 0 18px rgba(20,184,166,.25);
 }

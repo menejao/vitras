@@ -13,12 +13,7 @@ import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
 import Modal from "../components/ui/Modal";
 import Select from "../components/ui/Select";
-
-const IconLogo = () => (
-  <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-    <path d="M9 2v14M2 9h14" stroke="white" strokeWidth="2.5" strokeLinecap="round"/>
-  </svg>
-);
+import { BrandMark } from "../components/brand/BrandMark";
 
 function ReceptionLoginModal({ onLogin, onClose }) {
   const [email, setEmail] = useState("");
@@ -227,7 +222,7 @@ function ReceptionistApp({ recUser, patients, users, templates, token, onLogout 
     <div className="rcpt-app">
       <header className="rcpt-topbar">
         <div className="rcpt-topbar__logo-wrap">
-          <div className="rcpt-topbar__logo"><IconLogo /></div>
+          <div className="rcpt-topbar__logo"><BrandMark variant="solid" size={32} /></div>
           <span className="rcpt-topbar__brand">Vitras</span>
           <span className="rcpt-topbar__badge">Recepção</span>
         </div>

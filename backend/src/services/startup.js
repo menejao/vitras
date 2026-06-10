@@ -1,12 +1,18 @@
 import { v4 as uuidv4 } from "uuid";
-import { IS_PROD } from "../config.js";
-import { isPostgresMode, withDb } from "../db.js";
 import {
-  ensureDbShape,
-  isJoaoDevVerificationUser,
-  JOAO_DEV_TARGET_TEAM_ID
-} from "../utils/domain.js";
+  IS_PROD,
+  DATABASE_URL,
+  JWT_SECRET,
+  DATA_ENCRYPTION_KEY,
+  PATIENT_LOOKUP_HASH_KEY,
+  UPSTASH_URL,
+  UPSTASH_TOKEN,
+  AUDIT_PRUNE_ENABLED
+} from "../config.js";
+import { withDb } from "../db.js";
+import { ensureDbShape } from "../utils/domain.js";
 import { hashPassword, isHashedPassword } from "./crypto.js";
+import { logInfo, logWarn } from "../utils/logger.js";
 
 async function migrateLegacyPlaintextPasswords() {
   await withDb((db) => {
@@ -100,36 +106,106 @@ async function ensureDemoManagerIfNeeded(email, password) {
   });
 }
 
-async function alignJoaoTeamOnStartup() {
-  const storage = isPostgresMode() ? "postgres" : "file";
-  console.log(`[startup:joao-align] storage=${storage}`);
+function validateProductionConfig() {
+  if (!IS_PROD) return; // dev/test: skip
 
-  await withDb((db) => {
-    const preAlign = (Array.isArray(db.users) ? db.users : []).filter(isJoaoDevVerificationUser);
-    if (!preAlign.length) {
-      console.log("[startup:joao-align] user not found before align");
-    } else {
-      for (const u of preAlign) {
-        console.log(`[startup:joao-align] before id=${u.id} email=${u.email} teamId=${u.teamId || "(empty)"}`);
-      }
+  const warnings = [];
+  const errors = [];
+
+  // RDS / DB check — derive driver the same way db.js does
+  const dbDriver = DATABASE_URL ? "postgres" : "file";
+  if (!DATABASE_URL && dbDriver === "file") {
+    errors.push("DATABASE_URL não configurado em produção — banco de dados em arquivo não é permitido");
+  }
+
+  // JWT
+  if (!JWT_SECRET || JWT_SECRET.length < 32) {
+    errors.push("JWT_SECRET ausente ou fraco (mínimo 32 caracteres)");
+  }
+
+  // Encryption
+  if (!DATA_ENCRYPTION_KEY) {
+    errors.push("DATA_ENCRYPTION_KEY não configurado em produção — dados sensíveis sem criptografia");
+  }
+
+  // Patient lookup hash key (HMAC for CPF/CNS unique-index)
+  // F-01: Must be set independently from DATA_ENCRYPTION_KEY — silent fallback is disabled in production.
+  if (!PATIENT_LOOKUP_HASH_KEY) {
+    errors.push("PATIENT_LOOKUP_HASH_KEY não configurado — exigido para unicidade CPF/CNS em produção (chave separada de DATA_ENCRYPTION_KEY, mínimo 32 caracteres)");
+  }
+
+  // Redis/Upstash
+  if (!UPSTASH_URL || !UPSTASH_TOKEN) {
+    warnings.push("UPSTASH_REDIS_REST_URL/TOKEN não configurados — rate limiting usando MemoryStore local (fail-open em multi-instância)");
+  }
+
+  // Audit prune status
+  if (AUDIT_PRUNE_ENABLED) {
+    warnings.push("AUDIT_PRUNE_ENABLED=true — prune de audit logs habilitado em produção");
+  }
+
+  for (const w of warnings) {
+    try {
+      // dynamic import avoided — logger may not be ready; use console as safe fallback
+      console.warn(JSON.stringify({ level: "warn", event: "boot_config_warning", message: w, timestamp: new Date().toISOString() }));
+    } catch (_) {
+      console.warn("[boot_config_warning]", w);
     }
+  }
 
-    ensureDbShape(db);
-
-    const postAlign = db.users.filter(isJoaoDevVerificationUser);
-    if (!postAlign.length) {
-      console.log("[startup:joao-align] user not found after align");
-    } else {
-      for (const u of postAlign) {
-        console.log(`[startup:joao-align] after  id=${u.id} email=${u.email} teamId=${u.teamId}`);
-      }
+  for (const e of errors) {
+    try {
+      console.error(JSON.stringify({ level: "error", event: "boot_config_error", message: e, timestamp: new Date().toISOString() }));
+    } catch (_) {
+      console.error("[boot_config_error]", e);
     }
+  }
 
-    const outsideRosa = db.patients.filter(
-      (p) => String(p?.teamId || "") !== JOAO_DEV_TARGET_TEAM_ID
-    ).length;
-    console.log(`[startup:joao-align] patients outside team-rosa=${outsideRosa}`);
-  });
+  if (errors.length > 0) {
+    throw new Error(`Configuração de produção inválida: ${errors.join("; ")}`);
+  }
 }
 
-export { migrateLegacyPlaintextPasswords, ensureDemoManagerIfNeeded, alignJoaoTeamOnStartup };
+/**
+ * ITEM 1 — Advisory check for RDS automated backup status.
+ * Only runs in production with Postgres. Never fatal — advisory only.
+ * Emits backup.health_warning if backups appear disabled.
+ * Always emits backup.restore_test_required to prompt operators.
+ */
+async function checkRdsBackupHealth(pool) {
+  if (!IS_PROD) return;
+
+  // Always emit reminder for operators to update last_tested date
+  logInfo("backup.restore_test_required", {
+    event: "backup.restore_test_required",
+    message: "Quarterly restore drill required. Update last_tested after completing drill.",
+    last_tested: "unknown",
+    drill_doc: "docs/runbooks/backup-restore-runbook.md",
+    timestamp: new Date().toISOString()
+  });
+
+  if (!pool) return; // file-mode: skip postgres query
+
+  let client;
+  try {
+    client = await pool.connect();
+    const result = await client.query("SHOW rds.automated_backups_enabled");
+    const value = result.rows[0]?.["rds.automated_backups_enabled"];
+    if (value === "off") {
+      logWarn("backup.health_warning", {
+        event: "backup.health_warning",
+        message: "RDS automated backups appear disabled",
+        parameter: "rds.automated_backups_enabled",
+        value,
+        action_required: "Enable automated backups via RDS console: minimum 7 days retention",
+        timestamp: new Date().toISOString()
+      });
+    }
+  } catch (_err) {
+    // Advisory only — parameter may not exist on non-RDS Postgres; silently ignore
+  } finally {
+    client?.release();
+  }
+}
+
+export { migrateLegacyPlaintextPasswords, ensureDemoManagerIfNeeded, validateProductionConfig, checkRdsBackupHealth };

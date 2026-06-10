@@ -23,6 +23,7 @@ import { usePatientActivity } from "./hooks/usePatientActivity";
 import { useAiHandlers } from "./hooks/useAiHandlers";
 import { usePatientAlerts } from "./hooks/usePatientAlerts";
 import { useIdleTimeout } from "./hooks/useIdleTimeout";
+import { listNotifications } from "./api";
 import ReceptionistApp from "./pages/ReceptionistApp";
 import AuthScreen from "./pages/AuthScreen";
 import ActivateAccountPage from "./pages/ActivateAccountPage";
@@ -101,6 +102,11 @@ function AppInner() {
   } = useUserTemplateHandlers({ token, user, handleApiError, setBusy, setError, loadAll });
   const { aiView, aiData, aiQuestion, setAiQuestion, loadAiPriorities, loadAiQuality, loadAiReport, submitAiQuestion } = useAiHandlers({ token, handleApiError, setBusy, setError });
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [labNotifications, setLabNotifications] = useState([]);
+  useEffect(() => {
+    if (!token) return;
+    listNotifications(token).then(setLabNotifications).catch(() => {});
+  }, [token]);
   const {
     showProfileModal, setShowProfileModal, profileForm, setProfileForm, profileBusy, profileError,
     openProfile, submitProfile,
@@ -173,9 +179,10 @@ function AppInner() {
   const { rosaAdjustedSummary, sortedSpecialAlerts } = usePatientAlerts({ selectedPatient, patientProtocolSummary, history, isEquipeRosaUser });
 
   const isAuthenticated = !!(token && user && typeof user === "object");
+  const idleLogoutEnabled = import.meta.env.VITE_IDLE_LOGOUT_ENABLED !== "false";
   const { showWarning: sessionShowWarning, remaining: sessionRemaining, stayActive, doLogout: forceLogout } = useIdleTimeout({
     onLogout: logout,
-    enabled: isAuthenticated,
+    enabled: isAuthenticated && idleLogoutEnabled,
   });
 
   /* â"€â"€ Auth guard â€" login único, roteamento por perfil â"€â"€ */
@@ -235,6 +242,7 @@ function AppInner() {
           patients={patients} protocolByPatient={protocolByPatient}
           pharmacyStock={pharmacyStock}
           agenda={agendaEntries}
+          labNotifications={labNotifications}
           apiHealth={apiHealth}
           onNavigatePatient={(id)=>{ setTab("patients"); setSelectedPatientId(id); }}
           theme={theme} onToggleTheme={toggleTheme}
@@ -273,6 +281,7 @@ function AppInner() {
           openEditPatient={openEditPatient} removePatient={removePatient} openViewPatient={openViewPatient}
           openEditTemplate={openEditTemplate} removeTemplate={removeTemplate}
           openEditUser={openEditUser} removeUser={removeUser}
+          openProfile={openProfile}
           recordForm={recordForm} setRecordForm={setRecordForm} recordVaccines={recordVaccines} setRecordVaccines={setRecordVaccines}
           appointmentForm={appointmentForm} setAppointmentForm={setAppointmentForm} taskForm={taskForm} setTaskForm={setTaskForm}
           messageText={messageText} setMessageText={setMessageText}

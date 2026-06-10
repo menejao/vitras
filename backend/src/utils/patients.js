@@ -1,4 +1,4 @@
-import { canAccessAllPatients, canAccessScopedPatients, normalizeDemandType, eventDate } from "./helpers.js";
+import { canAccessAllPatients, canAccessScopedPatients, normalizeDemandType, eventDate, canonicalRole } from "./helpers.js";
 import { ensureArray, getProtocolTemplateMap, normalizeCategory, normalizeChronicConditions } from "./domain.js";
 
 function isAnonymizedPatient(patient) {
@@ -250,21 +250,64 @@ function anonymizePatientBundle(db, user, patient, reason = "", requestId = "") 
   };
 }
 
-function canAccessPatient(user, patient) {
+// Roles com acesso de leitura clinica cross-UBS dentro do mesmo municipio (US-204)
+const CLINICAL_READ_ROLES = new Set(["doctor", "nurse_manager", "dentist", "nursing_tech"]);
+
+function canAccessPatient(user, patient, mode = "write") {
+  // Guard obrigatorio — PRIMEIRA linha, antes de qualquer branch de mode
   if (!patient) return false;
-  if (canAccessAllPatients(user)) return true;
-  if (canAccessScopedPatients(user)) {
-    return String(patient.teamId || "") === String(user?.teamId || "");
+  // break_glass_admin sempre tem acesso em qualquer modo
+  if (canonicalRole(user?.role) === "break_glass_admin") return true;
+
+  if (mode === "read") {
+    const role = canonicalRole(user?.role);
+    if (!CLINICAL_READ_ROLES.has(role)) return false;
+    const userMuni = String(user?.municipalityId || "").trim();
+    const patientMuni = String(patient.municipalityId || "").trim();
+    // Fallback seguro: se municipalityId ausente em qualquer lado, exige teamId match
+    if (!userMuni || !patientMuni) {
+      return String(patient.teamId || "") === String(user?.teamId || "");
+    }
+    // Cross-municipio: sempre negar
+    if (userMuni !== patientMuni) return false;
+    // Mesmo municipio com role clinica: permitir leitura cross-UBS
+    return true;
   }
-  return false;
+
+  // mode === "write" (default): comportamento original preservado integralmente
+  return String(patient.teamId || "") === String(user?.teamId || "");
+}
+
+function buildGestorUnitTeamIds(db, user) {
+  const userUnitId = String(user?.unitId || "").trim();
+  if (!userUnitId) return null; // null = gestor without unitId = no access
+  return new Set(
+    (db.teams || []).filter((t) => String(t.unitId || "").trim() === userUnitId).map((t) => t.id)
+  );
 }
 
 function getAllowedPatients(db, user, query) {
   const microArea = query.microArea ? String(query.microArea).trim() : "";
   const acsId = query.acsId ? String(query.acsId).trim() : "";
   const careCategory = query.careCategory ? String(query.careCategory).trim() : "";
+  const includeInactive = String(query.includeInactive || "").trim() === "true";
+
+  // Gestor: unit-scoped access — can only see patients in teams of their unit
+  if (canonicalRole(user?.role) === "gestor") {
+    const unitTeamIds = buildGestorUnitTeamIds(db, user);
+    if (!unitTeamIds) return []; // fail-safe: gestor without unitId sees nothing
+    return db.patients.filter((p) => {
+      if (!includeInactive && p.inactive) return false;
+      if (!unitTeamIds.has(String(p.teamId || "").trim())) return false;
+      if (microArea && p.microArea !== microArea) return false;
+      if (acsId && p.assignedAcsId !== acsId) return false;
+      if (careCategory && p.careCategory !== careCategory) return false;
+      return true;
+    });
+  }
 
   return db.patients.filter((p) => {
+    if (!includeInactive && p.inactive) return false;
     if (!canAccessPatient(user, p)) return false;
     if (microArea && p.microArea !== microArea) return false;
     if (acsId && p.assignedAcsId !== acsId) return false;
@@ -273,10 +316,21 @@ function getAllowedPatients(db, user, query) {
   });
 }
 
-function getPatientOrError(db, user, patientId) {
+function getPatientOrError(db, user, patientId, mode = "write") {
   const patient = db.patients.find((p) => p.id === patientId);
   if (!patient) return { error: { status: 404, message: "Paciente não encontrado" } };
-  if (!canAccessPatient(user, patient)) {
+
+  // Gestor: unit-scoped access check — gestor tem path proprio, mode nao se aplica
+  if (canonicalRole(user?.role) === "gestor") {
+    const unitTeamIds = buildGestorUnitTeamIds(db, user);
+    if (!unitTeamIds) return { error: { status: 403, message: "Gestor sem unidade definida" } };
+    if (!unitTeamIds.has(String(patient.teamId || "").trim())) {
+      return { error: { status: 403, message: "Sem permissão para este paciente" } };
+    }
+    return { patient };
+  }
+
+  if (!canAccessPatient(user, patient, mode)) {
     return { error: { status: 403, message: "Sem permissão para este paciente" } };
   }
   return { patient };
@@ -312,6 +366,15 @@ function buildPatientHistory(db, patientId) {
   });
 }
 
+function maskSensitivePatientFields(patient) {
+  if (!patient) return patient;
+  const masked = { ...patient };
+  if (masked.cpf) masked.cpf = "***.***.***-**";
+  if (masked.cns) masked.cns = "***.***.***.*****-**";
+  if (masked.cnsCpf) masked.cnsCpf = "***.***.***-**";
+  return masked;
+}
+
 export {
   isAnonymizedPatient,
   getPatientActivityDate,
@@ -321,5 +384,6 @@ export {
   canAccessPatient,
   getAllowedPatients,
   getPatientOrError,
-  buildPatientHistory
+  buildPatientHistory,
+  maskSensitivePatientFields
 };

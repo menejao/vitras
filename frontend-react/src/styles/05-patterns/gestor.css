@@ -7,10 +7,8 @@
 .gestor-page {
   display: flex;
   flex-direction: column;
-  height: 100%;
-  overflow-y: auto;
   gap: var(--s-4);
-  padding-bottom: var(--s-6);
+  padding-bottom: var(--s-8);
 }
 .gestor-page > .page-header,
 .gestor-page > .hero {
@@ -18,7 +16,8 @@
 }
 .gestor-page > .card,
 .gestor-page > .gestor-section,
-.gestor-page > .gestor-kpi-grid {
+.gestor-page > .gestor-kpi-grid,
+.gestor-page > .gestor-two-col {
   margin: 0 var(--s-6);
 }
 

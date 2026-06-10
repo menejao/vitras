@@ -1,7 +1,7 @@
 const CSS = `
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Inter', Arial, sans-serif; font-size: 13px; color: #111; background: #fff; padding: 32px 40px; max-width: 800px; margin: 0 auto; }
+  body { font-family: 'IBM Plex Sans', Arial, sans-serif; font-size: 13px; color: #111; background: #fff; padding: 32px 40px; max-width: 800px; margin: 0 auto; }
   .doc-header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #111; padding-bottom: 14px; margin-bottom: 22px; }
   .doc-header__brand { font-size: 18px; font-weight: 700; letter-spacing: -.5px; color: #111; }
   .doc-header__unit { font-size: 11px; color: #555; margin-top: 3px; }
@@ -180,6 +180,58 @@ export function printAttendanceAttest({ patient, professional, unit, team }) {
       </div>
     </div>
     ${footer({ professionalName: professional?.name, councilLabel: professional?.councilType, councilNumber: professional?.councilNumber, councilUf: professional?.councilUf, unitName: unit?.name })}
+  </body></html>`;
+
+  openPrintWindow(html);
+}
+
+export function printVaccineCard({ patient, vaccineRows = [], extraApplied = [], unit, team }) {
+  const fmtIso = iso => iso ? new Date(iso + "T00:00:00").toLocaleDateString("pt-BR") : "—";
+
+  const rowsHtml = vaccineRows.length
+    ? vaccineRows.map(v => `
+        <tr>
+          <td style="padding:5px 8px;border-bottom:1px solid #f0f0f0;font-size:12px;font-weight:600;color:${v.applied ? "#111" : "#555"};">${v.name}</td>
+          <td style="padding:5px 8px;border-bottom:1px solid #f0f0f0;font-size:11px;color:#666;">${v.doseLabel || ""}</td>
+          <td style="padding:5px 8px;border-bottom:1px solid #f0f0f0;font-size:11px;color:${v.applied ? "#16a34a" : "#aaa"};">${v.applied ? (v.date || "—") : "Não aplicada"}</td>
+          <td style="padding:5px 8px;border-bottom:1px solid #f0f0f0;font-size:11px;color:#666;">${v.by || ""}</td>
+        </tr>`).join("")
+    : `<tr><td colspan="4" style="padding:12px;color:#aaa;text-align:center;font-size:12px;">Nenhuma vacina indicada para este paciente.</td></tr>`;
+
+  const extraHtml = extraApplied.length
+    ? `<div class="doc-section" style="margin-top:20px;">
+        <div class="doc-section__label">Outras aplicações registradas</div>
+        <table style="width:100%;border-collapse:collapse;margin-top:8px;">
+          ${extraApplied.map(a => `<tr>
+            <td style="padding:5px 8px;border-bottom:1px solid #f0f0f0;font-size:12px;font-weight:500;">${a.title || "—"}</td>
+            <td style="padding:5px 8px;border-bottom:1px solid #f0f0f0;font-size:11px;color:#16a34a;">${fmtIso(a.date)}</td>
+          </tr>`).join("")}
+        </table>
+      </div>`
+    : "";
+
+  const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Carteira de Vacinas</title><style>${CSS}</style></head><body>
+    ${header("Carteira de Vacinação", { unitName: unit?.name, teamName: team?.name })}
+    ${patientBlock(patient)}
+    <div class="doc-section">
+      <div class="doc-section__label">Calendário Nacional de Vacinação (PNI)</div>
+      <table style="width:100%;border-collapse:collapse;margin-top:8px;">
+        <thead>
+          <tr style="background:#f5f5f5;">
+            <th style="text-align:left;padding:6px 8px;font-size:10px;color:#666;font-weight:600;letter-spacing:.5px;border-bottom:1px solid #e5e5e5;">VACINA</th>
+            <th style="text-align:left;padding:6px 8px;font-size:10px;color:#666;font-weight:600;letter-spacing:.5px;border-bottom:1px solid #e5e5e5;">DOSE</th>
+            <th style="text-align:left;padding:6px 8px;font-size:10px;color:#666;font-weight:600;letter-spacing:.5px;border-bottom:1px solid #e5e5e5;">DATA</th>
+            <th style="text-align:left;padding:6px 8px;font-size:10px;color:#666;font-weight:600;letter-spacing:.5px;border-bottom:1px solid #e5e5e5;">PROFISSIONAL</th>
+          </tr>
+        </thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+    </div>
+    ${extraHtml}
+    <div class="doc-notice">
+      Documento gerado com base nos registros clínicos do sistema Vitras. Não substitui a caderneta oficial de vacinação.
+    </div>
+    ${footer({ unitName: unit?.name })}
   </body></html>`;
 
   openPrintWindow(html);

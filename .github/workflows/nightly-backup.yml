@@ -29,7 +29,7 @@ jobs:
       - name: Upload backup artifact
         uses: actions/upload-artifact@v4
         with:
-          name: saudeubs-backup-${{ steps.stamp.outputs.ts }}
+          name: vitras-backup-${{ steps.stamp.outputs.ts }}
           path: backup-output/*.json
           if-no-files-found: error
           retention-days: 30

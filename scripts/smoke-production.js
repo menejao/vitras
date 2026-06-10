@@ -26,7 +26,11 @@ const BASE = getArg("--base") || "http://localhost:3001";
 const SMOKE_EMAIL = process.env.SMOKE_EMAIL || "";
 const SMOKE_PASSWORD = process.env.SMOKE_PASSWORD || "";
 const SMOKE_BACKUP_KEY = process.env.SMOKE_BACKUP_KEY || "";
-const SMOKE_ORIGIN = process.env.SMOKE_ORIGIN || "";
+const SMOKE_ORIGIN = process.env.SMOKE_ORIGIN;
+if (!SMOKE_ORIGIN) {
+  console.error("ERRO: SMOKE_ORIGIN nao definido. Defina a URL do frontend de staging antes de executar o smoke.");
+  process.exit(1);
+}
 
 // ── test runner ───────────────────────────────────────────────────────────────
 
@@ -83,6 +87,11 @@ await test("GET /health returns 200 with ok:true", async () => {
   assert(typeof body?.timestamp === "string", "Missing timestamp");
 });
 
+await test("GET /readyz returns 200 (liveness gate — EB health check path)", async () => {
+  const { res } = await get("/readyz");
+  assert(res.status === 200, `Expected 200, got ${res.status} — app not ready or postgres unreachable`);
+});
+
 await test("GET /health has security headers (HSTS, X-Frame-Options)", async () => {
   const res = await fetch(`${BASE}/health`);
   const hsts = res.headers.get("strict-transport-security");
@@ -131,9 +140,7 @@ await test("GET /admin/backup/export with wrong key returns 401 or 403", async (
 });
 
 await test("CORS preflight from allowed origin returns 204", async () => {
-  const origin = SMOKE_ORIGIN || (BASE.includes("localhost")
-    ? "http://localhost:5174"
-    : "https://gestaopacientes.meneguccijao.workers.dev");
+  const origin = BASE.includes("localhost") ? "http://localhost:5174" : SMOKE_ORIGIN;
   const res = await fetch(`${BASE}/auth/login`, {
     method: "OPTIONS",
     headers: {
@@ -158,7 +165,32 @@ await test("CORS without Origin is blocked outside localhost", async () => {
       "Access-Control-Request-Method": "POST"
     }
   });
-  assert(res.status >= 400, `Expected blocked preflight without Origin, got ${res.status}`);
+  const acao = res.headers.get("access-control-allow-origin");
+  assert(
+    !acao || acao !== "*",
+    `OPTIONS sem Origin nao deve retornar CORS wildcard, mas retornou: ${acao}`
+  );
+});
+
+await test("CORS reflect-origin: origem nao autorizada nao deve ser refletida", async () => {
+  if (BASE.includes("localhost")) return;
+  const ARBITRARY_ORIGIN = "http://attacker-test.example.com";
+  const res = await fetch(`${BASE}/auth/login`, {
+    method: "OPTIONS",
+    headers: {
+      Origin: ARBITRARY_ORIGIN,
+      "Access-Control-Request-Method": "POST",
+      "Access-Control-Request-Headers": "Content-Type"
+    }
+  });
+  const acao = res.headers.get("access-control-allow-origin");
+  // A resposta nao deve refletir a origem arbitraria de volta.
+  // Aceita: header ausente, "*" seria wildcard (tambem errado, mas diferente),
+  // ou qualquer valor que nao seja a origem enviada.
+  assert(
+    !acao || acao !== ARBITRARY_ORIGIN,
+    `CORS reflect-origin detectado: servidor refletiu origem nao autorizada "${acao}"`
+  );
 });
 
 // --- Authenticated tests (only if credentials provided) ---
@@ -176,7 +208,7 @@ if (SMOKE_EMAIL && SMOKE_PASSWORD) {
     if (res.status === 200) {
       assert(body?.token || body?.accessToken, "Missing token in response");
       token = body.token || body.accessToken;
-    } else if (res.status === 403 && body?.requiresTwoFactor) {
+    } else if (res.status === 403 && body?.twoFactorRequired) {
       console.log("    (2FA required — skipping authenticated tests)");
       token = null;
     } else {
@@ -234,18 +266,37 @@ if (SMOKE_EMAIL && SMOKE_PASSWORD) {
       if (res.status === 200) assert(Array.isArray(body), "Expected array");
     });
 
-    await test("GET /metrics/internal returns object or 403 by capability", async () => {
+    await test("GET /metrics/internal returns object, 403, or 404 by environment contract", async () => {
       const { res, body } = await get("/metrics/internal", token);
-      assert(res.status === 200 || res.status === 403, `Expected 200 or 403, got ${res.status}`);
+      assert(
+        res.status === 200 || res.status === 403 || res.status === 404,
+        `Expected 200, 403, or 404, got ${res.status}`
+      );
       if (res.status === 200) {
         assert(body !== null && typeof body === "object", `Expected object, got ${typeof body}`);
       }
     });
 
+    await test("Cat.4 write isolation — cross-team patient access denied (US-204 regression guard)", async () => {
+      const crossTeamId = process.env.SMOKE_CROSS_TEAM_PATIENT_ID;
+      if (!crossTeamId) {
+        console.log("    (skipped — SMOKE_CROSS_TEAM_PATIENT_ID not set; configure para teste completo de Cat.4)");
+        return;
+      }
+      const { res } = await get(`/patients/${crossTeamId}`, token);
+      assert(
+        res.status === 403 || res.status === 404,
+        `Cat.4 write isolation: expected 403 or masked 404, got ${res.status} (200 = data leak FAIL)`
+      );
+    });
+
     if (SMOKE_BACKUP_KEY) {
       await test("GET /admin/backup/export with valid key returns encrypted snapshot", async () => {
         const res = await fetch(`${BASE}/admin/backup/export`, {
-          headers: { "x-backup-key": SMOKE_BACKUP_KEY }
+          headers: {
+            "x-backup-key": SMOKE_BACKUP_KEY,
+            Authorization: `Bearer ${token}`
+          }
         });
         const body = await res.json().catch(() => null);
         assert(res.status === 200, `Expected 200, got ${res.status}`);

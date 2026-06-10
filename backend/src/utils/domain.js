@@ -151,6 +151,7 @@ function normalizeLookupText(value) {
 /* ── DB shape enforcement ── */
 
 function ensureDbShape(db) {
+  ensureArray(db, "units");
   ensureArray(db, "teams");
   ensureArray(db, "users");
   ensureArray(db, "patients");
@@ -167,6 +168,11 @@ function ensureDbShape(db) {
   ensureArray(db, "tasks");
   ensureArray(db, "messages");
   ensureArray(db, "auditLogs");
+  ensureArray(db, "auditLogChainAnchors");
+  ensureArray(db, "auditPruneExports");
+  ensureArray(db, "notifications");
+  ensureArray(db, "familyGroups");
+  ensureArray(db, "labIntegrations");
   ensureArray(db, "clinicalRecords");
   ensureArray(db, "protocolTemplates");
   ensureArray(db, "protocolTemplateVersions");
@@ -182,10 +188,24 @@ function ensureDbShape(db) {
       id: defaultTeamId,
       name: "Equipe Enfermeira Ana",
       managerUserId: "u1",
+      unitId: "unit-default",
       createdAt: new Date().toISOString()
     });
     db.users = db.users.map((u) => ({ ...u, teamId: u.teamId || defaultTeamId }));
   }
+
+  // Ensure default unit exists (backward compat: existing deployments without units)
+  if (!db.units.length) {
+    db.units.push({ id: "unit-default", name: "Unidade Padrão", createdAt: new Date().toISOString() });
+  }
+  // Ensure all teams have unitId (assign default if missing — backward compat migration)
+  db.teams = db.teams.map((t) => t.unitId ? t : { ...t, unitId: "unit-default" });
+  // Ensure all users have unitId (derive from team or default — backward compat migration)
+  db.users = db.users.map((u) => {
+    if (u.unitId) return u;
+    const team = db.teams.find((t) => t.id === u.teamId);
+    return { ...u, unitId: team?.unitId || "unit-default" };
+  });
 
   const byId = new Set(db.teams.map((t) => String(t.id || "").trim().toLowerCase()));
   const byName = new Set(db.teams.map((t) => String(t.name || "").trim().toLowerCase()));
@@ -368,6 +388,8 @@ function buildAccessContextUser(actorUser, db, options = {}) {
     ...safeActor,
     teamId: scopeTeamId || safeActor.teamId || "",
     teamName: scopeTeamName || safeActor.teamName || "Sem equipe",
+    unitId: String(safeActor?.unitId || ""),
+    municipalityId: String(safeActor?.municipalityId || ""),
     capabilities,
     impersonation: options.impersonation ? {
       active: true,
@@ -506,6 +528,52 @@ function snapshotProtocolTemplateVersion(db, actorUser, action, template) {
   });
 }
 
+/**
+ * ITEM 7: Validate inputs for unit bootstrap operation.
+ * Checks: unitId uniqueness, gestorUserId exists with correct role and no conflicting unitId.
+ * @returns {{ valid: boolean, error?: string }}
+ */
+function validateUnitBootstrap(db, { unitId, unitName, gestorUserId }) {
+  const cleanUnitId = String(unitId || "").trim();
+  const cleanUnitName = String(unitName || "").trim();
+  const cleanGestorId = String(gestorUserId || "").trim();
+
+  if (!cleanUnitId || cleanUnitId.length > 50) {
+    return { valid: false, error: "unitId inválido (máximo 50 caracteres)" };
+  }
+  if (!cleanUnitName || cleanUnitName.length > 200) {
+    return { valid: false, error: "unitName inválido (máximo 200 caracteres)" };
+  }
+  if (!cleanGestorId) {
+    return { valid: false, error: "gestorUserId obrigatório" };
+  }
+
+  // unitId must not already exist
+  const existingUnit = (db.units || []).find((u) => String(u.id || "") === cleanUnitId);
+  if (existingUnit) {
+    return { valid: false, error: `unitId '${cleanUnitId}' já existe`, conflict: "unit_exists" };
+  }
+
+  // gestorUserId must exist
+  const gestor = (db.users || []).find((u) => String(u.id || "") === cleanGestorId);
+  if (!gestor) {
+    return { valid: false, error: `Usuário '${cleanGestorId}' não encontrado` };
+  }
+
+  // gestorUserId must have role "gestor"
+  const role = canonicalRole(gestor.role);
+  if (role !== "gestor") {
+    return { valid: false, error: `Usuário '${cleanGestorId}' não tem role 'gestor' (role atual: ${role})` };
+  }
+
+  // gestorUserId must not already be assigned to a DIFFERENT unit
+  if (gestor.unitId && gestor.unitId !== cleanUnitId && gestor.unitId !== "unit-default") {
+    return { valid: false, error: `Gestor '${cleanGestorId}' já está associado a outra unidade: ${gestor.unitId}` };
+  }
+
+  return { valid: true };
+}
+
 export {
   ensureArray,
   DEFAULT_CARE_PROTOCOLS,
@@ -522,5 +590,6 @@ export {
   buildAccessContextUser,
   getProtocolTemplateMap,
   sanitizeProtocolTemplatePayload,
-  snapshotProtocolTemplateVersion
+  snapshotProtocolTemplateVersion,
+  validateUnitBootstrap
 };

@@ -25,14 +25,36 @@ function ProfileModal({ open, user, profileForm, setProfileForm, profileError, p
         <div className="profile-modal__stack">
           <Input label="Nome completo" value={profileForm.name} onChange={(e) => setProfileForm((s) => ({ ...s, name: e.target.value }))} autoFocus />
           <Input label="E-mail" type="email" value={profileForm.email} onChange={(e) => setProfileForm((s) => ({ ...s, email: e.target.value }))} />
-          <Input
-            label="Nova senha"
-            type="password"
-            value={profileForm.password}
-            onChange={(e) => setProfileForm((s) => ({ ...s, password: e.target.value }))}
-            placeholder="Deixe em branco para manter"
-          />
-          <span className="field__hint">Mínimo 8 caracteres com maiúscula, número e símbolo.</span>
+
+          <div style={{ borderTop: "1px solid var(--border-subtle)", paddingTop: "var(--s-3)", marginTop: "var(--s-1)" }}>
+            <Input
+              label="Nova senha"
+              type="password"
+              value={profileForm.password}
+              onChange={(e) => setProfileForm((s) => ({ ...s, password: e.target.value }))}
+              placeholder="Deixe em branco para manter"
+            />
+            <span className="field__hint">Mínimo 8 caracteres com maiúscula, número e símbolo.</span>
+          </div>
+
+          {profileForm.password && (
+            <>
+              <Input
+                label="Confirmar nova senha"
+                type="password"
+                value={profileForm.confirmPassword || ""}
+                onChange={(e) => setProfileForm((s) => ({ ...s, confirmPassword: e.target.value }))}
+                placeholder="Repita a nova senha"
+              />
+              <Input
+                label="Senha atual *"
+                type="password"
+                value={profileForm.currentPassword || ""}
+                onChange={(e) => setProfileForm((s) => ({ ...s, currentPassword: e.target.value }))}
+                placeholder="Necessária para confirmar a troca de senha"
+              />
+            </>
+          )}
 
           {["nurse_manager", "doctor", "dentist", "nursing_tech", "pharmacist", "pharmacy_tech"].includes(user?.role) && (
             <div className="profile-modal__council">

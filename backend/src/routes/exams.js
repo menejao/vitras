@@ -69,7 +69,7 @@ router.get("/patients/:id/exams", async (req, res) => {
   if (lookup.error) return res.status(lookup.error.status).json({ error: lookup.error.message });
 
   const exams = db.exams
-    .filter((exam) => exam.patientId === lookup.patient.id)
+    .filter((exam) => exam.patientId === lookup.patient.id && String(exam.status || "") !== "inactive")
     .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")))
     .map(normalizeExamResponse);
 
@@ -104,6 +104,7 @@ router.post("/patients/:id/exams", validate(ExamCreateSchema), async (req, res) 
     title: String(req.body.title || "").trim(),
     date: String(req.body.date || "").trim(),
     details: String(req.body.notes || "").trim(),
+    source: req.body.source === "externo" ? "externo" : "posto",
     attachments: [],
     createdAt: new Date().toISOString(),
     createdBy: req.user.id,
@@ -208,12 +209,19 @@ router.delete("/patients/:id/exams/:examId", async (req, res) => {
 
     const current = mutableDb.exams[examIndex];
     const before = buildExamAuditSnapshot(current);
-    mutableDb.exams.splice(examIndex, 1);
-    addAuditLog(mutableDb, req.user, "exam.deleted", "exam", examId, {
+    const now = new Date().toISOString();
+    mutableDb.exams[examIndex] = {
+      ...current,
+      status: "inactive",
+      inactivatedAt: now,
+      inactivatedById: req.user.id,
+      inactivationReason: justification
+    };
+    addAuditLog(mutableDb, req.user, "exam.inactivated", "exam", examId, {
       patientId,
       justification,
       before,
-      after: null
+      after: buildExamAuditSnapshot(mutableDb.exams[examIndex])
     });
     return { ok: true };
   });

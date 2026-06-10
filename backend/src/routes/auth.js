@@ -33,8 +33,21 @@ import {
   issueSessionCookies,
   parseCookies
 } from "../utils/session-cookies.js";
+import { recordMetric } from "../services/metrics.js";
 
 const router = express.Router();
+
+function maskEmail(email) {
+  const raw = String(email || "").trim();
+  if (!raw || !raw.includes("@")) return "[email inválido]";
+  const [local, domain] = raw.split("@");
+  const maskedLocal = local.length > 0 ? `${local[0]}***` : "***";
+  const dotIndex = domain.lastIndexOf(".");
+  const maskedDomain = dotIndex > 0
+    ? `${domain[0]}***${domain.slice(dotIndex)}`
+    : `${domain[0]}***`;
+  return `${maskedLocal}@${maskedDomain}`;
+}
 
 function buildAuditActorFromRequest(req, identity = {}) {
   return {
@@ -204,14 +217,26 @@ router.post("/auth/register", authRateLimit, validate(RegisterSchema), async (re
     }
 
     const requiresTeam = role !== "gestor";
+    const requiresUnit = role === "gestor";
     const teamId = String(payload.teamId || "").trim();
+    const unitId = String(payload.unitId || "").trim();
     const team = requiresTeam ? db.teams.find((t) => t.id === teamId) : null;
+    const unit = requiresUnit ? (db.units || []).find((u) => u.id === unitId) : null;
+
     if (requiresTeam && !teamId) {
       return { error: "teamId é obrigatório para cadastro", status: 400 };
     }
     if (requiresTeam && !team) {
       return { error: "Equipe informada não existe", status: 400 };
     }
+    if (requiresUnit && !unitId) {
+      return { error: "unitId é obrigatório para gestor", status: 400 };
+    }
+    if (requiresUnit && !unit) {
+      return { error: "Unidade informada não existe", status: 400 };
+    }
+
+    const derivedUnitId = requiresUnit ? unitId : (team?.unitId || "");
 
     const user = {
       id: uuidv4(),
@@ -220,6 +245,7 @@ router.post("/auth/register", authRateLimit, validate(RegisterSchema), async (re
       email,
       password: hashPassword(password),
       teamId: requiresTeam ? teamId : "",
+      unitId: derivedUnitId,
       councilType,
       councilNumber: councilValidation.councilNumber || "",
       councilUf: councilValidation.councilUf || "",
@@ -289,15 +315,16 @@ router.post("/auth/login", authRateLimit, validate(LoginSchema), async (req, res
   }
   if (!user) {
     trackLoginAttempt(false);
+    recordMetric("auth_failure", 1, { reason: "invalid_credentials" });
     await withDb((auditDb) => {
       ensureDbShape(auditDb);
       addAuditLog(
         auditDb,
-        buildAuditActorFromRequest(req, { email: normalizedEmail }),
+        buildAuditActorFromRequest(req, { email: maskEmail(normalizedEmail), name: maskEmail(normalizedEmail) }),
         "auth.login_failed",
         "auth",
         normalizedEmail || "anonymous",
-        { outcome: "denied", email: normalizedEmail }
+        { outcome: "denied", emailMasked: maskEmail(normalizedEmail) }
       );
     });
     return res.status(401).json({ error: "Credenciais inválidas" });

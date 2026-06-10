@@ -176,9 +176,9 @@
   transition: background-color 9999s ease-in-out 0s;
 }
 
-/* Select arrow teal no contexto auth */
+/* Select arrow accent no contexto auth */
 .auth-card .input select {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%230f766e' d='M0 0h10L5 6z'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%232FA9C2' d='M0 0h10L5 6z'/%3E%3C/svg%3E");
 }
 
 /* ── Botão primário — CTA premium ────────────────────────── */
@@ -193,8 +193,8 @@
   background: var(--accent);
   box-shadow:
     0 1px 0 rgba(255,255,255,.15) inset,
-    0 2px 4px rgba(13,148,136,.18),
-    0 8px 20px rgba(13,148,136,.14);
+    0 2px 4px rgba(47,169,194,.18),
+    0 8px 20px rgba(47,169,194,.14);
   transition:
     background    var(--d-fast) var(--ease),
     box-shadow    var(--d-base) var(--ease),
@@ -205,14 +205,14 @@
   transform: translateY(-1px);
   box-shadow:
     0 1px 0 rgba(255,255,255,.15) inset,
-    0 4px 8px rgba(13,148,136,.22),
-    0 12px 28px rgba(13,148,136,.20);
+    0 4px 8px rgba(47,169,194,.22),
+    0 12px 28px rgba(47,169,194,.20);
 }
 .auth-card .btn--primary:not(:disabled):active {
   transform: translateY(0) scale(.99);
   box-shadow:
     0 1px 0 rgba(255,255,255,.10) inset,
-    0 1px 2px rgba(13,148,136,.12);
+    0 1px 2px rgba(47,169,194,.12);
 }
 .auth-card .btn--primary:disabled {
   opacity: .55;
@@ -336,36 +336,10 @@
 
 /* ── Brand lockup ────────────────────────────────────────── */
 
-.auth-brand-lockup {
-  display: flex;
-  align-items: center;
-  gap: var(--s-3);
-}
-.auth-brand-lockup__icon {
-  width: 40px;
-  height: 40px;
-  border-radius: var(--r-lg);
-  background: var(--accent-grad);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: var(--shadow-glow);
-  flex: 0 0 auto;
-}
-.auth-brand-lockup__copy {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.auth-brand-lockup__copy strong {
-  font: 800 var(--t-2xl)/1 var(--font-sans);
-  color: #fff;
-  letter-spacing: .08em;
-}
-.auth-brand-lockup__copy span {
-  font: 500 var(--t-xs)/1.4 var(--font-sans);
-  color: var(--hero-text-muted);
-  max-width: 34ch;
+.auth-lockup {
+  height: 44px;
+  width: auto;
+  display: block;
 }
 
 /* ── Eyebrow pill ────────────────────────────────────────── */

@@ -51,6 +51,49 @@ const PUBLIC_SELF_REGISTER_ROLES = String(
   .filter(Boolean);
 const DATABASE_URL = String(process.env.DATABASE_URL || "").trim();
 const DATA_ENCRYPTION_KEY = String(process.env.DATA_ENCRYPTION_KEY || "").trim();
+const DATA_ENCRYPTION_KEYS_RAW = String(process.env.DATA_ENCRYPTION_KEYS || "").trim();
+const DATA_ENCRYPTION_ACTIVE_KEY_ID_RAW = String(process.env.DATA_ENCRYPTION_ACTIVE_KEY_ID || "").trim();
+
+function _buildKeyRegistry() {
+  if (DATA_ENCRYPTION_KEYS_RAW) {
+    let parsed;
+    try {
+      parsed = JSON.parse(DATA_ENCRYPTION_KEYS_RAW);
+    } catch {
+      throw new Error("DATA_ENCRYPTION_KEYS: JSON inválido");
+    }
+    if (typeof parsed !== "object" || Array.isArray(parsed) || parsed === null) {
+      throw new Error("DATA_ENCRYPTION_KEYS: deve ser objeto JSON { kid: key }");
+    }
+    for (const [kid, raw] of Object.entries(parsed)) {
+      if (String(raw || "").trim().length < 32) {
+        throw new Error(`DATA_ENCRYPTION_KEYS: chave '${kid}' inválida — mínimo 32 caracteres após trim`);
+      }
+    }
+    if (!DATA_ENCRYPTION_ACTIVE_KEY_ID_RAW) {
+      throw new Error("DATA_ENCRYPTION_ACTIVE_KEY_ID obrigatório quando DATA_ENCRYPTION_KEYS está definido");
+    }
+    if (!Object.prototype.hasOwnProperty.call(parsed, DATA_ENCRYPTION_ACTIVE_KEY_ID_RAW)) {
+      throw new Error("DATA_ENCRYPTION_ACTIVE_KEY_ID aponta para chave inexistente em DATA_ENCRYPTION_KEYS");
+    }
+    return parsed;
+  }
+  return DATA_ENCRYPTION_KEY ? { legacy: DATA_ENCRYPTION_KEY } : {};
+}
+
+const DATA_ENCRYPTION_KEY_REGISTRY = _buildKeyRegistry();
+const DATA_ENCRYPTION_ACTIVE_KID = DATA_ENCRYPTION_KEYS_RAW
+  ? DATA_ENCRYPTION_ACTIVE_KEY_ID_RAW
+  : (DATA_ENCRYPTION_KEY ? "legacy" : "");
+
+// F-01: In production, PATIENT_LOOKUP_HASH_KEY must be explicitly set — no silent fallback
+// to DATA_ENCRYPTION_KEY. In dev/test, fall back to DATA_ENCRYPTION_KEY for local convenience.
+const PATIENT_LOOKUP_HASH_KEY = String(
+  process.env.PATIENT_LOOKUP_HASH_KEY || (!IS_PROD ? process.env.DATA_ENCRYPTION_KEY : "") || ""
+).trim();
+const AUDIT_PRUNE_ENABLED = String(process.env.AUDIT_PRUNE_ENABLED || "").trim().toLowerCase() === "true";
+const LOG_FORMAT = String(process.env.LOG_FORMAT || (IS_PROD ? "json" : "text")).trim().toLowerCase();
+const APP_VERSION = String(process.env.APP_VERSION || process.env.npm_package_version || "unknown").trim();
 const REFRESH_EXPIRES_MS = (() => {
   const s = REFRESH_EXPIRES_IN;
   const n = parseInt(s, 10);
@@ -72,13 +115,17 @@ if (IS_PROD && !FRONTEND_ORIGINS.length && !CORS_ALLOW_ALL) {
 if (IS_PROD && !DATABASE_URL) {
   throw new Error("DATABASE_URL obrigatório em produção");
 }
-if (IS_PROD && !DATA_ENCRYPTION_KEY) {
-  throw new Error(
-    "DATA_ENCRYPTION_KEY obrigatório em produção — dados sensíveis (CPF, CNS) não podem ser armazenados sem criptografia"
-  );
-}
-if (IS_PROD && DATA_ENCRYPTION_KEY.length < 32) {
-  throw new Error("DATA_ENCRYPTION_KEY inválido em produção — use valor forte com pelo menos 32 caracteres");
+if (IS_PROD) {
+  const hasMultiKey = !!DATA_ENCRYPTION_KEYS_RAW;
+  const hasLegacyKey = !!DATA_ENCRYPTION_KEY && DATA_ENCRYPTION_KEY.length >= 32;
+  if (!hasMultiKey && !hasLegacyKey) {
+    throw new Error(
+      "DATA_ENCRYPTION_KEY (ou DATA_ENCRYPTION_KEYS) obrigatório em produção — dados sensíveis não podem ser armazenados sem criptografia"
+    );
+  }
+  if (!hasMultiKey && DATA_ENCRYPTION_KEY && DATA_ENCRYPTION_KEY.length < 32) {
+    throw new Error("DATA_ENCRYPTION_KEY inválido em produção — mínimo 32 caracteres");
+  }
 }
 if (IS_PROD && COOKIE_SAME_SITE === "none" && !COOKIE_SECURE) {
   throw new Error("COOKIE_SECURE=true obrigatório em produção quando COOKIE_SAME_SITE=none");
@@ -129,5 +176,11 @@ export {
   COOKIE_SAME_SITE,
   PUBLIC_SELF_REGISTER_ROLES,
   DATABASE_URL,
-  DATA_ENCRYPTION_KEY
+  DATA_ENCRYPTION_KEY,
+  DATA_ENCRYPTION_KEY_REGISTRY,
+  DATA_ENCRYPTION_ACTIVE_KID,
+  PATIENT_LOOKUP_HASH_KEY,
+  AUDIT_PRUNE_ENABLED,
+  LOG_FORMAT,
+  APP_VERSION
 };

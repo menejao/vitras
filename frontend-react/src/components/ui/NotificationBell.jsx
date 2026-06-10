@@ -3,10 +3,11 @@ import { readLS, writeLS } from "../../utils/storage";
 import { buildProactiveAlerts } from "../../utils/clinical";
 import Button from "./Button";
 
-const NOTIF_SEEN_KEY = "vitras_notif_seen_v1";
-const NOTIF_CLEARED_AT_KEY = "vitras_notif_cleared_at_v1";
+function NotificationBell({ user, patients, protocolByPatient, pharmacyStock, agenda, labNotifications, onNavigate }) {
+  const userId = user?.id || "anon";
+  const NOTIF_SEEN_KEY = `vitras_notif_seen_${userId}_v1`;
+  const NOTIF_CLEARED_AT_KEY = `vitras_notif_cleared_at_${userId}_v1`;
 
-function NotificationBell({ patients, protocolByPatient, pharmacyStock, agenda, onNavigate }) {
   const [open, setOpen] = useState(false);
   const [seenIds, setSeenIds] = useState(() => new Set(readLS(NOTIF_SEEN_KEY, [])));
   const [clearedAt, setClearedAt] = useState(() => String(readLS(NOTIF_CLEARED_AT_KEY, "")));
@@ -18,10 +19,18 @@ function NotificationBell({ patients, protocolByPatient, pharmacyStock, agenda, 
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  const allAlerts = useMemo(() =>
-    buildProactiveAlerts(patients, protocolByPatient, pharmacyStock, agenda),
-    [patients, protocolByPatient, pharmacyStock, agenda]
-  );
+  const allAlerts = useMemo(() => {
+    const base = buildProactiveAlerts(patients, protocolByPatient, pharmacyStock, agenda);
+    const labAlerts = (labNotifications || []).map((n) => ({
+      id: `lab-${n.id}`,
+      type: n.type || "info",
+      title: n.title,
+      detail: n.detail,
+      patientId: n.patientId,
+      createdAt: n.createdAt,
+    }));
+    return [...labAlerts, ...base].slice(0, 30);
+  }, [patients, protocolByPatient, pharmacyStock, agenda, labNotifications]);
 
   useEffect(() => {
     if (!allAlerts.length) return;

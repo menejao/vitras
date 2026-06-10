@@ -6,55 +6,226 @@
   display: flex;
   flex-direction: column;
   height: 100%;
+  overflow: hidden;
 }
 
+/* Hero — PageHeader renders InternalHero (.hero) */
+.referrals-page > .hero,
 .referrals-page > .page-header {
   margin: var(--s-6) var(--s-6) 0;
+  flex-shrink: 0;
 }
 
-/* ── Toolbar: busca ─────────────────────────────────────── */
-.referrals-toolbar {
-  padding: 0 var(--s-6) var(--s-3);
+.referrals-page .page-kpi-grid {
+  margin: var(--s-4) var(--s-6) 0;
+  flex-shrink: 0;
+}
+
+/* ── Filter bar ─────────────────────────────────────────────── */
+.referrals-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-3) var(--s-6);
   flex-shrink: 0;
   flex-wrap: wrap;
-  gap: var(--s-2);
 }
 
-.referrals-toolbar__search { max-width: 260px; }
-
-.referrals-toolbar .input {
-  max-width: 380px;
+.referrals-filter-bar__search {
+  flex: 1;
+  min-width: 200px;
+  max-width: 320px;
 }
 
-/* ── Lista de encaminhamentos ───────────────────────────── */
+.ref-filter-select {
+  height: 36px;
+  padding: 0 var(--s-6) 0 var(--s-2);
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  font: 400 var(--t-sm) var(--font-sans);
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%2394a3b8' d='M0 0h10L5 6z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  white-space: nowrap;
+}
+
+.ref-filter-date {
+  height: 36px;
+  padding: 0 var(--s-2);
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  font: 400 var(--t-sm) var(--font-sans);
+  min-width: 130px;
+}
+
+/* ── List container ─────────────────────────────────────────── */
 .referrals-list {
   flex: 1;
-  overflow: auto;
+  overflow-y: auto;
   padding: 0 var(--s-6) var(--s-6);
 }
 
-/* ── Célula de paciente na tabela ───────────────────────── */
-.referrals-table__patient-name {
-  font: 600 var(--t-base) var(--font-sans);
-  color: var(--text);
+/* ── Empty state ────────────────────────────────────────────── */
+.ref-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-3);
+  padding: var(--s-10) var(--s-6);
+  text-align: center;
+  height: 100%;
+  min-height: 240px;
 }
-.referrals-table__patient-meta {
+
+.ref-empty__title {
+  font: 500 var(--t-base) var(--font-sans);
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.ref-empty__sub {
+  font: 400 var(--t-sm) var(--font-sans);
+  color: var(--text-dim);
+  max-width: 380px;
+  margin: 0;
+}
+
+/* ── Card list ──────────────────────────────────────────────── */
+.ref-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+/* ── Referral card-row ──────────────────────────────────────── */
+.ref-card {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid transparent;
+  border-radius: var(--r-lg);
+  transition: border-color var(--d-fast), box-shadow var(--d-fast);
+}
+
+.ref-card:hover {
+  border-color: var(--border-strong);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, .06);
+}
+
+.ref-card--urgent {
+  border-left-color: var(--danger);
+  background: var(--danger-soft);
+}
+
+.ref-card--priority {
+  border-left-color: var(--warning);
+}
+
+/* Patient info column */
+.ref-card__patient {
+  min-width: 160px;
+  max-width: 200px;
+  flex-shrink: 0;
+}
+
+.ref-card__patient-name {
+  font: 600 var(--t-sm) var(--font-sans);
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ref-card__patient-meta {
+  font: 400 var(--t-xs) var(--font-sans);
+  color: var(--text-dim);
+  margin-top: 1px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Specialty + reason */
+.ref-card__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.ref-card__specialty {
+  font: 600 var(--t-sm) var(--font-sans);
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ref-card__reason {
   font: 400 var(--t-xs) var(--font-sans);
   color: var(--text-muted);
+  margin-top: 1px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-/* ── Badge de prioridade ────────────────────────────────── */
-.referrals-priority {
-  font: 700 var(--t-xs) var(--font-sans);
-  color: var(--text-muted);
+/* Date */
+.ref-card__date {
+  font: 400 var(--t-xs) var(--font-mono);
+  color: var(--text-dim);
+  white-space: nowrap;
+  flex-shrink: 0;
+  min-width: 76px;
+  text-align: right;
 }
-.referrals-priority--urgent   { color: var(--danger); }
-.referrals-priority--priority { color: var(--warning); }
 
-/* ── Select de status (inline) ──────────────────────────── */
+/* ── Priority chip ──────────────────────────────────────────── */
+.ref-priority-chip {
+  font: 700 .6rem var(--font-sans);
+  padding: 2px var(--s-2);
+  border-radius: 999px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  line-height: 1.6;
+  border: 1px solid;
+}
+
+.ref-priority-chip--urgent {
+  background: #fee2e2;
+  color: #b91c1c;
+  border-color: #fecaca;
+}
+
+.ref-priority-chip--priority {
+  background: #fef3c7;
+  color: #b45309;
+  border-color: #fde68a;
+}
+
+.ref-priority-chip--routine {
+  background: var(--surface-2);
+  color: var(--text-dim);
+  border-color: var(--border);
+}
+
+[data-theme="dark"] .ref-priority-chip--urgent   { background: rgba(248,113,113,.14); color: #f87171;  border-color: rgba(248,113,113,.3); }
+[data-theme="dark"] .ref-priority-chip--priority { background: rgba(245,158,11,.14);  color: #fbbf24;  border-color: rgba(245,158,11,.3);  }
+
+/* ── Status select (pill, inline) ───────────────────────────── */
 .referrals-status-sel {
-  height: 24px;
-  padding: 0 var(--s-4) 0 var(--s-2);
+  height: 26px;
+  padding: 0 var(--s-5) 0 var(--s-2);
   border-radius: var(--r-pill);
   border: 1px solid;
   font: 700 var(--t-xs) var(--font-sans);
@@ -63,175 +234,49 @@
   background-repeat: no-repeat;
   background-position: right 5px center;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 10 6'%3E%3Cpath fill='%2394a3b8' d='M0 0h10L5 6z'/%3E%3C/svg%3E");
-  transition: background var(--d-fast);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
+
 .referrals-status-sel--pending {
   background-color: var(--warning-soft);
   border-color: var(--warning-bd);
   color: var(--warning);
 }
+
+.referrals-status-sel--regulated {
+  background-color: var(--accent-soft);
+  border-color: var(--accent-soft-2);
+  color: var(--accent-text);
+}
+
 .referrals-status-sel--scheduled {
   background-color: var(--info-soft);
   border-color: var(--info-bd);
   color: var(--info);
 }
+
 .referrals-status-sel--done {
   background-color: var(--success-soft);
   border-color: var(--success-bd);
   color: var(--success);
 }
+
 .referrals-status-sel--cancelled {
   background-color: var(--surface-2);
   border-color: var(--border);
   color: var(--text-muted);
 }
 
-/* ── Botões de ação na tabela ───────────────────────────── */
+/* ── Action row ─────────────────────────────────────────────── */
 .referrals-action-row {
   display: flex;
   gap: var(--s-1);
-  justify-content: center;
-}
-
-/* ── Mode switcher (Interno / Externo) ──────────────────── */
-.ref-mode-switcher {
-  display: flex;
-  gap: var(--s-2);
-  padding: var(--s-3) var(--s-6) 0;
-  flex-shrink: 0;
-}
-
-.ref-mode-btn {
-  display: inline-flex;
   align-items: center;
-  gap: var(--s-2);
-  padding: var(--s-2) var(--s-4);
-  border-radius: var(--r-md);
-  border: 1px solid var(--border);
-  background: var(--surface);
-  font: 500 var(--t-sm) var(--font-sans);
-  color: var(--text-muted);
-  cursor: pointer;
-  transition: all var(--d-fast);
-}
-
-.ref-mode-btn:hover { border-color: var(--border-accent); color: var(--accent-text); background: var(--accent-soft); }
-
-.ref-mode-btn.is-active {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
-  font-weight: 600;
-}
-
-/* ── Toolbar end group ──────────────────────────────────── */
-.ref-toolbar-end {
-  display: flex;
-  align-items: center;
-  gap: var(--s-2);
-  flex-wrap: wrap;
-}
-
-.ref-status-filter {
-  font: 400 var(--t-sm) var(--font-sans);
-  padding: var(--s-1) var(--s-4) var(--s-1) var(--s-2);
-  border-radius: var(--r-md);
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text-muted);
-  cursor: pointer;
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%2394a3b8' d='M0 0h10L5 6z'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 8px center;
-  padding-right: var(--s-6);
-}
-
-/* ── Internal queue cards ───────────────────────────────── */
-.ref-queue-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-2);
-}
-
-.ref-queue-card {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--s-4);
-  padding: var(--s-4);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--r-lg);
-  transition: border-color var(--d-fast);
-}
-
-.ref-queue-card:hover { border-color: var(--border-strong); }
-
-.ref-queue-card--urgent {
-  border-color: var(--danger-bd);
-  background: var(--danger-soft);
-}
-
-.ref-queue-card__dept-badge {
-  flex-shrink: 0;
-  min-width: 110px;
-  padding: var(--s-2) var(--s-3);
-  border-radius: var(--r-md);
-  background: var(--accent-soft);
-  border: 1px solid var(--accent-soft-2);
-  font: 700 var(--t-xs) var(--font-sans);
-  letter-spacing: .04em;
-  color: var(--accent-text);
-  text-align: center;
-  text-transform: uppercase;
-}
-
-.ref-queue-card--urgent .ref-queue-card__dept-badge {
-  background: var(--red-50);
-  border-color: var(--red-200);
-  color: var(--red-700);
-}
-
-.ref-queue-card__body { flex: 1; min-width: 0; }
-
-.ref-queue-card__name {
-  font: 700 var(--t-base) var(--font-sans);
-  color: var(--text);
-}
-
-.ref-queue-card__reason {
-  font: 400 var(--t-sm) var(--font-sans);
-  color: var(--text-muted);
-  margin-top: 2px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.ref-queue-card__notes {
-  font: 400 var(--t-xs) var(--font-sans);
-  color: var(--text-dim);
-  font-style: italic;
-  margin-top: 2px;
-}
-
-.ref-queue-card__meta {
-  display: flex;
-  gap: var(--s-2);
-  margin-top: var(--s-2);
-  font: 400 var(--t-xs) var(--font-sans);
-  color: var(--text-dim);
-}
-
-.ref-queue-card__actions {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: var(--s-2);
   flex-shrink: 0;
 }
 
-/* ── Documento de guia (preview de impressão) ───────────── */
+/* ── Doc preview (impressão) ────────────────────────────────── */
 .referrals-doc {
   background: var(--surface-2);
   border-radius: var(--r-md);
@@ -239,20 +284,24 @@
   font-family: serif;
   line-height: 1.7;
 }
+
 .referrals-doc__title-block {
   text-align: center;
   border-bottom: 2px solid var(--border);
   padding-bottom: var(--s-3);
   margin-bottom: var(--s-3);
 }
+
 .referrals-doc__title {
   font: 800 var(--t-lg) var(--font-sans);
   color: var(--text);
 }
+
 .referrals-doc__subtitle {
   font: 400 var(--t-sm) var(--font-sans);
   color: var(--text-muted);
 }
+
 .referrals-doc__grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -260,11 +309,13 @@
   font: 400 var(--t-sm) var(--font-sans);
   color: var(--text);
 }
+
 .referrals-doc__field {
   margin-top: var(--s-3);
   font: 400 var(--t-sm) var(--font-sans);
   color: var(--text);
 }
+
 .referrals-doc__footer {
   margin-top: var(--s-5);
   padding-top: var(--s-3);
@@ -273,4 +324,34 @@
   justify-content: space-between;
   font: 400 var(--t-xs) var(--font-sans);
   color: var(--text-muted);
+}
+
+/* ── Responsive ─────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .ref-card {
+    flex-wrap: wrap;
+    gap: var(--s-2);
+  }
+
+  .ref-card__patient { max-width: none; min-width: 0; flex: 1; }
+  .ref-card__body    { min-width: 100%; order: 3; }
+  .ref-card__date    { min-width: auto; }
+
+  .referrals-filter-bar {
+    gap: var(--s-2);
+  }
+
+  .referrals-filter-bar__search { max-width: none; }
+
+  .referrals-doc__grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 600px) {
+  .referrals-page > .hero,
+  .referrals-page > .page-header {
+    margin: var(--s-4) var(--s-4) 0;
+  }
+
+  .referrals-filter-bar { padding: var(--s-2) var(--s-4); }
+  .referrals-list { padding: 0 var(--s-4) var(--s-4); }
 }

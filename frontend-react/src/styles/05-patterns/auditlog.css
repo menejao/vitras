@@ -4,21 +4,18 @@
 .audit-page {
   display: flex;
   flex-direction: column;
-  height: 100%;
-  overflow-y: auto;
 }
 .audit-page > .page-header,
 .audit-page > .hero {
   margin: var(--s-6) var(--s-6) 0;
 }
-.audit-page > .audit-notice,
-.audit-page > .audit-toolbar,
-.audit-page > .audit-retention-card,
-.audit-page > .card {
-  margin: var(--s-4) var(--s-6) 0;
-}
-.audit-page > .audit-pagination {
-  margin: 0 var(--s-6) var(--s-4);
+
+/* ── Body wrapper ─────────────────────────────────────────────── */
+.audit-body {
+  padding: var(--s-4) var(--s-6) var(--s-8);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
 }
 
 /* ── Embedded mode ────────────────────────────────────────────── */
@@ -78,8 +75,13 @@
 /* ── Filters toolbar ──────────────────────────────────────────── */
 .audit-toolbar {
   display: flex;
+  flex-direction: column;
   gap: var(--s-2);
-  margin-bottom: var(--s-4);
+}
+
+.audit-toolbar__row {
+  display: flex;
+  gap: var(--s-2);
   flex-wrap: wrap;
 }
 
@@ -143,7 +145,6 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: var(--s-3);
-  margin: 0 var(--s-6);
 }
 
 .audit-summary-card {
@@ -214,6 +215,7 @@
 }
 
 .audit-table tbody tr { border-bottom: 1px solid var(--border); }
+.audit-table tbody tr:hover { background: var(--surface-2); }
 
 .audit-table__td {
   padding: var(--s-2) var(--s-3);

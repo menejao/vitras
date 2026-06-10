@@ -89,6 +89,21 @@ Data de referência: 2026-05-14
 
 > Usar chaves diferentes em staging isola completamente os dois ambientes: um token de staging não funciona em produção.
 
+### Implicação de IS_PROD=false em staging
+
+`backend/src/config.js` define `IS_PROD = NODE_ENV === "production"`. Com `NODE_ENV=staging`, `IS_PROD` é `false` **intencionalmente**: staging não é produção e não deve ter o mesmo gate de proteção hard-fail.
+
+Consequência direta: o **boot-guard de migrations** (`server.js` — bloco que chama `runMigrations()` e aborta com `process.exit(1)` se a migração falhar em modo prod) **não executa em staging**. As migrations ainda rodam normalmente via `RUN_MIGRATIONS=true`; o que não acontece é o abort-on-failure forçado do boot-guard.
+
+Para verificar o estado real das migrations em staging, executar manualmente antes de cada ciclo de smoke:
+
+```bash
+DATABASE_URL=<staging-url> node backend/src/migrations/check-status.js
+# Exit 0 = todas aplicadas; Exit 1 = pendentes ou DB inacessível
+```
+
+Esse comportamento é **aceitável para o piloto** e está documentado como KI-08 no backlog do Sprint 5, que introduzirá um gate equivalente para ambientes staging (provavelmente via variável `REQUIRE_MIGRATION_GUARD=true` independente de NODE_ENV).
+
 ---
 
 ## 5. DEPLOY DO FRONTEND EM STAGING

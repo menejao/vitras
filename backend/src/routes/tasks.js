@@ -79,6 +79,18 @@ router.post("/tasks", requireManagerOrDoctor, validate(TaskCreateSchema), async 
       assigneeId: task.assigneeId,
       after: buildTaskAuditSnapshot(task)
     });
+    mutableDb.notifications.push({
+      id: uuidv4(),
+      type: "info",
+      title: "Nova tarefa atribuída",
+      detail: `${req.user.name || "Equipe"} atribuiu uma tarefa para ${lookup.patient?.name || "paciente"}: "${task.title}"`,
+      targetUserId: task.assigneeId,
+      patientId: task.patientId,
+      taskId: task.id,
+      teamId: req.user.teamId,
+      createdAt: task.createdAt,
+      read: false,
+    });
   });
 
   return res.status(201).json(task);
@@ -98,7 +110,29 @@ router.patch("/tasks/:id", validate(TaskPatchSchema), async (req, res) => {
     if (!patient || !canAccessPatient(req.user, patient)) return "forbidden";
 
     if (isAcs(req.user)) {
-      return "forbidden";
+      // ACS may only update their own tasks and only status/notes fields
+      if (current.assigneeId !== req.user.id) return "forbidden";
+
+      const before = buildTaskAuditSnapshot(current);
+      const acsPatch = {};
+      if (payload.status !== undefined) acsPatch.status = payload.status;
+      if (payload.notes !== undefined) acsPatch.notes = payload.notes;
+
+      const nextForAcs = {
+        ...current,
+        ...acsPatch,
+        id,
+        updatedAt: new Date().toISOString(),
+        updatedBy: req.user.id
+      };
+
+      db.tasks[index] = nextForAcs;
+      addAuditLog(db, req.user, "task.status_updated", "task", id, {
+        changedFields: Object.keys(acsPatch),
+        before,
+        after: buildTaskAuditSnapshot(nextForAcs)
+      });
+      return nextForAcs;
     }
 
     if (isManager(req.user) || isDoctor(req.user)) {

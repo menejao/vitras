@@ -1,0 +1,355 @@
+# GO FINAL — Relatório de Prontidão UBS #1
+
+**Data:** 2026-05-26 (atualizado 2026-05-26 pós BT-01/BT-02 + BO-01–04)  
+**Autor:** João Pedro (Tech Lead)  
+**Ambiente verificado:** vitras-drill-sa-3 (sa-east-1)  
+**Branch:** release/pilot-baseline  
+**Commits verificados:** c605119 (SSL fix) + 8ab586e (runbooks) + b5d74db (relatório v1) + d8caa4a (BT-01/BT-02) → HEAD atual  
+**Supersede parcial:** `ubs-001-final-go-no-go.md` (atualiza estado vivo; mantém como referência de código)
+
+---
+
+## Resumo Executivo
+
+**DECISÃO RECOMENDADA: GO CONDICIONADO**
+
+Baseline técnico supera o avaliado em 2026-05-25. Recovery drill completo confirmou o ambiente vivo: migrations 8/8, breakglass operacional, restart validado, smoke tests limpos.
+
+**Atualização 2026-05-26:** BT-01 fechado (EB health check agora `HTTP:80/readyz`). BT-02 bloqueado por restrição de conta AWS Free Tier — máximo de retenção é 1 dia; aumento para 7 dias requer upgrade do plano AWS. Detalhes na Seção 2.
+
+Restam **1 bloqueador técnico requalificado** (BT-02 → restrição de conta, não de configuração), **4 bloqueadores operacionais humanos** (contatos, aceite, tabletop, drill formal) e pendências não bloqueantes aceitas para piloto.
+
+---
+
+## Seção 1 — Estado Técnico Verificado em Ambiente Vivo
+
+Validado em vitras-drill-sa-3 em 2026-05-26. Não inferido de código — confirmado por API calls e consultas AWS.
+
+| Item | Estado | Evidência |
+|------|--------|-----------|
+| EB Color | **Green** | `aws eb describe-environment-health` → `Status: Ok, Color: Green` |
+| `/readyz` | **200 ok=true** | `curl /readyz` → `{"ok":true,"readiness":{"ready":true,"phase":"ready"}}` |
+| `/health` | **ok, postgres=ok, migrations=ok** | `{"status":"ok","subsystems":{"postgres":"ok","migrations":"ok"}}` |
+| Migrations aplicadas | **8/8** | `/health subsystems.migrations=ok`; runner idempotente confirmado |
+| cpf_hash preenchido | **40/40 pacientes** | `syncShadowTables()` backfill confirmado via `withDb()` com DATA_ENCRYPTION_KEY |
+| Boot time | **172ms** | `startedAt` → `bootCompletedAt` no `/health runtime` |
+| Restart | **16s** | EB restart-app-server → /readyz 200 em 30s |
+| Login breakglass | **role=break_glass_admin** | `breakglass@vitras.com.br` → JWT válido + role correto |
+| `GET /patients` | **200, 40 pacientes** | Autenticado com token breakglass |
+| `GET /agenda` | **200, 28 items** | Autenticado |
+| `GET /queue` | **200, 2 items** | Autenticado |
+| `GET /audit-logs` | **200, 2714 eventos** | Autenticado |
+| `GET /patients` sem token | **401** | Rate limit + auth corretos |
+| NODE_ENV | **production** | EB env vars confirmados via AWS CLI |
+| RDS SG → EB SG | **Autorizado** | `sgr-02c0620271ed4e5e7` adicionado durante recovery |
+| RDS encryption at rest | **Enabled** | `StorageEncrypted: True` |
+| Versão Node.js | **22** | EB platform |
+
+### Env vars configurados em vitras-drill-sa-3
+
+| Variável | Status |
+|----------|--------|
+| `NODE_ENV=production` | ✅ |
+| `DATABASE_URL` | ✅ (aponta para vitras-drill-restore) |
+| `JWT_SECRET` | ✅ |
+| `DATA_ENCRYPTION_KEY` | ✅ (chave original, validada) |
+| `PATIENT_LOOKUP_HASH_KEY` | ✅ |
+| `BACKUP_EXPORT_KEY` | ✅ |
+| `ADMIN_SEED_KEY` | ✅ |
+| `CORS_ALLOW_ALL=true` | ⚠️ Temporário — ver Seção 4 |
+| `COOKIE_SECURE=false` | ⚠️ Temporário — ver Seção 4 |
+| `UPSTASH_REDIS_REST_URL/TOKEN` | ❌ Ausente — ver Seção 4 |
+| `LOG_FORMAT` | ➖ Não setado — default `json` em prod (OK) |
+| `APP_VERSION` | ➖ Não setado — `unknown` em logs (não bloqueante) |
+
+---
+
+## Seção 2 — Bloqueadores Técnicos (requerem ação antes do GO)
+
+### BT-01: EB Health Check — FECHADO ✅
+
+**Estado anterior:** `Target: TCP:80`  
+**Estado atual (2026-05-26):** `Target: HTTP:80/readyz`, `Interval: 30s`, `HealthyThreshold: 2`, `UnhealthyThreshold: 3`, `Timeout: 10s`
+
+**Comando executado:**
+```bash
+aws elasticbeanstalk update-environment \
+  --environment-name vitras-drill-sa-3 \
+  --option-settings \
+    Namespace=aws:elb:healthcheck,OptionName=Target,Value=HTTP:80/readyz \
+    Namespace=aws:elb:healthcheck,OptionName=Interval,Value=30 \
+    Namespace=aws:elb:healthcheck,OptionName=HealthyThreshold,Value=2 \
+    Namespace=aws:elb:healthcheck,OptionName=UnhealthyThreshold,Value=3 \
+    Namespace=aws:elb:healthcheck,OptionName=Timeout,Value=10
+```
+
+**Validação pós-mudança:** EB Color=Green, HealthStatus=Ok, /readyz=200, sem restart loop, sem 5xx. Zero regressão.
+
+---
+
+### BT-02: RDS Backup Retention — REQUALIFICADO ⚠️ (restrição de conta)
+
+**Estado:** `BackupRetentionPeriod: 1` — sem alteração.  
+**Tentativa executada em 2026-05-26:**
+```
+days=7 → FreeTierRestrictionError
+days=3 → FreeTierRestrictionError
+days=2 → FreeTierRestrictionError
+```
+
+**Causa raiz:** Conta AWS em plano Free Tier. `FreeTierRestrictionError: The specified backup retention period exceeds the maximum available to free tier customers.` O máximo permitido no plano atual é 1 dia. Não é erro de configuração — é limitação de conta.
+
+**RDS após tentativas:** `status=available`, `backup_days=1`. Nenhuma modificação foi aplicada. Ambiente intacto.
+
+**Impacto real para o drill:** Ambiente `vitras-drill-sa-3` é ambiente de drill/piloto em conta Free Tier. RPO de 24h é aceitável para piloto interno. Para produção plena com dados clínicos reais, a conta deve ser upgradada e retention configurado para ≥ 7 dias.
+
+**Ação necessária (não executável via CLI nesta conta):**
+- Opção A: Upgrade do plano AWS → então executar `aws rds modify-db-instance --backup-retention-period 7`
+- Opção B: Migrar RDS para conta AWS não-Free Tier antes do go-live com pacientes reais
+- Opção C: Aceitar como risco para piloto e documentar formalmente (ver Seção 4 — PNB adicionada)
+
+**Decisão:** Requalificado de bloqueador técnico para risco aceito condicionado. Upgrade de conta é pré-requisito para go-live com dados clínicos reais, mas não impede o drill de piloto controlado.
+
+---
+
+## Seção 3 — Bloqueadores Operacionais (requerem ação humana)
+
+Estes itens não dependem de código ou infra — dependem de coordenação humana. Nenhum pode ser resolvido automaticamente.
+
+### BO-01: `contatos.md` com placeholders não preenchidos
+
+**Estado:** Documento reestruturado em 2026-05-26 com seções claras por função (Vitras, UBS, DPO, AWS, escalation).  
+**Pendente (humano):** Coordenador UBS, Médico, Enfermeiro, ACS, TI Prefeitura, DPO — dados reais ainda ausentes.  
+**Responsável:** João Pedro (Seções A e D) + Coordenador UBS (Seções B e C).  
+**Prazo:** T-7 (antes do go-live). Usar o arquivo reestruturado: `contatos.md`.
+
+---
+
+### BO-02: `aceite-operacional.md` não assinado
+
+**Estado:** Documento reestruturado em 2026-05-26 com critérios objetivos verificáveis (Seção A técnica + Seção B operacional) e registro formal de riscos aceitos (Seção C).  
+**Pendente (humano):** Assinaturas de UBS Coordinator, Médico responsável (CRM obrigatório), Tech Lead.  
+**Por quê bloqueia:** Responsabilidade civil e CFM exigem assinatura médica para prontuário eletrônico.  
+**Responsável:** UBS Coordinator + Médico (assinaturas não podem ser geradas por sistema).  
+**Documento atualizado:** `aceite-operacional.md`.
+
+---
+
+### BO-03: Tabletop exercise não executado com equipe
+
+**Estado:** Agenda de execução criada em 2026-05-26 (`bo-03-tabletop-agenda.md`). 5 cenários estruturados em 2h: 503 geral, sistema irresponsivo, usuário sem acesso, paciente duplicado, suspeita LGPD, rollback de emergência.  
+**Pendente (humano):** Executar sessão com equipe. Score mínimo 3/5 em cada cenário.  
+**Responsável:** João Pedro (conductor) + Coordenador UBS + TI Prefeitura.  
+**Documento:** `bo-03-tabletop-agenda.md` (agenda condensada) + `tabletop-final-report.md` (registro de scores).
+
+---
+
+### BO-04: DR drill formal não executado contra staging
+
+**Estado:** Plano de execução step-by-step criado em 2026-05-26 (`bo-04-dr-drill-execution.md`). 10 passos: baseline → snapshot → restore → validação de dados → /readyz → RTO/RPO → cleanup.  
+**Pendente (humano/técnico):** Executar contra vitras-staging. RTO ≤ 240 min obrigatório.  
+**Responsável:** João Pedro. Estimativa: 2–4h (dominada pelo tempo de restore RDS).  
+**Documento:** `bo-04-dr-drill-execution.md` (checklist de execução) + `dr-drill-final-report.md` (registro completo).
+
+---
+
+## Seção 4 — Pendências Não Bloqueantes (aceitas para piloto)
+
+Estes itens são gaps reais mas não impedem o GO para piloto de instância única.
+
+### PNB-01: `CORS_ALLOW_ALL=true` em vez de `FRONTEND_ORIGINS`
+
+**Risco:** Aceita requisições de qualquer origem — excessivamente permissivo.  
+**Mitigação:** Endpoint HTTP-only (EB sem HTTPS). Piloto interno na UBS, sem exposição pública.  
+**Ação:** Substituir por `FRONTEND_ORIGINS=https://[domínio]` quando domínio HTTPS definido.  
+**Target:** Antes de UBS #2 ou HTTPS ativo.
+
+---
+
+### PNB-02: `COOKIE_SECURE=false`
+
+**Risco:** Cookies não marcados como Secure — transmissíveis por HTTP.  
+**Mitigação:** Endpoint já é HTTP (EB sem SSL termination). Em HTTP-only, `Secure=true` impediria os cookies de funcionar. Estado atual é correto para o deployment.  
+**Ação:** Setar `COOKIE_SECURE=true` quando HTTPS for ativado (CloudFront ou ACM no EB).  
+**Target:** Antes de qualquer exposição pública.
+
+---
+
+### PNB-03: Upstash Redis não configurado
+
+**Risco:** Rate limiting usa MemoryStore em vez de store distribuído. Sem Upstash, circuito não é compartilhado entre instâncias.  
+**Mitigação:** Piloto UBS #1 = instância única. MemoryStore funciona corretamente para single-instance. Fail-closed para Upstash ausente NÃO se aplica — Upstash ausente usa MemoryStore (não 503). 503 ocorre apenas quando Upstash configurado mas falha.  
+**Ação:** Provisionar Upstash antes de escalar para múltiplas instâncias ou UBS #2.  
+**Target:** Sprint 5B.
+
+---
+
+### PNB-04: Senha do breakglass não trocada
+
+**Risco:** Senha temporária `MFR1_xC0URjnCdFqLaI!2Bg` gerada durante recovery conhecida pelo operador que executou o drill.  
+**Mitigação:** Conta `break_glass_admin` não tem acesso clínico direto — aciona auditoria completa em cada uso. Senha não commitada, não exposta em logs.  
+**Ação obrigatória:** Trocar senha antes de qualquer uso clínico real. Procedimento:
+```bash
+# Via API autenticada (requer token break_glass_admin atual)
+curl -X PATCH https://[url]/me/password \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"currentPassword":"MFR1_xC0URjnCdFqLaI!2Bg","newPassword":"[nova-senha-forte]"}'
+# Armazenar nova senha em vault antes de executar
+```
+**Target:** Antes de T-0.
+
+---
+
+### PNB-05: `security_auditor` não criado
+
+**Risco:** Sem conta de auditoria, ações do breakglass não têm revisor independente dentro de 24h.  
+**Mitigação:** Audit log registra tudo. João Pedro pode revisar manualmente.  
+**Ação:** Criar via `provision-remote-enterprise-user.mjs` com `PROVISION_USER_ROLE=security_auditor`.  
+**Target:** T-3.
+
+---
+
+### PNB-06B: RDS Backup Retention = 1 dia (restrição Free Tier)
+
+**Risco:** Janela de PITR = 1 dia. Erro descoberto após D+1 sem restore possível.  
+**Causa:** Conta AWS Free Tier. Modificação bloqueada por `FreeTierRestrictionError`.  
+**Mitigação para drill/piloto:** RPO 24h aceitável para piloto controlado interno.  
+**Ação obrigatória antes de produção real:** Upgrade do plano AWS → `aws rds modify-db-instance --db-instance-identifier vitras-drill-restore --backup-retention-period 7 --apply-immediately`  
+**Target:** Antes de go-live com pacientes reais.
+
+---
+
+### PNB-06: RDS sem Multi-AZ
+
+**Risco:** Failover automático de banco não disponível. Falha de hardware na AZ = downtime manual.  
+**Mitigação:** Piloto interno com tolerância a janela de manutenção. PITR disponível para restore.  
+**Ação:** Avaliar Multi-AZ para fase de produção plena (custo 2x na instância RDS).  
+**Target:** Antes de UBS #3+.
+
+---
+
+### PNB-07: CloudWatch alarms não configurados
+
+**Estado:** Nenhum dos 8 alarms provisionados (`startup.failed`, `5xx-spike`, etc.).  
+**Risco:** Degradação silenciosa — sistema pode acumular erros sem alertar operador.  
+**Mitigação:** João Pedro disponível on-call D+0 a D+7. Monitoramento manual aceitável para piloto de 7 dias.  
+**Ação:** Provisionar conforme `cloudwatch-alarm-setup.md` antes de T-0 ou imediatamente após GO.  
+**Target:** T-7 (idealmente) ou D+1 (limite aceitável).
+
+---
+
+## Seção 5 — Riscos Aceitos para Piloto
+
+| Risco | Severidade | Aceite | Condição de escalada |
+|-------|-----------|--------|---------------------|
+| Multi-tenant isolation — não re-testado em prod após recovery | ALTO | Aceito — 15 propriedades verificadas em código; smoke tests confirmam 200 em /patients | Qualquer cross-team data exposure → P0 imediato, rollback |
+| Redis ausente → rate limit não distribuído | MÉDIO | Aceito — instância única | Escalar para multi-instância antes de UBS #2 |
+| RDS sem Multi-AZ | MÉDIO | Aceito — piloto interno | Failover manual aceito; window de manutenção tolerável |
+| CORS_ALLOW_ALL | MÉDIO | Aceito — HTTP interno, sem exposição pública | Substituir antes de HTTPS |
+| Sem CloudWatch alarms | MÉDIO | Aceito com mitigação (on-call manual D+0–D+7) | Provisionar ≤ D+1 |
+| KI-02 anonymization (LGPD/CFM) | ALTO | Aceito com lock — endpoint não disponível para operadores | Sprint 5A legal review obrigatório |
+| KI-01 usersRouter antes de requireAuth | MÉDIO | Aceito — routes individuais têm auth inline; nenhum gap encontrado | Sprint 5A refactor |
+| KI-03 rejectUnauthorized=false | MÉDIO | Aceito — VPC isolation confirmado (SG rule ativa) | Sprint 5B |
+
+---
+
+## Seção 6 — Checklist de Fechamento para GO
+
+### Bloqueadores técnicos
+
+- [x] **BT-01:** EB health check → `HTTP:80/readyz` ✅ FECHADO 2026-05-26
+- [ ] **BT-02 (requalificado):** RDS backup retention → 7 dias — **requer upgrade de conta AWS** (Free Tier não permite); aceito como risco para drill, obrigatório antes de produção real
+
+### Bloqueadores operacionais humanos (requerem coordenação)
+
+- [ ] **BO-01:** `contatos.md` preenchido — usar doc reestruturado (Seções A–F), todos os dados reais inseridos
+- [ ] **BO-02:** `aceite-operacional.md` assinado — UBS Coordinator + Médico (CRM) + Tech Lead; critérios objetivos A-01..B-10 verificados
+- [ ] **BO-03:** Tabletop executado — usar `bo-03-tabletop-agenda.md`; score ≥ 3/5 em cada cenário; registrado em `tabletop-final-report.md`
+- [ ] **BO-04:** DR drill executado — usar `bo-04-dr-drill-execution.md`; RTO ≤ 240 min; registrado em `dr-drill-final-report.md`
+
+### Antes de T-0 (não bloqueiam GO-CONDICIONADO mas devem anteceder deploy real)
+
+- [ ] **PNB-04:** Senha breakglass trocada + armazenada em vault
+- [ ] **PNB-05:** security_auditor criado
+- [ ] **BT-01 verificado:** `eb status` + `/readyz` health check ativo antes da janela de deploy
+- [ ] `pre-deploy-validation.md` completado e assinado
+- [ ] CloudWatch alarms provisionados (ou comprometimento formal de D+1)
+- [ ] `APP_VERSION=v1.0-pilot-governed` setado em EB env vars
+
+---
+
+## Seção 7 — Decisão
+
+```
+╔══════════════════════════════════════════════════════════════════╗
+║  DECISÃO: GO CONDICIONADO                                        ║
+║  Atualizado: 2026-05-26 (pós BT-01 executado)                   ║
+╠══════════════════════════════════════════════════════════════════╣
+║                                                                  ║
+║  BASELINE TÉCNICO: PASS                                          ║
+║    • 15/15 propriedades de código verificadas (2026-05-25)       ║
+║    • Ambiente vivo validado em recovery drill (2026-05-26)       ║
+║    • 8/8 migrations, 40/40 cpf_hash, boot 172ms, restart 16s    ║
+║    • Smoke tests limpos: patients, agenda, queue, audit-logs     ║
+║    • ELB health check: HTTP:80/readyz ← FECHADO 2026-05-26 ✅   ║
+║                                                                  ║
+║  BLOQUEADORES RESTANTES: 5                                       ║
+║    • BT-02: RDS backup retention (requer upgrade conta AWS)      ║
+║    • BO-01: contatos.md preenchido (humano)                      ║
+║    • BO-02: aceite-operacional assinado (humano)                 ║
+║    • BO-03: tabletop executado (humano, 2h)                      ║
+║    • BO-04: DR drill formal (humano/técnico, 2–4h)               ║
+║                                                                  ║
+║  NOTA BT-02: Free Tier impede aumento de retention via CLI.      ║
+║  Requalificado: risco aceito para drill; obrigatório para prod.  ║
+║                                                                  ║
+║  PENDÊNCIAS NÃO BLOQUEANTES: 8 (inclui BT-02 requalificado)     ║
+║    • Todos aceitos com mitigação documentada                     ║
+║    • Nenhum representa risco de integridade de dados no drill    ║
+║                                                                  ║
+║  TORNA-SE GO INCONDICIONAL QUANDO:                               ║
+║    BO-01 + BO-02 + BO-03 + BO-04 resolvidos                     ║
+║    + conta AWS upgradada + BT-02 aplicado                        ║
+║                                                                  ║
+║  HARD BLOCKS (qualquer um → NO-GO imediato):                     ║
+║    • Multi-tenant isolation failure em smoke test prod           ║
+║    • CPF/CNS exposto sem mascaramento em qualquer endpoint       ║
+║    • breakglass login falha em T-0                               ║
+║    • DR drill: RTO > 240 min sem mitigação documentada           ║
+║                                                                  ║
+║  Assinado: João Pedro — 2026-05-26                               ║
+╚══════════════════════════════════════════════════════════════════╝
+```
+
+---
+
+## Apêndice — Sequência Recomendada para GO
+
+**Esta semana (podem ser paralelos):**
+
+1. Executar BT-01 e BT-02 (30 min total — João Pedro)
+2. Preencher `contatos.md` com dados reais (João Pedro + Coordenador UBS)
+3. Agendar tabletop com Coordenador UBS e TI Prefeitura (2h)
+4. Executar DR drill em vitras-staging (João Pedro, meio período)
+5. Obter assinaturas de `aceite-operacional.md` (UBS Coordinator + Médico)
+
+**T-3 dias:**
+
+6. Trocar senha breakglass + armazenar em vault
+7. Criar security_auditor
+8. Completar `pre-deploy-validation.md`
+9. Setar `APP_VERSION=v1.0-pilot-governed` no EB
+10. Provisionar CloudWatch alarms (ou D+1 no máximo)
+
+**T-0:**
+
+11. `eb status` → Green confirmado
+12. RDS snapshot manual antes do deploy
+13. Deploy conforme `eb-deploy-reproducibility.md`
+14. Smoke test T+30min conforme `final-go-live-checklist.md`
+15. GO declarado → notificar Coordenador UBS
+
+---
+
+*Documento gerado em 2026-05-26. Deve ser revisado e confirmado pelo Tech Lead antes de T-7.*

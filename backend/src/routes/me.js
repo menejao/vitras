@@ -419,6 +419,18 @@ router.post("/me/impersonation/start", requireAuth, validate(ImpersonationStartS
     if (!target) return { error: { status: 404, message: "Usuário de destino não encontrado" } };
     if (target.id === actor.id) return { error: { status: 400, message: "Use sua própria sessão sem impersonation" } };
 
+    const IMPERSONATION_BLOCKED_ROLES = ["break_glass_admin", "gestor", "nurse_manager", "security_auditor"];
+    if (IMPERSONATION_BLOCKED_ROLES.includes(canonicalRole(target.role))) {
+      addAuditLog(db, actor, "auth.impersonation_blocked", "auth", actor.id, {
+        actorUserId: actor.id,
+        targetUserId: target.id,
+        targetRole: canonicalRole(target.role),
+        reason: String(payload.reason || ""),
+        blockedAt: new Date().toISOString()
+      });
+      return { error: { status: 403, message: "Não é permitido impersonar usuários com perfil privilegiado" } };
+    }
+
     revokeCurrentRefreshToken(db, req);
     const sessionContext = {
       scopeTeamId: String(target.teamId || actor.teamId || ""),

@@ -1,24 +1,24 @@
 /* 02-foundations/accent.css
-   Cor de marca (teal) aplicada ao sistema.
+   Cor de marca (Teal) aplicada ao sistema.
 
-     --accent         padrão · teal-600 (contraste 4.5+ em light)
-     --accent-hover   hover · teal-700
-     --accent-2       suporte · teal-500
+     --accent         padrão · Teal #14B8A6 (uso sobre fundos escuros/dark)
+     --accent-hover   hover · deep teal #0D9488
+     --accent-2       suporte · teal claro #2DD4BF (hierarquia visual leve)
      --accent-soft    fundo de badges, nav ativo
      --accent-soft-2  fundo selecionado intenso
      --accent-glow    glow de focus/hover (rgba)
-     --accent-text    texto accent sobre fundos claros · teal-700
+     --accent-text    texto accent sobre fundos claros · deep teal
      --accent-grad    gradiente sutil para superfícies de marca
 */
 
 :root {
-  --accent:        #0D9488;
-  --accent-hover:  #0F766E;
-  --accent-2:      #14B8A6;
+  --accent:        #14B8A6;
+  --accent-hover:  #0D9488;
+  --accent-2:      #2DD4BF;
   --accent-soft:   #F0FDFA;
   --accent-soft-2: #CCFBF1;
   --accent-glow:   rgba(20,184,166,.18);
-  --accent-text:   #0F766E;
+  --accent-text:   #0D9488;
   --accent-grad:   linear-gradient(135deg, #14B8A6 0%, #0D9488 100%);
 }
 
@@ -34,5 +34,5 @@
 
   --hero-text:        #FFFFFF;
   --hero-text-muted:  rgba(255,255,255,.7);
-  --hero-kicker:      #2DD4BF;
+  --hero-kicker:      #14B8A6;
 }

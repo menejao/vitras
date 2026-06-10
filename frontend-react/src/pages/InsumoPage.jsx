@@ -3,10 +3,6 @@ import { isAdmin, roleLabel } from "../utils/roles";
 import { matchesPatientSearch } from "../utils/clinical";
 import { fmtDate } from "../utils/formatting";
 import PageHeader from "../components/layout/PageHeader";
-import PageShell from "../components/layout/PageShell";
-import PageToolbar from "../components/layout/PageToolbar";
-import KpiGrid from "../components/layout/KpiGrid";
-import MainContent from "../components/layout/MainContent";
 import Button from "../components/ui/Button";
 import { Tabs, Tab } from "../components/ui/Tabs";
 import KPI from "../components/ui/KPI";
@@ -113,10 +109,10 @@ function InsumoPage({
   }, [log]);
 
   const tabs = [
-    canDispense && ["dispensar", "Nova Dispensacao"],
+    canDispense && ["dispensar", "Nova Dispensação"],
     ["estoque", "Estoque de Insumos"],
-    (canDispense || canViewAll) && ["log", "Historico de Saidas"],
-    ["continuos", "Pacientes Continuos"],
+    (canDispense || canViewAll) && ["log", "Histórico de Saídas"],
+    ["continuos", "Pacientes Contínuos"],
   ].filter(Boolean);
 
   function selectPat(patient) {
@@ -235,46 +231,40 @@ function InsumoPage({
 
   if (!canRead) {
     return (
-      <PageShell className="insumos-page">
+      <div className="insumos-page">
         <PageHeader
-          eyebrow="Gestao de Insumos"
-          title="Dispensacao de Insumos"
-          subtitle="Seu perfil nao possui permissao para acessar este modulo."
+          eyebrow="GESTÃO DE INSUMOS"
+          title="Dispensação de Insumos"
+          subtitle="Seu perfil não possui permissão para acessar este módulo."
         />
-      </PageShell>
+      </div>
     );
   }
 
   return (
-    <PageShell className="insumos-page">
+    <div className="insumos-page">
       <PageHeader
-        eyebrow="Gestao de Insumos"
-        title="Dispensacao de Insumos"
-        subtitle="Controle de saida, estoque e pacientes continuos com persistencia real por equipe."
-        actions={
-          <div className="insumos-session">
-            <div className="insumos-session__name">{user?.name}</div>
-            <div className="insumos-session__role">{roleLabel(user?.role)}</div>
-          </div>
-        }
+        eyebrow="GESTÃO DE INSUMOS"
+        title="Dispensação de Insumos"
+        subtitle="Controle de saída, estoque e pacientes contínuos com persistência real por equipe."
       />
 
-      <KpiGrid className="insumos-kpis">
-        <KPI label="Pacientes continuos ativos" value={continuosAtivos.length} className="card" />
-        <KPI label="Dispensacoes hoje" value={totalSaidasHoje} className="card" />
-        <KPI label="Total de dispensacoes" value={log.filter((entry) => entry.type === "dispensa").length} className="card" />
+      <div className="insumos-kpis">
+        <KPI label="Pacientes contínuos ativos" value={continuosAtivos.length} className="card" />
+        <KPI label="Dispensações hoje" value={totalSaidasHoje} className="card" />
+        <KPI label="Total de dispensações" value={log.filter((entry) => entry.type === "dispensa").length} className="card" />
         <KPI label="Itens sem estoque" value={semEstoqueCount} className={`card${semEstoqueCount > 0 ? " kpi--warning" : ""}`} />
-      </KpiGrid>
+      </div>
 
-      <PageToolbar className="insumos-tabs">
+      <div className="insumos-tabs-bar">
         <Tabs>
           {tabs.map(([id, label]) => (
             <Tab key={id} active={insumoTab === id} onClick={() => setInsumoTab(id)}>{label}</Tab>
           ))}
         </Tabs>
-      </PageToolbar>
+      </div>
 
-      <MainContent className="insumos-body">
+      <div className="insumos-body">
         {error && <div className="alert alert--danger">{error}</div>}
         {loading && <div className="alert alert--info">Atualizando dados de insumos...</div>}
 
@@ -409,8 +399,8 @@ function InsumoPage({
         )}
 
         {insumoTab === "estoque" && (
-          <div>
-            <PageToolbar className="ins-toolbar">
+          <div className="card card--noPad overflow-hidden">
+            <div className="ins-toolbar">
               <div style={{ flex: "1 1 200px", maxWidth: 320 }}>
                 <Input value={stockSearch} onChange={(event) => setStockSearch(event.target.value)} placeholder="Buscar insumo..." />
               </div>
@@ -419,7 +409,7 @@ function InsumoPage({
                   {categories.map((category) => <option key={category}>{category}</option>)}
                 </Select>
               </div>
-            </PageToolbar>
+            </div>
 
             <div style={{ overflowX: "auto" }}>
               <table className="ins-table">
@@ -472,23 +462,25 @@ function InsumoPage({
         )}
 
         {insumoTab === "log" && (canDispense || canViewAll) && (
-          <div>
-            <PageToolbar className="ins-toolbar">
-              <div style={{ flex: "1 1 220px", maxWidth: 360 }}>
-                <Input
-                  value={logSearch}
-                  onChange={(event) => setLogSearch(event.target.value)}
-                  placeholder="Buscar por paciente ou profissional..."
-                />
+          <>
+            <div className="card card--noPad overflow-hidden">
+              <div className="ins-toolbar">
+                <div style={{ flex: "1 1 220px", maxWidth: 360 }}>
+                  <Input
+                    value={logSearch}
+                    onChange={(event) => setLogSearch(event.target.value)}
+                    placeholder="Buscar por paciente ou profissional..."
+                  />
+                </div>
+                <div className="ins-log-filters">
+                  {[["all", "Todas"], ["continuo", "Contínuo"], ["normal", "Normal"]].map(([value, label]) => (
+                    <Button key={value} variant="ghost" className={`ins-cat-btn${logFilter === value ? " is-active" : ""}`} onClick={() => setLogFilter(value)}>
+                      {label}
+                    </Button>
+                  ))}
+                </div>
               </div>
-              <div className="ins-log-filters">
-                {[["all", "Todas"], ["continuo", "Continuo"], ["normal", "Normal"]].map(([value, label]) => (
-                  <Button key={value} variant="ghost" className={`ins-cat-btn${logFilter === value ? " is-active" : ""}`} onClick={() => setLogFilter(value)}>
-                    {label}
-                  </Button>
-                ))}
-              </div>
-            </PageToolbar>
+            </div>
             {!filteredLog.length ? (
               <div className="empty-state">Nenhuma dispensacao registrada.</div>
             ) : (
@@ -520,7 +512,7 @@ function InsumoPage({
                 ))}
               </div>
             )}
-          </div>
+          </>
         )}
 
         {insumoTab === "continuos" && (
@@ -599,7 +591,7 @@ function InsumoPage({
             )}
           </div>
         )}
-      </MainContent>
+      </div>
 
       {editStockItem && (
         <Modal
@@ -657,7 +649,7 @@ function InsumoPage({
           {closingError ? <div className="alert alert--danger" style={{ marginTop: "var(--s-2)" }}>{closingError}</div> : null}
         </Modal>
       )}
-    </PageShell>
+    </div>
   );
 }
 

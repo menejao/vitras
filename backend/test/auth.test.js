@@ -57,6 +57,7 @@ describe("Auth endpoints", () => {
       email: testEmail,
       password: testPassword,
       role: "gestor",
+      unitId: "unit-default",
       councilType: "COREN",
       councilNumber: "874231",
       councilUf: "SP"

@@ -103,7 +103,7 @@ const ROLE_CAPABILITIES = {
   ],
   acs: [
     "dashboard.read",
-    "patients.read.all",
+    "patients.read.scoped",
     "records.read",
     "records.write",
     "referrals.read",
@@ -308,21 +308,30 @@ function hasRole(user, allowedRoles = []) {
 }
 
 function isManager(user) {
-  return canonicalRole(user?.role) === "nurse_manager" || hasCapability(user, "team.manage");
+  const role = canonicalRole(user?.role);
+  return role === "nurse_manager" || role === "break_glass_admin";
 }
 
 function isDoctor(user) {
-  return canonicalRole(user?.role) === "doctor" || hasCapability(user, "records.write");
+  return canonicalRole(user?.role) === "doctor";
 }
 
 function isAcs(user) {
   return canonicalRole(user?.role) === "acs";
 }
 
+function isGestor(user) {
+  return canonicalRole(user?.role) === "gestor";
+}
+
+function canAccessUnit(user, unitId) {
+  const userUnitId = String(user?.unitId || "").trim();
+  if (!userUnitId) return false; // fail-safe: no unitId = no unit-scoped access
+  return userUnitId === String(unitId || "").trim();
+}
+
 function canAccessAllPatients(user) {
-  if (hasCapability(user, "patients.read.all")) return true;
-  const role = canonicalRole(user?.role);
-  return role === "gestor" || role === "nurse_manager" || role === "doctor" || role === "acs";
+  return canonicalRole(user?.role) === "break_glass_admin";
 }
 
 function canAccessScopedPatients(user) {
@@ -606,6 +615,8 @@ export {
   isManager,
   isDoctor,
   isAcs,
+  isGestor,
+  canAccessUnit,
   canAccessAllPatients,
   canAccessScopedPatients,
   isAnaAdminUser,
