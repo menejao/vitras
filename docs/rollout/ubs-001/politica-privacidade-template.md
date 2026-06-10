@@ -1,24 +1,27 @@
 # Política de Privacidade — VITRAS UBS #1
 
-**Controlador:** Prefeitura Municipal de [MUNICÍPIO] — Secretaria Municipal de Saúde  
-**Operador:** Vitras Tecnologia (CNPJ: [PREENCHER])  
+**Controlador:** Prefeitura Municipal de [MUNICIPIO_UBS] — Secretaria Municipal de Saúde  
+**Operador:** [RAZAO_SOCIAL_PENDENTE] (CNPJ: [CNPJ_PENDENTE_FORMALIZACAO])  
+**Endereço do Operador:** [ENDERECO_PENDENTE]  
 **Sistema:** VITRAS — Sistema de Gestão de Unidade Básica de Saúde  
 **Versão do sistema:** v1.0-pilot-governed  
-**Vigência:** A partir de [DATA DE GO-LIVE]  
+**Vigência:** A partir de [DATA_GO_LIVE]  
 **Base normativa:** LGPD Lei 13.709/2018 — Art. 9 (informação ao titular)
 
-> **INSTRUÇÃO:** Preencher campos [PREENCHER] antes do go-live. Publicar em local visível na UBS (recepção) e digital (URL do sistema ou página da prefeitura). Deve estar disponível antes do primeiro paciente cadastrado.
+> **INSTRUÇÃO:** Substituir todos os placeholders `[...]` antes da publicação.
+> Publicar em local visível na UBS (recepção) e digital antes do primeiro paciente cadastrado.
+> Placeholders `_PENDENTE` dependem de constituição formal da empresa e designação de DPO pela Prefeitura.
 
 ---
 
 ## 1. Quem trata seus dados
 
-A **Prefeitura Municipal de [MUNICÍPIO]**, por meio da Secretaria Municipal de Saúde, é a **controladora** dos dados coletados e processados pelo VITRAS. A empresa **Vitras Tecnologia** atua como **operadora**, processando os dados conforme instruções da Prefeitura.
+A **Prefeitura Municipal de [MUNICIPIO_UBS]**, por meio da Secretaria Municipal de Saúde, é a **controladora** dos dados coletados e processados pelo VITRAS. A empresa **[RAZAO_SOCIAL_PENDENTE]** (CNPJ: [CNPJ_PENDENTE_FORMALIZACAO]) atua como **operadora**, processando os dados conforme instruções da Prefeitura.
 
 **Contato do Encarregado de Dados (DPO):**  
-Nome: [PREENCHER — DPO designado]  
-E-mail: [PREENCHER — e-mail do DPO]  
-Telefone: [PREENCHER]  
+Nome: [DPO_PENDENTE — nome completo]  
+E-mail: [DPO_PENDENTE — email]  
+Telefone: [DPO_PENDENTE — telefone]  
 
 ---
 
@@ -40,9 +43,9 @@ Telefone: [PREENCHER]
 
 | Destinatário | Relação | Dados compartilhados | Localização |
 |-------------|---------|---------------------|-------------|
-| Vitras Tecnologia | Operador técnico — hospeda e processa o sistema | Todos os dados do sistema | Brasil (AWS sa-east-1) |
-| Amazon Web Services (AWS) | Suboperador de infraestrutura — servidores e banco de dados | Todos os dados armazenados no sistema | Brasil (São Paulo) |
-| Upstash | Suboperador de controle de acesso — armazena metadados de requisições | Endereço IP e timestamp das requisições (sem conteúdo clínico) | [PREENCHER — verificar região] |
+| [RAZAO_SOCIAL_PENDENTE] | Operador técnico — hospeda e processa o sistema | Todos os dados do sistema | Brasil (AWS sa-east-1) |
+| Amazon Web Services (AWS) | Suboperador de infraestrutura — servidores e banco de dados | Todos os dados armazenados no sistema | Brasil (São Paulo, sa-east-1) |
+| Upstash | Suboperador de controle de acesso — armazena metadados de requisições | Endereço IP e timestamp das requisições (sem conteúdo clínico) | [UPSTASH_REGIAO_PENDENTE — confirmar console.upstash.com] |
 
 Nenhum dado é transferido para fora do Brasil sem proteção adequada conforme LGPD Art. 33–36.
 
@@ -73,7 +76,7 @@ Como paciente, você tem os seguintes direitos sobre seus dados:
 | Portabilidade para outro serviço de saúde | Solicitar ao DPO com autorização médica |
 | Oposição ao tratamento | Avaliar com DPO — base legal de saúde pública pode limitar este direito |
 
-> **Como entrar em contato:** Dirija-se pessoalmente à recepção da [UBS — PREENCHER] ou entre em contato com o DPO pelo e-mail [PREENCHER].
+> **Como entrar em contato:** Dirija-se pessoalmente à recepção da [NOME_UBS] ou entre em contato com o DPO pelo e-mail [DPO_PENDENTE — email].
 
 ---
 
@@ -98,9 +101,9 @@ Em caso de incidente que envolva dados de pacientes, a Prefeitura (controladora)
 ## 8. Contato e reclamações
 
 **DPO (Encarregado de Dados):**  
-[PREENCHER — Nome]  
-[PREENCHER — E-mail]  
-[PREENCHER — Telefone]
+[DPO_PENDENTE — nome completo]  
+[DPO_PENDENTE — email]  
+[DPO_PENDENTE — telefone]
 
 **Autoridade Nacional de Proteção de Dados (ANPD):**  
 gov.br/anpd
@@ -108,5 +111,5 @@ gov.br/anpd
 ---
 
 *Documento versão v1.0 — criado em 2026-06-10*  
-*Aprovado por: [DPO + Controlador — preencher na assinatura]*  
-*Próxima revisão: [DATA GO-LIVE + 1 ano] ou após mudança significativa no tratamento*
+*Aprovado por: [DPO_PENDENTE] + [CONTROLADOR_PENDENTE — Secretário de Saúde ou Prefeito]*  
+*Próxima revisão: [DATA_GO_LIVE + 1 ano] ou após mudança significativa no tratamento*

@@ -67,11 +67,12 @@ LGPD Art. 38 exige que a ANPD possa solicitar o RIPD a qualquer momento. Para da
 ```
 RELATÓRIO DE IMPACTO À PROTEÇÃO DE DADOS (RIPD)
 SISTEMA: Vitras — Sistema de Gestão de UBS
-CONTROLADOR: Prefeitura Municipal de [MUNICÍPIO]
-OPERADOR: Vitras Tecnologia (CNPJ: [PREENCHER])
+CONTROLADOR: Prefeitura Municipal de [MUNICIPIO_UBS]
+OPERADOR: [RAZAO_SOCIAL_PENDENTE] (CNPJ: [CNPJ_PENDENTE_FORMALIZACAO])
+ENDERECO_OPERADOR: [ENDERECO_PENDENTE]
 VERSÃO DO SISTEMA: v1.0-pilot-governed
-DATA DE ELABORAÇÃO: [PREENCHER]
-RESPONSÁVEL: [DPO designado — Nome + Cargo]
+DATA DE ELABORAÇÃO: [DATA_ELABORACAO]
+RESPONSÁVEL: [DPO_PENDENTE — Nome + Cargo]
 BASE NORMATIVA: LGPD Art. 38 + ANPD Resolução CD/ANPD n.º 02/2022
 ```
 
@@ -176,11 +177,11 @@ Suboperadores (dados em trânsito/repouso):
 ```
 RIPD Status: PENDENTE — preencher e revisar com DPO antes do go-live
 
-Elaborado por:     [Nome do responsável técnico — Tech Lead Vitras]
-Revisado por:      [Nome do DPO]
-Aprovado por:      [Nome do controlador — Secretário de Saúde / Prefeito]
-Data de aprovação: [PREENCHER]
-Próxima revisão:   [data + 1 ano ou após mudança significativa no tratamento]
+Elaborado por:     João Pedro — Tech Lead [RAZAO_SOCIAL_PENDENTE]
+Revisado por:      [DPO_PENDENTE]
+Aprovado por:      [CONTROLADOR_PENDENTE — Secretário de Saúde / Prefeito]
+Data de aprovação: [DATA_APROVACAO]
+Próxima revisão:   [DATA_APROVACAO + 1 ano] ou após mudança significativa no tratamento
 
 Assinatura DPO:    _________________________
 Assinatura controlador: ____________________
@@ -193,7 +194,7 @@ Assinatura controlador: ____________________
 | # | Ação | Prazo | Status |
 |---|------|-------|--------|
 | 1 | Encaminhar este documento ao jurídico/Secretaria de Saúde com pedido de designação de DPO | T-14 | [ ] PENDENTE |
-| 2 | Preencher campos `[PREENCHER]` do RIPD com DPO designado | T-7 | [ ] PENDENTE |
+| 2 | Preencher campos `[..._PENDENTE]` do RIPD com DPO designado (MUNICIPIO_UBS, DATA_ELABORACAO, DPO_PENDENTE, CONTROLADOR_PENDENTE) | T-7 | [ ] PENDENTE |
 | 3 | Obter assinatura do DPO e do controlador no RIPD | T-3 | [ ] PENDENTE |
 | 4 | Preencher Seção C de `contatos.md` com dados do DPO designado | T-7 | [ ] PENDENTE |
 | 5 | Confirmar região do Upstash (verificar se dados em Brasil) | T-7 | [ ] PENDENTE |
