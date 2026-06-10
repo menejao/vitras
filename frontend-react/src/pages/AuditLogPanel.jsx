@@ -151,6 +151,7 @@ function AuditLogPanel({ embedded = false }) {
 
     async function load() {
       setLoading(true);
+      setNextCursor("");
       setError("");
       setRetentionResult(null);
       try {
@@ -512,7 +513,11 @@ function AuditLogPanel({ embedded = false }) {
       </div>
 
       <div className="audit-pagination">
-        <span>Mostrando {filtered.length} de {totalMatched} eventos do backend oficial.</span>
+        <span>
+          {items.length !== filtered.length
+            ? `Mostrando ${filtered.length} de ${items.length} carregados (${totalMatched} total)`
+            : `Mostrando ${filtered.length} de ${totalMatched} eventos`}
+        </span>
         <div className="audit-pagination__btns">
           {nextCursor && (
             <Button variant="secondary" size="sm" onClick={handleLoadMore} disabled={loading}>Carregar mais</Button>

@@ -163,7 +163,7 @@ function ResultPanel({ aiView, aiData }) {
   return null;
 }
 
-function AiTab({ aiView, aiData, aiQuestion, setAiQuestion, onPriorities, onQuality, onReport, onAsk, busy }) {
+function AiTab({ aiView, aiData, aiQuestion, setAiQuestion, onPriorities, onQuality, onReport, onAsk, busy, error, setError }) {
   const handlers = { priorities: onPriorities, quality: onQuality, report: onReport };
 
   return (
@@ -206,13 +206,14 @@ function AiTab({ aiView, aiData, aiQuestion, setAiQuestion, onPriorities, onQual
             className="ai-query-form__input"
             placeholder="Ex.: Quais pacientes gestantes estao com protocolo atrasado?"
             value={aiQuestion}
-            onChange={(e) => setAiQuestion(e.target.value)}
+            onChange={(e) => { setAiQuestion(e.target.value); if (error) setError(""); }}
             disabled={busy}
           />
           <Button type="submit" variant="primary" disabled={busy || !aiQuestion.trim()}>
             {busy ? "Processando..." : "Consultar"}
           </Button>
         </form>
+        {error && <Alert tone="danger">{error}</Alert>}
       </Card>
 
       {busy && <Alert tone="info">Processando analise. Aguarde...</Alert>}

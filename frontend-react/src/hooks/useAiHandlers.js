@@ -35,7 +35,7 @@ export function useAiHandlers({ token, handleApiError, setBusy, setError }) {
     if (!token || !aiQuestion.trim()) return;
     setBusy(true); setError("");
     try { setAiView("chat"); setAiData(await aiTeamAsk(token, aiQuestion.trim())); }
-    catch (e) { setError(e.message || "Erro"); }
+    catch (e) { if (!(await handleApiError(e))) setError(e.message || "Erro"); }
     finally { setBusy(false); }
   }
 

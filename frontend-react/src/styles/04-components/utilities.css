@@ -491,6 +491,11 @@
   align-items: flex-end;
 }
 
+.ai-query-form__input {
+  flex: 1;
+  min-width: 0;
+}
+
 /* AI results — priority list */
 .ai-priority-list {
   display: flex;

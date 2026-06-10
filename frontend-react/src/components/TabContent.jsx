@@ -62,7 +62,7 @@ export function TabContent({
   return (
     <Suspense fallback={<div className="loading-spinner" aria-label="Carregando..." />}>
     <section className="main-area">
-      {error && (
+      {error && tab !== "ai" && (
         <div className="error error-banner">
           {error}
           <Button variant="ghost" size="sm" iconOnly className="icon-btn error-banner__close" onClick={() => setError("")}>
@@ -159,7 +159,7 @@ export function TabContent({
       {tab === "ai" && (
         <AiTab aiView={aiView} aiData={aiData} aiQuestion={aiQuestion} setAiQuestion={setAiQuestion}
           onPriorities={loadAiPriorities} onQuality={loadAiQuality} onReport={loadAiReport}
-          onAsk={submitAiQuestion} busy={busy}/>
+          onAsk={submitAiQuestion} busy={busy} error={error} setError={setError}/>
       )}
     </section>
     </Suspense>
