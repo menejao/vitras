@@ -336,36 +336,10 @@
 
 /* ── Brand lockup ────────────────────────────────────────── */
 
-.auth-brand-lockup {
-  display: flex;
-  align-items: center;
-  gap: var(--s-3);
-}
-.auth-brand-lockup__icon {
-  width: 40px;
-  height: 40px;
-  border-radius: var(--r-lg);
-  background: var(--accent-grad);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: var(--shadow-glow);
-  flex: 0 0 auto;
-}
-.auth-brand-lockup__copy {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.auth-brand-lockup__copy strong {
-  font: 800 var(--t-2xl)/1 var(--font-sans);
-  color: #fff;
-  letter-spacing: .08em;
-}
-.auth-brand-lockup__copy span {
-  font: 500 var(--t-xs)/1.4 var(--font-sans);
-  color: var(--hero-text-muted);
-  max-width: 34ch;
+.auth-lockup {
+  height: 44px;
+  width: auto;
+  display: block;
 }
 
 /* ── Eyebrow pill ────────────────────────────────────────── */

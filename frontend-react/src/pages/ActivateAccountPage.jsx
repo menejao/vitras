@@ -4,7 +4,7 @@ import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
 import Input from "../components/ui/Input";
 import Alert from "../components/ui/Alert";
-import { BrandMark } from "../components/brand/BrandMark";
+import { BrandLockup } from "../components/brand/BrandLockup";
 
 const SUBTITLE = "Plataforma integrada para gestão da saúde pública";
 
@@ -44,13 +44,7 @@ function LeftPanel({ eyebrow, heading, sub }) {
   return (
     <section className="auth__left">
       <div className="auth__brand">
-        <div className="auth-brand-lockup">
-          <div className="auth-brand-lockup__icon"><BrandMark variant="solid" size={40} /></div>
-          <div className="auth-brand-lockup__copy">
-            <strong>Vitras</strong>
-            <span>{SUBTITLE}</span>
-          </div>
-        </div>
+        <BrandLockup variant="primary-dark" className="auth-lockup" />
       </div>
       <div className="auth__hero">
         <span className="auth-eyebrow">{eyebrow}</span>

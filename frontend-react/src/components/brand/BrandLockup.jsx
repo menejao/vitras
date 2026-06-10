@@ -1,12 +1,14 @@
 import lockupCompactLight from "../../brand/logos/compact/vitras-lockup-compact-light.svg";
 import lockupCompactDark from "../../brand/logos/compact/vitras-lockup-compact-dark.svg";
 import lockupPrimaryLight from "../../brand/logos/primary/vitras-lockup-light.svg";
+import lockupPrimaryDark from "../../brand/logos/primary/vitras-lockup-dark.svg";
 
 export function BrandLockup({ variant = "compact-light", className = "" }) {
   const srcs = {
     "compact-light": lockupCompactLight,
     "compact-dark": lockupCompactDark,
     "primary-light": lockupPrimaryLight,
+    "primary-dark": lockupPrimaryDark,
   };
   return (
     <img

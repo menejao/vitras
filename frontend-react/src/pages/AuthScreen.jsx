@@ -7,7 +7,7 @@ import Select from "../components/ui/Select";
 import Alert from "../components/ui/Alert";
 import KPI from "../components/ui/KPI";
 import { Tabs, Tab } from "../components/ui/Tabs";
-import { BrandMark } from "../components/brand/BrandMark";
+import { BrandLockup } from "../components/brand/BrandLockup";
 
 const VITRAS_SUBTITLE = "Plataforma integrada para gestão da saúde pública";
 
@@ -227,13 +227,7 @@ function AuthScreen({ onLogin, onVerifyTwoFactor, loginChallenge, onCancelTwoFac
     <main className="auth">
       <section className="auth__left">
         <div className="auth__brand">
-          <div className="auth-brand-lockup">
-            <div className="auth-brand-lockup__icon"><BrandMark variant="solid" size={40} /></div>
-            <div className="auth-brand-lockup__copy">
-              <strong>Vitras</strong>
-              <span>{VITRAS_SUBTITLE}</span>
-            </div>
-          </div>
+          <BrandLockup variant="primary-dark" className="auth-lockup" />
         </div>
 
         <div className="auth__hero">
@@ -245,15 +239,15 @@ function AuthScreen({ onLogin, onVerifyTwoFactor, loginChallenge, onCancelTwoFac
         <div className="auth-kpi-grid">
           <KPI className="auth-info-card">
             <strong className="auth-info-card__title">Segurança</strong>
-            <span className="auth-info-card__desc">MFA e controle de acesso</span>
+            <span className="auth-info-card__desc">Autenticação multifator e controle por perfil clínico</span>
           </KPI>
           <KPI className="auth-info-card">
             <strong className="auth-info-card__title">Conformidade</strong>
-            <span className="auth-info-card__desc">LGPD e rastreabilidade</span>
+            <span className="auth-info-card__desc">Conformidade com LGPD e audit log imutável</span>
           </KPI>
           <KPI className="auth-info-card">
             <strong className="auth-info-card__title">Multi-tenant</strong>
-            <span className="auth-info-card__desc">Módulos por organização</span>
+            <span className="auth-info-card__desc">Isolamento por equipe e escalabilidade municipal</span>
           </KPI>
         </div>
       </section>
@@ -328,7 +322,7 @@ function AuthScreen({ onLogin, onVerifyTwoFactor, loginChallenge, onCancelTwoFac
           </Card>
 
           <p className="auth-page-footer">
-            <a href="/activate" className="auth-footer-link">Primeiro acesso administrativo -&gt;</a>
+            <a href="/activate" className="auth-footer-link">Primeiro acesso institucional →</a>
           </p>
         </div>
       </section>
