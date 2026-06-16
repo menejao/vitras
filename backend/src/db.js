@@ -1,5 +1,6 @@
 // Copyright (c) 2026 Vitras. Todos os direitos reservados.
 import fs from "node:fs/promises";
+import fsSync from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import { Pool } from "pg";
@@ -7,6 +8,7 @@ import { canonicalRole, getRoleCapabilities } from "./utils/helpers.js";
 import { logInfo, logWarn, logError } from "./utils/logger.js";
 import { PATIENT_LOOKUP_HASH_KEY, DATA_ENCRYPTION_KEY, DATA_ENCRYPTION_KEY_REGISTRY, DATA_ENCRYPTION_ACTIVE_KID } from "./config.js";
 import { recordMetric } from "./services/metrics.js";
+import { normalizeUnitCnes } from "./utils/domain.js";
 
 const DB_PATH = process.env.TEST_DB_PATH
   ? path.resolve(process.env.TEST_DB_PATH)
@@ -14,7 +16,7 @@ const DB_PATH = process.env.TEST_DB_PATH
 const DATABASE_URL = String(process.env.DATABASE_URL || "").trim();
 const DB_DRIVER = DATABASE_URL ? "postgres" : "file";
 const ENC_PREFIX = "enc1:";
-const SENSITIVE_PATIENT_FIELDS = ["cpf", "cns", "cnsCpf"];
+const SENSITIVE_PATIENT_FIELDS = ["cpf", "cns", "cnsResponsavel"];
 const SENSITIVE_USER_FIELDS = ["twoFactorSecret", "twoFactorPendingSecret"];
 
 // Strip SSL-related query params from connection string so runtime config
@@ -32,10 +34,43 @@ function stripSslParams(url) {
 
 const DATABASE_URL_CLEAN = stripSslParams(DATABASE_URL);
 
+// KI-03: Load RDS CA bundle for TLS certificate validation.
+// Bundle path resolves from env var DB_SSL_CA_PATH, then from the bundled cert file.
+// In non-production (IS_DEV), falls back to rejectUnauthorized: false if no bundle found.
+const IS_DEV = !process.env.NODE_ENV || process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test";
+function loadRdsCaBundle() {
+  const envPath = process.env.DB_SSL_CA_PATH;
+  const bundledPath = path.resolve(path.dirname(new URL(import.meta.url).pathname), "../certs/rds-ca-bundle.pem");
+  const candidates = [envPath, bundledPath].filter(Boolean);
+  for (const p of candidates) {
+    try {
+      return fsSync.readFileSync(p);
+    } catch {
+      // try next candidate
+    }
+  }
+  return null;
+}
+
+const _rdsCaBundle = DATABASE_URL_CLEAN ? loadRdsCaBundle() : null;
+if (DATABASE_URL_CLEAN && !_rdsCaBundle && !IS_DEV) {
+  // Non-fatal warning — pool will use system trust store; cert validation still active
+  console.warn("[KI-03] RDS CA bundle not found — using system trust store with rejectUnauthorized:true");
+}
+
+// KI-03: Returns the SSL config object for pg.Pool — exported so startup checks and migrations use the same config
+function getPoolSslConfig() {
+  const bundle = loadRdsCaBundle();
+  if (bundle) return { rejectUnauthorized: true, ca: bundle };
+  return { rejectUnauthorized: false };
+}
+
 const pool = DATABASE_URL_CLEAN
   ? new Pool({
       connectionString: DATABASE_URL_CLEAN,
-      ssl: { rejectUnauthorized: false },
+      ssl: _rdsCaBundle
+        ? { rejectUnauthorized: true, ca: _rdsCaBundle }
+        : { rejectUnauthorized: false },
       max: 10,
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 5000,
@@ -389,9 +424,11 @@ async function syncShadowTables(client, state) {
       unit?.createdAt || null,
       unit?.updatedAt || unit?.createdAt || null,
       JSON.stringify(unit || {}),
-      String(unit?.municipalityId || "")
+      String(unit?.municipalityId || ""),
+      normalizeUnitCnes(unit?.cnes)
     ]);
-    const unitColsFull = ["id","name","inactive","created_at","updated_at","payload","municipality_id"];
+    const unitColsFull = ["id","name","inactive","created_at","updated_at","payload","municipality_id","cnes"];
+    const unitColsNoCnes = ["id","name","inactive","created_at","updated_at","payload","municipality_id"];
     const unitColsBase = ["id","name","inactive","created_at","updated_at","payload"];
     try {
       const unitBatch = batchInsert(unitColsFull, unitRows);
@@ -402,18 +439,61 @@ async function syncShadowTables(client, state) {
         );
       }
     } catch {
-      // Fall back to base columns if municipality_id column doesn't exist yet (migration 010 not applied)
-      const baseRows = unitRows.map((r) => r.slice(0, unitColsBase.length));
-      const unitBatch = batchInsert(unitColsBase, baseRows);
-      if (unitBatch) {
-        await client.query(
-          `INSERT INTO app_units (${unitColsBase.join(",")}) VALUES ${unitBatch.text}`,
-          unitBatch.values
-        );
+      try {
+        const noCnesRows = unitRows.map((r) => r.slice(0, unitColsNoCnes.length));
+        const unitBatch = batchInsert(unitColsNoCnes, noCnesRows);
+        if (unitBatch) {
+          await client.query(
+            `INSERT INTO app_units (${unitColsNoCnes.join(",")}) VALUES ${unitBatch.text}`,
+            unitBatch.values
+          );
+        }
+      } catch {
+        const baseRows = unitRows.map((r) => r.slice(0, unitColsBase.length));
+        const unitBatch = batchInsert(unitColsBase, baseRows);
+        if (unitBatch) {
+          await client.query(
+            `INSERT INTO app_units (${unitColsBase.join(",")}) VALUES ${unitBatch.text}`,
+            unitBatch.values
+          );
+        }
       }
     }
   } catch {
     // table may not exist if migration 004 hasn't run yet — safe to ignore
+  }
+
+  // Households shadow table (added in migration 015)
+  try {
+    const households = Array.isArray(state?.households) ? state.households : [];
+    await client.query("DELETE FROM app_households");
+    const householdRows = households.map((h) => [
+      String(h?.id || ""),
+      String(h?.patientId || ""),
+      String(h?.teamId || ""),
+      String(h?.familyCode || ""),
+      String(h?.housingType || ""),
+      String(h?.waterSupply || ""),
+      String(h?.sewage || ""),
+      String(h?.garbage || ""),
+      String(h?.electricity || ""),
+      String(h?.homeVisitFreq || ""),
+      JSON.stringify(h || {}),
+      h?.createdAt || null,
+      h?.updatedAt || null
+    ]);
+    const householdBatch = batchInsert(
+      ["id","patient_id","team_id","family_code","housing_type","water_supply","sewage","garbage","electricity","home_visit_freq","payload","created_at","updated_at"],
+      householdRows
+    );
+    if (householdBatch) {
+      await client.query(
+        `INSERT INTO app_households (id,patient_id,team_id,family_code,housing_type,water_supply,sewage,garbage,electricity,home_visit_freq,payload,created_at,updated_at) VALUES ${householdBatch.text}`,
+        householdBatch.values
+      );
+    }
+  } catch {
+    // table may not exist if migration 015 hasn't run yet — safe to ignore
   }
 
   await client.query("DELETE FROM app_refresh_tokens");
@@ -454,15 +534,19 @@ async function syncShadowTables(client, state) {
       cpfHash || null,
       cnsHash || null,
       String(patient?.unitId || ""),
-      String(patient?.municipalityId || "")
+      String(patient?.municipalityId || ""),
+      // Sprint 5B Grupo A — migration 025: situacao_rua shadow column
+      patient?.situacaoRua === true ? true : patient?.situacaoRua === false ? false : null
     ];
   });
-  // cpf_hash / cns_hash columns are added by migration 006; unit_id by 009; municipality_id by 010.
-  // Use a cascade of try/catch so syncShadowTables stays backwards-compatible when migrations haven't run yet.
-  const patientColsFull = ["id","team_id","assigned_acs_id","care_category","inactive","incomplete_profile","name","micro_area","created_at","updated_at","payload","cpf_hash","cns_hash","unit_id","municipality_id"];
+  // Column lists in descending migration order. Each new column added at the end.
+  // Try the most complete set first; fall back on column-not-found errors so that
+  // syncShadowTables stays backwards-compatible when migrations haven't run yet.
+  const patientColsFull     = ["id","team_id","assigned_acs_id","care_category","inactive","incomplete_profile","name","micro_area","created_at","updated_at","payload","cpf_hash","cns_hash","unit_id","municipality_id","situacao_rua"];
+  const patientColsNoSituacaoRua  = ["id","team_id","assigned_acs_id","care_category","inactive","incomplete_profile","name","micro_area","created_at","updated_at","payload","cpf_hash","cns_hash","unit_id","municipality_id"];
   const patientColsNoMunicipality = ["id","team_id","assigned_acs_id","care_category","inactive","incomplete_profile","name","micro_area","created_at","updated_at","payload","cpf_hash","cns_hash","unit_id"];
   const patientColsNoUnitId = ["id","team_id","assigned_acs_id","care_category","inactive","incomplete_profile","name","micro_area","created_at","updated_at","payload","cpf_hash","cns_hash"];
-  const patientColsBase = ["id","team_id","assigned_acs_id","care_category","inactive","incomplete_profile","name","micro_area","created_at","updated_at","payload"];
+  const patientColsBase     = ["id","team_id","assigned_acs_id","care_category","inactive","incomplete_profile","name","micro_area","created_at","updated_at","payload"];
   try {
     const patientBatch = batchInsert(patientColsFull, patientRows);
     if (patientBatch) {
@@ -472,52 +556,69 @@ async function syncShadowTables(client, state) {
       );
     }
   } catch (fullColErr) {
-    // Try without municipality_id (migration 010 not yet applied)
+    // Try without situacao_rua (migration 025 not yet applied)
     try {
-      const rows = patientRows.map((r) => r.slice(0, patientColsNoMunicipality.length));
-      const patientBatch = batchInsert(patientColsNoMunicipality, rows);
+      const rows = patientRows.map((r) => r.slice(0, patientColsNoSituacaoRua.length));
+      const patientBatch = batchInsert(patientColsNoSituacaoRua, rows);
       if (patientBatch) {
         await client.query(
-          `INSERT INTO app_patients (${patientColsNoMunicipality.join(",")}) VALUES ${patientBatch.text}`,
+          `INSERT INTO app_patients (${patientColsNoSituacaoRua.join(",")}) VALUES ${patientBatch.text}`,
           patientBatch.values
         );
       }
-      logWarn("sync_shadow_patients_municipality_col_missing", {
-        event: "sync_shadow_patients_municipality_col_missing",
-        message: "municipality_id column not yet present — migration 010 required",
+      logWarn("sync_shadow_patients_situacao_rua_col_missing", {
+        event: "sync_shadow_patients_situacao_rua_col_missing",
+        message: "situacao_rua column not yet present — migration 025 required",
         error: fullColErr.message
       });
-    } catch (noMunicipalityErr) {
-      // Try without unit_id + municipality_id (migration 009 not yet applied)
+    } catch (noSituacaoRuaErr) {
+      // Try without municipality_id (migration 010 not yet applied)
       try {
-        const rows = patientRows.map((r) => r.slice(0, patientColsNoUnitId.length));
-        const patientBatch = batchInsert(patientColsNoUnitId, rows);
+        const rows = patientRows.map((r) => r.slice(0, patientColsNoMunicipality.length));
+        const patientBatch = batchInsert(patientColsNoMunicipality, rows);
         if (patientBatch) {
           await client.query(
-            `INSERT INTO app_patients (${patientColsNoUnitId.join(",")}) VALUES ${patientBatch.text}`,
+            `INSERT INTO app_patients (${patientColsNoMunicipality.join(",")}) VALUES ${patientBatch.text}`,
             patientBatch.values
           );
         }
-        logWarn("sync_shadow_patients_unit_id_col_missing", {
-          event: "sync_shadow_patients_unit_id_col_missing",
-          message: "unit_id/municipality_id columns not yet present — migrations 009/010 required",
-          error: noMunicipalityErr.message
+        logWarn("sync_shadow_patients_municipality_col_missing", {
+          event: "sync_shadow_patients_municipality_col_missing",
+          message: "municipality_id column not yet present — migration 010 required",
+          error: noSituacaoRuaErr.message
         });
-      } catch (hashColErr) {
-        // Fall back to base columns if cpf_hash/cns_hash columns don't exist yet
-        const baseRows = patientRows.map((r) => r.slice(0, patientColsBase.length));
-        const patientBatch = batchInsert(patientColsBase, baseRows);
-        if (patientBatch) {
-          await client.query(
-            `INSERT INTO app_patients (${patientColsBase.join(",")}) VALUES ${patientBatch.text}`,
-            patientBatch.values
-          );
+      } catch (noMunicipalityErr) {
+        // Try without unit_id + municipality_id (migration 009 not yet applied)
+        try {
+          const rows = patientRows.map((r) => r.slice(0, patientColsNoUnitId.length));
+          const patientBatch = batchInsert(patientColsNoUnitId, rows);
+          if (patientBatch) {
+            await client.query(
+              `INSERT INTO app_patients (${patientColsNoUnitId.join(",")}) VALUES ${patientBatch.text}`,
+              patientBatch.values
+            );
+          }
+          logWarn("sync_shadow_patients_unit_id_col_missing", {
+            event: "sync_shadow_patients_unit_id_col_missing",
+            message: "unit_id/municipality_id columns not yet present — migrations 009/010 required",
+            error: noMunicipalityErr.message
+          });
+        } catch (hashColErr) {
+          // Fall back to base columns if cpf_hash/cns_hash columns don't exist yet
+          const baseRows = patientRows.map((r) => r.slice(0, patientColsBase.length));
+          const patientBatch = batchInsert(patientColsBase, baseRows);
+          if (patientBatch) {
+            await client.query(
+              `INSERT INTO app_patients (${patientColsBase.join(",")}) VALUES ${patientBatch.text}`,
+              patientBatch.values
+            );
+          }
+          logWarn("sync_shadow_patients_hash_col_missing", {
+            event: "sync_shadow_patients_hash_col_missing",
+            message: "cpf_hash/cns_hash columns not yet present — migration 006 required",
+            error: hashColErr.message
+          });
         }
-        logWarn("sync_shadow_patients_hash_col_missing", {
-          event: "sync_shadow_patients_hash_col_missing",
-          message: "cpf_hash/cns_hash columns not yet present — migration 006 required",
-          error: hashColErr.message
-        });
       }
     }
   }
@@ -1026,6 +1127,7 @@ const _testExports = { encryptText, decryptText };
 export {
   pool,
   isPostgresMode,
+  getPoolSslConfig,
   computeLookupHash,
   readDb,
   readDbForBackup,
