@@ -49,6 +49,7 @@ const PUBLIC_SELF_REGISTER_ROLES = String(
   .split(",")
   .map((v) => v.trim().toLowerCase())
   .filter(Boolean);
+const MUNICIPALITY_ID = String(process.env.MUNICIPALITY_ID || "").trim();
 const DATABASE_URL = String(process.env.DATABASE_URL || "").trim();
 const DATA_ENCRYPTION_KEY = String(process.env.DATA_ENCRYPTION_KEY || "").trim();
 const DATA_ENCRYPTION_KEYS_RAW = String(process.env.DATA_ENCRYPTION_KEYS || "").trim();
@@ -175,6 +176,7 @@ export {
   COOKIE_SECURE,
   COOKIE_SAME_SITE,
   PUBLIC_SELF_REGISTER_ROLES,
+  MUNICIPALITY_ID,
   DATABASE_URL,
   DATA_ENCRYPTION_KEY,
   DATA_ENCRYPTION_KEY_REGISTRY,

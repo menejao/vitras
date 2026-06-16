@@ -5,7 +5,8 @@ import {
   TWOFA_CHALLENGE_TTL_MS,
   TWOFA_MAX_ATTEMPTS,
   PUBLIC_SELF_REGISTER_ROLES,
-  COOKIE_REFRESH_NAME
+  COOKIE_REFRESH_NAME,
+  MUNICIPALITY_ID
 } from "../config.js";
 import { validate, LoginSchema, RegisterSchema, AccessRequestCreateSchema } from "../schemas.js";
 import { authRateLimit } from "../middlewares/rate-limits.js";
@@ -237,6 +238,10 @@ router.post("/auth/register", authRateLimit, validate(RegisterSchema), async (re
     }
 
     const derivedUnitId = requiresUnit ? unitId : (team?.unitId || "");
+    const derivedMunicipalityId = MUNICIPALITY_ID;
+    if (!derivedMunicipalityId) {
+      return { error: "Município não configurado neste deployment (MUNICIPALITY_ID ausente)", status: 500 };
+    }
 
     const user = {
       id: uuidv4(),
@@ -246,6 +251,7 @@ router.post("/auth/register", authRateLimit, validate(RegisterSchema), async (re
       password: hashPassword(password),
       teamId: requiresTeam ? teamId : "",
       unitId: derivedUnitId,
+      municipalityId: derivedMunicipalityId,
       councilType,
       councilNumber: councilValidation.councilNumber || "",
       councilUf: councilValidation.councilUf || "",

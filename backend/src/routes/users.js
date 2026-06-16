@@ -1,7 +1,8 @@
+import crypto from "node:crypto";
 import express from "express";
 import { v4 as uuidv4 } from "uuid";
 import { readDb, withDb, listUsersSnapshot, findUserById, listRolePermissionsSnapshot } from "../db.js";
-import { USER_ONLINE_THRESHOLD_MS } from "../config.js";
+import { USER_ONLINE_THRESHOLD_MS, MUNICIPALITY_ID } from "../config.js";
 import { requireManager } from "../middlewares/auth.js";
 import { ensureDbShape, sanitizeUser } from "../utils/domain.js";
 import {
@@ -13,6 +14,7 @@ import { hashPassword } from "../services/crypto.js";
 import { addAuditLog } from "../services/audit.js";
 import { getTeamUserUsage } from "../utils/metrics.js";
 import { requireAuth } from "../middlewares/auth.js";
+import { validate, TeamPatchSchema } from "../schemas.js";
 
 const router = express.Router();
 
@@ -28,7 +30,11 @@ function buildUserAuditSnapshot(user) {
     councilNumber: String(user.councilNumber || ""),
     councilUf: String(user.councilUf || ""),
     twoFactorEnabled: Boolean(user.twoFactorEnabled),
-    updatedAt: String(user.updatedAt || user.createdAt || "")
+    updatedAt: String(user.updatedAt || user.createdAt || ""),
+    // F4-03: cnsProfissional is SENSITIVE — SHA-256 hash only, never plaintext in audit log
+    cnsProfissional: user.cnsProfissional
+      ? crypto.createHash("sha256").update(String(user.cnsProfissional)).digest("hex")
+      : ""
   };
 }
 
@@ -99,6 +105,49 @@ router.get("/teams/public", async (_req, res) => {
     .map((t) => ({ id: t.id, name: t.name }))
     .sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "pt-BR"));
   res.json(items);
+});
+
+// F4-05: PATCH /teams/:id — update INE and tipoEquipe (stored in JSONB)
+router.patch("/teams/:id", requireAuth, validate(TeamPatchSchema), async (req, res) => {
+  if (!hasCapability(req.user, "team.manage")) {
+    return res.status(403).json({ error: "Sem permissão para editar equipe" });
+  }
+
+  const teamId = String(req.params.id || "").trim();
+  const payload = req.body || {};
+
+  const result = await withDb((db) => {
+    ensureDbShape(db);
+    const idx = db.teams.findIndex((t) => t.id === teamId);
+    if (idx < 0) return { error: { status: 404, message: "Equipe não encontrada" } };
+
+    const current = db.teams[idx];
+
+    // Scope check: non-global-manager can only edit their own team
+    if (req.user.teamId && req.user.teamId !== teamId && !hasCapability(req.user, "users.manage.all")) {
+      return { error: { status: 403, message: "Sem permissão para editar esta equipe" } };
+    }
+
+    const next = { ...current };
+    if (payload.ine !== undefined) next.ine = String(payload.ine || "").trim();
+    if (payload.tipoEquipe !== undefined) next.tipoEquipe = payload.tipoEquipe;
+    next.updatedAt = new Date().toISOString();
+
+    db.teams[idx] = next;
+
+    addAuditLog(db, req.user, "team.updated", "team", teamId, {
+      teamId,
+      changedFields: Object.keys(payload),
+      outcome: "success",
+      before: { ine: current.ine || "", tipoEquipe: current.tipoEquipe || "" },
+      after: { ine: next.ine || "", tipoEquipe: next.tipoEquipe || "" }
+    });
+
+    return { team: next };
+  });
+
+  if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
+  return res.json(result.team);
 });
 
 router.get("/users", requireAuth, async (req, res) => {
@@ -221,6 +270,11 @@ router.post("/users", requireAuth, requireManager, async (req, res) => {
       return { error: `${councilType} já cadastrado para outro usuário` };
     }
 
+    const userMunicipalityId = String(req.user.municipalityId || MUNICIPALITY_ID || "").trim();
+    if (!userMunicipalityId) {
+      return { error: "Município não configurado neste deployment (MUNICIPALITY_ID ausente)", status: 500 };
+    }
+
     const user = {
       id: uuidv4(),
       name,
@@ -228,6 +282,8 @@ router.post("/users", requireAuth, requireManager, async (req, res) => {
       email,
       password: hashPassword(password),
       teamId: req.user.teamId,
+      unitId: req.user.unitId || "",
+      municipalityId: userMunicipalityId,
       councilType,
       councilNumber: councilValidation.councilNumber || "",
       councilUf: councilValidation.councilUf || "",

@@ -130,7 +130,7 @@ function buildPatientAccessReport(db, patient) {
 
 function applyPatientCorrection(db, user, patient, corrections = {}) {
   const allowed = new Set([
-    "name", "motherName", "phone", "phoneAlt", "cpf", "cns", "cnsCpf",
+    "name", "motherName", "phone", "phoneAlt", "cpf", "cns",
     "address", "microArea", "assignedAcsId", "careCategory", "chronicConditions",
     "maritalStatus", "sexAtBirth", "genderIdentity", "birthDate",
     "pregnancyStartDate", "expectedDeliveryDate",
@@ -189,7 +189,6 @@ function anonymizePatientBundle(db, user, patient, reason = "", requestId = "") 
     motherName: "",
     cpf: "",
     cns: "",
-    cnsCpf: "",
     phone: "",
     phoneAlt: "",
     address: "",
@@ -198,6 +197,7 @@ function anonymizePatientBundle(db, user, patient, reason = "", requestId = "") 
     chronicConditions: [],
     maritalStatus: "",
     sexAtBirth: "",
+    // F2-04: SPECIAL_CATEGORY (LGPD Art. 11) — anonimizado obrigatoriamente
     genderIdentity: "",
     birthDate: "",
     pregnancyStartDate: "",
@@ -214,6 +214,14 @@ function anonymizePatientBundle(db, user, patient, reason = "", requestId = "") 
     comorbidities: "",
     medications: "",
     allergies: "",
+    // F2-08: special-category / LGPD sensitive fields
+    racaCor: "",
+    etnia: "",
+    rendaFamiliar: "",
+    cnsResponsavel: "",
+    socialVulnerability: "",
+    substanceDependency: "",
+    domesticViolence: "",
     updatedAt: now,
     updatedBy: user.id,
     privacy: {
@@ -253,6 +261,9 @@ function anonymizePatientBundle(db, user, patient, reason = "", requestId = "") 
 // Roles com acesso de leitura clinica cross-UBS dentro do mesmo municipio (US-204)
 const CLINICAL_READ_ROLES = new Set(["doctor", "nurse_manager", "dentist", "nursing_tech"]);
 
+// D-07: roles autorizadas a registrar atendimento cross-team na APS municipal
+const CLINICAL_WRITE_CROSS_TEAM_ROLES = new Set(["doctor", "nurse_manager", "dentist"]);
+
 function canAccessPatient(user, patient, mode = "write") {
   // Guard obrigatorio — PRIMEIRA linha, antes de qualquer branch de mode
   if (!patient) return false;
@@ -274,8 +285,46 @@ function canAccessPatient(user, patient, mode = "write") {
     return true;
   }
 
+  // D-06: clinical_write — permite cross-team dentro do mesmo municipio para roles autorizadas
+  if (mode === "clinical_write") {
+    const role = canonicalRole(user?.role);
+    if (!CLINICAL_WRITE_CROSS_TEAM_ROLES.has(role)) return false;
+    const userMuni = String(user?.municipalityId || "").trim();
+    const patientMuni = String(patient.municipalityId || "").trim();
+    // Sem municipalityId em qualquer lado: exige teamId match (fail-safe)
+    if (!userMuni || !patientMuni) {
+      return String(patient.teamId || "") === String(user?.teamId || "");
+    }
+    // Cross-municipio: sempre negar
+    if (userMuni !== patientMuni) return false;
+    // Mesmo municipio com role clinica autorizada: permitir escrita cross-team
+    return true;
+  }
+
+  // F6-02: ACS write — exige teamId match E assignedAcsId match
+  if (canonicalRole(user?.role) === "acs") {
+    return String(patient.teamId || "") === String(user?.teamId || "")
+      && String(patient.assignedAcsId || "") === String(user?.id || "");
+  }
+
   // mode === "write" (default): comportamento original preservado integralmente
   return String(patient.teamId || "") === String(user?.teamId || "");
+}
+
+// D-12: sumário restrito para busca municipal de recepção — sem dados clínicos ou sensíveis
+function buildReceptionistPatientSummary(patient) {
+  if (!patient) return null;
+  const masked = maskSensitivePatientFields(patient);
+  return {
+    id: patient.id,
+    name: patient.name,
+    birthDate: patient.birthDate || "",
+    cpf: masked.cpf || "",
+    cns: masked.cns || "",
+    unitId: patient.unitId || "",
+    teamId: patient.teamId || "",
+    inactive: patient.inactive || false
+  };
 }
 
 function buildGestorUnitTeamIds(db, user) {
@@ -291,6 +340,36 @@ function getAllowedPatients(db, user, query) {
   const acsId = query.acsId ? String(query.acsId).trim() : "";
   const careCategory = query.careCategory ? String(query.careCategory).trim() : "";
   const includeInactive = String(query.includeInactive || "").trim() === "true";
+
+  // D-12: Receptionist — busca municipal com sumário restrito (sem dados clínicos/sensíveis)
+  // Retorna todos os pacientes do município; filtragem de campos ocorre na rota via buildReceptionistPatientSummary
+  if (canonicalRole(user?.role) === "receptionist") {
+    const userMuni = String(user?.municipalityId || "").trim();
+    return db.patients.filter((p) => {
+      if (!includeInactive && p.inactive) return false;
+      if (userMuni) {
+        const patientMuni = String(p.municipalityId || "").trim();
+        if (patientMuni && patientMuni !== userMuni) return false;
+      } else {
+        // Sem municipalityId: fallback para mesma equipe (seguro)
+        if (String(p.teamId || "") !== String(user?.teamId || "")) return false;
+      }
+      if (careCategory && p.careCategory !== careCategory) return false;
+      return true;
+    });
+  }
+
+  // F6-01: ACS — vê apenas pacientes atribuídos a si (assignedAcsId === user.id)
+  if (canonicalRole(user?.role) === "acs") {
+    return db.patients.filter((p) => {
+      if (!includeInactive && p.inactive) return false;
+      if (String(p.teamId || "") !== String(user?.teamId || "")) return false;
+      if (String(p.assignedAcsId || "") !== String(user?.id || "")) return false;
+      if (microArea && p.microArea !== microArea) return false;
+      if (careCategory && p.careCategory !== careCategory) return false;
+      return true;
+    });
+  }
 
   // Gestor: unit-scoped access — can only see patients in teams of their unit
   if (canonicalRole(user?.role) === "gestor") {
@@ -371,7 +450,6 @@ function maskSensitivePatientFields(patient) {
   const masked = { ...patient };
   if (masked.cpf) masked.cpf = "***.***.***-**";
   if (masked.cns) masked.cns = "***.***.***.*****-**";
-  if (masked.cnsCpf) masked.cnsCpf = "***.***.***-**";
   return masked;
 }
 
@@ -385,5 +463,7 @@ export {
   getAllowedPatients,
   getPatientOrError,
   buildPatientHistory,
-  maskSensitivePatientFields
+  maskSensitivePatientFields,
+  buildReceptionistPatientSummary,
+  CLINICAL_WRITE_CROSS_TEAM_ROLES
 };
