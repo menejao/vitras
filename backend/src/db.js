@@ -369,6 +369,19 @@ function batchInsert(cols, rows) {
 }
 
 async function syncShadowTables(client, state) {
+  // Use a SAVEPOINT so that any statement failure inside the sync does NOT abort
+  // the outer Postgres transaction (app_state write). Without this, a silent catch {}
+  // can swallow a JS error while leaving the Postgres transaction in "aborted" state,
+  // causing every subsequent statement — including unguarded DELETEs — to fail.
+  // Shadow table staleness is non-fatal; app_state is the authoritative source.
+  let savepointActive = false;
+  try {
+    await client.query("SAVEPOINT sync_shadow");
+    savepointActive = true;
+  } catch {
+    // If SAVEPOINT itself fails (e.g., not in a transaction), proceed without it.
+  }
+  try {
   const users = Array.isArray(state?.users) ? state.users : [];
   const units = Array.isArray(state?.units) ? state.units : [];
   const refreshTokens = Array.isArray(state?.refreshTokens) ? state.refreshTokens : [];
@@ -708,6 +721,21 @@ async function syncShadowTables(client, state) {
       `INSERT INTO app_role_permissions (role,capability) VALUES ${permBatch.text}`,
       permBatch.values
     );
+  }
+  if (savepointActive) {
+    await client.query("RELEASE SAVEPOINT sync_shadow");
+    savepointActive = false;
+  }
+  } catch (syncErr) {
+    logWarn("sync_shadow_failed_non_fatal", {
+      event: "sync_shadow_failed_non_fatal",
+      error: syncErr.message,
+      code: syncErr.code
+    });
+    if (savepointActive) {
+      try { await client.query("ROLLBACK TO SAVEPOINT sync_shadow"); } catch {}
+      try { await client.query("RELEASE SAVEPOINT sync_shadow"); } catch {}
+    }
   }
 }
 
