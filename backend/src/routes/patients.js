@@ -182,7 +182,7 @@ router.get("/ciap2/search", async (req, res) => {
 
   try {
     let result;
-    if (/^[A-Za-z]\d{0,1}$/i.test(q)) {
+    if (/^[A-Za-z]\d/i.test(q)) {
       result = await pool.query(
         `SELECT code, description, chapter, chapter_name, component
            FROM ciap2
