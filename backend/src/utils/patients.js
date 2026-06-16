@@ -189,6 +189,7 @@ function anonymizePatientBundle(db, user, patient, reason = "", requestId = "") 
     motherName: "",
     cpf: "",
     cns: "",
+    nis: "",
     phone: "",
     phoneAlt: "",
     address: "",

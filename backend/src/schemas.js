@@ -74,6 +74,11 @@ const PatientBaseShape = {
   phoneAlt: optionalShortString(30),
   cpf: optionalShortString(20),
   cns: optionalShortString(30),
+  // Grupo F — NIS (Número de Identificação Social); dado pessoal comum, 11 dígitos; string vazia → undefined
+  nis: z.preprocess(
+    (v) => (v === "" || v === null || v === undefined ? undefined : v),
+    z.string().trim().regex(/^\d{11}$/, "NIS deve ter exatamente 11 dígitos").optional()
+  ),
   // F2-07: @deprecated Sprint 5A — remove Sprint 5B; kept for read/write compatibility
   cnsCpf: optionalShortString(30),
   // F1-07: address accepted for legacy free-text field (maps to addressLegacy in handler)
@@ -214,6 +219,11 @@ const PatientUpdateSchema = z.object({
   phoneAlt: optionalShortString(30),
   cpf: optionalShortString(20),
   cns: optionalShortString(30),
+  // Grupo F — NIS (Número de Identificação Social); dado pessoal comum, 11 dígitos; string vazia → undefined
+  nis: z.preprocess(
+    (v) => (v === "" || v === null || v === undefined ? undefined : v),
+    z.string().trim().regex(/^\d{11}$/, "NIS deve ter exatamente 11 dígitos").optional()
+  ),
   // F2-07: @deprecated Sprint 5A — remove Sprint 5B; kept for read/write compatibility
   cnsCpf: optionalShortString(30),
   // F1-07: address (legacy free-text) and addressLegacy both accepted
@@ -460,7 +470,10 @@ const RecordCreateSchema = z.object({
   protocolTag: optionalShortString(100),
   metadata: z.record(z.any()).optional(),
   // D-08: obrigatório quando executingTeamId !== patientReferenceTeamId (validado no handler)
-  crossTeamJustification: z.string().trim().min(20).max(500).optional()
+  crossTeamJustification: z.string().trim().min(20).max(500).optional(),
+  // CID-10 — campos opcionais; validação de existência feita na rota (tabela cid10)
+  cidPrincipal: z.string().trim().toUpperCase().regex(/^[A-Z]\d{2,4}(\.\d{1,4})?$/, "CID inválido").optional(),
+  cidSecundarios: z.array(z.string().trim().toUpperCase().regex(/^[A-Z]\d{2,4}(\.\d{1,4})?$/, "CID inválido")).max(10).optional()
 }).strict();
 
 // F5-03: dedicated schema for type=visit — CDS Ficha de Visita Domiciliar

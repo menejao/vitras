@@ -16,7 +16,8 @@ const DB_PATH = process.env.TEST_DB_PATH
 const DATABASE_URL = String(process.env.DATABASE_URL || "").trim();
 const DB_DRIVER = DATABASE_URL ? "postgres" : "file";
 const ENC_PREFIX = "enc1:";
-const SENSITIVE_PATIENT_FIELDS = ["cpf", "cns", "cnsResponsavel"];
+// "nis" é dado pessoal comum (não categoria especial LGPD), criptografado por precaução conforme laudo jurídico Grupo F
+const SENSITIVE_PATIENT_FIELDS = ["cpf", "cns", "cnsResponsavel", "nis"];
 const SENSITIVE_USER_FIELDS = ["twoFactorSecret", "twoFactorPendingSecret"];
 
 // Strip SSL-related query params from connection string so runtime config
@@ -549,13 +550,16 @@ async function syncShadowTables(client, state) {
       String(patient?.unitId || ""),
       String(patient?.municipalityId || ""),
       // Sprint 5B Grupo A — migration 025: situacao_rua shadow column
-      patient?.situacaoRua === true ? true : patient?.situacaoRua === false ? false : null
+      patient?.situacaoRua === true ? true : patient?.situacaoRua === false ? false : null,
+      // Sprint 5B Grupo F — migration 026: nis shadow column
+      patient?.nis ? String(patient.nis) : null
     ];
   });
   // Column lists in descending migration order. Each new column added at the end.
   // Try the most complete set first; fall back on column-not-found errors so that
   // syncShadowTables stays backwards-compatible when migrations haven't run yet.
-  const patientColsFull     = ["id","team_id","assigned_acs_id","care_category","inactive","incomplete_profile","name","micro_area","created_at","updated_at","payload","cpf_hash","cns_hash","unit_id","municipality_id","situacao_rua"];
+  const patientColsFull     = ["id","team_id","assigned_acs_id","care_category","inactive","incomplete_profile","name","micro_area","created_at","updated_at","payload","cpf_hash","cns_hash","unit_id","municipality_id","situacao_rua","nis"];
+  const patientColsNoNis          = ["id","team_id","assigned_acs_id","care_category","inactive","incomplete_profile","name","micro_area","created_at","updated_at","payload","cpf_hash","cns_hash","unit_id","municipality_id","situacao_rua"];
   const patientColsNoSituacaoRua  = ["id","team_id","assigned_acs_id","care_category","inactive","incomplete_profile","name","micro_area","created_at","updated_at","payload","cpf_hash","cns_hash","unit_id","municipality_id"];
   const patientColsNoMunicipality = ["id","team_id","assigned_acs_id","care_category","inactive","incomplete_profile","name","micro_area","created_at","updated_at","payload","cpf_hash","cns_hash","unit_id"];
   const patientColsNoUnitId = ["id","team_id","assigned_acs_id","care_category","inactive","incomplete_profile","name","micro_area","created_at","updated_at","payload","cpf_hash","cns_hash"];
@@ -569,6 +573,22 @@ async function syncShadowTables(client, state) {
       );
     }
   } catch (fullColErr) {
+    // Try without nis (migration 026 not yet applied)
+    try {
+      const rows = patientRows.map((r) => r.slice(0, patientColsNoNis.length));
+      const patientBatch = batchInsert(patientColsNoNis, rows);
+      if (patientBatch) {
+        await client.query(
+          `INSERT INTO app_patients (${patientColsNoNis.join(",")}) VALUES ${patientBatch.text}`,
+          patientBatch.values
+        );
+      }
+      logWarn("sync_shadow_patients_nis_col_missing", {
+        event: "sync_shadow_patients_nis_col_missing",
+        message: "nis column not yet present — migration 026 required",
+        error: fullColErr.message
+      });
+    } catch (noNisErr) {
     // Try without situacao_rua (migration 025 not yet applied)
     try {
       const rows = patientRows.map((r) => r.slice(0, patientColsNoSituacaoRua.length));
@@ -582,7 +602,7 @@ async function syncShadowTables(client, state) {
       logWarn("sync_shadow_patients_situacao_rua_col_missing", {
         event: "sync_shadow_patients_situacao_rua_col_missing",
         message: "situacao_rua column not yet present — migration 025 required",
-        error: fullColErr.message
+        error: noNisErr.message
       });
     } catch (noSituacaoRuaErr) {
       // Try without municipality_id (migration 010 not yet applied)
@@ -634,6 +654,7 @@ async function syncShadowTables(client, state) {
         }
       }
     }
+    } // end catch (noNisErr)
   }
 
   await client.query("DELETE FROM app_appointments");

@@ -17,9 +17,11 @@ import * as m018 from "./018_backfill_cnscpf.js";
 import * as m019 from "./019_remove_cnscpf_from_payload.js";
 import * as m020 from "./020_cleanup_cnscpf_from_state.js";
 import * as m021 from "./021_create_municipalities.js";
-// m022 (FK app_units→municipalities) intentionally excluded until seed-municipalities.mjs confirms COUNT >= 5570
+import * as m022 from "./022_add_municipality_fk_to_units.js";
 import * as m023 from "./023_create_cid10.js";
 import * as m024 from "./024_create_ciap2.js";
+import * as m025 from "./025_add_situacao_rua_to_patients.js";
+import * as m026 from "./026_add_nis_to_patients.js";
 
 // Add new migrations here in order - never remove or reorder existing entries
-export const migrations = [m001, m002, m003, m004, m005, m006, m007, m008, m009, m010, m011, m012, m013, m014, m015, m018, m019, m020, m021, m023, m024];
+export const migrations = [m001, m002, m003, m004, m005, m006, m007, m008, m009, m010, m011, m012, m013, m014, m015, m018, m019, m020, m021, m022, m023, m024, m025, m026];

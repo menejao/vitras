@@ -1,7 +1,7 @@
 ﻿import crypto from "node:crypto";
 import express from "express";
 import { v4 as uuidv4 } from "uuid";
-import { readDb, withDb, listPatientsSnapshot, findPatientByIdSnapshot, listAppointmentsByPatientId } from "../db.js";
+import { pool, readDb, withDb, listPatientsSnapshot, findPatientByIdSnapshot, listAppointmentsByPatientId } from "../db.js";
 import {
   validate,
   PatientCreateSchema,
@@ -111,7 +111,62 @@ function filterCnsResponsavel(patient, user) {
   return rest;
 }
 
+// Grupo F — NIS: roles autorizados a receber o NIS nas respostas da API
+// gestor e receptionist NÃO recebem NIS (dado pessoal sem relação com acesso clínico)
+const NIS_AUTHORIZED_ROLES = new Set(["acs", "doctor", "nurse_manager", "dentist", "nursing_tech", "admin"]);
+
+function filterNis(patient, user) {
+  if (!patient) return patient;
+  const role = canonicalRole(user?.role);
+  if (NIS_AUTHORIZED_ROLES.has(role)) return patient;
+  const { nis: _removed, ...rest } = patient;
+  return rest;
+}
+
 const router = express.Router();
+
+// CID-10: busca por código ou texto — rota declarada ANTES das rotas parametrizadas /:id
+// Autenticação garantida pelo requireAuth global em app.js (linha 58, antes do patientsRouter)
+router.get("/cid10/search", async (req, res) => {
+  const q = String(req.query.q || "").trim();
+  if (!q) return res.status(400).json({ error: "Parâmetro q obrigatório" });
+
+  const rawLimit = parseInt(req.query.limit, 10);
+  const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 50) : 20;
+
+  // Modo arquivo (dev/test): pool não existe
+  if (!pool) {
+    return res.json({ results: [], total: 0 });
+  }
+
+  try {
+    let result;
+    // Detecta se q parece ser um código CID (letra seguida de dígito)
+    if (/^[A-Za-z]\d/i.test(q)) {
+      result = await pool.query(
+        `SELECT code, description, chapter, is_billable
+           FROM cid10
+          WHERE code ILIKE $1 AND active = true
+          ORDER BY code
+          LIMIT $2`,
+        [q.toUpperCase() + "%", limit]
+      );
+    } else {
+      result = await pool.query(
+        `SELECT code, description, chapter, is_billable
+           FROM cid10
+          WHERE to_tsvector('portuguese', description) @@ plainto_tsquery('portuguese', $1)
+            AND active = true
+          ORDER BY ts_rank(to_tsvector('portuguese', description), plainto_tsquery('portuguese', $1)) DESC
+          LIMIT $2`,
+        [q, limit]
+      );
+    }
+    return res.json({ results: result.rows, total: result.rows.length });
+  } catch (err) {
+    return res.status(500).json({ error: "Erro ao buscar CID-10" });
+  }
+});
 
 // F7-01: SHA-256 hash for SENSITIVE identifiers in audit snapshots — value never stored in clear
 function sha256Hex(val) {
@@ -214,7 +269,7 @@ router.get("/patients", sensitiveDataRateLimit, async (req, res) => {
       }
     });
   });
-  res.json(patients.map((p) => filterGestorSpecialCategory(filterCnsResponsavel(maskSensitivePatientFields(p), req.user), req.user)));
+  res.json(patients.map((p) => filterNis(filterGestorSpecialCategory(filterCnsResponsavel(maskSensitivePatientFields(p), req.user), req.user), req.user)));
 });
 
 router.get("/patients/protocol-summaries", async (req, res) => {
@@ -373,6 +428,8 @@ router.post("/patients", requireManagerOrDoctor, validate(PatientCreateSchema), 
     responsavelFamiliar: payload.responsavelFamiliar ? String(payload.responsavelFamiliar).trim() : "",
     // F2-05: cnsResponsavel persisted as top-level field; AES-256-GCM applied by SENSITIVE_PATIENT_FIELDS in db.js
     cnsResponsavel: payload.cnsResponsavel ? String(payload.cnsResponsavel).trim() : "",
+    // Grupo F — NIS; AES-256-GCM via SENSITIVE_PATIENT_FIELDS (db.js); dado pessoal comum
+    nis: payload.nis ? String(payload.nis).trim() : "",
     responsible: payload.responsible && typeof payload.responsible === "object" ? {
       name: payload.responsible.name ? String(payload.responsible.name).trim() : "",
       cpf: payload.responsible.cpf ? String(payload.responsible.cpf).trim() : "",
@@ -428,7 +485,7 @@ router.post("/patients", requireManagerOrDoctor, validate(PatientCreateSchema), 
     throw err;
   }
 
-  return res.status(201).json(filterCnsResponsavel(patient, req.user));
+  return res.status(201).json(filterNis(filterCnsResponsavel(patient, req.user), req.user));
 });
 
 router.put("/patients/:id", validate(PatientUpdateSchema), async (req, res) => {
@@ -631,7 +688,7 @@ router.put("/patients/:id", validate(PatientUpdateSchema), async (req, res) => {
     return res.status(403).json({ error: "Sem permissão para editar paciente" });
   }
 
-  return res.json(filterCnsResponsavel(updated, req.user));
+  return res.json(filterNis(filterCnsResponsavel(updated, req.user), req.user));
 });
 
 router.delete("/patients/:id", requireManagerOrDoctor, validate(CriticalActionReasonSchema), async (req, res) => {
@@ -959,6 +1016,28 @@ router.post("/patients/:id/records", async (req, res) => {
     return res.status(400).json({ error: integrityCheck.error });
   }
 
+  // CID-10: validação de existência na tabela cid10 (somente em modo Postgres)
+  if (pool) {
+    if (payload.cidPrincipal) {
+      const cidPrincipalResult = await pool.query(
+        "SELECT code FROM cid10 WHERE code = $1 AND active = true",
+        [payload.cidPrincipal]
+      );
+      if (cidPrincipalResult.rowCount === 0) {
+        return res.status(400).json({ error: "CID principal não encontrado: " + payload.cidPrincipal });
+      }
+    }
+    if (Array.isArray(payload.cidSecundarios) && payload.cidSecundarios.length > 0) {
+      const cidSecResult = await pool.query(
+        "SELECT code FROM cid10 WHERE code = ANY($1::text[]) AND active = true",
+        [payload.cidSecundarios]
+      );
+      if (cidSecResult.rowCount < payload.cidSecundarios.length) {
+        return res.status(400).json({ error: "CID secundário inválido" });
+      }
+    }
+  }
+
   const incomingMetadata = payload.metadata && typeof payload.metadata === "object" ? payload.metadata : {};
   const consultationSpecialty = typeStr === "consultation"
     ? detectConsultationSpecialtyFromTitle(payload.title)
@@ -1014,6 +1093,11 @@ router.post("/patients/:id/records", async (req, res) => {
     municipalityId: String(lookup.patient.municipalityId || ""),
     isCrossTeam,
     ...(isCrossTeam ? { crossTeamJustification: String(payload.crossTeamJustification || "").trim() } : {}),
+    // CID-10 — persistidos no record dentro de app_state; campos opcionais
+    ...(payload.cidPrincipal ? { cidPrincipal: payload.cidPrincipal } : {}),
+    ...(Array.isArray(payload.cidSecundarios) && payload.cidSecundarios.length > 0
+      ? { cidSecundarios: payload.cidSecundarios }
+      : {}),
     createdBy: req.user.id,
     createdAt: new Date().toISOString()
   };
