@@ -425,7 +425,7 @@ async function syncShadowTables(client, state) {
       unit?.updatedAt || unit?.createdAt || null,
       JSON.stringify(unit || {}),
       String(unit?.municipalityId || ""),
-      normalizeUnitCnes(unit?.cnes)
+      normalizeUnitCnes(unit?.cnes) ?? ''
     ]);
     const unitColsFull = ["id","name","inactive","created_at","updated_at","payload","municipality_id","cnes"];
     const unitColsNoCnes = ["id","name","inactive","created_at","updated_at","payload","municipality_id"];
