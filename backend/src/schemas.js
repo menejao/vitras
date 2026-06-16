@@ -473,7 +473,9 @@ const RecordCreateSchema = z.object({
   crossTeamJustification: z.string().trim().min(20).max(500).optional(),
   // CID-10 — campos opcionais; validação de existência feita na rota (tabela cid10)
   cidPrincipal: z.string().trim().toUpperCase().regex(/^[A-Z]\d{2,4}(\.\d{1,4})?$/, "CID inválido").optional(),
-  cidSecundarios: z.array(z.string().trim().toUpperCase().regex(/^[A-Z]\d{2,4}(\.\d{1,4})?$/, "CID inválido")).max(10).optional()
+  cidSecundarios: z.array(z.string().trim().toUpperCase().regex(/^[A-Z]\d{2,4}(\.\d{1,4})?$/, "CID inválido")).max(10).optional(),
+  // CIAP-2 — campo opcional; validação de existência feita na rota (tabela ciap2)
+  ciapPrincipal: z.string().trim().toUpperCase().regex(/^[A-Z]\d{2}$/, "CIAP-2 inválido").optional()
 }).strict();
 
 // F5-03: dedicated schema for type=visit — CDS Ficha de Visita Domiciliar

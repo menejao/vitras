@@ -168,6 +168,45 @@ router.get("/cid10/search", async (req, res) => {
   }
 });
 
+// CIAP-2: busca por código ou texto — rota declarada ANTES das rotas parametrizadas /:id
+router.get("/ciap2/search", async (req, res) => {
+  const q = String(req.query.q || "").trim();
+  if (!q) return res.status(400).json({ error: "Parâmetro q obrigatório" });
+
+  const rawLimit = parseInt(req.query.limit, 10);
+  const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 50) : 20;
+
+  if (!pool) {
+    return res.json({ results: [], total: 0 });
+  }
+
+  try {
+    let result;
+    if (/^[A-Za-z]\d{0,1}$/i.test(q)) {
+      result = await pool.query(
+        `SELECT code, description, chapter, chapter_name, component
+           FROM ciap2
+          WHERE code ILIKE $1
+          ORDER BY code
+          LIMIT $2`,
+        [q.toUpperCase() + "%", limit]
+      );
+    } else {
+      result = await pool.query(
+        `SELECT code, description, chapter, chapter_name, component
+           FROM ciap2
+          WHERE to_tsvector('portuguese', description) @@ plainto_tsquery('portuguese', $1)
+          ORDER BY ts_rank(to_tsvector('portuguese', description), plainto_tsquery('portuguese', $1)) DESC
+          LIMIT $2`,
+        [q, limit]
+      );
+    }
+    return res.json({ results: result.rows, total: result.rows.length });
+  } catch (err) {
+    return res.status(500).json({ error: "Erro ao buscar CIAP-2" });
+  }
+});
+
 // F7-01: SHA-256 hash for SENSITIVE identifiers in audit snapshots — value never stored in clear
 function sha256Hex(val) {
   if (!val) return "";
@@ -1036,6 +1075,16 @@ router.post("/patients/:id/records", async (req, res) => {
         return res.status(400).json({ error: "CID secundário inválido" });
       }
     }
+    // CIAP-2: validação de existência na tabela ciap2
+    if (payload.ciapPrincipal) {
+      const ciapResult = await pool.query(
+        "SELECT code FROM ciap2 WHERE code = $1",
+        [payload.ciapPrincipal]
+      );
+      if (ciapResult.rowCount === 0) {
+        return res.status(400).json({ error: "CIAP-2 não encontrado: " + payload.ciapPrincipal });
+      }
+    }
   }
 
   const incomingMetadata = payload.metadata && typeof payload.metadata === "object" ? payload.metadata : {};
@@ -1093,11 +1142,12 @@ router.post("/patients/:id/records", async (req, res) => {
     municipalityId: String(lookup.patient.municipalityId || ""),
     isCrossTeam,
     ...(isCrossTeam ? { crossTeamJustification: String(payload.crossTeamJustification || "").trim() } : {}),
-    // CID-10 — persistidos no record dentro de app_state; campos opcionais
+    // CID-10 + CIAP-2 — persistidos no record dentro de app_state; campos opcionais
     ...(payload.cidPrincipal ? { cidPrincipal: payload.cidPrincipal } : {}),
     ...(Array.isArray(payload.cidSecundarios) && payload.cidSecundarios.length > 0
       ? { cidSecundarios: payload.cidSecundarios }
       : {}),
+    ...(payload.ciapPrincipal ? { ciapPrincipal: payload.ciapPrincipal } : {}),
     createdBy: req.user.id,
     createdAt: new Date().toISOString()
   };
