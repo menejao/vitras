@@ -172,8 +172,8 @@ const PatientBaseShape = {
   electricity: optionalShortString(100),
   // F1-06: educationLevel is the frontend alias for canonical escolaridade
   educationLevel: optionalShortString(100),
-  // F1-06: escolaridade is the canonical e-SUS field; string-free in Sprint 5A, enum in Sprint 5B
-  escolaridade: optionalShortString(100),
+  // C15: escolaridade — CDS enum Seção 15.2 (Sprint 6A)
+  escolaridade: optionalEnumField("SEM_ESCOLARIDADE", "FUNDAMENTAL_INCOMPLETO", "FUNDAMENTAL_COMPLETO", "MEDIO_INCOMPLETO", "MEDIO_COMPLETO", "SUPERIOR_INCOMPLETO", "SUPERIOR_COMPLETO", "ESPECIALIZACAO", "MESTRADO", "DOUTORADO", "NAO_INFORMADO"),
   // F1-01: occupation, familySituation, familySupport were in silent data loss
   occupation: optionalShortString(200),
   familySituation: optionalShortString(200),
@@ -189,10 +189,13 @@ const PatientBaseShape = {
   racaCor: racaCorField(),
   // F2-01: new e-SUS demographic fields
   etnia: optionalShortString(100),
-  nacionalidade: optionalShortString(100),
+  // C17: nacionalidade — CDS enum Seção 15.20 (Sprint 6A)
+  nacionalidade: optionalEnumField("BRASILEIRA", "NATURALIZADA", "ESTRANGEIRA"),
   municipioNascimentoIbge: optionalShortString(7),
-  situacaoMercadoTrabalho: optionalShortString(100),
-  rendaFamiliar: optionalShortString(100),
+  // C16: situacaoMercadoTrabalho — CDS enum Seção 15.3 (Sprint 6A)
+  situacaoMercadoTrabalho: optionalEnumField("EMPREGADO_COM_CARTEIRA", "EMPREGADO_SEM_CARTEIRA", "AUTONOMO", "APOSENTADO_PENSIONISTA", "DESEMPREGADO", "NAO_TRABALHA", "NAO_SE_APLICA", "OUTRO"),
+  // C17: rendaFamiliar — CDS enum Seção 15.21 (Sprint 6A)
+  rendaFamiliar: optionalEnumField("ATE_0_5_SM", "ENTRE_0_5_E_1_SM", "ENTRE_1_E_2_SM", "ENTRE_2_E_3_SM", "ENTRE_3_E_4_SM", "ACIMA_4_SM", "SEM_RENDA"),
   responsavelFamiliar: optionalShortString(300),
   // F2-05: cnsResponsavel — CNS do responsável familiar; AES-256-GCM via SENSITIVE_PATIENT_FIELDS (db.js)
   cnsResponsavel: optionalShortString(30),
@@ -303,14 +306,18 @@ const PatientUpdateSchema = z.object({
   racaCor: racaCorField(),
   // F2-01: new e-SUS demographic fields
   etnia: optionalShortString(100),
-  nacionalidade: optionalShortString(100),
+  // C17: nacionalidade — CDS enum Seção 15.20 (Sprint 6A)
+  nacionalidade: optionalEnumField("BRASILEIRA", "NATURALIZADA", "ESTRANGEIRA"),
   municipioNascimentoIbge: optionalShortString(7),
-  situacaoMercadoTrabalho: optionalShortString(100),
-  rendaFamiliar: optionalShortString(100),
+  // C16: situacaoMercadoTrabalho — CDS enum Seção 15.3 (Sprint 6A)
+  situacaoMercadoTrabalho: optionalEnumField("EMPREGADO_COM_CARTEIRA", "EMPREGADO_SEM_CARTEIRA", "AUTONOMO", "APOSENTADO_PENSIONISTA", "DESEMPREGADO", "NAO_TRABALHA", "NAO_SE_APLICA", "OUTRO"),
+  // C17: rendaFamiliar — CDS enum Seção 15.21 (Sprint 6A)
+  rendaFamiliar: optionalEnumField("ATE_0_5_SM", "ENTRE_0_5_E_1_SM", "ENTRE_1_E_2_SM", "ENTRE_2_E_3_SM", "ENTRE_3_E_4_SM", "ACIMA_4_SM", "SEM_RENDA"),
   responsavelFamiliar: optionalShortString(300),
   // F1-06: alias fields
   educationLevel: optionalShortString(100),
-  escolaridade: optionalShortString(100),
+  // C15: escolaridade — CDS enum Seção 15.2 (Sprint 6A)
+  escolaridade: optionalEnumField("SEM_ESCOLARIDADE", "FUNDAMENTAL_INCOMPLETO", "FUNDAMENTAL_COMPLETO", "MEDIO_INCOMPLETO", "MEDIO_COMPLETO", "SUPERIOR_INCOMPLETO", "SUPERIOR_COMPLETO", "ESPECIALIZACAO", "MESTRADO", "DOUTORADO", "NAO_INFORMADO"),
   occupation: optionalShortString(200),
   familySituation: optionalShortString(200),
   familySupport: optionalShortString(500),
