@@ -25,7 +25,15 @@
 - [ ] Processo de incidente acordado.
 - [ ] Backup semanal definido.
 
-## E. Homologacao final
+## E. Integracao e-SUS (CDS Export)
+- [ ] Confirmar versao PEC instalada na UBS: Menu Sobre >= 5.4.36.
+- [ ] Registrar versao PEC no doc de onboarding da unidade.
+- [ ] Apenas apos confirmacao PEC >= 5.4.36: atribuir capability `cds.export` ao gestor.
+- [ ] Testar GET /export/cds/individual/:id com usuario gestor.
+- [ ] Confirmar download .esus com Content-Type application/zip.
+- [ ] Se PEC < 5.4.36: NÃO ativar CDS Export — documentar como bloqueador e escalar atualizacao PEC.
+
+## F. Homologacao final
 - [ ] Login e refresh sem cair sessao.
 - [ ] Navegacao sem precisar F5.
 - [ ] Mobile usavel em telas principais.

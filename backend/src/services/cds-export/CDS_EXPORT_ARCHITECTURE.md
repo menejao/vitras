@@ -169,7 +169,6 @@ Excluídos: `visit`, `note`, `prescription`, `referral`, `exam_request`, `vaccin
 | # | Limitação | Impacto | Resolução |
 |---|-----------|---------|-----------|
 | L-01 | `ciapSecundarios` não exportado em C04C | Apenas CIAP principal vai em ProblemaCondicaoThrift[0] | Implementar quando schema suportar array de CIAP |
-| L-02 | `double writeFieldStop()` em writeStruct pattern | PEC tolera atualmente; risco com PEC strict | Refatorar sem alterar comportamento (próxima sprint) |
 | L-03 | ibgeMunicipio hardcode fallback "3534401" | Correto para staging; produção requer municipalityId configurado | OK para staging |
 | L-04 | CIAP-2 validado apenas por formato regex | Não valida existência na tabela ciap2 | Aceitável — schema Zod já valida na criação |
 | L-05 | `TIPO_ATENDIMENTO_MAP` não usado em resolveTipoAtendimento() | Dead code | Remover ou usar na próxima sprint |
@@ -195,6 +194,37 @@ Excluídos: `visit`, `note`, `prescription`, `referral`, `exam_request`, `vaccin
 - `uuid` (já no package.json) — para fichaUuid/originUuid
 - Thrift: pure Node.js BinaryWriter (sem lib thrift)
 - ZIP: pure Node.js esus-packer.js (sem lib zip)
+
+---
+
+## Compatibilidade de Versão
+
+### Política Oficial
+
+O módulo CDS Export do VITRAS é homologado exclusivamente para:
+
+| Requisito | Versão mínima |
+|-----------|--------------|
+| PEC e-SUS APS | **5.4.36 ou superior** |
+| LEDI APS | **7.4.x** |
+
+**A atualização do PEC é pré-requisito obrigatório para ativação da exportação CDS.**
+
+Versões anteriores do PEC (incluindo a linha 4.x.x e LEDI 4.3.2) **não são suportadas**.
+
+### Justificativa
+
+Manutenção de múltiplas versões LEDI aumenta complexidade de QA, risco de regressão e dívida técnica. O requisito PEC ≥ 5.4.36 é verificado durante onboarding de cada UBS antes de ativar a capability `cds.export`.
+
+### Verificação em Campo
+
+Antes de ativar `cds.export` para uma UBS:
+
+```
+1. Confirmar versão PEC instalada: Menu Sobre → versão ≥ 5.4.36
+2. Registrar versão no onboarding doc da UBS
+3. Só então atribuir capability cds.export ao gestor da unidade
+```
 
 ---
 

@@ -150,6 +150,7 @@ Para garantir o sucesso da implantação, o cliente deve assegurar:
 | Dados cadastrais organizados | Lista de pacientes, profissionais e unidades em formato padronizado |
 | Infraestrutura de acesso | Dispositivos (computadores, tablets) para os usuários finais |
 | Comprometimento da liderança | Apoio ativo do Secretário de Saúde ao processo de mudança |
+| **PEC e-SUS APS ≥ 5.4.36** | **Pré-requisito obrigatório para ativação do módulo CDS Export. Verificar versão antes do go-live (Menu Sobre no PEC). Atualização do PEC é responsabilidade do cliente/gestor municipal.** |
 
 ---
 
