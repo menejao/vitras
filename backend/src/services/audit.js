@@ -14,7 +14,7 @@ const MAX_AUDIT_LOGS = Number(process.env.AUDIT_LOG_MAX_ENTRIES) || 10000;
 // Real values NEVER stored in before/after. Applied before hash computation so the
 // hash covers the redacted version — the plaintext is not stored anywhere in the chain.
 // situacaoRua and deficiencia added Sprint 5B Grupo A (LGPD Art. 11 — social vulnerability + health data)
-const SPECIAL_CATEGORY_FIELDS = ["genderIdentity", "racaCor", "etnia", "situacaoRua", "deficiencia", "hivGestante", "sifilis"];
+const SPECIAL_CATEGORY_FIELDS = ["genderIdentity", "racaCor", "etnia", "situacaoRua", "deficiencia", "hivGestante", "sifilis", "cidPrincipal", "cidSecundarios", "ciapPrincipal"];
 const SPECIAL_CATEGORY_REDACT = "[REDACTED-SPECIAL-CATEGORY]";
 
 function redactSpecialCategory(obj) {

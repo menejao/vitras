@@ -157,6 +157,67 @@ export const MOTIVO_SAIDA_MAP = {
   EXCLUSAO: 602n,
 };
 
+// ──────────────────────────────────────────────────────────────────────────────
+// C04C-G3: tipoAtendimento (AtendimentoIndividualTransport, required, i64)
+// Source: LEDI APS 7.4.0 — tabela tipoDeAtendimentoCds
+// VITRAS record.type + queueEntry.demandType → LEDI Long
+// ──────────────────────────────────────────────────────────────────────────────
+export const TIPO_ATENDIMENTO_MAP = {
+  // record.type → base type (may be refined by demandType)
+  consultation_scheduled: 1n,    // consulta agendada
+  consultation_spontaneous: 2n,  // consulta não agendada / demanda espontânea
+  consultation_urgent: 3n,       // atendimento de urgência
+  nursing_scheduled: 1n,
+  nursing_spontaneous: 2n,
+  nursing_urgent: 3n,
+  procedure: 4n,                 // escuta inicial / orientação
+  // visit type = Visita Domiciliar ACS — NOT exported as AtendimentoIndividual (CLAUDE.md)
+  // note, evolution, prescription, referral, exam_request, vaccine, attendance_attest, medical_attest
+  // = sem equivalente direto em AtendimentoIndividual; excluídos da exportação
+};
+
+// turno (AtendimentoIndividualTransport, required, i64)
+export const TURNO_MAP = {
+  MANHA: 1n,
+  TARDE: 2n,
+  NOITE: 3n,
+};
+
+// localDeAtendimento (AtendimentoIndividualTransport, required, i64)
+export const LOCAL_ATENDIMENTO_MAP = {
+  UBS: 1n,
+  DOMICILIO: 4n,
+  ESCOLA: 5n,
+  OUTRO: 6n,
+};
+
+// turno default quando não informado (TARDE = horário comercial padrão)
+export const TURNO_DEFAULT = 2n;
+
+// localDeAtendimento default quando não informado
+export const LOCAL_ATENDIMENTO_DEFAULT = 1n; // UBS
+
+/**
+ * Resolve tipoAtendimento LEDI Long from VITRAS record fields.
+ * @param {string} recordType — record.type
+ * @param {string|null} demandType — queueEntry.demandType ("scheduled"|"spontaneous") or null
+ * @param {string|null} priority — queueEntry.priority ("urgent"|...) or null
+ * @returns {BigInt} LEDI tipoAtendimento i64 value
+ */
+export function resolveTipoAtendimento(recordType, demandType, priority) {
+  if (priority === "urgent") return 3n;
+  if (recordType === "procedure") return 4n;
+
+  const baseType = String(recordType || "").toLowerCase();
+  const demand = String(demandType || "scheduled").toLowerCase();
+
+  if (baseType === "consultation" || baseType === "nursing") {
+    return demand === "spontaneous" ? 2n : 1n;
+  }
+  // Default: consulta agendada
+  return 1n;
+}
+
 /** Safe lookup — returns null if key missing or empty string. */
 export function mapEnum(map, value) {
   if (!value) return null;

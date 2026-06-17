@@ -1152,6 +1152,10 @@ router.post("/patients/:id/records", async (req, res) => {
       ? { cidSecundarios: payload.cidSecundarios }
       : {}),
     ...(payload.ciapPrincipal ? { ciapPrincipal: payload.ciapPrincipal } : {}),
+    // C04C-G1: turno do atendimento (LEDI APS 7.4.0)
+    ...(payload.turno ? { turno: payload.turno } : {}),
+    // C04C-G2: local de atendimento (LEDI APS 7.4.0)
+    ...(payload.localDeAtendimento ? { localDeAtendimento: payload.localDeAtendimento } : {}),
     createdBy: req.user.id,
     createdAt: new Date().toISOString()
   };

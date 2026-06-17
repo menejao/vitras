@@ -501,7 +501,11 @@ const RecordCreateSchema = z.object({
   cidPrincipal: z.string().trim().toUpperCase().regex(/^[A-Z]\d{2,4}(\.\d{1,4})?$/, "CID inválido").optional(),
   cidSecundarios: z.array(z.string().trim().toUpperCase().regex(/^[A-Z]\d{2,4}(\.\d{1,4})?$/, "CID inválido")).max(10).optional(),
   // CIAP-2 — campo opcional; validação de existência feita na rota (tabela ciap2)
-  ciapPrincipal: z.string().trim().toUpperCase().regex(/^[A-Z]\d{2}$/, "CIAP-2 inválido").optional()
+  ciapPrincipal: z.string().trim().toUpperCase().regex(/^[A-Z]\d{2}$/, "CIAP-2 inválido").optional(),
+  // C04C-G1: turno do atendimento (LEDI APS 7.4.0 — obrigatório em AtendimentoIndividual)
+  turno: z.enum(["MANHA", "TARDE", "NOITE"]).optional(),
+  // C04C-G2: local de atendimento (LEDI APS 7.4.0 — obrigatório em AtendimentoIndividual)
+  localDeAtendimento: z.enum(["UBS", "DOMICILIO", "OUTRO"]).optional()
 }).strict();
 
 // F5-03: dedicated schema for type=visit — CDS Ficha de Visita Domiciliar
