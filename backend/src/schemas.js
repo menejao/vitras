@@ -120,6 +120,10 @@ const PatientBaseShape = {
     "HANSENIASE", "TUBERCULOSE", "CANCER", "DOENCA_RENAL", "GESTANTE", "PUERICULTURA",
     "TABAGISMO", "ALCOOL_DROGAS", "DST", "VULNERABILIDADE_SOCIAL", "OUTRO"
   ])).max(17).optional(),
+  // C14: hivGestante — SPECIAL_CATEGORY LGPD Art. 11 (dado de saúde); Previne Brasil indicador estruturado
+  hivGestante: z.boolean().optional(),
+  // C14: sifilis — SPECIAL_CATEGORY LGPD Art. 11 (dado de saúde); substitui detecção por regex em chronicConditions
+  sifilis: z.boolean().optional(),
   birthDate: optionalDateString(),
   // F1-01: birthCity and birthState were in silent data loss
   birthCity: optionalShortString(100),
@@ -259,6 +263,10 @@ const PatientUpdateSchema = z.object({
     "HANSENIASE", "TUBERCULOSE", "CANCER", "DOENCA_RENAL", "GESTANTE", "PUERICULTURA",
     "TABAGISMO", "ALCOOL_DROGAS", "DST", "VULNERABILIDADE_SOCIAL", "OUTRO"
   ])).max(17).optional(),
+  // C14: hivGestante — SPECIAL_CATEGORY LGPD Art. 11 (dado de saúde); Previne Brasil indicador estruturado
+  hivGestante: z.boolean().optional(),
+  // C14: sifilis — SPECIAL_CATEGORY LGPD Art. 11 (dado de saúde); substitui detecção por regex em chronicConditions
+  sifilis: z.boolean().optional(),
   birthDate: optionalDateString(),
   // F1-01: birthCity and birthState added
   birthCity: optionalShortString(100),

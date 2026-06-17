@@ -95,8 +95,8 @@ function upsertHousehold(db, patientId, teamId, householdPayload, actor) {
 // F7-03: gestor role does not receive SPECIAL_CATEGORY fields (LGPD Art. 11 — not a clinical professional)
 function filterGestorSpecialCategory(patient, user) {
   if (canonicalRole(user?.role) !== "gestor") return patient;
-  // Sprint 5B Grupo A: situacaoRua + deficiencia added as SPECIAL_CATEGORY
-  const { racaCor: _rc, etnia: _et, genderIdentity: _gi, situacaoRua: _sr, deficiencia: _def, ...rest } = patient;
+  // Sprint 5B Grupo A: situacaoRua + deficiencia; C14: hivGestante + sifilis — all SPECIAL_CATEGORY LGPD Art. 11
+  const { racaCor: _rc, etnia: _et, genderIdentity: _gi, situacaoRua: _sr, deficiencia: _def, hivGestante: _hg, sifilis: _sif, ...rest } = patient;
   return rest;
 }
 
@@ -457,6 +457,9 @@ router.post("/patients", requireManagerOrDoctor, validate(PatientCreateSchema), 
     socialBenefit: payload.socialBenefit ? String(payload.socialBenefit).trim() : "",
     substanceDependency: payload.substanceDependency ? String(payload.substanceDependency).trim() : "",
     domesticViolence: payload.domesticViolence ? String(payload.domesticViolence).trim() : "",
+    // C14: hivGestante + sifilis — SPECIAL_CATEGORY LGPD Art. 11
+    hivGestante: payload.hivGestante === true,
+    sifilis: payload.sifilis === true,
     racaCor: payload.racaCor ? String(payload.racaCor).trim() : "",
     // F2-01: new e-SUS demographic fields
     etnia: payload.etnia ? String(payload.etnia).trim() : "",
