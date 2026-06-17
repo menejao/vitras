@@ -1,13 +1,13 @@
-// C04A: CDS Export endpoint — Cadastro Individual
+// C04A/C04B/C04C: CDS Export endpoints — Cadastro Individual + Cadastro Domiciliar + Atendimento Individual
 // Capability required: cds.export (gestor, break_glass_admin only)
-// Audit: cds.export.individual on every successful export
+// Audit: cds.export.{individual,domiciliar,atendimento} on every successful export
 import express from "express";
 import { requireAuth } from "../middlewares/auth.js";
 import { hasCapability } from "../utils/helpers.js";
 import { readDb } from "../db.js";
 import { ensureDbShape } from "../utils/domain.js";
 import { addAuditLog } from "../services/audit.js";
-import { exportCadastroIndividual, exportCadastroDomiciliar } from "../services/cds-export/index.js";
+import { exportCadastroIndividual, exportCadastroDomiciliar, exportAtendimentoIndividual } from "../services/cds-export/index.js";
 
 const router = express.Router();
 
@@ -188,6 +188,93 @@ router.get("/export/cds/domiciliar/:householdId", requireAuth, async (req, res) 
   res.setHeader("Content-Disposition", `attachment; filename="${result.filename}"`);
   res.setHeader("X-Ficha-UUID", result.fichaUuid);
   res.setHeader("X-Origin-UUID", result.originUuid);
+  if (warnings.length > 0) {
+    res.setHeader("X-CDS-Warnings", warnings.join("; "));
+  }
+
+  return res.send(result.buffer);
+});
+
+/**
+ * GET /export/cds/atendimento/:patientId/:recordId
+ *
+ * Returns a .esus file for a clinical record's Atendimento Individual.
+ * Only exports record types eligible for AtendimentoIndividual CDS:
+ *   consultation, nursing, procedure (excludes visit, note, prescription, etc.)
+ *
+ * Requires capability: cds.export
+ * Audit: cds.export.atendimento (recordId + patientId logged; CID/CIAP NOT in audit details)
+ */
+router.get("/export/cds/atendimento/:patientId/:recordId", requireAuth, async (req, res) => {
+  if (!hasCapability(req.user, "cds.export")) {
+    return res.status(403).json({ error: "Sem permissão para exportar dados CDS." });
+  }
+
+  const patientId = String(req.params.patientId || "").trim();
+  const recordId = String(req.params.recordId || "").trim();
+  if (!patientId || !recordId) {
+    return res.status(400).json({ error: "patientId e recordId obrigatórios" });
+  }
+
+  let db;
+  try {
+    db = await readDb();
+  } catch (err) {
+    return res.status(503).json({ error: "Banco de dados indisponível." });
+  }
+
+  ensureDbShape(db);
+
+  const patient = db.patients.find(p => p.id === patientId);
+  if (!patient) return res.status(404).json({ error: "Paciente não encontrado." });
+
+  const record = Array.isArray(patient.records)
+    ? patient.records.find(r => r.id === recordId)
+    : null;
+  if (!record) return res.status(404).json({ error: "Registro clínico não encontrado." });
+
+  // Only clinical encounter types map to AtendimentoIndividual CDS
+  const ELIGIBLE_TYPES = new Set(["consultation", "nursing", "procedure"]);
+  if (!ELIGIBLE_TYPES.has(record.type)) {
+    return res.status(422).json({
+      error: "Tipo de registro não elegível para exportação como Atendimento Individual.",
+      type: record.type,
+      eligible: [...ELIGIBLE_TYPES],
+    });
+  }
+
+  const professional = db.users.find(u => u.id === req.user.id) || req.user;
+  const unit = db.units?.find(u => u.id === (professional.unitId || req.user.unitId)) || null;
+  const teams = Array.isArray(db.teams) ? db.teams : [];
+  const team = teams.find(t => t.id === (professional.teamId || req.user.teamId)) || null;
+
+  const warnings = [];
+  if (!(professional.cnsProfissional || professional.cns)) warnings.push("cnsProfissional ausente no profissional exportador");
+  if (!professional.cboCodigo) warnings.push("cboCodigo ausente no profissional exportador");
+  if (!unit?.cnes) warnings.push("cnes ausente na unidade");
+
+  let result;
+  try {
+    result = exportAtendimentoIndividual(record, patient, professional, unit, team);
+  } catch (err) {
+    return res.status(500).json({ error: "Erro ao gerar arquivo CDS.", detail: err.message });
+  }
+
+  // Audit: CID/CIAP in SPECIAL_CATEGORY_FIELDS — NOT included in audit details
+  addAuditLog(db, buildCdsActor(req), "cds.export.atendimento", "patient", patientId, {
+    recordId,
+    patientId,
+    recordType: record.type,
+    recordDate: record.date,
+    fichaUuid: result.fichaUuid,
+    warnings: warnings.length > 0 ? warnings : undefined,
+    outcome: "success",
+    exportedBy: { id: req.user.id, name: req.user.name, role: req.user.role },
+  }).catch(() => {});
+
+  res.setHeader("Content-Type", "application/zip");
+  res.setHeader("Content-Disposition", `attachment; filename="${result.filename}"`);
+  res.setHeader("X-Ficha-UUID", result.fichaUuid);
   if (warnings.length > 0) {
     res.setHeader("X-CDS-Warnings", warnings.join("; "));
   }

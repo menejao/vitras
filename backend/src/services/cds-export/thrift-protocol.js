@@ -132,3 +132,17 @@ export function writeI64ListField(w, fieldId, values) {
   w.writeListBegin(T.I64, values.length);
   for (const v of values) w.writeI64(v);
 }
+
+/**
+ * Write List<STRUCT> field.
+ * writeItemFn(w, item) must write all struct fields + call w.writeFieldStop().
+ * Skips if null/empty.
+ */
+export function writeStructListField(w, fieldId, items, writeItemFn) {
+  if (!Array.isArray(items) || items.length === 0) return;
+  w.writeFieldBegin(T.LIST, fieldId);
+  w.writeListBegin(T.STRUCT, items.length);
+  for (const item of items) {
+    writeItemFn(w, item);
+  }
+}

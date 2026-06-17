@@ -1,16 +1,19 @@
-// C04A/C04B: CDS struct serializers for LEDI APS 7.4.0
+// C04A/C04B/C04C: CDS struct serializers for LEDI APS 7.4.0
 // Field IDs match LEDI v7.4.0 spec (integracao.esusaps.bridge.ufsc.tech/v740/)
+// Official Thrift IDL: github.com/laboratoriobridge/esusaps-integracao
 import {
   BinaryWriter, T,
   writeStruct, writeI32Field, writeI64Field,
-  writeStringField, writeBoolField, writeI64ListField
+  writeStringField, writeBoolField, writeI64ListField, writeStructListField
 } from "./thrift-protocol.js";
 import {
   RACA_COR_MAP, SEXO_MAP, ESCOLARIDADE_MAP, DEFICIENCIA_MAP,
   NACIONALIDADE_DEFAULT, SITUACAO_MORADIA_MAP, TIPO_IMOVEL_MAP,
   TIPO_ENDERECO_MAP, LOCALIZACAO_MAP, ABASTECIMENTO_AGUA_MAP,
   TRATAMENTO_AGUA_MAP, ESGOTAMENTO_MAP, DESTINO_LIXO_MAP,
-  MATERIAL_PAREDES_MAP, MOTIVO_SAIDA_MAP, mapEnum, mapEnumList
+  MATERIAL_PAREDES_MAP, MOTIVO_SAIDA_MAP, mapEnum, mapEnumList,
+  TURNO_MAP, TURNO_DEFAULT, LOCAL_ATENDIMENTO_MAP, LOCAL_ATENDIMENTO_DEFAULT,
+  resolveTipoAtendimento, mapCiap2ToLedi
 } from "./enum-maps.js";
 
 // ──────────────────────────────────────────────
@@ -290,6 +293,133 @@ export function buildCadastroDomiciliar({ household, patient, professional, unit
   }));
 
   w.writeFieldStop(); // root struct STOP
+
+  return { buffer: w.toBuffer(), uuid: fichaUuid };
+}
+
+// ──────────────────────────────────────────────
+// C04C: VariasLotacoesHeaderThrift
+// Source: github.com/laboratoriobridge/esusaps-integracao common.thrift
+// fields: 6=lotacaoFormPrincipal(STRUCT), 8=dataAtendimento(i64), 9=codigoIbgeMunicipio(string)
+// LotacaoHeaderThrift fields: 1=profissionalCNS, 2=cboCodigo_2002, 3=cnes, 4=ine
+// ──────────────────────────────────────────────
+function writeVariasLotacoesHeader(w, header) {
+  writeStruct(w, 6, (inner) => {
+    writeStringField(inner, 1, header.profissionalCNS);
+    writeStringField(inner, 2, header.cboCodigo_2002);
+    writeStringField(inner, 3, header.cnes);
+    if (header.ine) writeStringField(inner, 4, header.ine);
+    inner.writeFieldStop();
+  });
+  writeI64Field(w, 8, BigInt(header.dataAtendimento));
+  writeStringField(w, 9, header.codigoIbgeMunicipio);
+  w.writeFieldStop();
+}
+
+// ──────────────────────────────────────────────
+// C04C: ProblemaCondicaoThrift
+// Source: github.com/laboratoriobridge/esusaps-integracao common.thrift
+// fields: 4=ciap(string), 5=cid10(string), 6=situacao(i64), 9=isAvaliado(bool)
+// situacao: 1=ATIVO, 2=LATENTE, 4=RESOLVIDO
+// Used as list element — writeItemFn for writeStructListField; writes fields + STOP.
+// ──────────────────────────────────────────────
+function writeProblemaCondicao(w, problema) {
+  if (problema.ciap) writeStringField(w, 4, problema.ciap);
+  if (problema.cid10) writeStringField(w, 5, problema.cid10);
+  writeI64Field(w, 6, problema.situacao ?? 1n); // 1n = ATIVO
+  writeBoolField(w, 9, problema.isAvaliado ?? true);
+  w.writeFieldStop();
+}
+
+// Build ProblemaCondicaoThrift list from record's clinical codes.
+function buildProblemasCondicoes(record) {
+  const problemas = [];
+
+  const ciap = mapCiap2ToLedi(record.ciapPrincipal);
+  const cid = record.cidPrincipal ? String(record.cidPrincipal).trim().toUpperCase() : null;
+
+  if (ciap || cid) {
+    problemas.push({ ciap, cid10: cid, situacao: 1n, isAvaliado: true });
+  }
+
+  if (Array.isArray(record.cidSecundarios)) {
+    for (const c of record.cidSecundarios) {
+      const cid2 = c ? String(c).trim().toUpperCase() : null;
+      if (cid2) problemas.push({ ciap: null, cid10: cid2, situacao: 1n, isAvaliado: true });
+    }
+  }
+
+  return problemas;
+}
+
+// ──────────────────────────────────────────────
+// C04C: FichaAtendimentoIndividualChildThrift
+// Source: github.com/laboratoriobridge/esusaps-integracao ficha_atendimento_individual.thrift
+// Minimum fields exported per LEDI 7.4.0:
+//   2=cns, 3=dataNascimento, 4=localDeAtendimento, 5=sexo, 6=turno,
+//   7=tipoAtendimento, 30=cpfCidadao, 40=problemasCondicoes
+// ──────────────────────────────────────────────
+function writeAtendimentoIndividualChild(w, { record, patient }) {
+  if (patient.cns) writeStringField(w, 2, patient.cns);
+
+  if (patient.birthDate || patient.dataNascimento) {
+    writeI64Field(w, 3, BigInt(new Date(patient.birthDate || patient.dataNascimento).getTime()));
+  }
+
+  const localAtend = LOCAL_ATENDIMENTO_MAP[String(record.localDeAtendimento || "UBS").toUpperCase()] ?? LOCAL_ATENDIMENTO_DEFAULT;
+  writeI64Field(w, 4, localAtend);
+
+  const sexo = mapEnum(SEXO_MAP, patient.sex || patient.sexAtBirth);
+  if (sexo != null) writeI64Field(w, 5, sexo);
+
+  const turno = TURNO_MAP[String(record.turno || "TARDE").toUpperCase()] ?? TURNO_DEFAULT;
+  writeI64Field(w, 6, turno);
+
+  const tipoAtend = resolveTipoAtendimento(record.type, record.demandType, record.priority);
+  writeI64Field(w, 7, tipoAtend);
+
+  if (patient.cpf) writeStringField(w, 30, patient.cpf);
+
+  const problemas = buildProblemasCondicoes(record);
+  if (problemas.length > 0) {
+    writeStructListField(w, 40, problemas, writeProblemaCondicao);
+  }
+
+  w.writeFieldStop();
+}
+
+// ──────────────────────────────────────────────
+// C04C: FichaAtendimentoIndividualMasterThrift (root)
+// Source: github.com/laboratoriobridge/esusaps-integracao ficha_atendimento_individual.thrift
+// fields: 1=headerTransport(VariasLotacoesHeaderThrift), 2=atendimentosIndividuais(list<ChildThrift>),
+//         3=uuidFicha(string, required), 4=tpCdsOrigem(i32)
+// ──────────────────────────────────────────────
+export function buildAtendimentoIndividual({ record, patient, professional, unit, team, fichaUuid }) {
+  const w = new BinaryWriter();
+
+  const recordDate = record.date ? new Date(record.date).getTime() : Date.now();
+  const ibgeMunicipio = String(unit?.municipalityId || team?.municipalityId || "3534401").replace(/\D/g, "").substring(0, 7);
+
+  // 1: headerTransport (VariasLotacoesHeaderThrift)
+  writeStruct(w, 1, (inner) => writeVariasLotacoesHeader(inner, {
+    profissionalCNS: professional.cnsProfissional || professional.cns || "",
+    cboCodigo_2002: professional.cboCodigo || "",
+    cnes: unit?.cnes || "",
+    ine: team?.ine || undefined,
+    dataAtendimento: recordDate,
+    codigoIbgeMunicipio: ibgeMunicipio,
+  }));
+
+  // 2: atendimentosIndividuais (list<FichaAtendimentoIndividualChildThrift>)
+  writeStructListField(w, 2, [{ record, patient, professional, unit, team }], writeAtendimentoIndividualChild);
+
+  // 3: uuidFicha (required string)
+  writeStringField(w, 3, fichaUuid);
+
+  // 4: tpCdsOrigem = 3 (sistema terceiro)
+  writeI32Field(w, 4, 3);
+
+  w.writeFieldStop();
 
   return { buffer: w.toBuffer(), uuid: fichaUuid };
 }
