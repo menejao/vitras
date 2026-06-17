@@ -20,7 +20,10 @@ function PatientDetailsPanel({ patient, users, templates, catLabel, displayText,
         </div>
       </div>
 
-      <Input className="field-span-2" label="Nome completo" value={displayText(patient.name)} disabled />
+      {patient.nomeSocial && (
+        <Input className="field-span-2" label="Nome social / Nome preferido" value={displayText(patient.nomeSocial)} disabled />
+      )}
+      <Input className="field-span-2" label="Nome civil" value={displayText(patient.name)} disabled />
       {isChildCategory(patient.careCategory) ? (
         <Input className="field-span-2" label="Nome do responsável" value={displayText(patient.guardianName || patient.motherName)} disabled />
       ) : null}

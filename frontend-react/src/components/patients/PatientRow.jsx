@@ -52,12 +52,9 @@ export default function PatientRow({
         <div className="pat-row-patient">
           <div className="pat-row-avatar">{String(patient.nomeSocial || patient.name || "?").trim().slice(0, 1).toUpperCase()}</div>
           <div className="pat-row-copy">
-            <div className="pat-row-name" title={patient.nomeSocial || patient.name}>
+            <div className="pat-row-name">
               {patient.nomeSocial || patient.name}
             </div>
-            {patient.nomeSocial && (
-              <div className="pat-row-civil-name">{patient.name}</div>
-            )}
             <div className="pat-row-meta">
               <span>{patient.phone || "Sem telefone"}</span>
               <span>•</span>

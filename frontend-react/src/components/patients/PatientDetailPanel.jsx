@@ -1554,9 +1554,6 @@ export default function PatientDetailPanel({
               <span className="panel-patient-incomplete">Incompleto</span>
             ) : null}
           </div>
-          {patient.nomeSocial && (
-            <div className="panel-patient-civil-name">{patient.name}</div>
-          )}
           <div className="panel-patient-meta">
             <span>{catLabel(templates, patient.careCategory)}</span>
             <span>·</span>
