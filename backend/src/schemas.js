@@ -212,7 +212,18 @@ const PatientBaseShape = {
   }).optional()
 };
 
-const PatientCreateSchema = z.object(PatientBaseShape);
+// C13: CPF ou CNS obrigatório em criação (Portaria 940/2011 — identificação do cidadão no SUS)
+const PatientCreateSchema = z.object(PatientBaseShape).superRefine((data, ctx) => {
+  const hasCpf = typeof data.cpf === "string" && data.cpf.trim().length > 0;
+  const hasCns = typeof data.cns === "string" && data.cns.trim().length > 0;
+  if (!hasCpf && !hasCns) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "CPF ou CNS é obrigatório para cadastrar um paciente",
+      path: ["cpf"],
+    });
+  }
+});
 // D-02: .strict() rejects unknown keys to prevent mass-assignment of internal fields.
 // IMPORTANT: fields teamId, unitId, hash, createdAt, updatedAt, createdBy, municipalityId
 // are intentionally EXCLUDED — they are internal and must never be set by the client via PATCH.
