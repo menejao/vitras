@@ -181,6 +181,10 @@ export default function PatientModal({
                 <Input value={form.name} onChange={upd("name")} placeholder="Nome completo do paciente" {...lockProps(readOnly)} />
               </Field>
 
+              <Field label="Nome social / Nome preferido" span={2}>
+                <Input value={form.nomeSocial || ""} onChange={upd("nomeSocial")} placeholder="Como a pessoa prefere ser chamada" {...lockProps(readOnly)} />
+              </Field>
+
               <div className="field field--span-2">
                 <span className="field__label">Nome da mãe</span>
                 <div className="patient-modal__inline">

@@ -1545,15 +1545,18 @@ export default function PatientDetailPanel({
   return (
     <>
       <div className="panel-patient-header">
-        <div className="panel-patient-avatar">{initials(patient.name)}</div>
+        <div className="panel-patient-avatar">{initials(patient.nomeSocial || patient.name)}</div>
         <div className="panel-patient-info">
           <div className="panel-patient-name">
-            <span className="panel-patient-name__text">{patient.name}</span>
+            <span className="panel-patient-name__text">{patient.nomeSocial || patient.name}</span>
             {age ? <span className="panel-patient-age">{age}</span> : null}
             {isProfileIncomplete(patient) ? (
               <span className="panel-patient-incomplete">Incompleto</span>
             ) : null}
           </div>
+          {patient.nomeSocial && (
+            <div className="panel-patient-civil-name">{patient.name}</div>
+          )}
           <div className="panel-patient-meta">
             <span>{catLabel(templates, patient.careCategory)}</span>
             <span>·</span>

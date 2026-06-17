@@ -79,7 +79,7 @@ export default function PatientsPage(props) {
       if (query.trim()) {
         const acsName = (users || []).find((u) => u.id === p.assignedAcsId)?.name || "";
         const cat = catLabel(templates || [], p.careCategory);
-        const hay = normalizeSearch(`${p.name || ""} ${p.phone || ""} ${acsName} ${cat}`);
+        const hay = normalizeSearch(`${p.name || ""} ${p.nomeSocial || ""} ${p.phone || ""} ${acsName} ${cat}`);
         if (!hay.includes(normalizeSearch(query))) return false;
       }
       if (categoryFilter && normalizePatientCategory(p.careCategory) !== normalizePatientCategory(categoryFilter)) return false;

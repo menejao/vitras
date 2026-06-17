@@ -98,7 +98,7 @@ export function isChildCategory(category) {
 
 export function emptyPatientForm() {
   return {
-    name: "", motherName: "", motherUnknown: false,
+    name: "", nomeSocial: "", motherName: "", motherUnknown: false,
     guardianName: "",
     cpf: "", cns: "",
     birthDate: "", birthCity: "", birthState: "",

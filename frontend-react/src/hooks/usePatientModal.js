@@ -7,6 +7,7 @@ function buildPatientFormState(p) {
   if (!p) return emptyPatientForm();
   return {
     name: String(p?.name || ""),
+    nomeSocial: String(p?.nomeSocial || ""),
     motherName: String(p?.motherName || ""),
     motherUnknown: p?.motherUnknown || false,
     guardianName: String(p?.guardianName || ""),
@@ -20,15 +21,18 @@ function buildPatientFormState(p) {
     careCategory: String(p?.careCategory || "general"),
     chronicConditions: Array.isArray(p?.chronicConditions) ? p.chronicConditions : [],
     assignedAcsId: String(p?.assignedAcsId || ""),
-    zipCode: String(p?.zipCode || ""),
-    address: String(p?.address || ""),
-    number: String(p?.number || ""),
-    complement: String(p?.complement || ""),
-    neighborhood: String(p?.neighborhood || ""),
-    city: String(p?.city || ""),
-    state: String(p?.state || ""),
-    sex: String(p?.sex || ""),
-    raceColor: String(p?.raceColor || ""),
+    // F1-07/F1-08: read canonical e-SUS names first, fall back to legacy aliases
+    zipCode: String(p?.cep || p?.zipCode || ""),
+    address: String(p?.address || p?.addressLegacy || ""),
+    number: String(p?.numero || p?.number || ""),
+    complement: String(p?.complemento || p?.complement || ""),
+    neighborhood: String(p?.bairro || p?.neighborhood || ""),
+    city: String(p?.municipioIbge || p?.city || ""),
+    state: String(p?.uf || p?.state || ""),
+    // F1-04: read sexAtBirth from patient object (canonical field name); fallback to legacy sex
+    sex: String(p?.sexAtBirth || p?.sex || ""),
+    // F1-05: read racaCor (canonical) first, fall back to raceColor alias
+    raceColor: String(p?.racaCor || p?.raceColor || ""),
     maritalStatus: String(p?.maritalStatus || ""),
     allergies: String(p?.allergies || ""),
     comorbidities: String(p?.comorbidities || ""),
@@ -50,7 +54,8 @@ function buildPatientFormState(p) {
     usgDate1: String(p?.usgDate1 || ""),
     usgDate2: String(p?.usgDate2 || ""),
     usgDate3: String(p?.usgDate3 || ""),
-    educationLevel: String(p?.educationLevel || ""),
+    // F1-06: read escolaridade (canonical) first, fall back to educationLevel alias
+    educationLevel: String(p?.escolaridade || p?.educationLevel || ""),
     occupation: String(p?.occupation || ""),
     familySituation: String(p?.familySituation || ""),
     familySupport: String(p?.familySupport || ""),
@@ -117,6 +122,7 @@ export function usePatientModal({
     try {
       const payload = {
         name: form.name.trim(),
+        nomeSocial: (form.nomeSocial || "").trim(),
         motherName: form.motherUnknown ? "Desconhecida" : form.motherName.trim(),
         motherUnknown: form.motherUnknown || false,
         guardianName: (form.guardianName || "").trim(),
@@ -129,7 +135,10 @@ export function usePatientModal({
         zipCode: form.zipCode.trim(), address: form.address.trim(), number: form.number.trim(),
         complement: form.complement.trim(), neighborhood: form.neighborhood.trim(),
         city: form.city.trim(), state: form.state.trim().toUpperCase(),
-        sex: form.sex.trim(), raceColor: form.raceColor || "", maritalStatus: form.maritalStatus.trim(),
+        // F1-03: send sexAtBirth (canonical) instead of sex (was being silently discarded by .strict())
+        sexAtBirth: form.sex.trim(),
+        // F1-05: send raceColor (frontend alias); backend schema accepts it; canonical racaCor persisted by handler
+        raceColor: form.raceColor || "", maritalStatus: form.maritalStatus.trim(),
         allergies: form.allergies.trim(), comorbidities: form.comorbidities.trim(), medications: form.medications.trim(),
         microArea: (form.microArea || "").trim(), familyCode: (form.familyCode || "").trim(),
         homeVisitFreq: (form.homeVisitFreq || "").trim(), housingType: form.housingType || "",
