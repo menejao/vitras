@@ -218,6 +218,35 @@ export function resolveTipoAtendimento(recordType, demandType, priority) {
   return 1n;
 }
 
+// ──────────────────────────────────────────────────────────────────────────────
+// C04C-G4: CIAP-2 → LEDI Long (i64)
+// Source: provisional — row_number() OVER (ORDER BY code) from seeded ciap2 table
+// (681 codes, seeded from DATASUS/e-SUS APS dataset)
+// TODO: validate all 681 values against official LEDI APS 7.4.0 TP_CiapCds enum
+//       before C04C export goes to production. Replace with official LEDI IDs.
+// ──────────────────────────────────────────────────────────────────────────────
+export const CIAP2_LEDI_MAP = {
+  // Smoke codes (row positions in seeded ciap2 table — provisional, see TODO above)
+  A01: 1n,    // Dor/queixa geral
+  K86: 225n,  // Hipertensão arterial sem complicação
+  R05: 374n,  // Tosse
+  R96: 408n,  // Asma
+  T90: 492n,  // Diabetes mellitus tipo 2
+  W78: 552n,  // Gravidez
+};
+
+/**
+ * Convert CIAP-2 text code to LEDI Long (i64).
+ * Normalizes: trim + uppercase. Returns null if unknown — never throws.
+ * @param {string|null|undefined} code
+ * @returns {BigInt|null}
+ */
+export function mapCiap2ToLedi(code) {
+  if (!code) return null;
+  const normalized = String(code).trim().toUpperCase();
+  return CIAP2_LEDI_MAP[normalized] ?? null;
+}
+
 /** Safe lookup — returns null if key missing or empty string. */
 export function mapEnum(map, value) {
   if (!value) return null;
