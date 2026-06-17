@@ -126,6 +126,14 @@ export async function listPublicTeams() {
   return api("/teams/public", { method: "GET", retryCount: 2 });
 }
 
+export async function getTeam(teamId, token) {
+  return api(`/teams/${teamId}`, { method: "GET", retryCount: 2 }, token);
+}
+
+export async function patchTeam(teamId, payload, token) {
+  return api(`/teams/${teamId}`, { method: "PATCH", body: JSON.stringify(payload) }, token);
+}
+
 export async function bootstrap(token) {
   return api("/bootstrap", { method: "GET", retryCount: 2 }, token);
 }

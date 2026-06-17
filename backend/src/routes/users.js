@@ -107,6 +107,29 @@ router.get("/teams/public", async (_req, res) => {
   res.json(items);
 });
 
+// C22: GET /teams/:id — authenticated, returns full team metadata (ine, tipoEquipe)
+router.get("/teams/:id", requireAuth, async (req, res) => {
+  const db = await readDb();
+  ensureDbShape(db);
+  const teamId = String(req.params.id || "").trim();
+
+  // Scope: can only read own team unless has users.read.all
+  if (req.user.teamId && req.user.teamId !== teamId && !hasCapability(req.user, "users.read.all")) {
+    return res.status(403).json({ error: "Sem permissão para visualizar esta equipe" });
+  }
+
+  const team = db.teams.find((t) => t.id === teamId);
+  if (!team) return res.status(404).json({ error: "Equipe não encontrada" });
+
+  return res.json({
+    id: team.id,
+    name: team.name || "",
+    ine: team.ine || "",
+    tipoEquipe: team.tipoEquipe || "",
+    updatedAt: team.updatedAt || ""
+  });
+});
+
 // F4-05: PATCH /teams/:id — update INE and tipoEquipe (stored in JSONB)
 router.patch("/teams/:id", requireAuth, validate(TeamPatchSchema), async (req, res) => {
   if (!hasCapability(req.user, "team.manage")) {

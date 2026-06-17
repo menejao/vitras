@@ -129,7 +129,7 @@ export function TabContent({
       )}
 
       {tab === "equipe" && (
-        <EquipePage users={allUsers && allUsers.length ? allUsers : users} user={user} onOpenProfile={openProfile} />
+        <EquipePage users={allUsers && allUsers.length ? allUsers : users} user={user} onOpenProfile={openProfile} token={token} />
       )}
 
       {tab === "vaccines" && (
