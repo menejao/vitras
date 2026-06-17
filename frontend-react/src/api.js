@@ -167,6 +167,18 @@ export async function listAgendaEntries(token, params = {}) {
   return api(`/agenda${query}`, { method: "GET", retryCount: 2 }, token);
 }
 
+export async function getHouseholds(patientId, token) {
+  return api(`/households?patientId=${encodeURIComponent(patientId)}`, { method: "GET", retryCount: 2 }, token);
+}
+
+export async function createHousehold(payload, token) {
+  return api("/households", { method: "POST", body: JSON.stringify(payload) }, token);
+}
+
+export async function patchHousehold(id, payload, token) {
+  return api(`/households/${id}`, { method: "PATCH", body: JSON.stringify(payload) }, token);
+}
+
 export async function createAgendaEntry(token, payload) {
   return api("/agenda", { method: "POST", body: JSON.stringify(payload) }, token);
 }

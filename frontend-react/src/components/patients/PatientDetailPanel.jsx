@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { createRecord, createTask, verifyCurrentPassword } from "../../api";
+import { createRecord, createTask, verifyCurrentPassword, getHouseholds, createHousehold, patchHousehold } from "../../api";
 import { printExamRequest, printPrescription, printAttendanceAttest, printMedicalAttest } from "../../utils/printDoc";
 import { parseLocalDate } from "../../utils/dates";
 import { googleCalendarUrl } from "../../utils/dates";
@@ -1485,6 +1485,208 @@ function MessagesTab({ messages, messageText, setMessageText, onSubmitMessage, c
   );
 }
 
+// ── Household tab ─────────────────────────────────────────────────────────────
+const TIPO_IMOVEL_LABELS = {
+  DOMICILIO: "Domicílio", COMERCIO: "Comércio", TERRENO_BALDIO: "Terreno baldio",
+  PONTO_ESTRATEGICO: "Ponto estratégico", ESCOLA: "Escola", CRECHE: "Creche",
+  ABRIGO: "Abrigo", INST_LONGA_PERMANENCIA: "Inst. longa permanência",
+  UNIDADE_PRISIONAL: "Unidade prisional", DELEGACIA: "Delegacia", OUTRO: "Outro"
+};
+const ABAST_AGUA_LABELS = {
+  REDE_ENCANADA: "Rede encanada", POCO_ARTESIANO: "Poço artesiano",
+  CISTERNAS: "Cisternas", CARRO_PIPA: "Carro-pipa", OUTROS: "Outros"
+};
+const TRATAMENTO_LABELS = {
+  SEM_TRATAMENTO: "Sem tratamento", FILTRACAO: "Filtração", FERVURA: "Fervura",
+  CLORACAO: "Cloração", MINERAL: "Mineral", OUTRO: "Outro"
+};
+const ESGOTAMENTO_LABELS = {
+  REDE_COLETORA: "Rede coletora", FOSSA_SEPTICA: "Fossa séptica",
+  FOSSA_RUDIMENTAR: "Fossa rudimentar", VALA_CEU_ABERTO: "Vala a céu aberto",
+  DIRETO_CORPO_AGUA: "Direto corpo d'água", OUTRO: "Outro"
+};
+const DESTINO_LIXO_LABELS = {
+  COLETA_PUBLICA: "Coleta pública", QUEIMADO: "Queimado", ENTERRADO: "Enterrado",
+  TERRENO_BALDIO: "Terreno baldio", CORPO_AGUA: "Corpo d'água", OUTROS: "Outros"
+};
+
+function emptyHouseholdForm() {
+  return {
+    tipoImovel: "", numMoradores: "", numComodos: "", localizacao: "",
+    abastecimentoAgua: "", tratamentoAgua: "", esgotamento: "",
+    destinacaoLixo: "", energiaEletrica: "", familyCode: "", homeVisitFreq: ""
+  };
+}
+
+function HouseholdTab({ patient, token, canWriteRecords }) {
+  const [loading, setLoading] = useState(true);
+  const [household, setHousehold] = useState(null);
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState(emptyHouseholdForm());
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!patient?.id || !token) { setLoading(false); return; }
+    setLoading(true);
+    getHouseholds(patient.id, token)
+      .then(data => {
+        const hh = Array.isArray(data) ? data[0] : null;
+        setHousehold(hh || null);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, [patient?.id, token]);
+
+  function startCreate() {
+    setForm(emptyHouseholdForm());
+    setEditing(true);
+    setError("");
+  }
+
+  function startEdit() {
+    if (!household) return;
+    setForm({
+      tipoImovel: household.tipoImovel || household.housingType || "",
+      numMoradores: household.numMoradores !== undefined ? String(household.numMoradores) : "",
+      numComodos: household.numComodos !== undefined ? String(household.numComodos) : "",
+      localizacao: household.localizacao || "",
+      abastecimentoAgua: household.abastecimentoAgua || "",
+      tratamentoAgua: household.tratamentoAgua || "",
+      esgotamento: household.esgotamento || "",
+      destinacaoLixo: household.destinacaoLixo || "",
+      energiaEletrica: household.energiaEletrica !== undefined ? String(household.energiaEletrica) : "",
+      familyCode: household.familyCode || "",
+      homeVisitFreq: household.homeVisitFreq || ""
+    });
+    setEditing(true);
+    setError("");
+  }
+
+  function upd(field) { return (e) => setForm(f => ({ ...f, [field]: e.target.value })); }
+
+  async function handleSave() {
+    setSaving(true); setError("");
+    try {
+      const payload = {
+        tipoImovel: form.tipoImovel || undefined,
+        numMoradores: form.numMoradores !== "" ? Number(form.numMoradores) : undefined,
+        numComodos: form.numComodos !== "" ? Number(form.numComodos) : undefined,
+        localizacao: form.localizacao || undefined,
+        abastecimentoAgua: form.abastecimentoAgua || undefined,
+        tratamentoAgua: form.tratamentoAgua || undefined,
+        esgotamento: form.esgotamento || undefined,
+        destinacaoLixo: form.destinacaoLixo || undefined,
+        energiaEletrica: form.energiaEletrica !== "" ? form.energiaEletrica === "true" : undefined,
+        familyCode: form.familyCode || undefined,
+        homeVisitFreq: form.homeVisitFreq || undefined
+      };
+      let updated;
+      if (household) {
+        updated = await patchHousehold(household.id, payload, token);
+      } else {
+        updated = await createHousehold({ ...payload, patientId: patient.id }, token);
+      }
+      setHousehold(updated);
+      setEditing(false);
+    } catch (err) {
+      setError(err?.message || "Erro ao salvar domicílio.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (loading) {
+    return <div className="skeleton-stack"><div className="skeleton-block" style={{ height: "8rem", borderRadius: "var(--r-md)" }} /></div>;
+  }
+
+  if (editing) {
+    return (
+      <div className="household-form">
+        <div className="field-grid">
+          <Select label="Tipo de imóvel" value={form.tipoImovel} onChange={upd("tipoImovel")}>
+            <option value="">Não informado</option>
+            {Object.entries(TIPO_IMOVEL_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+          </Select>
+          <Select label="Localização" value={form.localizacao} onChange={upd("localizacao")}>
+            <option value="">Não informado</option>
+            <option value="URBANA">Urbana</option>
+            <option value="RURAL">Rural</option>
+          </Select>
+          <Input label="Código familiar" value={form.familyCode} onChange={upd("familyCode")} placeholder="Ex: 001" />
+          <Input label="Nº de moradores" type="number" min="0" value={form.numMoradores} onChange={upd("numMoradores")} placeholder="0" />
+          <Input label="Nº de cômodos" type="number" min="0" value={form.numComodos} onChange={upd("numComodos")} placeholder="0" />
+          <Select label="Abastecimento de água" value={form.abastecimentoAgua} onChange={upd("abastecimentoAgua")}>
+            <option value="">Não informado</option>
+            {Object.entries(ABAST_AGUA_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+          </Select>
+          <Select label="Tratamento da água" value={form.tratamentoAgua} onChange={upd("tratamentoAgua")}>
+            <option value="">Não informado</option>
+            {Object.entries(TRATAMENTO_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+          </Select>
+          <Select label="Esgotamento sanitário" value={form.esgotamento} onChange={upd("esgotamento")}>
+            <option value="">Não informado</option>
+            {Object.entries(ESGOTAMENTO_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+          </Select>
+          <Select label="Destino do lixo" value={form.destinacaoLixo} onChange={upd("destinacaoLixo")}>
+            <option value="">Não informado</option>
+            {Object.entries(DESTINO_LIXO_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+          </Select>
+          <Select label="Energia elétrica" value={form.energiaEletrica} onChange={upd("energiaEletrica")}>
+            <option value="">Não informado</option>
+            <option value="true">Sim</option>
+            <option value="false">Não</option>
+          </Select>
+          <Input label="Freq. visita domiciliar" value={form.homeVisitFreq} onChange={upd("homeVisitFreq")} placeholder="Ex: Mensal" />
+        </div>
+        {error ? <Alert tone="error">{error}</Alert> : null}
+        <div className="household-form__actions">
+          <Button variant="ghost" size="sm" onClick={() => setEditing(false)} disabled={saving}>Cancelar</Button>
+          <Button variant="primary" size="sm" onClick={handleSave} disabled={saving}>{saving ? "Salvando…" : "Salvar"}</Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!household) {
+    return (
+      <div className="household-empty">
+        <p className="household-empty__text">Cadastro domiciliar não informado.</p>
+        {canWriteRecords ? (
+          <Button variant="secondary" size="sm" onClick={startCreate}>Cadastrar domicílio</Button>
+        ) : null}
+      </div>
+    );
+  }
+
+  const hh = household;
+  function lbl(map, val) { return (val && map[val]) ? map[val] : (val || "Não informado"); }
+
+  return (
+    <div className="household-view">
+      <div className="field-grid">
+        <Input label="Tipo de imóvel" value={lbl(TIPO_IMOVEL_LABELS, hh.tipoImovel || hh.housingType)} disabled />
+        <Input label="Localização" value={hh.localizacao === "URBANA" ? "Urbana" : hh.localizacao === "RURAL" ? "Rural" : "Não informado"} disabled />
+        <Input label="Código familiar" value={hh.familyCode || "Não informado"} disabled />
+        <Input label="Nº de moradores" value={hh.numMoradores !== undefined && hh.numMoradores !== null ? String(hh.numMoradores) : "Não informado"} disabled />
+        <Input label="Nº de cômodos" value={hh.numComodos !== undefined && hh.numComodos !== null ? String(hh.numComodos) : "Não informado"} disabled />
+        <Input label="Abastecimento de água" value={lbl(ABAST_AGUA_LABELS, hh.abastecimentoAgua)} disabled />
+        <Input label="Tratamento da água" value={lbl(TRATAMENTO_LABELS, hh.tratamentoAgua)} disabled />
+        <Input label="Esgotamento sanitário" value={lbl(ESGOTAMENTO_LABELS, hh.esgotamento)} disabled />
+        <Input label="Destino do lixo" value={lbl(DESTINO_LIXO_LABELS, hh.destinacaoLixo)} disabled />
+        <Input label="Energia elétrica" value={hh.energiaEletrica === true ? "Sim" : hh.energiaEletrica === false ? "Não" : "Não informado"} disabled />
+        <Input label="Freq. visita domiciliar" value={hh.homeVisitFreq || "Não informado"} disabled />
+      </div>
+      {canWriteRecords ? (
+        <div className="household-view__actions">
+          <Button variant="secondary" size="sm" onClick={startEdit}>Editar</Button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 // Tab IDs válidos — igual ao monolito 58ae55c
 const DETAIL_TABS = [
   { id: "protocol",     label: "Protocolo" },
@@ -1493,6 +1695,7 @@ const DETAIL_TABS = [
   { id: "tasks",        label: "Tarefas" },
   { id: "exams",        label: "Ações clínicas" },
   { id: "messages",     label: "Mensagens" },
+  { id: "household",    label: "Domicílio" },
 ];
 const VALID_TAB_IDS = new Set(DETAIL_TABS.map(t => t.id));
 
@@ -1673,6 +1876,14 @@ export default function PatientDetailPanel({
             setMessageText={setMessageText}
             onSubmitMessage={onSubmitMessage}
             canReply={!isAcs(userObj)}
+          />
+        )}
+
+        {activeTab === "household" && (
+          <HouseholdTab
+            patient={patient}
+            token={token}
+            canWriteRecords={canWriteRecords}
           />
         )}
       </div>
