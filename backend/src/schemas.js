@@ -562,6 +562,10 @@ const TRATAMENTO_AGUA_VALUES = ["SEM_TRATAMENTO", "FILTRACAO", "FERVURA", "CLORA
 const ESGOTAMENTO_VALUES = ["REDE_COLETORA", "FOSSA_SEPTICA", "FOSSA_RUDIMENTAR", "VALA_CEU_ABERTO", "DIRETO_CORPO_AGUA", "OUTRO"];
 const DESTINO_LIXO_VALUES = ["COLETA_PUBLICA", "QUEIMADO", "ENTERRADO", "TERRENO_BALDIO", "CORPO_AGUA", "OUTROS"];
 const LOCALIZACAO_VALUES = ["URBANA", "RURAL"];
+// C04A: LEDI APS 7.4.0 — condicaoMoradia.situacaoMoradiaPosseTerra (obrigatório para exportação CDS)
+const SITUACAO_MORADIA_VALUES = ["PROPRIO", "FINANCIADO", "ALUGADO", "ARRENDADO", "CEDIDO", "OCUPACAO", "SITUACAO_RUA", "OUTRO"];
+// C04A: LEDI APS 7.4.0 — tipoEndereco (novo campo obrigatório v7.4.0: 1=logradouro, 2=sem endereço)
+const TIPO_ENDERECO_VALUES = ["LOGRADOURO", "SEM_ENDERECO"];
 
 const HouseholdCreateSchema = z.object({
   patientId: z.string().trim().min(1).max(100),
@@ -585,7 +589,9 @@ const HouseholdCreateSchema = z.object({
   garbage: optionalShortString(100),
   energiaEletrica: z.boolean().optional(),
   electricity: optionalShortString(100),
-  localizacao: z.enum(LOCALIZACAO_VALUES).optional()
+  localizacao: z.enum(LOCALIZACAO_VALUES).optional(),
+  situacaoMoradiaPosseTerra: z.enum(SITUACAO_MORADIA_VALUES).optional(),
+  tipoEndereco: z.enum(TIPO_ENDERECO_VALUES).optional()
 });
 
 const HouseholdUpdateSchema = z.object({
@@ -606,7 +612,9 @@ const HouseholdUpdateSchema = z.object({
   garbage: optionalShortString(100),
   energiaEletrica: z.boolean().optional(),
   electricity: optionalShortString(100),
-  localizacao: z.enum(LOCALIZACAO_VALUES).optional()
+  localizacao: z.enum(LOCALIZACAO_VALUES).optional(),
+  situacaoMoradiaPosseTerra: z.enum(SITUACAO_MORADIA_VALUES).optional(),
+  tipoEndereco: z.enum(TIPO_ENDERECO_VALUES).optional()
 }).strict();
 
 // F4-04 / F4-06: Unit fields — CNES from deployment env (DEFAULT_UNIT_CNES), never hardcoded

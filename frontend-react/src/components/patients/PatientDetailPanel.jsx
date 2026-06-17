@@ -1509,12 +1509,21 @@ const DESTINO_LIXO_LABELS = {
   COLETA_PUBLICA: "Coleta pública", QUEIMADO: "Queimado", ENTERRADO: "Enterrado",
   TERRENO_BALDIO: "Terreno baldio", CORPO_AGUA: "Corpo d'água", OUTROS: "Outros"
 };
+const SITUACAO_MORADIA_LABELS = {
+  PROPRIO: "Próprio", FINANCIADO: "Financiado", ALUGADO: "Alugado",
+  ARRENDADO: "Arrendado", CEDIDO: "Cedido", OCUPACAO: "Ocupação",
+  SITUACAO_RUA: "Situação de rua", OUTRO: "Outro"
+};
+const TIPO_ENDERECO_LABELS = {
+  LOGRADOURO: "Logradouro (endereço fixo)", SEM_ENDERECO: "Sem endereço fixo"
+};
 
 function emptyHouseholdForm() {
   return {
     tipoImovel: "", numMoradores: "", numComodos: "", localizacao: "",
     abastecimentoAgua: "", tratamentoAgua: "", esgotamento: "",
-    destinacaoLixo: "", energiaEletrica: "", familyCode: "", homeVisitFreq: ""
+    destinacaoLixo: "", energiaEletrica: "", familyCode: "", homeVisitFreq: "",
+    situacaoMoradiaPosseTerra: "", tipoEndereco: ""
   };
 }
 
@@ -1557,7 +1566,9 @@ function HouseholdTab({ patient, token, canWriteRecords }) {
       destinacaoLixo: household.destinacaoLixo || "",
       energiaEletrica: household.energiaEletrica !== undefined ? String(household.energiaEletrica) : "",
       familyCode: household.familyCode || "",
-      homeVisitFreq: household.homeVisitFreq || ""
+      homeVisitFreq: household.homeVisitFreq || "",
+      situacaoMoradiaPosseTerra: household.situacaoMoradiaPosseTerra || "",
+      tipoEndereco: household.tipoEndereco || ""
     });
     setEditing(true);
     setError("");
@@ -1579,7 +1590,9 @@ function HouseholdTab({ patient, token, canWriteRecords }) {
         destinacaoLixo: form.destinacaoLixo || undefined,
         energiaEletrica: form.energiaEletrica !== "" ? form.energiaEletrica === "true" : undefined,
         familyCode: form.familyCode || undefined,
-        homeVisitFreq: form.homeVisitFreq || undefined
+        homeVisitFreq: form.homeVisitFreq || undefined,
+        situacaoMoradiaPosseTerra: form.situacaoMoradiaPosseTerra || undefined,
+        tipoEndereco: form.tipoEndereco || undefined
       };
       let updated;
       if (household) {
@@ -1638,6 +1651,14 @@ function HouseholdTab({ patient, token, canWriteRecords }) {
             <option value="false">Não</option>
           </Select>
           <Input label="Freq. visita domiciliar" value={form.homeVisitFreq} onChange={upd("homeVisitFreq")} placeholder="Ex: Mensal" />
+          <Select label="Situação de moradia / posse" value={form.situacaoMoradiaPosseTerra} onChange={upd("situacaoMoradiaPosseTerra")}>
+            <option value="">Não informado</option>
+            {Object.entries(SITUACAO_MORADIA_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+          </Select>
+          <Select label="Tipo de endereço" value={form.tipoEndereco} onChange={upd("tipoEndereco")}>
+            <option value="">Não informado</option>
+            {Object.entries(TIPO_ENDERECO_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+          </Select>
         </div>
         {error ? <Alert tone="error">{error}</Alert> : null}
         <div className="household-form__actions">
@@ -1676,6 +1697,8 @@ function HouseholdTab({ patient, token, canWriteRecords }) {
         <Input label="Destino do lixo" value={lbl(DESTINO_LIXO_LABELS, hh.destinacaoLixo)} disabled />
         <Input label="Energia elétrica" value={hh.energiaEletrica === true ? "Sim" : hh.energiaEletrica === false ? "Não" : "Não informado"} disabled />
         <Input label="Freq. visita domiciliar" value={hh.homeVisitFreq || "Não informado"} disabled />
+        <Input label="Situação de moradia / posse" value={lbl(SITUACAO_MORADIA_LABELS, hh.situacaoMoradiaPosseTerra)} disabled />
+        <Input label="Tipo de endereço" value={lbl(TIPO_ENDERECO_LABELS, hh.tipoEndereco)} disabled />
       </div>
       {canWriteRecords ? (
         <div className="household-view__actions">

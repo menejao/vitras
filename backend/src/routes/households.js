@@ -92,6 +92,8 @@ router.post(
         electricity: String(payload.electricity || "").trim(),
         materialPredominanteParedes: payload.materialPredominanteParedes || "",
         homeVisitFreq: String(payload.homeVisitFreq || "").trim(),
+        situacaoMoradiaPosseTerra: payload.situacaoMoradiaPosseTerra || "",
+        tipoEndereco: payload.tipoEndereco || "",
         createdAt: now,
         updatedAt: now
       };
@@ -154,6 +156,8 @@ router.patch(
       if (payload.electricity !== undefined) next.electricity = String(payload.electricity || "").trim();
       if (payload.materialPredominanteParedes !== undefined) next.materialPredominanteParedes = payload.materialPredominanteParedes;
       if (payload.homeVisitFreq !== undefined) next.homeVisitFreq = String(payload.homeVisitFreq || "").trim();
+      if (payload.situacaoMoradiaPosseTerra !== undefined) next.situacaoMoradiaPosseTerra = payload.situacaoMoradiaPosseTerra;
+      if (payload.tipoEndereco !== undefined) next.tipoEndereco = payload.tipoEndereco;
 
       db.households[idx] = next;
       addAuditLog(db, buildHouseholdActor(req), "household.updated", "household", householdId, {
