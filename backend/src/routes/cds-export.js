@@ -7,7 +7,7 @@ import { hasCapability } from "../utils/helpers.js";
 import { readDb } from "../db.js";
 import { ensureDbShape } from "../utils/domain.js";
 import { addAuditLog } from "../services/audit.js";
-import { exportCadastroIndividual } from "../services/cds-export/index.js";
+import { exportCadastroIndividual, exportCadastroDomiciliar } from "../services/cds-export/index.js";
 
 const router = express.Router();
 
@@ -101,6 +101,88 @@ router.get("/export/cds/individual/:patientId", requireAuth, async (req, res) =>
     outcome: "success",
     exportedBy: { id: req.user.id, name: req.user.name, role: req.user.role }
   }).catch(() => {}); // audit failure must not block the download
+
+  res.setHeader("Content-Type", "application/zip");
+  res.setHeader("Content-Disposition", `attachment; filename="${result.filename}"`);
+  res.setHeader("X-Ficha-UUID", result.fichaUuid);
+  res.setHeader("X-Origin-UUID", result.originUuid);
+  if (warnings.length > 0) {
+    res.setHeader("X-CDS-Warnings", warnings.join("; "));
+  }
+
+  return res.send(result.buffer);
+});
+
+/**
+ * GET /export/cds/domiciliar/:householdId
+ *
+ * Returns a .esus file for a household's Cadastro Domiciliar.
+ * Query params:
+ *   ?update=true  — sets fichaAtualizada=true (default: false)
+ *
+ * Requires capability: cds.export
+ * Audit: cds.export.domiciliar
+ */
+router.get("/export/cds/domiciliar/:householdId", requireAuth, async (req, res) => {
+  if (!hasCapability(req.user, "cds.export")) {
+    return res.status(403).json({ error: "Sem permissão para exportar dados CDS." });
+  }
+
+  const householdId = String(req.params.householdId || "").trim();
+  if (!householdId) return res.status(400).json({ error: "householdId obrigatório" });
+
+  const isUpdate = req.query.update === "true";
+
+  let db;
+  try {
+    db = await readDb();
+  } catch (err) {
+    return res.status(503).json({ error: "Banco de dados indisponível." });
+  }
+
+  ensureDbShape(db);
+
+  const household = db.households?.find(h => h.id === householdId);
+  if (!household) return res.status(404).json({ error: "Domicílio não encontrado." });
+
+  // Resolve patient who owns the household (for audit and context)
+  const patient = db.patients.find(p => p.id === household.patientId) || null;
+
+  // Resolve professional = requesting user
+  const professional = db.users.find(u => u.id === req.user.id) || req.user;
+
+  // Resolve unit and team
+  const unit = db.units?.find(u => u.id === (professional.unitId || req.user.unitId)) || null;
+  const teams = Array.isArray(db.teams) ? db.teams : [];
+  const team = teams.find(t => t.id === (professional.teamId || req.user.teamId)) || null;
+
+  const cnsProfissional = professional.cnsProfissional || professional.cns;
+  const cbo = professional.cboCodigo;
+  const cnes = unit?.cnes;
+
+  const warnings = [];
+  if (!cnsProfissional) warnings.push("cnsProfissional ausente no profissional exportador");
+  if (!cbo) warnings.push("cboCodigo ausente no profissional exportador");
+  if (!cnes) warnings.push("cnes ausente na unidade");
+  if (!household.tipoImovel && !household.housingType) warnings.push("tipoImovel ausente no domicílio");
+
+  let result;
+  try {
+    result = exportCadastroDomiciliar(household, patient, professional, unit, team, { isUpdate });
+  } catch (err) {
+    return res.status(500).json({ error: "Erro ao gerar arquivo CDS.", detail: err.message });
+  }
+
+  addAuditLog(db, buildCdsActor(req), "cds.export.domiciliar", "household", householdId, {
+    householdId,
+    patientId: household.patientId,
+    fichaUuid: result.fichaUuid,
+    originUuid: result.originUuid,
+    isUpdate,
+    warnings: warnings.length > 0 ? warnings : undefined,
+    outcome: "success",
+    exportedBy: { id: req.user.id, name: req.user.name, role: req.user.role }
+  }).catch(() => {});
 
   res.setHeader("Content-Type", "application/zip");
   res.setHeader("Content-Disposition", `attachment; filename="${result.filename}"`);

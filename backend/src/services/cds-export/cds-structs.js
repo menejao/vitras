@@ -1,4 +1,4 @@
-// C04A: CDS struct serializers for LEDI APS 7.4.0
+// C04A/C04B: CDS struct serializers for LEDI APS 7.4.0
 // Field IDs match LEDI v7.4.0 spec (integracao.esusaps.bridge.ufsc.tech/v740/)
 import {
   BinaryWriter, T,
@@ -8,9 +8,9 @@ import {
 import {
   RACA_COR_MAP, SEXO_MAP, ESCOLARIDADE_MAP, DEFICIENCIA_MAP,
   NACIONALIDADE_DEFAULT, SITUACAO_MORADIA_MAP, TIPO_IMOVEL_MAP,
-  LOCALIZACAO_MAP, ABASTECIMENTO_AGUA_MAP, TRATAMENTO_AGUA_MAP,
-  ESGOTAMENTO_MAP, DESTINO_LIXO_MAP, MATERIAL_PAREDES_MAP,
-  MOTIVO_SAIDA_MAP, mapEnum, mapEnumList
+  TIPO_ENDERECO_MAP, LOCALIZACAO_MAP, ABASTECIMENTO_AGUA_MAP,
+  TRATAMENTO_AGUA_MAP, ESGOTAMENTO_MAP, DESTINO_LIXO_MAP,
+  MATERIAL_PAREDES_MAP, MOTIVO_SAIDA_MAP, mapEnum, mapEnumList
 } from "./enum-maps.js";
 
 // ──────────────────────────────────────────────
@@ -180,6 +180,107 @@ export function buildCadastroIndividual({ patient, professional, unit, team, fic
   const dataAtendimento = Date.now();
   const ibgeMunicipio = String(unit?.municipalityId || team?.municipalityId || "3534401").replace(/\D/g, "").substring(0, 7);
   writeStruct(w, 11, (inner) => writeUnicaLotacaoHeader(inner, {
+    profissionalCNS: professional.cnsProfissional || professional.cns || "",
+    cboCodigo_2002: professional.cboCodigo || "",
+    cnes: unit?.cnes || "",
+    ine: team?.ine || undefined,
+    dataAtendimento,
+    codigoIbgeMunicipio: ibgeMunicipio,
+  }));
+
+  w.writeFieldStop(); // root struct STOP
+
+  return { buffer: w.toBuffer(), uuid: fichaUuid };
+}
+
+// ──────────────────────────────────────────────
+// C04B: CondicaoMoradiaTransport (nested in CadastroDomiciliarTransport field 4)
+// Field IDs per LEDI 7.4.0:
+//   1=abastecimentoDeAgua, 3=aguaConsumoDomicilio, 4=destinoLixo,
+//   5=energiaEletricaNoDomicilio, 6=formaEscoamentoBanheiro,
+//   7=localizacao, 8=materialPredominanteParedesExtDomicilio,
+//   9=numeroDeComodos, 11=situacaoMoradiaPosseTerra
+// ──────────────────────────────────────────────
+function writeCondicaoMoradia(w, h) {
+  const abastecimento = mapEnum(ABASTECIMENTO_AGUA_MAP, h.abastecimentoAgua);
+  if (abastecimento != null) writeI64Field(w, 1, abastecimento);
+
+  const tratamento = mapEnum(TRATAMENTO_AGUA_MAP, h.tratamentoAgua);
+  if (tratamento != null) writeI64Field(w, 3, tratamento);
+
+  const lixo = mapEnum(DESTINO_LIXO_MAP, h.destinacaoLixo);
+  if (lixo != null) writeI64Field(w, 4, lixo);
+
+  if (h.energiaEletrica != null) writeBoolField(w, 5, Boolean(h.energiaEletrica));
+
+  const esgotamento = mapEnum(ESGOTAMENTO_MAP, h.esgotamento);
+  if (esgotamento != null) writeI64Field(w, 6, esgotamento);
+
+  const localizacao = mapEnum(LOCALIZACAO_MAP, h.localizacao);
+  writeI64Field(w, 7, localizacao ?? 1n); // default URBANA
+
+  const material = mapEnum(MATERIAL_PAREDES_MAP, h.materialPredominanteParedes);
+  if (material != null) writeI64Field(w, 8, material);
+
+  if (h.numComodos != null && h.numComodos >= 0) writeI32Field(w, 9, Number(h.numComodos));
+
+  const situacao = mapEnum(SITUACAO_MORADIA_MAP, h.situacaoMoradiaPosseTerra);
+  if (situacao != null) writeI64Field(w, 11, situacao);
+
+  w.writeFieldStop();
+}
+
+// ──────────────────────────────────────────────
+// C04B: CadastroDomiciliarTransport (root ficha)
+// Field IDs per LEDI 7.4.0:
+//   1=animaisNoDomicilio, 2=bairro, 3=complemento,
+//   4=condicoesDeMoradia, 5=fichaAtualizada, 6=municipio,
+//   7=nomeLogradouro, 8=numero, 9=numeroMoradores,
+//   10=stMunicipioPcadastro, 11=tpCdsOrigem, 12=telefoneContato,
+//   13=tipoDeImovel, 14=tipoEndereco, 15=uuid,
+//   16=uuidFichaOriginadora, 17=headerTransport
+// ──────────────────────────────────────────────
+export function buildCadastroDomiciliar({ household, patient, professional, unit, team, fichaUuid, originUuid, isUpdate = false }) {
+  const w = new BinaryWriter();
+
+  // 4: condicoesDeMoradia (optional struct — include if any condition field present)
+  const hasCondicoes = household.localizacao || household.abastecimentoAgua ||
+    household.tratamentoAgua || household.esgotamento || household.destinacaoLixo ||
+    household.energiaEletrica != null || household.materialPredominanteParedes ||
+    household.numComodos != null || household.situacaoMoradiaPosseTerra;
+  if (hasCondicoes) {
+    writeStruct(w, 4, (inner) => writeCondicaoMoradia(inner, household));
+  }
+
+  // 5: fichaAtualizada (required, bool)
+  writeBoolField(w, 5, isUpdate);
+
+  // 9: numeroMoradores (optional, i32)
+  if (household.numMoradores != null && household.numMoradores >= 0) {
+    writeI32Field(w, 9, Number(household.numMoradores));
+  }
+
+  // 11: tpCdsOrigem = 3 (sistema terceiro — required)
+  writeI32Field(w, 11, 3);
+
+  // 13: tipoDeImovel (required, i64)
+  const tipoImovel = mapEnum(TIPO_IMOVEL_MAP, household.tipoImovel || household.housingType);
+  writeI64Field(w, 13, tipoImovel ?? 1n); // default DOMICILIO
+
+  // 14: tipoEndereco (required LEDI 7.4.0, i32 — 1=LOGRADOURO, 2=SEM_ENDERECO)
+  const tipoEndereco = TIPO_ENDERECO_MAP[String(household.tipoEndereco || "LOGRADOURO").toUpperCase()] ?? 1;
+  writeI32Field(w, 14, tipoEndereco);
+
+  // 15: uuid (household's own UUID — used for upsert in PEC)
+  writeStringField(w, 15, household.id);
+
+  // 16: uuidFichaOriginadora (required — identifies this export batch entry)
+  writeStringField(w, 16, originUuid);
+
+  // 17: headerTransport (required)
+  const dataAtendimento = Date.now();
+  const ibgeMunicipio = String(unit?.municipalityId || team?.municipalityId || "3534401").replace(/\D/g, "").substring(0, 7);
+  writeStruct(w, 17, (inner) => writeUnicaLotacaoHeader(inner, {
     profissionalCNS: professional.cnsProfissional || professional.cns || "",
     cboCodigo_2002: professional.cboCodigo || "",
     cnes: unit?.cnes || "",
