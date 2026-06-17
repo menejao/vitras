@@ -257,8 +257,7 @@ const authRateLimit = buildRateLimitMiddleware({
   prefix: "auth",
   maxRequests: AUTH_MAX_ATTEMPTS,
   windowMs: AUTH_WINDOW_MS,
-  message: "Muitas tentativas. Aguarde alguns minutos.",
-  bypassReadOnly: true  // C23A: auth must work in read-only mode
+  message: "Muitas tentativas. Aguarde alguns minutos."
 });
 
 const globalRateLimit = buildRateLimitMiddleware({
@@ -266,9 +265,7 @@ const globalRateLimit = buildRateLimitMiddleware({
   maxRequests: GLOBAL_RATE_LIMIT_MAX_REQUESTS,
   windowMs: GLOBAL_RATE_LIMIT_WINDOW_MS,
   message: "Muitas requisições. Tente novamente em instantes.",
-  skip: (req) => req.path === "/health" || req.path === "/readyz",
-  // C23A: auth paths must work in read-only mode (login, logout, refresh)
-  skipReadOnly: (req) => String(req.path || "").startsWith("/auth")
+  skip: (req) => req.path === "/health" || req.path === "/readyz"
 });
 
 // D-04: sensitiveDataRateLimit now uses getIdentifier from buildRateLimitMiddleware

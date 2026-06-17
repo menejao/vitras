@@ -1,6 +1,6 @@
 import express from "express";
 import { pool, checkDbHealth, isPostgresMode } from "../db.js";
-import { IS_PROD, UPSTASH_URL, UPSTASH_TOKEN } from "../config.js";
+import { IS_PROD, UPSTASH_URL, UPSTASH_TOKEN, READ_ONLY_MODE } from "../config.js";
 import { getRuntimeState, getStartupPhase, isDegraded, getDegradedReason } from "../services/runtime-state.js";
 import { getMetrics } from "../middlewares/logging.js";
 import { logWarn } from "../utils/logger.js";
@@ -161,8 +161,26 @@ router.get("/readyz", async (_req, res) => {
     });
   }
 
+  // C23A: surface read-only mode in readyz — instance stays alive, just degraded
+  const circuitOpen = getCircuitBreakerState() === "OPEN";
+  const readOnly = READ_ONLY_MODE || circuitOpen;
+  if (readOnly) {
+    return res.status(200).json({
+      ok: true,
+      status: "degraded",
+      readOnly: true,
+      reason: circuitOpen ? "redis_circuit_open" : "read_only_mode",
+      timestamp: new Date().toISOString(),
+      readiness: {
+        ready: runtime.readiness.ready,
+        phase: getStartupPhase()
+      }
+    });
+  }
+
   return res.status(200).json({
     ok: true,
+    status: "ok",
     timestamp: new Date().toISOString(),
     readiness: {
       ready: runtime.readiness.ready,
