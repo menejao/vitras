@@ -90,11 +90,14 @@ export class BinaryWriter {
   }
 }
 
-/** Write a nested struct: write all inner fields then STOP, wrapped in outer field header. */
+/**
+ * Write a nested struct field.
+ * Contract: writeInnerFn(w) must write all inner fields AND call w.writeFieldStop() at the end.
+ * writeStruct provides only the outer field header — never the STOP (inner owns it).
+ */
 export function writeStruct(w, fieldId, writeInnerFn) {
   w.writeFieldBegin(T.STRUCT, fieldId);
   writeInnerFn(w);
-  w.writeFieldStop();
 }
 
 /** Write I32 field — skips if value is null/undefined. */
