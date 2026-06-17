@@ -27,6 +27,7 @@ const TWOFA_MAX_ATTEMPTS = Number(process.env.TWOFA_MAX_ATTEMPTS || 5);
 const BACKUP_EXPORT_KEY = String(process.env.BACKUP_EXPORT_KEY || "").trim();
 const ADMIN_SEED_KEY = String(process.env.ADMIN_SEED_KEY || "").trim();
 const ENABLE_BACKUP_EXPORT = String(process.env.ENABLE_BACKUP_EXPORT || "true").trim().toLowerCase() !== "false";
+const READ_ONLY_MODE = String(process.env.READ_ONLY_MODE || "false").trim().toLowerCase() === "true";
 const ENABLE_ADMIN_SEED = String(process.env.ENABLE_ADMIN_SEED || (IS_PROD ? "false" : "true")).trim().toLowerCase() === "true";
 const ACCESS_EXPIRES_IN = String(process.env.ACCESS_TOKEN_EXPIRES_IN || JWT_EXPIRES_IN).trim();
 const REFRESH_EXPIRES_IN = String(process.env.REFRESH_TOKEN_EXPIRES_IN || "7d").trim();
@@ -161,6 +162,7 @@ export {
   BACKUP_EXPORT_KEY,
   ADMIN_SEED_KEY,
   ENABLE_BACKUP_EXPORT,
+  READ_ONLY_MODE,
   ENABLE_ADMIN_SEED,
   ACCESS_EXPIRES_IN,
   REFRESH_EXPIRES_IN,

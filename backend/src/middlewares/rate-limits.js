@@ -6,8 +6,16 @@ import {
   AUTH_WINDOW_MS,
   AUTH_MAX_ATTEMPTS,
   GLOBAL_RATE_LIMIT_WINDOW_MS,
-  GLOBAL_RATE_LIMIT_MAX_REQUESTS
+  GLOBAL_RATE_LIMIT_MAX_REQUESTS,
+  READ_ONLY_MODE
 } from "../config.js";
+
+const READ_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+function isReadMethod(req) {
+  return READ_METHODS.has(String(req.method || "").toUpperCase());
+}
+
+const READ_ONLY_RESPONSE = { error: "read_only_mode", message: "Sistema temporariamente em modo somente-leitura." };
 import { getClientIp } from "../utils/helpers.js";
 import { logWarn, logError } from "../utils/logger.js";
 import { recordMetric } from "../services/metrics.js";
@@ -22,6 +30,8 @@ let _cbState = "CLOSED";
 let _cbFailureCount = 0;
 let _cbWindowStart = Date.now();
 let _cbOpenedAt = 0;
+// KI-05: single probe in HALF_OPEN — only one request goes through at a time
+let _cbProbeInFlight = false;
 
 function getCircuitBreakerState() {
   return _cbState;
@@ -38,6 +48,7 @@ function _cbRecordFailure() {
   if (_cbState === "HALF_OPEN") {
     _cbState = "OPEN";
     _cbOpenedAt = Date.now();
+    _cbProbeInFlight = false;
     logWarn("circuit_breaker_reopened", {
       event: "circuit_breaker_reopened",
       reason: "half_open_probe_failed",
@@ -64,6 +75,7 @@ function _cbRecordSuccess() {
     _cbState = "CLOSED";
     _cbFailureCount = 0;
     _cbWindowStart = Date.now();
+    _cbProbeInFlight = false;
     logWarn("circuit_breaker_closed", {
       event: "circuit_breaker_closed",
       timestamp: new Date().toISOString()
@@ -75,6 +87,7 @@ function _cbRecordSuccess() {
 function _cbCheckHalfOpen() {
   if (_cbState === "OPEN" && Date.now() - _cbOpenedAt >= CB_HALF_OPEN_DELAY_MS) {
     _cbState = "HALF_OPEN";
+    _cbProbeInFlight = false;
     logWarn("circuit_breaker_half_open", {
       event: "circuit_breaker_half_open",
       timestamp: new Date().toISOString()
@@ -94,7 +107,7 @@ if (IS_PROD && (!UPSTASH_URL || !UPSTASH_TOKEN)) {
   });
 }
 
-function buildRateLimitMiddleware({ prefix, maxRequests, windowMs, message, skip, keyGenerator }) {
+function buildRateLimitMiddleware({ prefix, maxRequests, windowMs, message, skip, keyGenerator, bypassReadOnly = false, skipReadOnly }) {
   // Shared identifier computation used by BOTH MemoryStore and Upstash paths.
   // If a custom keyGenerator is provided it takes precedence; otherwise compose
   // prefix:ip:userId (userId omitted when absent).
@@ -107,7 +120,7 @@ function buildRateLimitMiddleware({ prefix, maxRequests, windowMs, message, skip
 
   if (!UPSTASH_URL || !UPSTASH_TOKEN) {
     // Dev/test permissive fallback — already warned above for production.
-    return rateLimit({
+    const memLimiter = rateLimit({
       windowMs,
       limit: maxRequests,
       standardHeaders: "draft-7",
@@ -127,6 +140,15 @@ function buildRateLimitMiddleware({ prefix, maxRequests, windowMs, message, skip
         res.status(429).json({ error: message });
       }
     });
+    // C23A: wrap MemoryStore path with READ_ONLY_MODE check
+    return (req, res, next) => {
+      if (skip?.(req)) return memLimiter(req, res, next);
+      if (!bypassReadOnly && !skipReadOnly?.(req) && READ_ONLY_MODE && !isReadMethod(req)) {
+        logWarn("read_only_mode_write_blocked", { event: "read_only_mode_write_blocked", path: req.path, method: req.method });
+        return res.status(503).json(READ_ONLY_RESPONSE);
+      }
+      return memLimiter(req, res, next);
+    };
   }
 
   let limiter = null;
@@ -147,15 +169,32 @@ function buildRateLimitMiddleware({ prefix, maxRequests, windowMs, message, skip
   return async (req, res, next) => {
     if (skip?.(req)) return next();
 
-    // ITEM 5: Circuit breaker — if OPEN, fail-closed immediately without calling Upstash
+    // C23A: READ_ONLY_MODE env-var — same semantics as circuit OPEN
+    if (!bypassReadOnly && !skipReadOnly?.(req) && READ_ONLY_MODE && !isReadMethod(req)) {
+      logWarn("read_only_mode_write_blocked", { event: "read_only_mode_write_blocked", path: req.path, method: req.method });
+      return res.status(503).json(READ_ONLY_RESPONSE);
+    }
+
+    // KI-05 / ITEM 5: Circuit breaker — OPEN blocks; HALF_OPEN allows only one probe at a time
     _cbCheckHalfOpen();
     if (_cbState === "OPEN") {
       if (IS_PROD) {
-        logError("rate_limit_circuit_open", { event: "rate_limit_circuit_open", path: req.path });
-        return res.status(503).json({ error: "Serviço temporariamente indisponível" });
+        logError("rate_limit_circuit_open", { event: "rate_limit_circuit_open", path: req.path, method: req.method });
+        if (!bypassReadOnly && !skipReadOnly?.(req) && !isReadMethod(req)) {
+          return res.status(503).json(READ_ONLY_RESPONSE);
+        }
+        return next();
       }
       logWarn("rate_limit_circuit_open_dev", { event: "rate_limit_circuit_open_dev", path: req.path });
       return next();
+    }
+    // KI-05: HALF_OPEN — only one probe request goes through to Upstash; all others fail-open
+    if (_cbState === "HALF_OPEN") {
+      if (_cbProbeInFlight) {
+        logWarn("rate_limit_circuit_half_open_skip", { event: "rate_limit_circuit_half_open_skip", path: req.path });
+        return next(); // fail-open: probe already in flight, skip rate limiting
+      }
+      _cbProbeInFlight = true;
     }
 
     if (!limiter) {
@@ -173,7 +212,10 @@ function buildRateLimitMiddleware({ prefix, maxRequests, windowMs, message, skip
     if (!limiter) {
       if (IS_PROD) {
         logError("rate_limit_store_unavailable", { event: "rate_limit_store_unavailable", path: req.path, ip: req.ip });
-        return res.status(503).json({ error: "Serviço temporariamente indisponível" });
+        if (!bypassReadOnly && !skipReadOnly?.(req) && !isReadMethod(req)) {
+          return res.status(503).json(READ_ONLY_RESPONSE);
+        }
+        return next();
       }
       logWarn("rate_limit_fallback_active", { event: "rate_limit_fallback_active", prefix, path: req.path });
       return next();
@@ -200,7 +242,10 @@ function buildRateLimitMiddleware({ prefix, maxRequests, windowMs, message, skip
       // REDIS-01: fail-closed in production; permissive fallback in dev/test.
       if (IS_PROD) {
         logError("rate_limit_store_unavailable", { event: "rate_limit_store_unavailable", path: req.path, ip: req.ip });
-        return res.status(503).json({ error: "Serviço temporariamente indisponível" });
+        if (!bypassReadOnly && !skipReadOnly?.(req) && !isReadMethod(req)) {
+          return res.status(503).json(READ_ONLY_RESPONSE);
+        }
+        return next();
       }
       logWarn("rate_limit_fallback_active", { event: "rate_limit_fallback_active", prefix, path: req.path });
     }
@@ -212,7 +257,8 @@ const authRateLimit = buildRateLimitMiddleware({
   prefix: "auth",
   maxRequests: AUTH_MAX_ATTEMPTS,
   windowMs: AUTH_WINDOW_MS,
-  message: "Muitas tentativas. Aguarde alguns minutos."
+  message: "Muitas tentativas. Aguarde alguns minutos.",
+  bypassReadOnly: true  // C23A: auth must work in read-only mode
 });
 
 const globalRateLimit = buildRateLimitMiddleware({
@@ -220,7 +266,9 @@ const globalRateLimit = buildRateLimitMiddleware({
   maxRequests: GLOBAL_RATE_LIMIT_MAX_REQUESTS,
   windowMs: GLOBAL_RATE_LIMIT_WINDOW_MS,
   message: "Muitas requisições. Tente novamente em instantes.",
-  skip: (req) => req.path === "/health" || req.path === "/readyz"
+  skip: (req) => req.path === "/health" || req.path === "/readyz",
+  // C23A: auth paths must work in read-only mode (login, logout, refresh)
+  skipReadOnly: (req) => String(req.path || "").startsWith("/auth")
 });
 
 // D-04: sensitiveDataRateLimit now uses getIdentifier from buildRateLimitMiddleware
@@ -244,4 +292,4 @@ const exportRateLimit = buildRateLimitMiddleware({
   skip: (req) => req.path === "/health" || req.path === "/readyz"
 });
 
-export { buildRateLimitMiddleware, authRateLimit, globalRateLimit, sensitiveDataRateLimit, exportRateLimit, getCircuitBreakerState };
+export { buildRateLimitMiddleware, authRateLimit, globalRateLimit, sensitiveDataRateLimit, exportRateLimit, getCircuitBreakerState, isReadMethod };
