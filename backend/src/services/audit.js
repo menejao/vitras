@@ -4,10 +4,29 @@ import { canonicalRole } from "../utils/helpers.js";
 import { ensureArray } from "../utils/domain.js";
 import { logWarn } from "../utils/logger.js";
 import { recordMetric } from "./metrics.js";
+import { isPostgresMode, listAuditLogsSnapshot } from "../db.js";
 
 // MEM-01: Cap for the in-memory auditLogs array (file-mode / memory cache only).
 // Oldest entries are evicted when the cap is exceeded.
 const MAX_AUDIT_LOGS = Number(process.env.AUDIT_LOG_MAX_ENTRIES) || 10000;
+
+// F5-02: SPECIAL_CATEGORY fields (LGPD Art. 11) — redacted in audit log snapshots.
+// Real values NEVER stored in before/after. Applied before hash computation so the
+// hash covers the redacted version — the plaintext is not stored anywhere in the chain.
+// situacaoRua and deficiencia added Sprint 5B Grupo A (LGPD Art. 11 — social vulnerability + health data)
+const SPECIAL_CATEGORY_FIELDS = ["genderIdentity", "racaCor", "etnia", "situacaoRua", "deficiencia", "hivGestante", "sifilis"];
+const SPECIAL_CATEGORY_REDACT = "[REDACTED-SPECIAL-CATEGORY]";
+
+function redactSpecialCategory(obj) {
+  if (!obj || typeof obj !== "object" || Array.isArray(obj)) return obj;
+  const result = { ...obj };
+  for (const field of SPECIAL_CATEGORY_FIELDS) {
+    if (result[field] !== undefined && result[field] !== null && result[field] !== "") {
+      result[field] = SPECIAL_CATEGORY_REDACT;
+    }
+  }
+  return result;
+}
 
 function hashAuditPayload(payload) {
   return crypto.createHash("sha256").update(JSON.stringify(payload)).digest("hex");
@@ -224,8 +243,8 @@ function addAuditLog(db, user, action, entity, entityId, details = {}) {
       authTransport: String(requestMeta.authTransport || user?.authTransport || "")
     },
     outcome: String(details?.outcome || "success"),
-    before: details?.before ?? null,
-    after: details?.after ?? null,
+    before: details?.before != null ? redactSpecialCategory(details.before) : null,
+    after: details?.after != null ? redactSpecialCategory(details.after) : null,
     details: sanitizeAuditDetails(details),
     requestId: user?.requestId || "",
     ip: String(requestMeta.ip || ""),
@@ -383,16 +402,37 @@ function verifyAuditLogChain(db) {
 }
 
 /**
- * ITEM 4 — Audit report helper.
- * Filters audit logs by event type(s) without exposing PII beyond what's already stored.
- * @param {object} db - The database snapshot
- * @param {string|string[]} types - Action(s) to filter on
+ * KI-04 — Audit report helper with Postgres SQL path.
+ * In Postgres mode: queries app_audit_logs directly (full history, not capped in-memory).
+ * In file mode: filters in-memory db.auditLogs array.
+ * @param {object} db - The database snapshot (used only in file mode)
+ * @param {string|string[]} types - Action(s) to filter on (single action used for SQL path)
  * @param {object} filters - { since?, until?, limit?, unitId? }
+ * @returns {Promise<Array>} audit log entries
  */
-function getAuditReport(db, types, filters = {}) {
-  const typeSet = new Set(Array.isArray(types) ? types : [types]);
+async function getAuditReport(db, types, filters = {}) {
+  const typeList = Array.isArray(types) ? types : [types];
   const { since, until, limit = 500, unitId } = filters;
 
+  // KI-04: Postgres path — query app_audit_logs SQL table directly for full history
+  if (isPostgresMode()) {
+    // listAuditLogsSnapshot supports single action filter; iterate type list and merge if multiple
+    const results = await Promise.all(
+      typeList.map((action) =>
+        listAuditLogsSnapshot(
+          { action, from: since || undefined, to: until || undefined, teamId: unitId || undefined },
+          { limit }
+        )
+      )
+    );
+    const merged = results.flat();
+    // Sort descending and re-apply limit when multiple types
+    merged.sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+    return merged.slice(0, limit);
+  }
+
+  // File mode: filter in-memory array
+  const typeSet = new Set(typeList);
   const logs = Array.isArray(db.auditLogs) ? db.auditLogs : [];
   const filtered = [];
 
@@ -400,16 +440,11 @@ function getAuditReport(db, types, filters = {}) {
     if (!typeSet.has(entry.action)) continue;
     if (since && String(entry.createdAt || "") < since) continue;
     if (until && String(entry.createdAt || "") > until) continue;
-    // Multi-UBS isolation: if unitId filter provided, only include entries for that unit
     if (unitId && entry.details?.unitId && entry.details.unitId !== unitId) continue;
     filtered.push(entry);
   }
 
-  // S4-03: Sort by createdAt descending (most recent first) before applying limit.
-  // In file-mode, logs are appended in insertion order which may not match
-  // createdAt ordering after eviction/replay. Postgres path uses SQL ORDER BY.
   filtered.sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
-
   return filtered.slice(0, limit);
 }
 

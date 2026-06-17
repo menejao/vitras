@@ -99,7 +99,8 @@ const ROLE_CAPABILITIES = {
     "access_requests.read",
     "backup.export",
     "admin.seed",
-    "metrics.internal.read"
+    "metrics.internal.read",
+    "cds.export"
   ],
   acs: [
     "dashboard.read",
@@ -108,7 +109,8 @@ const ROLE_CAPABILITIES = {
     "records.write",
     "referrals.read",
     "referrals.write",
-    "tasks.read"
+    "tasks.read",
+    "tasks.write"
   ],
   nursing_tech: [
     "dashboard.read",
@@ -224,7 +226,8 @@ const ROLE_CAPABILITIES = {
     "metrics.internal.read",
     "session.impersonate",
     "session.break_glass.activate",
-    "ai.access"
+    "ai.access",
+    "cds.export"
   ]
 };
 

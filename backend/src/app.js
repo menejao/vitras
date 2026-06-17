@@ -29,6 +29,8 @@ import privacyRouter from "./routes/privacy.js";
 import aiRouter from "./routes/ai.js";
 import adminRouter from "./routes/admin.js";
 import seedAdminRouter from "./routes/seed-admin.js";
+import householdsRouter from "./routes/households.js";
+import cdsExportRouter from "./routes/cds-export.js";
 
 const app = express();
 
@@ -81,6 +83,8 @@ app.use(protocolsRouter);
 app.use(auditLogsRouter);
 app.use(privacyRouter);
 app.use(aiRouter);
+app.use(householdsRouter);
+app.use(cdsExportRouter);
 
 app.use(globalErrorHandler);
 
