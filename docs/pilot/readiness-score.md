@@ -30,7 +30,7 @@
 - Módulos complementares (farmácia, agenda, referrals, vacinas) presentes
 
 **O que falta:**
-- `cds-export.js` e `households.js` deletados do git — dessincronização git/produção
+- ~~`cds-export.js` e `households.js` deletados do git~~ → **RESOLVIDO (B-01, commit 3e56d4c)**
 - Validação de CNS ausente no frontend
 - CID/CIAP não validado em uso real
 - nursing_tech: inconsistência entre escrita e leitura de prontuário
@@ -183,7 +183,7 @@ Estes itens devem ser resolvidos **antes** de ativar o primeiro município:
 
 | # | Item | Responsável | Prazo sugerido |
 |---|------|-------------|---------------|
-| B-01 | Restaurar cds-export.js + households.js ao git | Dev | 1 dia |
+| ~~B-01~~ | ~~Restaurar cds-export.js + households.js ao git~~ | ✅ DONE | commit 3e56d4c |
 | B-02 | Criar material de treinamento mínimo por perfil | Produto | 3–5 dias |
 | B-03 | Realizar treinamento com pelo menos 1 pessoa por perfil | Operações | Dia do go-live |
 | B-04 | Confirmar capabilities no bootstrap de usuários | Dev + Produto | 1 dia |

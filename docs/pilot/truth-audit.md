@@ -183,7 +183,7 @@ Se a variável não estiver definida no build de produção, idle logout **está
 
 | # | Item | Severidade | Status |
 |---|------|-----------|--------|
-| 1 | cds-export.js / households.js deletados do git | Alta | ABERTO |
+| 1 | cds-export.js / households.js deletados do git | Alta | RESOLVIDO — commit 3e56d4c |
 | 2 | Modo dual DB (JSON/Postgres) não documentado | Média | ABERTO |
 | 3 | Capabilities não configuradas silenciosamente | Média | ABERTO |
 | 4 | nursing_tech: cria mas não vê prontuário | Baixa | ABERTO |
@@ -194,7 +194,8 @@ Se a variável não estiver definida no build de produção, idle logout **está
 | 9 | CNPJ placeholder na política de privacidade | Média | ABERTO |
 | 10 | Deploy zips desalinhados com git HEAD | Alta | ABERTO |
 
-**Itens bloqueantes antes do piloto:** #1 (restaurar git), #3 (capabilities no onboarding), #9 (CNPJ antes de uso em produção com dados reais).
+**Itens bloqueantes antes do piloto:** #3 (capabilities no onboarding), #9 (CNPJ antes de uso em produção com dados reais).  
+**Resolvido:** #1 restaurado em commit 3e56d4c — backend local inicia, 17/17 checks B-01 PASS.
 
 ---
 
