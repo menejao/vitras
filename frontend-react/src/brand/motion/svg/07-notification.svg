@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
-
-<g transform="translate(50 50) scale(3.125)"><path d="M4 4 H10 L16 18 L22 4 H28 V28 H4 Z" class="mk"></path></g>
-<circle class="ring" cx="150" cy="50" r="9"></circle>
-<circle class="dot" cx="150" cy="50" r="9"></circle>
-</svg>

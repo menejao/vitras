@@ -1,8 +1,0 @@
-<?xml version="1.0"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 128" width="480" height="128" preserveAspectRatio="xMidYMid meet">
-
-<g class="mk"><path d="M4 4 H10 L16 18 L22 4 H28 V28 H4 Z" fill="#E8ECF1" transform="scale(3.5)"></path></g>
-<g font-family="IBM Plex Sans, system-ui, sans-serif" font-weight="500" font-size="84" letter-spacing="-4" fill="#E8ECF1">
-  <text x="138" y="84"><tspan class="l l1">v</tspan><tspan class="l l2">i</tspan><tspan class="l l3">t</tspan><tspan class="l l4">r</tspan><tspan class="l l5">a</tspan><tspan class="l l6">s</tspan><tspan class="l l7">.</tspan></text>
-</g>
-</svg>

@@ -1,1 +1,0 @@
-{"commands":["PGPASSWORD='VitrasDB2026!' psql -h vitras-drill-restore.cfy20e2wqmpw.sa-east-1.rds.amazonaws.com -U vitras_admin -d postgres -c \"SELECT payload->>'password' as pwd, payload->>'email' as email, payload->>'role' as role FROM app_users WHERE email = 'breakglass@vitras.com.br';\" 2>&1"]}
