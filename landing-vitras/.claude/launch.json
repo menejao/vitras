@@ -4,8 +4,9 @@
     {
       "name": "landing-vitras",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["serve", "-p", "4200", "."],
-      "port": 4200
+      "runtimeArgs": ["serve", "C:\\dev\\vitras\\landing-vitras"],
+      "port": 4200,
+      "autoPort": true
     }
   ]
 }
