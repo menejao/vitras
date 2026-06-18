@@ -27,7 +27,6 @@ import { listNotifications } from "./api";
 import ReceptionistApp from "./pages/ReceptionistApp";
 import AuthScreen from "./pages/AuthScreen";
 import ActivateAccountPage from "./pages/ActivateAccountPage";
-import PrivacyPage from "./pages/PrivacyPage";
 import AppErrorBoundary from "./components/feedback/AppErrorBoundary";
 import OfflineBanner from "./components/feedback/OfflineBanner";
 import ComplianceBadge from "./components/feedback/ComplianceBadge";
@@ -192,9 +191,10 @@ function AppInner() {
   if (_path === "/activate" || _path === "/primeiro-acesso") {
     return <ActivateAccountPage />;
   }
-  if (_path === "/privacidade") {
-    return <PrivacyPage />;
-  }
+  if (path === "/privacidade") {
+  window.location.href = "https://vitras.com.br/privacidade";
+  return null;
+}
 
   if (!token || !user || typeof user !== 'object') {
     return (
