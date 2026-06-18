@@ -1164,6 +1164,150 @@ function VisitasTab({ patients, user, token, preSelectPatient, clearPreSelect })
   );
 }
 
+// ── ProductionSection — APS-01F ──────────────────────────────────────────────
+
+const PROD_PERIODS = [
+  ["hoje",      "Hoje"],
+  ["semana",    "Semana"],
+  ["mes",       "Mês"],
+  ["trimestre", "Trimestre"],
+];
+
+function ProdKpi({ label, value, cls }) {
+  return (
+    <div className={`prod-kpi ${cls || ""}`}>
+      <span className="prod-kpi__val">{value ?? "—"}</span>
+      <span className="prod-kpi__lbl">{label}</span>
+    </div>
+  );
+}
+
+function ProductionSection({ token, user }) {
+  const [period, setPeriod]   = useState("mes");
+  const [data, setData]       = useState(null);
+  const [stats, setStats]     = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError]     = useState(null);
+
+  const load = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [prodRes, statsRes] = await Promise.all([
+        fetch(`/production/acs?period=${period}`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`/active-search/stats`,             { headers: { Authorization: `Bearer ${token}` } }),
+      ]);
+      if (!prodRes.ok) throw new Error("Erro ao carregar produção");
+      const [prod, st] = await Promise.all([prodRes.json(), statsRes.ok ? statsRes.json() : null]);
+      setData(prod);
+      setStats(st);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load(); }, [period, token]);
+
+  const v = data?.visits || {};
+  const t = data?.tasks  || {};
+  const g = data?.groups || {};
+
+  return (
+    <div className="prod-root">
+      {/* Period filter */}
+      <div className="prod-period-bar">
+        {PROD_PERIODS.map(([key, lbl]) => (
+          <button
+            key={key}
+            type="button"
+            className={`prod-period-btn${period === key ? " is-active" : ""}`}
+            onClick={() => setPeriod(key)}
+          >
+            {lbl}
+          </button>
+        ))}
+      </div>
+
+      {loading && <p className="prod-loading">Carregando...</p>}
+      {error   && <p className="prod-error">{error}</p>}
+
+      {!loading && !error && data && (
+        <>
+          {/* Top KPI cards */}
+          <div className="prod-kpi-grid">
+            <ProdKpi label="Visitas realizadas"   value={v.realizada}     cls="prod-kpi--primary" />
+            <ProdKpi label="Visitas total"        value={v.total}         cls="" />
+            <ProdKpi label="Grupos visitados"     value={v.groupsVisited} cls="prod-kpi--teal" />
+            <ProdKpi label="Tarefas concluídas"   value={t.done}          cls="prod-kpi--green" />
+            <ProdKpi label="Tarefas em atraso"    value={t.overdue}       cls={t.overdue > 0 ? "prod-kpi--danger" : ""} />
+            <ProdKpi label="Cadastros atualizados" value={data.registrationsUpdated} cls="" />
+            <ProdKpi label="Novos grupos"         value={data.newGroups}  cls="" />
+            <ProdKpi label="Transferências"       value={(data.transfers?.received || 0) + (data.transfers?.sent || 0)} cls="" />
+          </div>
+
+          {/* Visit breakdown */}
+          <div className="prod-card">
+            <h4 className="prod-card__title">Visitas — {PROD_PERIODS.find(p => p[0] === period)?.[1]}</h4>
+            <div className="prod-visit-row">
+              <span className="prod-visit-row__label">Realizadas</span>
+              <span className="prod-visit-row__val prod-visit-row__val--green">{v.realizada ?? 0}</span>
+            </div>
+            <div className="prod-visit-row">
+              <span className="prod-visit-row__label">Recusadas</span>
+              <span className="prod-visit-row__val prod-visit-row__val--warn">{v.recusada ?? 0}</span>
+            </div>
+            <div className="prod-visit-row">
+              <span className="prod-visit-row__label">Ausentes</span>
+              <span className="prod-visit-row__val prod-visit-row__val--muted">{v.ausente ?? 0}</span>
+            </div>
+          </div>
+
+          {/* Situação operacional */}
+          <div className="prod-card">
+            <h4 className="prod-card__title">Minha situação operacional</h4>
+            <div className="prod-ops-row">
+              <span className="prod-ops__label">Score médio dos grupos</span>
+              <span className="prod-ops__val prod-score">{g.avgScore ?? "—"}/100</span>
+            </div>
+            <div className="prod-ops-scores">
+              <div className="prod-ops-chip prod-ops-chip--critico">
+                <span>{g.critical ?? 0}</span><span>Críticos</span>
+              </div>
+              <div className="prod-ops-chip prod-ops-chip--atencao">
+                <span>{g.attention ?? 0}</span><span>Atenção</span>
+              </div>
+              <div className="prod-ops-chip prod-ops-chip--saudavel">
+                <span>{g.healthy ?? 0}</span><span>Saudáveis</span>
+              </div>
+            </div>
+            <div className="prod-ops-row">
+              <span className="prod-ops__label">Total de grupos</span>
+              <span className="prod-ops__val">{g.total ?? 0}</span>
+            </div>
+          </div>
+
+          {/* Transfers */}
+          {((data.transfers?.received || 0) + (data.transfers?.sent || 0)) > 0 && (
+            <div className="prod-card">
+              <h4 className="prod-card__title">Movimentação territorial</h4>
+              <div className="prod-visit-row">
+                <span className="prod-visit-row__label">Recebidas</span>
+                <span className="prod-visit-row__val">{data.transfers?.received ?? 0}</span>
+              </div>
+              <div className="prod-visit-row">
+                <span className="prod-visit-row__label">Enviadas</span>
+                <span className="prod-visit-row__val">{data.transfers?.sent ?? 0}</span>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 // ── ActiveSearchSection — APS-01E ────────────────────────────────────────────
 
 const AS_CLASS_LABEL = { critico: "Crítico", atencao: "Atenção", saudavel: "Saudável" };
@@ -1477,7 +1621,7 @@ function AcsTasksPage({ patients, users, user, token, onNavigatePatient }) {
       <div className="acs-body">
 
         <div className="acs-tabs" role="tablist" aria-label="Seções ACS">
-          {[["tasks", "Tarefas"], ["visitas", "Visitas"], ["groups", "Grupos Familiares"], ["busca", "Busca Ativa"]].map(([val, lbl]) => (
+          {[["tasks", "Tarefas"], ["visitas", "Visitas"], ["groups", "Grupos Familiares"], ["busca", "Busca Ativa"], ["producao", "Produção"]].map(([val, lbl]) => (
             <button
               key={val}
               type="button"
@@ -1676,6 +1820,13 @@ function AcsTasksPage({ patients, users, user, token, onNavigatePatient }) {
               if (patient) setVisitPreSelect(patient);
               setActiveTab("visitas");
             }}
+          />
+        )}
+
+        {activeTab === "producao" && (
+          <ProductionSection
+            token={token}
+            user={user}
           />
         )}
 

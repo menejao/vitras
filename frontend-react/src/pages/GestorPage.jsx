@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 import PageHeader from "../components/layout/PageHeader";
 import Button from "../components/ui/Button";
@@ -44,6 +44,165 @@ function GaugePie({ value, max, color = C_ACCENT, label, size = 80 }) {
   );
 }
 
+// ── AcsProductionPanel — APS-01F ─────────────────────────────────────────────
+
+const GP_PERIODS = [["mes", "Mês"], ["trimestre", "Trimestre"], ["semana", "Semana"], ["hoje", "Hoje"]];
+
+function AcsProdRow({ label, value, danger }) {
+  return (
+    <div className="gp-row">
+      <span className="gp-row__lbl">{label}</span>
+      <span className={`gp-row__val${danger ? " gp-row__val--danger" : ""}`}>{value ?? "—"}</span>
+    </div>
+  );
+}
+
+function AcsProductionPanel({ token, user }) {
+  const [period, setPeriod]   = useState("mes");
+  const [nurse, setNurse]     = useState(null);
+  const [manager, setManager] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError]     = useState(null);
+
+  const load = async () => {
+    setLoading(true); setError(null);
+    try {
+      const [nRes, mRes] = await Promise.all([
+        fetch(`/production/nurse?period=${period}`,   { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`/production/manager?period=${period}`, { headers: { Authorization: `Bearer ${token}` } }),
+      ]);
+      if (!nRes.ok || !mRes.ok) throw new Error("Erro ao carregar produção ACS");
+      const [n, m] = await Promise.all([nRes.json(), mRes.json()]);
+      setNurse(n);
+      setManager(m);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { if (token) load(); }, [period, token]);
+
+  const terr = manager?.territory;
+  const evol = manager?.evolution;
+
+  return (
+    <div className="gp-root">
+      <div className="gp-header">
+        <h3 className="gp-title">Produção ACS — Situação do Território</h3>
+        <div className="gp-period-bar">
+          {GP_PERIODS.map(([k, l]) => (
+            <button key={k} type="button"
+              className={`gp-period-btn${period === k ? " is-active" : ""}`}
+              onClick={() => setPeriod(k)}>
+              {l}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {loading && <p className="gp-loading">Carregando...</p>}
+      {error   && <p className="gp-error">{error}</p>}
+
+      {!loading && !error && terr && (
+        <>
+          {/* Territory overview */}
+          <div className="gp-grid-4">
+            <div className="gp-kpi">
+              <span className="gp-kpi__val">{terr.totalGroups}</span>
+              <span className="gp-kpi__lbl">Grupos familiares</span>
+            </div>
+            <div className="gp-kpi">
+              <span className="gp-kpi__val">{terr.totalMembers}</span>
+              <span className="gp-kpi__lbl">Moradores ativos</span>
+            </div>
+            <div className="gp-kpi gp-kpi--pct">
+              <span className="gp-kpi__val">{terr.visitCoverage}%</span>
+              <span className="gp-kpi__lbl">Cobertura de visitas</span>
+            </div>
+            <div className={`gp-kpi${terr.avgScore < 50 ? " gp-kpi--danger" : terr.avgScore < 80 ? " gp-kpi--warn" : " gp-kpi--ok"}`}>
+              <span className="gp-kpi__val">{terr.avgScore}/100</span>
+              <span className="gp-kpi__lbl">Score médio</span>
+            </div>
+          </div>
+
+          {/* Classification + evolution */}
+          <div className="gp-two-col">
+            <div className="gp-card">
+              <h4 className="gp-card__title">Classificação dos grupos</h4>
+              <div className="gp-class-row gp-class-row--critico">
+                <span>{terr.critical}</span><span>Críticos</span>
+              </div>
+              <div className="gp-class-row gp-class-row--atencao">
+                <span>{terr.attention}</span><span>Atenção</span>
+              </div>
+              <div className="gp-class-row gp-class-row--saudavel">
+                <span>{terr.healthy}</span><span>Saudáveis</span>
+              </div>
+              <AcsProdRow label="Pendências abertas"    value={terr.pendenciesOpen} danger={terr.pendenciesOpen > 0} />
+              <AcsProdRow label="Cadastros atualizados" value={terr.registrationsUpdated} />
+            </div>
+
+            {evol && (
+              <div className="gp-card">
+                <h4 className="gp-card__title">
+                  Tendência operacional
+                  <span className={`gp-trend gp-trend--${evol.trend}`}>
+                    {evol.trend === "melhorando" ? "↑ Melhorando" : evol.trend === "piorando" ? "↓ Piorando" : "→ Estável"}
+                  </span>
+                </h4>
+                <AcsProdRow label="Cobertura atual"    value={`${evol.coverageCurrent}%`} />
+                <AcsProdRow label="Cobertura anterior" value={`${evol.coveragePrevious}%`} />
+                <AcsProdRow label="Δ Cobertura"        value={`${evol.coverageDelta > 0 ? "+" : ""}${evol.coverageDelta}%`} danger={evol.coverageDelta < -5} />
+                <AcsProdRow label="Grupos críticos"    value={evol.criticalGroups} danger={evol.criticalGroups > 0} />
+              </div>
+            )}
+          </div>
+
+          {/* Per-ACS breakdown */}
+          {nurse && (
+            <div className="gp-card">
+              <h4 className="gp-card__title">
+                ACS da equipe
+                <span className="gp-badge-row">
+                  <span className="gp-badge gp-badge--ok">{nurse.acsActive} ativos</span>
+                  {nurse.acsInactive > 0 && <span className="gp-badge gp-badge--warn">{nurse.acsInactive} sem atividade</span>}
+                </span>
+              </h4>
+              <div className="gp-acs-table">
+                <div className="gp-acs-thead">
+                  <span>ACS</span>
+                  <span>Visitas</span>
+                  <span>Grupos visit.</span>
+                  <span>Tarefas ✓</span>
+                  <span>Críticos</span>
+                  <span>Score médio</span>
+                </div>
+                {(nurse.perAcs || []).map(a => (
+                  <div key={a.acsId} className={`gp-acs-row${a.inactive ? " gp-acs-row--inactive" : ""}`}>
+                    <span className="gp-acs-row__name">{a.acsName}</span>
+                    <span>{a.visits?.realizada ?? 0}</span>
+                    <span>{a.visits?.groupsVisited ?? 0}</span>
+                    <span>{a.tasks?.done ?? 0}</span>
+                    <span className={a.groups?.critical > 0 ? "gp-val--danger" : ""}>{a.groups?.critical ?? 0}</span>
+                    <span className={
+                      (a.groups?.avgScore ?? 0) < 50 ? "gp-val--danger" :
+                      (a.groups?.avgScore ?? 0) < 80 ? "gp-val--warn" : "gp-val--ok"
+                    }>{a.groups?.avgScore ?? "—"}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+// ── GestorPage ────────────────────────────────────────────────────────────────
+
 function GestorPage({
   patients,
   users,
@@ -53,6 +212,8 @@ function GestorPage({
   referrals = [],
   pharmacyStock = [],
   pharmacyLog = [],
+  token,
+  user,
 }) {
   const now = new Date();
   const ONLINE_WINDOW_MS = 2 * 60 * 1000;
@@ -324,6 +485,9 @@ function GestorPage({
           </div>
         </div>
       </div>
+
+      {/* ACS Production Dashboard — APS-01F */}
+      {token && <AcsProductionPanel token={token} user={user} />}
 
       {/* Produção */}
       <div className="gestor-section">

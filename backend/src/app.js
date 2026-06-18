@@ -33,6 +33,7 @@ import householdsRouter from "./routes/households.js";
 import cdsExportRouter from "./routes/cds-export.js";
 import acsVisitsRouter from "./routes/acs-visits.js";
 import activeSearchRouter from "./routes/active-search.js";
+import productionRouter from "./routes/production.js";
 
 const app = express();
 
@@ -89,6 +90,7 @@ app.use(householdsRouter);
 app.use(cdsExportRouter);
 app.use(acsVisitsRouter);
 app.use(activeSearchRouter);
+app.use(productionRouter);
 
 app.use(globalErrorHandler);
 
