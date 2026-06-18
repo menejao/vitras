@@ -621,3 +621,484 @@
   color: var(--warning);
   font-style: italic;
 }
+
+/* ── Visitas tab ──────────────────────────────────────────────── */
+
+/* Task card — Registrar Visita button */
+.acs-task__visit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  padding: .28rem .65rem;
+  font: 600 var(--t-xs) var(--font-sans);
+  color: var(--teal-700, #0f766e);
+  background: var(--teal-50, #f0fdfa);
+  border: 1px solid var(--teal-200, #99f6e4);
+  border-radius: var(--r-md);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background .12s, border-color .12s;
+}
+.acs-task__visit-btn:hover {
+  background: var(--teal-100, #ccfbf1);
+  border-color: var(--teal-300, #5eead4);
+}
+
+/* List view header */
+.acs-vis-list-view {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.acs-vis-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+}
+
+.acs-vis-list-count {
+  font: 400 var(--t-sm) var(--font-sans);
+  color: var(--text-dim);
+}
+
+.acs-vis-local-badge {
+  margin-left: var(--s-2);
+  font: 400 var(--t-xs) var(--font-mono, monospace);
+  color: var(--warning, #b45309);
+  background: var(--amber-50, #fffbeb);
+  border: 1px solid var(--amber-200, #fde68a);
+  border-radius: var(--r-sm);
+  padding: .1rem .4rem;
+}
+
+.acs-vis-new-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: .45rem 1rem;
+  font: 600 var(--t-sm) var(--font-sans);
+  color: white;
+  background: var(--primary, #0f766e);
+  border: none;
+  border-radius: var(--r-md);
+  cursor: pointer;
+  transition: opacity .12s;
+}
+.acs-vis-new-btn:hover { opacity: .88; }
+
+/* Visit cards */
+.acs-vis-cards { display: flex; flex-direction: column; gap: var(--s-3); }
+
+.acs-vis-card {
+  background: var(--surface-card, white);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--r-lg);
+  padding: var(--s-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.acs-vis-card__head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+}
+
+.acs-vis-card__date {
+  font: 400 var(--t-xs) var(--font-mono, monospace);
+  color: var(--text-dim);
+}
+
+.acs-vis-card__turno {
+  font: 400 var(--t-xs) var(--font-sans);
+  color: var(--text-dim);
+}
+
+.acs-vis-card__patient {
+  font: 600 var(--t-sm) var(--font-sans);
+  color: var(--text-base);
+}
+
+.acs-vis-card__motivos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-1);
+}
+
+.acs-vis-card__motivo-tag {
+  font: 400 var(--t-xs) var(--font-sans);
+  color: var(--teal-700, #0f766e);
+  background: var(--teal-50, #f0fdfa);
+  border: 1px solid var(--teal-200, #99f6e4);
+  border-radius: var(--r-sm);
+  padding: .1rem .5rem;
+}
+
+.acs-vis-card__obs {
+  font: 400 var(--t-xs) var(--font-sans);
+  color: var(--text-dim);
+  margin: 0;
+}
+
+/* Desfecho badge */
+.acs-vis-desfecho {
+  font: 600 var(--t-xs) var(--font-sans);
+  border-radius: var(--r-sm);
+  padding: .15rem .55rem;
+}
+.acs-vis-desfecho--ok   { color: var(--success-text, #166534); background: var(--green-50, #f0fdf4); border: 1px solid var(--green-200, #bbf7d0); }
+.acs-vis-desfecho--warn { color: var(--warning, #b45309);      background: var(--amber-50, #fffbeb); border: 1px solid var(--amber-200, #fde68a); }
+.acs-vis-desfecho--dim  { color: var(--text-dim);              background: var(--surface-alt);       border: 1px solid var(--border-soft); }
+
+/* Patient selector */
+.acs-vis-selector {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.acs-vis-selector__header {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.acs-vis-selector__title {
+  font: 600 var(--t-base) var(--font-sans);
+  color: var(--text-base);
+  margin: 0;
+}
+
+.acs-vis-selector__empty {
+  font: 400 var(--t-sm) var(--font-sans);
+  color: var(--text-dim);
+  text-align: center;
+  padding: var(--s-8) 0;
+}
+
+.acs-vis-search-wrap {
+  position: relative;
+}
+
+.acs-vis-selector__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+}
+
+.acs-vis-pat-row {
+  display: flex;
+  flex-direction: column;
+  gap: .15rem;
+  padding: var(--s-3) var(--s-4);
+  background: var(--surface-card, white);
+  border: none;
+  border-bottom: 1px solid var(--border-soft);
+  cursor: pointer;
+  text-align: left;
+  transition: background .1s;
+}
+.acs-vis-pat-row:last-child { border-bottom: none; }
+.acs-vis-pat-row:hover { background: var(--surface-hover, #f8fafc); }
+
+.acs-vis-pat-row__name {
+  font: 600 var(--t-sm) var(--font-sans);
+  color: var(--text-base);
+}
+.acs-vis-pat-row__civil {
+  font-weight: 400;
+  color: var(--text-dim);
+  font-size: var(--t-xs);
+}
+.acs-vis-pat-row__meta {
+  display: flex;
+  gap: var(--s-3);
+  font: 400 var(--t-xs) var(--font-sans);
+  color: var(--text-dim);
+}
+.acs-vis-pat-row__addr {
+  font: 400 var(--t-xs) var(--font-sans);
+  color: var(--text-dimmer, #94a3b8);
+}
+
+/* Back button */
+.acs-vis-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  font: 500 var(--t-sm) var(--font-sans);
+  color: var(--text-dim);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: .2rem 0;
+  flex-shrink: 0;
+}
+.acs-vis-back-btn:hover { color: var(--text-base); }
+
+/* Visit form */
+.acs-vis-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.acs-vis-form__header {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+}
+
+.acs-vis-form__patient-chip {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+  padding: .35rem .75rem;
+  background: var(--teal-50, #f0fdfa);
+  border: 1px solid var(--teal-200, #99f6e4);
+  border-radius: var(--r-md);
+  font: 600 var(--t-sm) var(--font-sans);
+  color: var(--teal-800, #115e59);
+}
+
+.acs-vis-form__patient-age,
+.acs-vis-form__patient-addr {
+  font-weight: 400;
+  color: var(--teal-600, #0d9488);
+  font-size: var(--t-xs);
+}
+
+.acs-vis-task-origin {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font: 400 var(--t-xs) var(--font-sans);
+  color: var(--text-dim);
+  background: var(--surface-alt);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--r-md);
+  padding: .35rem .75rem;
+}
+
+.acs-vis-error {
+  padding: .5rem .75rem;
+  font: 500 var(--t-sm) var(--font-sans);
+  color: var(--danger-text, #991b1b);
+  background: var(--rose-50, #fff1f2);
+  border: 1px solid var(--rose-200, #fecdd3);
+  border-radius: var(--r-md);
+}
+
+/* Accordion blocks */
+.acs-vis-block {
+  border: 1px solid var(--border-soft);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  background: var(--surface-card, white);
+}
+
+.acs-vis-block__toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  width: 100%;
+  padding: var(--s-3) var(--s-4);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: background .1s;
+}
+.acs-vis-block__toggle:hover { background: var(--surface-hover, #f8fafc); }
+
+.acs-vis-block__title {
+  flex: 1;
+  font: 600 var(--t-sm) var(--font-sans);
+  color: var(--text-base);
+}
+
+.acs-vis-block__badge {
+  font: 700 var(--t-xs) var(--font-mono, monospace);
+  color: white;
+  background: var(--primary, #0f766e);
+  border-radius: 999px;
+  min-width: 1.2rem;
+  height: 1.2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 .3rem;
+}
+
+.acs-vis-block__chevron {
+  color: var(--text-dim);
+  transition: transform .15s;
+  flex-shrink: 0;
+}
+.acs-vis-block.is-open .acs-vis-block__chevron { transform: rotate(180deg); }
+
+.acs-vis-block__body {
+  padding: var(--s-3) var(--s-4) var(--s-4);
+  border-top: 1px solid var(--border-soft);
+}
+
+/* Form fields inside blocks */
+.acs-vis-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s-3);
+}
+@media (max-width: 400px) {
+  .acs-vis-fields { grid-template-columns: 1fr; }
+}
+
+.acs-vis-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+.acs-vis-label {
+  font: 500 var(--t-xs) var(--font-sans);
+  color: var(--text-dim);
+}
+
+.acs-vis-input,
+.acs-vis-select {
+  padding: .45rem .6rem;
+  font: 400 var(--t-sm) var(--font-sans);
+  color: var(--text-base);
+  background: var(--surface-input, white);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  outline: none;
+  transition: border-color .12s;
+  width: 100%;
+}
+.acs-vis-input:focus,
+.acs-vis-select:focus { border-color: var(--primary, #0f766e); }
+
+/* Checkbox group */
+.acs-vis-checkgroup {
+  display: grid;
+  grid-template-columns: repeat(var(--cg-cols, 2), 1fr);
+  gap: var(--s-2) var(--s-4);
+}
+@media (max-width: 420px) {
+  .acs-vis-checkgroup { grid-template-columns: 1fr; }
+}
+
+.acs-vis-check-label {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-2);
+  font: 400 var(--t-sm) var(--font-sans);
+  color: var(--text-base);
+  cursor: pointer;
+  line-height: 1.4;
+}
+
+.acs-vis-checkbox {
+  width: 1rem;
+  height: 1rem;
+  margin-top: .1rem;
+  flex-shrink: 0;
+  accent-color: var(--primary, #0f766e);
+}
+
+/* Desfecho radio group */
+.acs-vis-desfecho-group {
+  display: flex;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+}
+
+.acs-vis-desfecho-opt {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: .4rem .9rem;
+  font: 500 var(--t-sm) var(--font-sans);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  cursor: pointer;
+  transition: background .1s, border-color .1s, color .1s;
+}
+.acs-vis-desfecho-opt input[type="radio"] { display: none; }
+.acs-vis-desfecho-opt.is-selected {
+  background: var(--teal-50, #f0fdfa);
+  border-color: var(--primary, #0f766e);
+  color: var(--teal-800, #115e59);
+}
+
+/* Textarea */
+.acs-vis-textarea {
+  width: 100%;
+  padding: .5rem .65rem;
+  font: 400 var(--t-sm) var(--font-sans);
+  color: var(--text-base);
+  background: var(--surface-input, white);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  resize: vertical;
+  outline: none;
+  transition: border-color .12s;
+}
+.acs-vis-textarea:focus { border-color: var(--primary, #0f766e); }
+
+/* Form actions */
+.acs-vis-form__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--s-3);
+  padding-top: var(--s-2);
+}
+
+.acs-vis-btn-cancel {
+  padding: .5rem 1.1rem;
+  font: 500 var(--t-sm) var(--font-sans);
+  color: var(--text-dim);
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  cursor: pointer;
+  transition: background .1s;
+}
+.acs-vis-btn-cancel:hover { background: var(--surface-hover); }
+
+.acs-vis-btn-save {
+  padding: .5rem 1.3rem;
+  font: 600 var(--t-sm) var(--font-sans);
+  color: white;
+  background: var(--primary, #0f766e);
+  border: none;
+  border-radius: var(--r-md);
+  cursor: pointer;
+  transition: opacity .12s;
+}
+.acs-vis-btn-save:disabled { opacity: .6; cursor: not-allowed; }
+.acs-vis-btn-save:not(:disabled):hover { opacity: .88; }
+
+/* ACS visit redirect notice in PatientDetailPanel */
+.acs-visit-redirect-notice {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: .5rem .75rem;
+  font: 400 var(--t-sm) var(--font-sans);
+  color: var(--teal-700, #0f766e);
+  background: var(--teal-50, #f0fdfa);
+  border: 1px solid var(--teal-200, #99f6e4);
+  border-radius: var(--r-md);
+  grid-column: 1 / -1;
+}

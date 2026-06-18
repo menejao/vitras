@@ -414,18 +414,23 @@ function FollowupTab({ patient, users, recordForm, setRecordForm, recordVaccines
   return (
     <form className="field-grid" onSubmit={onSubmitRecord}>
       {acsMode ? (
-        <Input label="Tipo de atendimento" value="Visita domiciliar" disabled />
+        <div className="acs-visit-redirect-notice">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" stroke="currentColor" strokeWidth="1.5"/>
+            <path d="M9 22V12h6v10" stroke="currentColor" strokeWidth="1.5"/>
+          </svg>
+          Para registrar visita domiciliar use <strong>ACS → Visitas</strong>.
+        </div>
       ) : (
         <Select label="Tipo de atendimento" value={recordForm.type || "consultation"} onChange={e => {
           const t = e.target.value;
           const defaultTitle = t === "consultation"
             ? (userObj?.role === "doctor" ? "Consulta médica" : userObj?.role === "dentist" ? "Consulta odontológica" : "Consulta de enfermagem")
-            : t === "visit" ? "Visita ACS" : "";
+            : "";
           setRecordForm(s => ({ ...s, type: t, title: defaultTitle, consultKind: "medica", consultDoctor: "", consultSpecialty: "" }));
           setRecordVaccines([]);
         }}>
           <option value="consultation">Consulta</option>
-          <option value="visit">Visita domiciliar</option>
           <option value="vaccine">Vacina</option>
           <option value="procedure">Procedimento</option>
           <option value="note">Observação / nota</option>
