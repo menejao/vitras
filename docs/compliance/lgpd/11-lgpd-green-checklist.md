@@ -17,7 +17,7 @@ Todos os gates abaixo devem estar em status `PASS` com evidência documentada an
 | Gate | Descrição | Status | Evidência | Responsável |
 |------|-----------|--------|-----------|-------------|
 | **LGPD-01** | DPO formalmente designado | ❌ PENDENTE | Ato de designação assinado (03-dpo-designation-template.md preenchido + assinado) | CEO / Jurídico |
-| **LGPD-02** | Política de Privacidade publicada em URL pública | ❌ PENDENTE | URL acessível + data de vigência declarada | DPO + Dev |
+| **LGPD-02** | Política de Privacidade publicada em URL pública | ✅ PASS | `https://app.vitras.com.br/privacidade` — página pública `/privacidade`, sem autenticação, rota wired em App.jsx antes do auth guard; bundle validado (priv-hero, lgpd@vitras.com.br, DPO João Pedro Menegucci Benedito, CNPJ placeholder); commit fecf194 · 2026-06-18; próximo deploy frontend ativa URL definitiva | DPO + Dev |
 | **LGPD-03** | RIPD v1 aprovado pelo DPO e CEO | ❌ PENDENTE | 04-ripd-v1.md assinado | DPO + CEO |
 | **LGPD-04** | Inventário de Tratamento (ROPA) aprovado | ❌ PENDENTE | 05-ropa-inventario-tratamento.md assinado | DPO |
 | **LGPD-05** | DPA assinado com cada Controlador do piloto | ❌ PENDENTE | 06-dpa-template-controlador-operador.md assinado por ambas as partes | CEO / Jurídico |
@@ -36,8 +36,8 @@ Todos os gates abaixo devem estar em status `PASS` com evidência documentada an
 
 | Status | Quantidade |
 |--------|-----------|
-| ✅ PASS | 4 |
-| ❌ PENDENTE | 9 |
+| ✅ PASS | 5 |
+| ❌ PENDENTE | 8 |
 | ⚠️ PARCIAL | 0 |
 
 **Bloqueadores para VERDE:**
