@@ -91,6 +91,8 @@ router.post(
         energiaEletrica: payload.energiaEletrica !== undefined ? Boolean(payload.energiaEletrica) : undefined,
         electricity: String(payload.electricity || "").trim(),
         materialPredominanteParedes: payload.materialPredominanteParedes || "",
+        situacaoMoradiaPosseTerra: payload.situacaoMoradiaPosseTerra || "",
+        tipoEndereco: payload.tipoEndereco || "",
         homeVisitFreq: String(payload.homeVisitFreq || "").trim(),
         createdAt: now,
         updatedAt: now
@@ -153,6 +155,8 @@ router.patch(
       if (payload.energiaEletrica !== undefined) next.energiaEletrica = Boolean(payload.energiaEletrica);
       if (payload.electricity !== undefined) next.electricity = String(payload.electricity || "").trim();
       if (payload.materialPredominanteParedes !== undefined) next.materialPredominanteParedes = payload.materialPredominanteParedes;
+      if (payload.situacaoMoradiaPosseTerra !== undefined) next.situacaoMoradiaPosseTerra = payload.situacaoMoradiaPosseTerra;
+      if (payload.tipoEndereco !== undefined) next.tipoEndereco = payload.tipoEndereco;
       if (payload.homeVisitFreq !== undefined) next.homeVisitFreq = String(payload.homeVisitFreq || "").trim();
 
       db.households[idx] = next;
