@@ -32,6 +32,7 @@ import seedAdminRouter from "./routes/seed-admin.js";
 import householdsRouter from "./routes/households.js";
 import cdsExportRouter from "./routes/cds-export.js";
 import acsVisitsRouter from "./routes/acs-visits.js";
+import activeSearchRouter from "./routes/active-search.js";
 
 const app = express();
 
@@ -87,6 +88,7 @@ app.use(aiRouter);
 app.use(householdsRouter);
 app.use(cdsExportRouter);
 app.use(acsVisitsRouter);
+app.use(activeSearchRouter);
 
 app.use(globalErrorHandler);
 

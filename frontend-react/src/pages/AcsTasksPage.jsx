@@ -374,7 +374,11 @@ function FamilyGroupsSection({ token, user, patients, onNavigatePatient, onStart
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [activeGroupId, setActiveGroupId] = useState(null);
+  const [activeGroupId, setActiveGroupId] = useState(() => {
+    const pending = sessionStorage.getItem("vitras_openGroupId");
+    if (pending) { sessionStorage.removeItem("vitras_openGroupId"); return pending; }
+    return null;
+  });
 
   useEffect(() => {
     if (!token) return;
@@ -1160,6 +1164,224 @@ function VisitasTab({ patients, user, token, preSelectPatient, clearPreSelect })
   );
 }
 
+// ── ActiveSearchSection — APS-01E ────────────────────────────────────────────
+
+const AS_CLASS_LABEL = { critico: "Crítico", atencao: "Atenção", saudavel: "Saudável" };
+const AS_CLASS_CLS   = { critico: "as-badge--critico", atencao: "as-badge--atencao", saudavel: "as-badge--saudavel" };
+
+const AS_PRIORITY_LABEL = { high: "Alta", medium: "Média", low: "Baixa" };
+const AS_PRIORITY_CLS   = { high: "as-pend--high", medium: "as-pend--medium", low: "as-pend--low" };
+
+const PENDENCY_SECTION_LABELS = {
+  critico:  "Críticos",
+  atencao:  "Atenção",
+  saudavel: "Saudáveis",
+};
+
+function AsGroupCard({ result, onOpenGroup, onStartVisit }) {
+  return (
+    <div className={`as-card as-card--${result.classification}`}>
+      <div className="as-card__header">
+        <div className="as-card__title-row">
+          <span className={`as-badge ${AS_CLASS_CLS[result.classification]}`}>
+            {AS_CLASS_LABEL[result.classification]}
+          </span>
+          <span className="as-card__score">{result.score}/100</span>
+        </div>
+        <p className="as-card__address">{result.address || "Endereço não informado"}</p>
+        {result.acsName && <p className="as-card__acs">ACS: {result.acsName}</p>}
+        {result.microArea && <p className="as-card__micro">Microárea: {result.microArea}</p>}
+      </div>
+
+      {result.pendencies.length > 0 && (
+        <ul className="as-card__pends">
+          {result.pendencies.map(p => (
+            <li key={p.code} className={`as-pend ${AS_PRIORITY_CLS[p.priority]}`}>
+              <span className="as-pend__rule">{p.rule}</span>
+              <span className="as-pend__label">{p.label}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <div className="as-card__actions">
+        <button
+          type="button"
+          className="btn btn--sm btn--secondary"
+          onClick={() => onOpenGroup && onOpenGroup(result.groupId)}
+        >
+          Ver grupo
+        </button>
+        <button
+          type="button"
+          className="btn btn--sm btn--primary"
+          onClick={() => onStartVisit && onStartVisit(result.groupId)}
+        >
+          Iniciar visita
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ActiveSearchSection({ token, user, onOpenGroup, onStartVisit }) {
+  const [data, setData]           = useState(null);
+  const [stats, setStats]         = useState(null);
+  const [loading, setLoading]     = useState(true);
+  const [error, setError]         = useState(null);
+
+  // Filters
+  const [filterStatus, setFilterStatus]   = useState("");
+  const [filterMicro, setFilterMicro]     = useState("");
+  const [filterPendency, setFilterPendency] = useState("");
+  const [filterAcs, setFilterAcs]         = useState("");
+
+  const load = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams({ limit: "200" });
+      if (filterStatus)  params.set("status",   filterStatus);
+      if (filterMicro)   params.set("microarea", filterMicro);
+      if (filterPendency) params.set("pendency", filterPendency);
+      if (filterAcs)     params.set("acsId",    filterAcs);
+
+      const [listRes, statsRes] = await Promise.all([
+        fetch(`/active-search?${params}`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch("/active-search/stats",     { headers: { Authorization: `Bearer ${token}` } }),
+      ]);
+
+      if (!listRes.ok || !statsRes.ok) throw new Error("Erro ao carregar busca ativa");
+      const [list, st] = await Promise.all([listRes.json(), statsRes.json()]);
+      setData(list);
+      setStats(st);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load(); }, [filterStatus, filterMicro, filterPendency, filterAcs]);
+
+  const items = data?.items || [];
+  const critical  = items.filter(r => r.classification === "critico");
+  const attention = items.filter(r => r.classification === "atencao");
+  const healthy   = items.filter(r => r.classification === "saudavel");
+
+  const sections = [
+    { key: "critico",  list: critical  },
+    { key: "atencao",  list: attention },
+    { key: "saudavel", list: healthy   },
+  ];
+
+  return (
+    <div className="as-root">
+      {/* Stats bar */}
+      {stats && (
+        <div className="as-stats">
+          <div className="as-stats__item as-stats__item--critico">
+            <span className="as-stats__val">{stats.critical}</span>
+            <span className="as-stats__lbl">Críticos</span>
+          </div>
+          <div className="as-stats__item as-stats__item--atencao">
+            <span className="as-stats__val">{stats.attention}</span>
+            <span className="as-stats__lbl">Atenção</span>
+          </div>
+          <div className="as-stats__item as-stats__item--saudavel">
+            <span className="as-stats__val">{stats.healthy}</span>
+            <span className="as-stats__lbl">Saudáveis</span>
+          </div>
+          <div className="as-stats__item">
+            <span className="as-stats__val">{stats.avgScore}</span>
+            <span className="as-stats__lbl">Score médio</span>
+          </div>
+        </div>
+      )}
+
+      {/* Filters */}
+      <div className="as-filters">
+        <select
+          className="as-filter-sel"
+          value={filterStatus}
+          onChange={e => setFilterStatus(e.target.value)}
+          aria-label="Filtrar por situação"
+        >
+          <option value="">Todas as situações</option>
+          <option value="critico">Críticos</option>
+          <option value="atencao">Atenção</option>
+          <option value="saudavel">Saudáveis</option>
+        </select>
+
+        <select
+          className="as-filter-sel"
+          value={filterPendency}
+          onChange={e => setFilterPendency(e.target.value)}
+          aria-label="Filtrar por pendência"
+        >
+          <option value="">Todas as pendências</option>
+          <option value="UPDATE_REGISTRATION_REQUIRED">Cadastro desatualizado</option>
+          <option value="VISIT_RECOMMENDED">Visita recomendada</option>
+          <option value="MISSING_CNS">Sem CNS</option>
+          <option value="ADDRESS_VALIDATION_REQUIRED">Endereço incompleto</option>
+          <option value="FAMILY_OUT_OF_FOLLOWUP">Fora de acompanhamento</option>
+          <option value="OVERDUE_TASK">Tarefa em atraso</option>
+          <option value="NEW_MEMBER_REVIEW">Novo morador</option>
+          <option value="TERRITORIAL_REVIEW">Revisão territorial</option>
+        </select>
+
+        <input
+          className="as-filter-input"
+          type="text"
+          placeholder="Microárea"
+          value={filterMicro}
+          onChange={e => setFilterMicro(e.target.value)}
+          aria-label="Filtrar por microárea"
+        />
+
+        <button
+          type="button"
+          className="btn btn--sm btn--ghost"
+          onClick={load}
+          aria-label="Atualizar"
+        >
+          ↺ Atualizar
+        </button>
+      </div>
+
+      {loading && <p className="as-loading">Carregando...</p>}
+      {error   && <p className="as-error">{error}</p>}
+
+      {!loading && !error && items.length === 0 && (
+        <div className="as-empty">
+          <p>Nenhum grupo familiar encontrado para os filtros selecionados.</p>
+        </div>
+      )}
+
+      {!loading && !error && sections.map(({ key, list }) => (
+        list.length === 0 ? null : (
+          <section key={key} className={`as-section as-section--${key}`}>
+            <h3 className="as-section__title">
+              {PENDENCY_SECTION_LABELS[key]}
+              <span className="as-section__count">{list.length}</span>
+            </h3>
+            <div className="as-cards">
+              {list.map(r => (
+                <AsGroupCard
+                  key={r.groupId}
+                  result={r}
+                  onOpenGroup={onOpenGroup}
+                  onStartVisit={onStartVisit}
+                />
+              ))}
+            </div>
+          </section>
+        )
+      ))}
+    </div>
+  );
+}
+
 // ── AcsTasksPage ────────────────────────────────────────────────────────────
 
 function AcsTasksPage({ patients, users, user, token, onNavigatePatient }) {
@@ -1255,7 +1477,7 @@ function AcsTasksPage({ patients, users, user, token, onNavigatePatient }) {
       <div className="acs-body">
 
         <div className="acs-tabs" role="tablist" aria-label="Seções ACS">
-          {[["tasks", "Tarefas"], ["visitas", "Visitas"], ["groups", "Grupos Familiares"]].map(([val, lbl]) => (
+          {[["tasks", "Tarefas"], ["visitas", "Visitas"], ["groups", "Grupos Familiares"], ["busca", "Busca Ativa"]].map(([val, lbl]) => (
             <button
               key={val}
               type="button"
@@ -1452,6 +1674,23 @@ function AcsTasksPage({ patients, users, user, token, onNavigatePatient }) {
             onNavigatePatient={onNavigatePatient}
             onStartVisitForGroup={(patient) => {
               if (patient) setVisitPreSelect(patient);
+              setActiveTab("visitas");
+            }}
+          />
+        )}
+
+        {activeTab === "busca" && (
+          <ActiveSearchSection
+            token={token}
+            user={user}
+            onOpenGroup={(groupId) => {
+              // Switch to groups tab with workspace open
+              setActiveTab("groups");
+              // The FamilyGroupsSection handles activeGroupId internally;
+              // we pass a signal via sessionStorage so it opens directly
+              sessionStorage.setItem("vitras_openGroupId", groupId);
+            }}
+            onStartVisit={(groupId) => {
               setActiveTab("visitas");
             }}
           />
