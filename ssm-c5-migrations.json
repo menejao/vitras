@@ -1,0 +1,9 @@
+{
+  "InstanceIds": ["i-0544ee7c6a6b78c6f"],
+  "DocumentName": "AWS-RunShellScript",
+  "Parameters": {
+    "commands": [
+      "set -a && source /opt/elasticbeanstalk/deployment/env 2>/dev/null; cd /var/app/current && node --input-type=module << 'EOJS'\nimport pg from 'pg';\nfunction stripSsl(url) { if (!url) return url; try { const u = new URL(url); ['sslmode','sslcert','sslkey','sslrootcert'].forEach(p=>u.searchParams.delete(p)); return u.toString(); } catch { return url; } }\nconst client = new pg.Client({ connectionString: stripSsl(process.env.DATABASE_URL), ssl: { rejectUnauthorized: false } });\nawait client.connect();\n\nconst colQ = `SELECT table_name, column_name FROM information_schema.columns WHERE (table_name='app_patients' AND column_name='race_color') OR (table_name='app_units' AND column_name='cnes') OR (table_name='app_users' AND column_name='cns') ORDER BY table_name, column_name`;\nconst cols = await client.query(colQ);\nconsole.log('C5-COLUMNS: ' + cols.rows.length + '/3');\ncols.rows.forEach(r => console.log('  OK: ' + r.table_name + '.' + r.column_name));\n\nconst hhQ = `SELECT COUNT(*) as cnt FROM information_schema.tables WHERE table_schema='public' AND table_name='app_households'`;\nconst hh = await client.query(hhQ);\nconsole.log('C5-app_households: ' + (parseInt(hh.rows[0].cnt) >= 1 ? 'EXISTS' : 'MISSING'));\n\nconst countQ = `SELECT (SELECT COUNT(*) FROM app_patients) as pts, (SELECT COUNT(*) FROM app_units) as units, (SELECT COUNT(*) FROM app_users) as users`;\nconst counts = await client.query(countQ);\nconsole.log('C5-COUNT pts=' + counts.rows[0].pts + ' units=' + counts.rows[0].units + ' users=' + counts.rows[0].users);\n\nconst hhCountQ = `SELECT COUNT(*) as cnt FROM app_households`;\nconst hhCount = await client.query(hhCountQ).catch(()=>({rows:[{cnt:'TABLE_MISSING'}]}));\nconsole.log('C5-households rows: ' + hhCount.rows[0].cnt);\n\nawait client.end();\nconsole.log('C5-DONE');\nEOJS"
+    ]
+  }
+}

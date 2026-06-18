@@ -1,0 +1,9 @@
+﻿{
+  "DocumentName": "AWS-RunShellScript",
+  "Parameters": {
+    "commands": [
+      "set -a && source /opt/elasticbeanstalk/deployment/env 2>/dev/null && printf \"import pg from 'pg';\\nconst c=new pg.Client({connectionString:process.env.DATABASE_URL,ssl:{rejectUnauthorized:false}});\\nawait c.connect();\\nconst q=\\\"SELECT COUNT(*) total,COUNT(*) FILTER(WHERE COALESCE(inactive,false)=false) ativos,SUM(CASE WHEN payload::text LIKE '%cnsCpf%' THEN 1 ELSE 0 END) com_cnscpf,COUNT(*) FILTER(WHERE COALESCE(cpf_hash,'')!='') com_cpf_hash FROM app_patients\\\";\\nconst r=await c.query(q);console.log(JSON.stringify(r.rows[0]));await c.end();\\n\" > /tmp/ck.mjs && cd /var/app/current && node /tmp/ck.mjs 2>&1"
+    ]
+  },
+  "InstanceIds": ["i-0544ee7c6a6b78c6f"]
+}

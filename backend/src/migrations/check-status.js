@@ -18,6 +18,7 @@
 import { createRequire } from "module";
 import { fileURLToPath } from "url";
 import path from "path";
+import { getPoolSslConfig } from "../db.js";
 
 // ---------------------------------------------------------------------------
 // Resolve canonical migration list without importing the full app
@@ -85,9 +86,10 @@ async function main() {
     process.exit(1);
   }
 
+  // KI-03: use shared SSL config with CA bundle validation
   const pool = new Pool({
     connectionString,
-    ssl: { rejectUnauthorized: false },
+    ssl: getPoolSslConfig(),
     max: 1,
     connectionTimeoutMillis: 10000,
     idleTimeoutMillis: 5000,

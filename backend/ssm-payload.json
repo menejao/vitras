@@ -1,0 +1,13 @@
+{
+    "Parameters":  {
+                       "commands":  [
+                                        "cd /var/app/current",
+                                        "psql \"$DATABASE_URL\" -c \"SELECT id, name, team_id, assigned_acs_id FROM app_patients WHERE inactive = FALSE AND assigned_acs_id = \u0027\u0027;\"",
+                                        "psql \"$DATABASE_URL\" -c \"SELECT id, name, team_id FROM app_users WHERE role = \u0027acs\u0027 AND COALESCE(inactive,FALSE)=FALSE ORDER BY team_id,name;\""
+                                    ]
+                   },
+    "DocumentName":  "AWS-RunShellScript",
+    "InstanceIds":  [
+                        "i-0544ee7c6a6b78c6f"
+                    ]
+}

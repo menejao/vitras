@@ -1,0 +1,66 @@
+{
+  "name": "Council Validation Webhook",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "verify-council",
+        "responseMode": "responseNode"
+      },
+      "id": "Webhook_1",
+      "name": "Council Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [280, 260]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $json.body || {};\nconst number = String(body.councilNumber || \"\");\nconst uf = String(body.councilUf || \"\").toUpperCase();\nconst type = String(body.councilType || \"\");\n\n// Mock simples: reprova quando termina em 000\nconst valid = !number.endsWith(\"000\") && !!uf && !!type;\n\nreturn [{\n  valid,\n  provider: \"n8n-mock\",\n  error: valid ? \"\" : \"Conselho reprovado pelo mock\",\n  received: body\n}];"
+      },
+      "id": "Code_1",
+      "name": "Validate Council",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [560, 260]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{$json}}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "Respond_1",
+      "name": "Respond JSON",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [840, 260]
+    }
+  ],
+  "connections": {
+    "Council Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate Council",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Council": {
+      "main": [
+        [
+          {
+            "node": "Respond JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false
+}

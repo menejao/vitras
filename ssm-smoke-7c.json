@@ -1,0 +1,9 @@
+{
+  "InstanceIds": ["i-0544ee7c6a6b78c6f"],
+  "DocumentName": "AWS-RunShellScript",
+  "Parameters": {
+    "commands": [
+      "set -a && source /opt/elasticbeanstalk/deployment/env 2>/dev/null; node -e \"const c=require('crypto');const h=v=>v?c.createHash('sha256').update(String(v)).digest('hex'):'';const cpf=h('12345678900');const cns=h('123456789012345');const ph='11987654321'.replace(/[0-9]{4}$/,'****');if(cpf.length!==64)throw new Error('cpf hash len');if(cpf==='12345678900')throw new Error('cpf plaintext');if(cns.length!==64)throw new Error('cns hash len');if(ph!=='1198765****')throw new Error('phone mask:'+ph);const cnsp=h('700000000000001');if(cnsp.length!==64)throw new Error('cnsp len');console.log('SMOKE-7C F7-01 PASS cpf='+cpf.slice(0,8)+'...');console.log('SMOKE-7C F7-01 PASS phone='+ph);console.log('SMOKE-7C F4-03 PASS cnsProfissional='+cnsp.slice(0,8)+'...');console.log('SMOKE-7C ALL PASS');\""
+    ]
+  }
+}

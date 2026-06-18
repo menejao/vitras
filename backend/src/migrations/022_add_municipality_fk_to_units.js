@@ -17,6 +17,14 @@ export async function up(client) {
     );
   }
 
+  // Fix any rows with empty municipality_id (can occur if unit was created before migration 010 backfill)
+  const { rowCount: fixed } = await client.query(`
+    UPDATE app_units SET municipality_id = '3534401' WHERE municipality_id = '' OR municipality_id IS NULL
+  `);
+  if (fixed > 0) {
+    console.log(`022: fixed ${fixed} app_units row(s) with empty municipality_id → '3534401'`);
+  }
+
   await client.query(`
     ALTER TABLE app_units
       ADD CONSTRAINT fk_app_units_municipality_id

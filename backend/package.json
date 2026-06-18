@@ -11,7 +11,7 @@
     "seed:dev-scenario": "node --env-file=.env.dev scripts/seed-dev-scenario.mjs",
     "seed:demo": "node scripts/seed-demo-team-rosa.mjs",
     "provision:remote-enterprise-user": "node scripts/provision-remote-enterprise-user.mjs",
-    "test": "node --test test/health.test.js && node --test test/auth.test.js && node --test test/patients.test.js && node --test test/queue.test.js && node --test test/agenda.test.js && node --test test/referrals.test.js && node --test test/pharmacy.test.js && node --test test/supplies.test.js && node --test test/exams.test.js && node --test test/access-requests.test.js && node --test test/twofa.test.js && node --test test/backup.test.js && node --test test/migrations.test.js && node --test test/schema-validation.test.js",
+    "test": "node --test test/health.test.js && node --test test/auth.test.js && node --test test/patients.test.js && node --test test/queue.test.js && node --test test/agenda.test.js && node --test test/referrals.test.js && node --test test/pharmacy.test.js && node --test test/supplies.test.js && node --test test/exams.test.js && node --test test/access-requests.test.js && node --test test/twofa.test.js && node --test test/backup.test.js && node --test test/migrations.test.js && node --test test/schema-validation.test.js && node --test test/unit-cnes.test.js",
     "test:legacy": "node src/ai.test.js",
     "type-check": "tsc --noEmit",
     "smoke": "node ../scripts/smoke-production.js",

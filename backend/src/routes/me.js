@@ -1,4 +1,5 @@
 import express from "express";
+import crypto from "node:crypto";
 import { COOKIE_REFRESH_NAME, BREAK_GLASS_TTL_MS } from "../config.js";
 import { readDb, withDb } from "../db.js";
 import { requireAuth } from "../middlewares/auth.js";
@@ -27,6 +28,13 @@ import { createCsrfToken, issueSessionCookies, parseCookies } from "../utils/ses
 
 const router = express.Router();
 
+function hashCnsProfissional(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  // F4-03: SHA-256 of raw cnsProfissional — never log plaintext
+  return crypto.createHash("sha256").update(raw).digest("hex");
+}
+
 function buildMeAuditSnapshot(user) {
   if (!user) return null;
   return {
@@ -38,6 +46,11 @@ function buildMeAuditSnapshot(user) {
     councilType: String(user.councilType || ""),
     councilNumber: String(user.councilNumber || ""),
     councilUf: String(user.councilUf || ""),
+    // F4-01/F4-03: cnsProfissional stored as SHA-256 hash — never plaintext in audit
+    cnsProfissionalHash: hashCnsProfissional(user.cnsProfissional),
+    // F4-02: CBO fields in audit snapshot
+    cboCodigo: String(user.cboCodigo || ""),
+    cboDescricao: String(user.cboDescricao || ""),
     twoFactorEnabled: Boolean(user.twoFactorEnabled),
     updatedAt: String(user.updatedAt || user.createdAt || "")
   };
@@ -358,6 +371,18 @@ router.patch("/me", requireAuth, validate(MePatchSchema), async (req, res) => {
       next.councilType = councilType;
       next.councilNumber = localCheck.councilNumber;
       next.councilUf = localCheck.councilUf;
+    }
+
+    // F4-01: cnsProfissional — stored as plaintext (public professional identifier, D-PRE-06 resolved)
+    if (payload.cnsProfissional !== undefined) {
+      next.cnsProfissional = String(payload.cnsProfissional || "").trim();
+    }
+    // F4-02: CBO fields
+    if (payload.cboCodigo !== undefined) {
+      next.cboCodigo = String(payload.cboCodigo || "").trim();
+    }
+    if (payload.cboDescricao !== undefined) {
+      next.cboDescricao = String(payload.cboDescricao || "").trim();
     }
 
     next.updatedAt = new Date().toISOString();

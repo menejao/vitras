@@ -70,6 +70,14 @@ const DEFAULT_TEAM_COLORS = ["Rosa", "Azul", "Cinza", "Marrom", "Amarela"];
 const DEMO_POPULATE_SIZE_COMPLETE = 50;
 const DEMO_POPULATE_SIZE_INCOMPLETE = 10;
 
+function normalizeUnitCnes(value) {
+  if (value === undefined || value === null) return null;
+  const normalized = String(value || "").trim();
+  if (!normalized) return null;
+  if (normalized === "CNES_PLACEHOLDER") return null;
+  return /^\d{7}$/.test(normalized) ? normalized : null;
+}
+
 function buildDefaultProtocolTemplates() {
   const ministryRefs = {
     general: {
@@ -172,6 +180,7 @@ function ensureDbShape(db) {
   ensureArray(db, "auditPruneExports");
   ensureArray(db, "notifications");
   ensureArray(db, "familyGroups");
+  ensureArray(db, "households");
   ensureArray(db, "labIntegrations");
   ensureArray(db, "clinicalRecords");
   ensureArray(db, "protocolTemplates");
@@ -196,10 +205,28 @@ function ensureDbShape(db) {
 
   // Ensure default unit exists (backward compat: existing deployments without units)
   if (!db.units.length) {
-    db.units.push({ id: "unit-default", name: "Unidade Padrão", createdAt: new Date().toISOString() });
+    // F4-06: CNES from deployment configuration — never hardcoded
+    const defaultCnes = normalizeUnitCnes(process.env.DEFAULT_UNIT_CNES);
+    db.units.push({
+      id: "unit-default",
+      name: "Unidade Padrão",
+      cnes: defaultCnes,
+      createdAt: new Date().toISOString()
+    });
   }
   // Ensure all teams have unitId (assign default if missing — backward compat migration)
-  db.teams = db.teams.map((t) => t.unitId ? t : { ...t, unitId: "unit-default" });
+  db.units = db.units.map((unit) => ({
+    ...unit,
+    cnes: normalizeUnitCnes(unit.cnes)
+  }));
+  // F5-04: normalize legacy tipoEquipe values (EAP→EAPS, OUTRA→OUTROS)
+  const TIPO_EQUIPE_LEGACY_MAP = { EAP: "EAPS", OUTRA: "OUTROS" };
+  db.teams = db.teams.map((t) => {
+    const normalized = t.tipoEquipe && TIPO_EQUIPE_LEGACY_MAP[t.tipoEquipe]
+      ? { ...t, tipoEquipe: TIPO_EQUIPE_LEGACY_MAP[t.tipoEquipe] }
+      : t;
+    return normalized.unitId ? normalized : { ...normalized, unitId: "unit-default" };
+  });
   // Ensure all users have unitId (derive from team or default — backward compat migration)
   db.users = db.users.map((u) => {
     if (u.unitId) return u;
@@ -275,7 +302,7 @@ function ensureDbShape(db) {
     ...p,
     cpf: p.cpf ? String(p.cpf) : "",
     cns: p.cns ? String(p.cns) : "",
-    cnsCpf: p.cnsCpf ? String(p.cnsCpf) : p.cpf ? String(p.cpf) : "",
+
     careCategory: normalizeCategory(String(p.careCategory || "general")),
     incompleteProfile: Boolean(p.incompleteProfile),
     chronicConditions: normalizeChronicConditions(p.chronicConditions),
@@ -591,5 +618,6 @@ export {
   getProtocolTemplateMap,
   sanitizeProtocolTemplatePayload,
   snapshotProtocolTemplateVersion,
-  validateUnitBootstrap
+  validateUnitBootstrap,
+  normalizeUnitCnes
 };

@@ -11,6 +11,7 @@
 
 import { Pool } from "pg";
 import { logInfo, logWarn } from "../utils/logger.js";
+import { getPoolSslConfig } from "../db.js";
 
 const DATABASE_URL = String(process.env.DATABASE_URL || "").trim();
 
@@ -31,9 +32,10 @@ async function runMigrations() {
     return;
   }
 
+  // KI-03: use shared SSL config with CA bundle validation
   const pool = new Pool({
     connectionString: stripSslParams(DATABASE_URL),
-    ssl: { rejectUnauthorized: false },
+    ssl: getPoolSslConfig(),
     max: 2,
     connectionTimeoutMillis: 10000,
     idleTimeoutMillis: 10000,

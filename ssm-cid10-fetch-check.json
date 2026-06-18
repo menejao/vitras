@@ -1,0 +1,9 @@
+{
+  "InstanceIds": ["i-0544ee7c6a6b78c6f"],
+  "DocumentName": "AWS-RunShellScript",
+  "Parameters": {
+    "commands": [
+      "curl -s -o /dev/null -w '%{http_code} %{url_effective}' --max-time 10 'https://raw.githubusercontent.com/nicholasjluni/cid10/master/data/cid10.json' 2>&1 && echo '' || echo 'FAIL'; curl -s -o /dev/null -w '%{http_code} %{size_download}' --max-time 15 'ftp://ftp.datasus.gov.br/dissemin/publicos/CID10/CID-10-CATEGORIAS.CSV' 2>&1 && echo '' || echo 'FTP_FAIL'"
+    ]
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "InstanceIds": ["i-0544ee7c6a6b78c6f"],
+  "DocumentName": "AWS-RunShellScript",
+  "Parameters": {
+    "commands": [
+      "sudo journalctl -u web.service --no-pager -n 40 | strings"
+    ]
+  }
+}

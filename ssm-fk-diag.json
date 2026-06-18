@@ -1,0 +1,9 @@
+{
+  "InstanceIds": ["i-0544ee7c6a6b78c6f"],
+  "DocumentName": "AWS-RunShellScript",
+  "Parameters": {
+    "commands": [
+      "set -a && source /opt/elasticbeanstalk/deployment/env 2>/dev/null; cd /var/app/current && node --input-type=module << 'EOJS'\nimport { readFileSync } from 'fs';\nimport pg from './node_modules/pg/lib/index.js';\nconst { Pool } = pg;\nconst rawUrl = String(process.env.DATABASE_URL||'');\nconst url = (() => { try { const u = new URL(rawUrl); ['sslmode','sslcert','sslkey','sslrootcert','sslpassword'].forEach(p=>u.searchParams.delete(p)); return u.toString(); } catch { return rawUrl; } })();\nlet ssl; try { ssl = { rejectUnauthorized: true, ca: readFileSync('./certs/rds-ca-bundle.pem') }; } catch { ssl = { rejectUnauthorized: false }; }\nconst pool = new Pool({ connectionString: url, ssl, max: 1 });\nconst c = await pool.connect();\nconst { rows: dist } = await c.query('SELECT municipality_id, COUNT(*)::int AS cnt FROM app_units GROUP BY municipality_id ORDER BY cnt DESC');\nconsole.log('app_units municipality_id distribution:');\ndist.forEach(r => console.log('  [' + r.municipality_id + '] count=' + r.cnt));\nconst { rows: notInMun } = await c.query('SELECT municipality_id, COUNT(*)::int AS cnt FROM app_units WHERE municipality_id NOT IN (SELECT ibge_code FROM municipalities) GROUP BY municipality_id');\nconsole.log('NOT IN municipalities: ' + JSON.stringify(notInMun));\nconst { rows: munSample } = await c.query(\"SELECT ibge_code, name FROM municipalities WHERE ibge_code = '3534401' OR ibge_code = '' LIMIT 5\");\nconsole.log('municipalities check: ' + JSON.stringify(munSample));\nc.release(); await pool.end();\nEOJS"
+    ]
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "InstanceIds": ["i-0544ee7c6a6b78c6f"],
+  "DocumentName": "AWS-RunShellScript",
+  "Parameters": {
+    "commands": [
+      "for url in 'https://raw.githubusercontent.com/bigodines/cid10/master/cid10.json' 'https://raw.githubusercontent.com/wesleylq/cid10/main/data/cid10.json' 'https://raw.githubusercontent.com/pauloricardoferreira/cid10/main/data.json' 'https://servicodados.ibge.gov.br/api/v1/localidades/municipios' ; do code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 8 \"$url\" 2>/dev/null); echo \"$code $url\"; done"
+    ]
+  }
+}

@@ -107,11 +107,17 @@ router.patch("/tasks/:id", validate(TaskPatchSchema), async (req, res) => {
 
     const current = db.tasks[index];
     const patient = db.patients.find((p) => p.id === current.patientId);
-    if (!patient || !canAccessPatient(req.user, patient)) return "forbidden";
+    if (!patient || !canAccessPatient(req.user, patient)) {
+      addAuditLog(db, req.user, "task.access_denied", "task", id, { outcome: "denied", reason: "patient_access_denied", actorRole: String(req.user?.role || "") });
+      return "forbidden";
+    }
 
     if (isAcs(req.user)) {
       // ACS may only update their own tasks and only status/notes fields
-      if (current.assigneeId !== req.user.id) return "forbidden";
+      if (current.assigneeId !== req.user.id) {
+        addAuditLog(db, req.user, "task.access_denied", "task", id, { outcome: "denied", reason: "task_not_assigned", actorRole: String(req.user?.role || ""), assigneeId: current.assigneeId });
+        return "forbidden";
+      }
 
       const before = buildTaskAuditSnapshot(current);
       const acsPatch = {};
@@ -154,6 +160,7 @@ router.patch("/tasks/:id", validate(TaskPatchSchema), async (req, res) => {
       return nextForManager;
     }
 
+    addAuditLog(db, req.user, "task.access_denied", "task", id, { outcome: "denied", reason: "role_not_authorized", actorRole: String(req.user?.role || "") });
     return "forbidden";
   });
 

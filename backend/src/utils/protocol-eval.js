@@ -491,10 +491,12 @@ function evaluatePapOnlyProtocol(patient, history) {
   const categoryLabel = "Rastreamento Feminino/Trans";
   const birthDate = toDateOnlySafe(patient?.birthDate);
   const ageYears = yearsFromDate(birthDate, new Date());
-  const sexAtBirth = String(patient?.sexAtBirth || "").trim().toLowerCase();
-  const genderIdentity = String(patient?.genderIdentity || "").trim().toLowerCase();
-  const isFemale = sexAtBirth === "female";
-  const isTransMan = genderIdentity === "trans_man";
+  // F5-05: canonical enum values — M/F/I for sexAtBirth; IdentidadeGenero for genderIdentity
+  const sexAtBirth = String(patient?.sexAtBirth || "").trim();
+  const genderIdentity = String(patient?.genderIdentity || "").trim();
+  // Female at birth or trans man (HOMEM_TRANSGENERO, assigned female at birth) — cervix present
+  const isFemale = sexAtBirth === "F";
+  const isTransMan = genderIdentity === "HOMEM_TRANSGENERO";
   const eligiblePapPopulation = isFemale || isTransMan;
   const now = toDateOnlySafe(new Date());
 

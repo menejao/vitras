@@ -1,0 +1,9 @@
+{
+  "InstanceIds": ["i-0544ee7c6a6b78c6f"],
+  "DocumentName": "AWS-RunShellScript",
+  "Parameters": {
+    "commands": [
+      "set -a && source /opt/elasticbeanstalk/deployment/env 2>/dev/null; cd /var/app/current && node --input-type=module << 'EOJS'\nimport { readFileSync } from 'fs';\nimport pg from './node_modules/pg/lib/index.js';\nconst { Pool } = pg;\nconst rawUrl = String(process.env.DATABASE_URL||'');\nconst url = (() => { try { const u = new URL(rawUrl); ['sslmode','sslcert','sslkey','sslrootcert','sslpassword'].forEach(p=>u.searchParams.delete(p)); return u.toString(); } catch { return rawUrl; } })();\nconst caPath = './certs/rds-ca-bundle.pem';\nlet ssl;\ntry { const ca = readFileSync(caPath); ssl = { rejectUnauthorized: true, ca }; console.log('SSL: CA bundle loaded'); } catch { ssl = { rejectUnauthorized: false }; console.log('SSL: no bundle, rejectUnauthorized=false'); }\nconst pool = new Pool({ connectionString: url, ssl, max: 1 });\nconst c = await pool.connect();\nconst { rows } = await c.query(\"SELECT table_name FROM information_schema.tables WHERE table_name IN ('municipalities','cid10','ciap2') ORDER BY table_name\");\nconsole.log('SMOKE-8B-DDL tables=' + rows.map(r=>r.table_name).join(','));\nif (rows.length !== 3) { console.error('FAIL: expected 3, got ' + rows.length); process.exit(1); }\nconst { rows: mig } = await c.query(\"SELECT id FROM schema_migrations WHERE id IN ('021_create_municipalities','023_create_cid10','024_create_ciap2') ORDER BY id\");\nconsole.log('SMOKE-8B-MIGRATIONS applied=' + mig.map(r=>r.id).join(','));\nif (mig.length !== 3) { console.error('FAIL migrations: expected 3, got ' + mig.length); process.exit(1); }\nconsole.log('SMOKE-8B-DDL PASS');\nc.release(); await pool.end();\nEOJS"
+    ]
+  }
+}

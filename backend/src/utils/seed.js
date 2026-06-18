@@ -82,7 +82,7 @@ function buildSeedPatient({ index, teamIds, acsIds, incomplete = false }) {
     motherName: category === "child_followup" ? `${pickRandom(firstNames)} ${pickRandom(lastNames)}` : "",
     cpf: incomplete && chance(65) ? "" : makeDigits(11),
     cns: incomplete && chance(60) ? "" : makeDigits(15),
-    cnsCpf: "",
+
     address: incomplete && chance(55)
       ? ""
       : `${pickRandom(streets)}, ${randomInt(10, 999)} - ${pickRandom(districts)}, ${pickRandom(cities)} - ${pickRandom(ufs)}`,
@@ -94,7 +94,7 @@ function buildSeedPatient({ index, teamIds, acsIds, incomplete = false }) {
     chronicConditions: chance(28)
       ? (chance(35) ? ["hypertension"] : (chance(55) ? ["diabetes"] : ["diabetes", "hypertension"]))
       : [],
-    maritalStatus: category === "child_followup" ? "" : pickRandom(["solteiro", "casado", "divorciado", "viuvo", "uniao_estavel"]),
+    maritalStatus: category === "child_followup" ? "" : pickRandom(["SOLTEIRO", "CASADO", "DIVORCIADO", "VIUVO", "UNIAO_ESTAVEL"]),
     sexAtBirth: pickRandom(["female", "male"]),
     genderIdentity: "",
     birthDate,

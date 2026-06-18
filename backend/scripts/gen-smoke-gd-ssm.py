@@ -68,7 +68,7 @@ async function readDb() {
 
 function http(method, path, token, body) {
   const args = ['-s', '-o', '/tmp/gd-resp.txt', '-w', '%{http_code}',
-    '-X', method, 'http://localhost:3001' + path,
+    '-X', method, 'http://localhost:8080' + path,
     '-H', 'Authorization: Bearer ' + token,
     '-H', 'Content-Type: application/json'];
   if (body) args.push('-d', JSON.stringify(body));
@@ -238,20 +238,20 @@ async function runSmokes() {
   });
   r17.code === 400 ? PASS('GD-17', '400 short justification rejected') : FAIL('GD-17', 'expected 400 got ' + r17.code + ' ' + JSON.stringify(r17.body));
 
-  // GD-18: audit log fields
+  // GD-18: audit log fields (action=clinical_record.cross_team|cross_unit, userId=actor)
   const dbB = await readDb();
   const auditEv = (dbB.auditLogs || []).find(l =>
-    (l.event === 'clinical_record.cross_team' || l.event === 'clinical_record.cross_unit') &&
-    l.actorId === IDS.uDoc
+    (l.action === 'clinical_record.cross_team' || l.action === 'clinical_record.cross_unit') &&
+    l.userId === IDS.uDoc
   );
   if (auditEv) {
     const d = auditEv.details || {};
     const ok = d.executingTeamId && d.executingUnitId && d.executingProfessionalId &&
       d.patientReferenceTeamId && d.patientReferenceUnitId && d.municipalityId &&
       d.crossTeamJustification !== undefined;
-    ok ? PASS('GD-18', 'audit fields present event=' + auditEv.event) : FAIL('GD-18', 'missing: ' + JSON.stringify(Object.keys(d)));
+    ok ? PASS('GD-18', 'audit fields present action=' + auditEv.action) : FAIL('GD-18', 'missing: ' + JSON.stringify(Object.keys(d)));
   } else {
-    FAIL('GD-18', 'cross_team audit not found actorId=' + IDS.uDoc + ' events=' + (dbB.auditLogs || []).slice(-5).map(l => l.event).join(','));
+    FAIL('GD-18', 'cross_team audit not found userId=' + IDS.uDoc + ' actions=' + (dbB.auditLogs || []).slice(-5).map(l => l.action).join(','));
   }
 
   // GD-19: static code check — records handler uses patient.teamId

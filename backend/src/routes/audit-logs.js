@@ -6,6 +6,7 @@ import { exportRateLimit } from "../middlewares/rate-limits.js";
 import { canonicalRole } from "../utils/helpers.js";
 import { ensureDbShape } from "../utils/domain.js";
 import { addAuditLog, verifyAuditLogChain, getAuditReport } from "../services/audit.js";
+import { setLastAuditChainStatus } from "./health.js";
 
 const PRUNE_ALLOWED_ROLES = new Set(["gestor", "security_auditor", "break_glass_admin"]);
 const AUDIT_GLOBAL_ROLES = new Set(["gestor", "security_auditor", "break_glass_admin"]);
@@ -332,6 +333,9 @@ router.get(
 
     const result = verifyAuditLogChain(db);
 
+    // KI-07: update /health auditChain subsystem status with live verification result
+    setLastAuditChainStatus(result.status === "ok" || result.status === "valid" ? "ok" : result.status || "unknown");
+
     await withDb((auditDb) => {
       ensureDbShape(auditDb);
       if (result.status === "broken" || result.status === "orphaned") {
@@ -375,7 +379,7 @@ router.get(
     const db = await readDb();
     ensureDbShape(db);
 
-    const entries = getAuditReport(db, "cross_team_patient_access", { limit: 200 });
+    const entries = await getAuditReport(db, "cross_team_patient_access", { limit: 200 });
 
     const items = entries.map((e) => ({
       id: e.id,
@@ -416,7 +420,7 @@ router.get(
     const db = await readDb();
     ensureDbShape(db);
 
-    const entries = getAuditReport(db, "auth.login_failed", { since, until, limit });
+    const entries = await getAuditReport(db, "auth.login_failed", { since, until, limit });
 
     // NO email in response — maskEmail already applied at audit creation
     const items = entries.map((e) => ({
@@ -456,7 +460,7 @@ router.get(
 
     // rate_limit_hit events are stored as metric events, but also logged via logWarn("rate_limit_exceeded")
     // Aggregate from audit logs where action contains rate_limit
-    const entries = getAuditReport(db, "rate_limit_exceeded", { limit: 500 });
+    const entries = await getAuditReport(db, "rate_limit_exceeded", { limit: 500 });
 
     // Group by prefix
     const grouped = {};

@@ -1,0 +1,9 @@
+{
+  "InstanceIds": ["i-0544ee7c6a6b78c6f"],
+  "DocumentName": "AWS-RunShellScript",
+  "Parameters": {
+    "commands": [
+      "set -a && source /opt/elasticbeanstalk/deployment/env 2>/dev/null; node --input-type=module << 'EOJS'\nconst {UnitPatchSchema,HouseholdCreateSchema,HouseholdUpdateSchema}=await import('/var/app/current/src/schemas.js');\nconst r1=UnitPatchSchema.safeParse({tipoUnidade:'UBS'});\nif(!r1.success)throw new Error('UnitPatch tipoUnidade UBS fail:'+JSON.stringify(r1.error));\nconst r2=UnitPatchSchema.safeParse({tipoUnidade:'INVALIDO'});\nif(r2.success)throw new Error('UnitPatch INVALIDO accepted');\nconsole.log('SMOKE-7D F4-04 PASS tipoUnidade enum');\nconst r3=HouseholdCreateSchema.safeParse({patientId:'abc',tipoImovel:'DOMICILIO',abastecimentoAgua:'REDE_ENCANADA',localizacao:'URBANA'});\nif(!r3.success)throw new Error('HH canonical fields fail:'+JSON.stringify(r3.error));\nconst r4=HouseholdCreateSchema.safeParse({patientId:'abc',tipoImovel:'CASA'});\nif(r4.success)throw new Error('CASA accepted in tipoImovel');\nconsole.log('SMOKE-7D F5-02 PASS HouseholdCreate canonical enums');\nconst r5=HouseholdUpdateSchema.strict().safeParse({localizacao:'RURAL'});\nif(!r5.success)throw new Error('HH update localizacao fail:'+JSON.stringify(r5.error));\nconsole.log('SMOKE-7D F5-02 PASS HouseholdUpdate strict ok');\nconsole.log('SMOKE-7D ALL PASS');\nEOJS"
+    ]
+  }
+}

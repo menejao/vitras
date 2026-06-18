@@ -1,128 +1,138 @@
 /**
- * D-PRE-07: Auditoria de campo cnsCpf legado em pacientes
+ * D-PRE-07 v2: Auditoria de cnsCpf legado em app_patients.payload (PostgreSQL direto)
  *
- * Objetivo: mapear registros com cnsCpf preenchido para planejar backfill seguro
- * antes da remoção do campo @deprecated.
+ * Usa pg diretamente — não depende de readDb() nem de DATA_ENCRYPTION_KEY.
+ * cnsCpf é texto legado (não criptografado na maioria dos registros antigos).
  *
- * Classificação por regra de backfill:
- *   CPF_CANDIDATE   — cnsCpf tem 11 dígitos numéricos → backfill para cpf
- *   CNS_CANDIDATE   — cnsCpf tem 15 dígitos numéricos → backfill para cns
- *   CONFLICT        — cnsCpf preenchido E cpf/cns já preenchido com valor diferente
- *   REDUNDANT       — cnsCpf igual ao cpf ou cns já existente
- *   INVALID         — cnsCpf presente mas não é 11 nem 15 dígitos numéricos
+ * Execução via SSM (EB):
+ *   cd /var/app/current && node scripts/dpre07-cnscpf-audit.mjs
  *
- * Execução:
- *   node scripts/dpre07-cnscpf-audit.mjs
- *
- * Requer variáveis de ambiente do servidor EB (DATA_ENCRYPTION_KEY ou DATA_ENCRYPTION_KEYS).
+ * Requer: DATABASE_URL no ambiente (já disponível em instâncias EB)
  */
 
-const { readDb } = await import("../src/db.js");
+import pg from "pg";
 
-let db;
-try {
-  db = await readDb();
-} catch (e) {
-  console.error("DB not available:", e.message);
-  process.exit(1);
-}
+const DATABASE_URL = process.env.DATABASE_URL;
+if (!DATABASE_URL) { console.error("DATABASE_URL ausente"); process.exit(1); }
 
-const patients = db.patients || [];
-const total = patients.length;
-const active = patients.filter(p => !p.inactive);
-const inactive = patients.filter(p => p.inactive);
+const client = new pg.Client({ connectionString: DATABASE_URL, ssl: { rejectUnauthorized: false } });
+await client.connect();
 
-// Análise por paciente
-const withCnsCpf = patients.filter(p => p.cnsCpf && String(p.cnsCpf).trim() !== "");
+// Totais gerais
+const totals = (await client.query(`
+  SELECT
+    COUNT(*) AS total,
+    COUNT(*) FILTER (WHERE COALESCE(inactive, FALSE) = FALSE) AS ativos,
+    COUNT(*) FILTER (WHERE COALESCE(inactive, FALSE) = TRUE) AS inativos
+  FROM app_patients
+`)).rows[0];
 
-const categories = {
-  CPF_CANDIDATE: [],
-  CNS_CANDIDATE: [],
-  CONFLICT_WITH_CPF: [],
-  CONFLICT_WITH_CNS: [],
-  REDUNDANT: [],
-  INVALID: [],
-  BOTH_EMPTY_BACKFILL: [] // cnsCpf set, cpf empty AND cns empty
-};
+// Distribuição de cnsCpf
+const cnsCpfStats = (await client.query(`
+  SELECT
+    COUNT(*) AS total_com_cnscpf,
+    COUNT(*) FILTER (WHERE COALESCE(inactive, FALSE) = FALSE) AS ativos_com_cnscpf,
+    COUNT(*) FILTER (
+      WHERE payload->>'cnsCpf' IS NOT NULL
+        AND payload->>'cnsCpf' != ''
+        AND payload->>'cpf' IS NOT NULL
+        AND payload->>'cpf' != ''
+        AND REGEXP_REPLACE(payload->>'cnsCpf', '[^0-9]', '', 'g') =
+            REGEXP_REPLACE(payload->>'cpf',    '[^0-9]', '', 'g')
+    ) AS redundant,
+    COUNT(*) FILTER (
+      WHERE payload->>'cnsCpf' IS NOT NULL
+        AND payload->>'cnsCpf' != ''
+        AND (payload->>'cpf' IS NULL OR payload->>'cpf' = '')
+        AND LENGTH(REGEXP_REPLACE(payload->>'cnsCpf', '[^0-9]', '', 'g')) = 11
+    ) AS cpf_candidate,
+    COUNT(*) FILTER (
+      WHERE payload->>'cnsCpf' IS NOT NULL
+        AND payload->>'cnsCpf' != ''
+        AND (payload->>'cns' IS NULL OR payload->>'cns' = '')
+        AND LENGTH(REGEXP_REPLACE(payload->>'cnsCpf', '[^0-9]', '', 'g')) = 15
+    ) AS cns_candidate,
+    COUNT(*) FILTER (
+      WHERE payload->>'cnsCpf' IS NOT NULL
+        AND payload->>'cnsCpf' != ''
+        AND payload->>'cpf' IS NOT NULL
+        AND payload->>'cpf' != ''
+        AND REGEXP_REPLACE(payload->>'cnsCpf', '[^0-9]', '', 'g') !=
+            REGEXP_REPLACE(payload->>'cpf',    '[^0-9]', '', 'g')
+    ) AS conflict_cpf,
+    COUNT(*) FILTER (
+      WHERE payload->>'cnsCpf' IS NOT NULL
+        AND payload->>'cnsCpf' != ''
+        AND STARTS_WITH(payload->>'cnsCpf', 'enc1:')
+    ) AS encrypted,
+    COUNT(*) FILTER (
+      WHERE payload->>'cnsCpf' IS NOT NULL
+        AND payload->>'cnsCpf' != ''
+        AND NOT STARTS_WITH(payload->>'cnsCpf', 'enc1:')
+        AND LENGTH(REGEXP_REPLACE(payload->>'cnsCpf', '[^0-9]', '', 'g')) NOT IN (11, 15)
+    ) AS invalid
+  FROM app_patients
+  WHERE payload->>'cnsCpf' IS NOT NULL
+    AND payload->>'cnsCpf' != ''
+`)).rows[0];
 
-for (const p of withCnsCpf) {
-  const raw = String(p.cnsCpf || "").trim();
-  const digits = raw.replace(/\D/g, "");
-  const cpf = String(p.cpf || "").trim();
-  const cns = String(p.cns || "").trim();
+// Amostragem de conflitos (se existirem)
+const conflicts = (await client.query(`
+  SELECT id, payload->>'cnsCpf' AS cns_cpf, payload->>'cpf' AS cpf, payload->>'name' AS name
+  FROM app_patients
+  WHERE payload->>'cnsCpf' IS NOT NULL
+    AND payload->>'cnsCpf' != ''
+    AND payload->>'cpf' IS NOT NULL
+    AND payload->>'cpf' != ''
+    AND REGEXP_REPLACE(payload->>'cnsCpf', '[^0-9]', '', 'g') !=
+        REGEXP_REPLACE(payload->>'cpf',    '[^0-9]', '', 'g')
+  LIMIT 10
+`)).rows;
 
-  const cpfEmpty = !cpf;
-  const cnsEmpty = !cns;
+await client.end();
 
-  // Check redundancy
-  if (raw === cpf || digits === cpf.replace(/\D/g, "")) { categories.REDUNDANT.push(p.id); continue; }
-  if (raw === cns || digits === cns) { categories.REDUNDANT.push(p.id); continue; }
-
-  if (digits.length === 11) {
-    if (!cpfEmpty && cpf.replace(/\D/g, "") !== digits) {
-      categories.CONFLICT_WITH_CPF.push({ id: p.id, name: p.name, cnsCpfLen: digits.length });
-    } else {
-      categories.CPF_CANDIDATE.push({ id: p.id, name: p.name });
-      if (cpfEmpty && cnsEmpty) categories.BOTH_EMPTY_BACKFILL.push({ id: p.id, type: "cpf" });
-    }
-  } else if (digits.length === 15) {
-    if (!cnsEmpty && cns !== digits) {
-      categories.CONFLICT_WITH_CNS.push({ id: p.id, name: p.name, cnsCpfLen: digits.length });
-    } else {
-      categories.CNS_CANDIDATE.push({ id: p.id, name: p.name });
-      if (cpfEmpty && cnsEmpty) categories.BOTH_EMPTY_BACKFILL.push({ id: p.id, type: "cns" });
-    }
-  } else {
-    categories.INVALID.push({ id: p.id, name: p.name, rawLength: raw.length, digitsLength: digits.length });
-  }
-}
-
-const conflicts = categories.CONFLICT_WITH_CPF.length + categories.CONFLICT_WITH_CNS.length;
-const safeToBackfill = categories.BOTH_EMPTY_BACKFILL.length;
-const needsReview = categories.INVALID.length + conflicts;
-
-console.log("=== D-PRE-07: Auditoria cnsCpf legado ===");
+console.log("=== D-PRE-07 v2: Auditoria cnsCpf legado (PostgreSQL direto) ===");
+// output is ASCII-only for AWS CLI compatibility
 console.log("");
-console.log(`Total pacientes: ${total}`);
-console.log(`  Ativos:   ${active.length}`);
-console.log(`  Inativos: ${inactive.length}`);
+console.log(`Total pacientes:  ${totals.total}`);
+console.log(`  Ativos:         ${totals.ativos}`);
+console.log(`  Inativos:       ${totals.inativos}`);
 console.log("");
-console.log(`Com cnsCpf preenchido: ${withCnsCpf.length}`);
-console.log(`  CPF_CANDIDATE  (11 dígitos → backfill cpf): ${categories.CPF_CANDIDATE.length}`);
-console.log(`  CNS_CANDIDATE  (15 dígitos → backfill cns): ${categories.CNS_CANDIDATE.length}`);
-console.log(`  REDUNDANT      (cnsCpf == cpf ou cns):      ${categories.REDUNDANT.length}`);
-console.log(`  CONFLICT_CPF   (cnsCpf ≠ cpf existente):   ${categories.CONFLICT_WITH_CPF.length}`);
-console.log(`  CONFLICT_CNS   (cnsCpf ≠ cns existente):   ${categories.CONFLICT_WITH_CNS.length}`);
-console.log(`  INVALID        (não 11 nem 15 dígitos):     ${categories.INVALID.length}`);
+console.log(`Com cnsCpf preenchido (total):  ${cnsCpfStats.total_com_cnscpf}`);
+console.log(`Com cnsCpf preenchido (ativos): ${cnsCpfStats.ativos_com_cnscpf}`);
 console.log("");
-console.log(`Backfill seguro disponível: ${safeToBackfill}`);
-console.log(`Requer revisão manual:      ${needsReview}`);
+console.log(`  REDUNDANT      (cnsCpf == cpf):          ${cnsCpfStats.redundant}`);
+console.log(`  CPF_CANDIDATE  (11 digitos, cpf vazio): ${cnsCpfStats.cpf_candidate}`);
+console.log(`  CNS_CANDIDATE  (15 digitos, cns vazio): ${cnsCpfStats.cns_candidate}`);
+console.log(`  CONFLICT_CPF   (cnsCpf != cpf existente):${cnsCpfStats.conflict_cpf}`);
+console.log(`  ENCRYPTED      (enc1: prefix):           ${cnsCpfStats.encrypted}`);
+console.log(`  INVALID        (nao 11 nem 15 digitos):  ${cnsCpfStats.invalid}`);
 console.log("");
 
-if (needsReview > 0) {
-  console.log("--- CONFLITOS (requerem resolução manual antes do backfill) ---");
-  for (const c of categories.CONFLICT_WITH_CPF) {
-    console.log(`  [CONFLICT_CPF] ${c.id} — ${c.name}`);
-  }
-  for (const c of categories.CONFLICT_WITH_CNS) {
-    console.log(`  [CONFLICT_CNS] ${c.id} — ${c.name}`);
-  }
-  for (const c of categories.INVALID) {
-    console.log(`  [INVALID] ${c.id} — ${c.name} (cnsCpf raw_len=${c.rawLength}, digits=${c.digitsLength})`);
+const needsReview = Number(cnsCpfStats.conflict_cpf) + Number(cnsCpfStats.invalid);
+const safeBackfill = Number(cnsCpfStats.cpf_candidate) + Number(cnsCpfStats.cns_candidate);
+
+if (conflicts.length > 0) {
+  console.log("--- CONFLITOS (amostra) ---");
+  for (const c of conflicts) {
+    console.log(`  [CONFLICT] ${c.id} - ${c.name}: cnsCpf=${c.cns_cpf} cpf=${c.cpf}`);
   }
   console.log("");
 }
 
-if (withCnsCpf.length === 0) {
-  console.log("STATUS: D-PRE-07 PASS — nenhum registro com cnsCpf preenchido");
-  console.log("AÇÃO: cnsCpf pode ser removido sem backfill");
+if (Number(cnsCpfStats.total_com_cnscpf) === 0) {
+  console.log("STATUS: D-PRE-07 PASS — nenhum cnsCpf preenchido");
+  console.log("AÇÃO: F7-02 pode prosseguir sem backfill");
 } else if (needsReview > 0) {
   console.log("STATUS: D-PRE-07 NEEDS_MANUAL_REVIEW");
-  console.log("AÇÃO: resolver conflitos/inválidos antes de executar migration 018");
-} else if (safeToBackfill > 0) {
-  console.log("STATUS: D-PRE-07 READY_FOR_BACKFILL");
-  console.log(`AÇÃO: executar migration 018 (${safeToBackfill} registros serão backfilled)`);
-} else {
+  console.log(`AÇÃO: ${needsReview} registros requerem resolução antes de migration 018`);
+} else if (Number(cnsCpfStats.redundant) === Number(cnsCpfStats.total_com_cnscpf)) {
   console.log("STATUS: D-PRE-07 REDUNDANT_ONLY");
-  console.log("AÇÃO: cnsCpf presente apenas como redundância — migration 018 limpa sem risco");
+  console.log("AÇÃO: todos os cnsCpf são redundantes com cpf — migration 018 limpa sem risco");
+} else if (safeBackfill > 0) {
+  console.log("STATUS: D-PRE-07 READY_FOR_BACKFILL");
+  console.log(`AÇÃO: migration 018 pode rodar — ${safeBackfill} registros serão backfilled`);
+} else {
+  console.log("STATUS: D-PRE-07 NO_ACTION_NEEDED");
+  console.log("AÇÃO: cnsCpf presente mas nenhum backfill necessário");
 }

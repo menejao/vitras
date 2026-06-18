@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+
+<rect class="ring r1" x="68" y="68" width="64" height="64"></rect>
+<rect class="ring r2" x="68" y="68" width="64" height="64"></rect>
+<rect class="ring r3" x="68" y="68" width="64" height="64"></rect>
+<g transform="translate(68 68) scale(2)"><path d="M4 4 H10 L16 18 L22 4 H28 V28 H4 Z" class="mk"></path></g>
+</svg>

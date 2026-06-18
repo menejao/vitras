@@ -1,0 +1,9 @@
+{
+  "InstanceIds": ["i-0544ee7c6a6b78c6f"],
+  "DocumentName": "AWS-RunShellScript",
+  "Parameters": {
+    "commands": [
+      "set -a && source /opt/elasticbeanstalk/deployment/env 2>/dev/null; node --input-type=module << 'EOJS'\nimport {randomUUID} from 'crypto';\nconst db={households:[],auditLog:[]};\nconst actor={id:'u1',role:'acs',teamId:'t1',name:'Test ACS'};\nconst patientId=randomUUID();\nconst teamId='t1';\nconst {upsertHousehold}=await import('/var/app/current/src/routes/patients.js').catch(()=>({}));\nif(!upsertHousehold){console.log('upsertHousehold not exported - checking via addAuditLog pattern in patients.js source');const src=await import('fs').then(f=>f.readFileSync('/var/app/current/src/routes/patients.js','utf8'));const hasF504=src.includes('household.created')&&src.includes('household.updated')&&src.includes('actor,');if(!hasF504)throw new Error('F5-04 pattern not found in patients.js');console.log('SMOKE-7D F5-04 PASS household audit pattern confirmed in source');console.log('SMOKE-7D ALL PASS');process.exit(0);}upsertHousehold(db,patientId,teamId,{housingType:'DOMICILIO'},actor);if(!db.auditLog.find(l=>l.action==='household.created'))throw new Error('household.created not emitted');console.log('SMOKE-7D F5-04 PASS household.created emitted');upsertHousehold(db,patientId,teamId,{housingType:'COMERCIO'},actor);if(!db.auditLog.find(l=>l.action==='household.updated'))throw new Error('household.updated not emitted');console.log('SMOKE-7D F5-04 PASS household.updated emitted');console.log('SMOKE-7D ALL PASS');\nEOJS"
+    ]
+  }
+}

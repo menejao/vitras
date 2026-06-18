@@ -1,0 +1,9 @@
+{
+  "InstanceIds": ["i-0544ee7c6a6b78c6f"],
+  "DocumentName": "AWS-RunShellScript",
+  "Parameters": {
+    "commands": [
+      "for url in 'http://www2.datasus.gov.br/cid10/V2008/downloads/CID10CSV.zip' 'http://www.datasus.gov.br/cid10/V2008/downloads/CID10CSV.zip' 'https://www.datasus.gov.br/cid10/V2008/downloads/CID10CSV.zip' 'ftp://ftp.datasus.gov.br/dissemin/publicos/CID10/CID10CSV.zip' ; do code=$(curl -s -o /dev/null -w '%{http_code} size=%{size_download}' --max-time 10 \"$url\" 2>/dev/null); echo \"$code | $url\"; done"
+    ]
+  }
+}

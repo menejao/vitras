@@ -56,9 +56,11 @@ function _stripSslParamsForMigrationCheck(url) {
 async function checkCriticalMigrations() {
   if (!IS_PROD || !DATABASE_URL) return; // dev/test/file-mode: skip
 
+  // KI-03: use same CA bundle resolution as db.js for startup migration check
+  const { getPoolSslConfig } = await import("./db.js");
   const checkPool = new Pool({
     connectionString: _stripSslParamsForMigrationCheck(DATABASE_URL),
-    ssl: { rejectUnauthorized: false },
+    ssl: getPoolSslConfig(),
     max: 1,
     connectionTimeoutMillis: 10000,
     idleTimeoutMillis: 10000,

@@ -5,7 +5,7 @@ import { rebuildPatientHashes } from "../services/hashRebuild.js";
 import {
   ensureDbShape, getProtocolTemplateMap, sanitizeUser, getTeamNameById, buildAccessContextUser,
   DEFAULT_CARE_PROTOCOLS, DEMO_POPULATE_SIZE_COMPLETE, DEMO_POPULATE_SIZE_INCOMPLETE,
-  validateUnitBootstrap
+  validateUnitBootstrap, normalizeUnitCnes
 } from "../utils/domain.js";
 import { canonicalRole, isManager, isDoctor, hasCapability, getClientIp } from "../utils/helpers.js";
 import { buildMonthlyDemandMetric, buildDataQualityMetric } from "../utils/metrics.js";
@@ -17,6 +17,7 @@ import {
 import { addAuditLog } from "../services/audit.js";
 import { getCouncilIntegrationConfig } from "../utils/council.js";
 import { requireAuth, requireRoles } from "../middlewares/auth.js";
+import { validate, UnitPatchSchema } from "../schemas.js";
 import { logInfo } from "../utils/logger.js";
 import { getMetrics } from "../middlewares/logging.js";
 import { isDegraded, clearDegraded } from "../services/runtime-state.js";
@@ -205,7 +206,7 @@ router.post("/admin/patients/reset-populate", requireAuth, async (req, res) => {
     }
 
     allPatients.forEach((patient, index) => {
-      patient.cnsCpf = patient.cpf || patient.cns || "";
+
       db.patients.push(patient);
 
       const bucket = index < 20 ? "ok" : (index < 45 ? "progress" : "critical");
@@ -392,6 +393,60 @@ router.post(
       }
       return res.status(500).json({ error: err.message });
     }
+  }
+);
+
+// ── F4-04: PATCH /units/:id — update unit fields (name, CNES) ────────────────
+router.patch(
+  "/units/:id",
+  requireAuth,
+  requireRoles(["nurse_manager", "break_glass_admin"], "Apenas gestor ou break_glass_admin pode editar unidade"),
+  validate(UnitPatchSchema),
+  async (req, res) => {
+    const unitId = String(req.params.id || "").trim();
+    const payload = req.body || {};
+
+    const result = await withDb((db) => {
+      ensureDbShape(db);
+      const idx = db.units.findIndex((u) => u.id === unitId);
+      if (idx < 0) return { error: { status: 404, message: "Unidade não encontrada" } };
+
+      const current = db.units[idx];
+
+      // Scope: nurse_manager can only edit their own unit; break_glass_admin can edit any
+      const actorRole = String(req.user?.role || "").trim();
+      if (actorRole !== "break_glass_admin") {
+        const actorUnitId = String(req.user?.unitId || "").trim();
+        if (actorUnitId && actorUnitId !== unitId) {
+          return { error: { status: 403, message: "Sem permissão para editar esta unidade" } };
+        }
+      }
+
+      const next = { ...current };
+      if (payload.name !== undefined) next.name = String(payload.name || "").trim();
+      // F4-04: CNES — deployment configuration value; never hardcoded
+      if (payload.cnes !== undefined) next.cnes = normalizeUnitCnes(payload.cnes);
+      // F4-04: tipoUnidade — enum canônico e-SUS (Seção 15.23 data model)
+      if (payload.tipoUnidade !== undefined) next.tipoUnidade = payload.tipoUnidade;
+      // KI-06: logical deactivation — status field; inativo hides unit from new assignments
+      if (payload.status !== undefined) next.status = payload.status;
+      next.updatedAt = new Date().toISOString();
+
+      db.units[idx] = next;
+
+      addAuditLog(db, buildAdminAuditActor(req), "unit.updated", "unit", unitId, {
+        teamId: req.user?.teamId || "",
+        changedFields: Object.keys(payload),
+        outcome: "success",
+        before: { name: current.name || "", cnes: current.cnes || "", tipoUnidade: current.tipoUnidade || "", status: current.status || "ativo" },
+        after: { name: next.name || "", cnes: next.cnes || "", tipoUnidade: next.tipoUnidade || "", status: next.status || "ativo" }
+      });
+
+      return { unit: next };
+    });
+
+    if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
+    return res.json(result.unit);
   }
 );
 

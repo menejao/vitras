@@ -1,0 +1,9 @@
+{
+  "InstanceIds": ["i-0544ee7c6a6b78c6f"],
+  "DocumentName": "AWS-RunShellScript",
+  "Parameters": {
+    "commands": [
+      "set -a && source /opt/elasticbeanstalk/deployment/env 2>/dev/null; cd /var/app/current && node --input-type=module << 'EOJS'\nimport pg from './node_modules/pg/lib/index.js';\nimport { readFileSync } from 'fs';\nconst { Pool } = pg;\nconst rawUrl = String(process.env.DATABASE_URL||'');\nconst url = (() => { try { const u = new URL(rawUrl); ['sslmode','sslcert','sslkey','sslrootcert','sslpassword'].forEach(p=>u.searchParams.delete(p)); return u.toString(); } catch { return rawUrl; } })();\nlet ssl;\ntry { ssl = { rejectUnauthorized: true, ca: readFileSync('./certs/rds-ca-bundle.pem') }; } catch { ssl = { rejectUnauthorized: false }; }\nconst pool = new Pool({ connectionString: url, ssl, max: 1 });\nconst c = await pool.connect();\nconst { rows } = await c.query('SELECT COUNT(*)::int AS cnt FROM cid10');\nconsole.log('CID10 COUNT=' + rows[0].cnt);\nconst { rows: ciap } = await c.query('SELECT COUNT(*)::int AS cnt FROM ciap2');\nconsole.log('CIAP2 COUNT=' + ciap[0].cnt);\nconst { rows: mun } = await c.query('SELECT COUNT(*)::int AS cnt FROM municipalities');\nconsole.log('MUNICIPALITIES COUNT=' + mun[0].cnt);\nconst { rows: rp } = await c.query(\"SELECT name, uf FROM municipalities WHERE ibge_code = '3534401'\");\nconsole.log('3534401=' + (rp[0] ? rp[0].name + '/' + rp[0].uf : 'NOT FOUND'));\nconst { rows: r81 } = await c.query(\"SELECT description FROM ciap2 WHERE code = 'R81'\");\nconsole.log('CIAP2 R81=' + (r81[0] ? r81[0].description : 'NOT FOUND'));\nc.release(); await pool.end();\nEOJS"
+    ]
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "InstanceIds": ["i-0544ee7c6a6b78c6f"],
+  "DocumentName": "AWS-RunShellScript",
+  "Parameters": {
+    "commands": [
+      "ls /etc/ssl/certs/ | grep -i amazon 2>/dev/null || echo 'no amazon cert'; ls /etc/ssl/certs/ | grep -i rds 2>/dev/null || echo 'no rds cert'; echo DATABASE_URL_SCHEME=$(echo $DATABASE_URL | cut -d: -f1); ls /var/app/current/certs/ 2>/dev/null || echo 'no certs dir'; curl -s https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem 2>/dev/null | head -5 || echo 'curl failed'"
+    ]
+  }
+}
