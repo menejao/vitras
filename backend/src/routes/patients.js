@@ -473,6 +473,9 @@ router.post("/patients", requireManagerOrDoctor, validate(PatientCreateSchema), 
     cnsResponsavel: payload.cnsResponsavel ? String(payload.cnsResponsavel).trim() : "",
     // Grupo F — NIS; AES-256-GCM via SENSITIVE_PATIENT_FIELDS (db.js); dado pessoal comum
     nis: payload.nis ? String(payload.nis).trim() : "",
+    // APS-01G: TRIA — Triagem para Risco de Insegurança Alimentar
+    triaAlimentosAcabaram: payload.triaAlimentosAcabaram === true ? true : (payload.triaAlimentosAcabaram === false ? false : null),
+    triaTipoUnico: payload.triaTipoUnico === true ? true : (payload.triaTipoUnico === false ? false : null),
     responsible: payload.responsible && typeof payload.responsible === "object" ? {
       name: payload.responsible.name ? String(payload.responsible.name).trim() : "",
       cpf: payload.responsible.cpf ? String(payload.responsible.cpf).trim() : "",
@@ -684,6 +687,13 @@ router.put("/patients/:id", validate(PatientUpdateSchema), async (req, res) => {
       cnsResponsavel: safePayload?.cnsResponsavel !== undefined
         ? String(safePayload.cnsResponsavel || "").trim()
         : String(current.cnsResponsavel || ""),
+      // APS-01G: TRIA
+      triaAlimentosAcabaram: safePayload?.triaAlimentosAcabaram !== undefined
+        ? (safePayload.triaAlimentosAcabaram === true ? true : safePayload.triaAlimentosAcabaram === false ? false : null)
+        : (current.triaAlimentosAcabaram ?? null),
+      triaTipoUnico: safePayload?.triaTipoUnico !== undefined
+        ? (safePayload.triaTipoUnico === true ? true : safePayload.triaTipoUnico === false ? false : null)
+        : (current.triaTipoUnico ?? null),
       id,
       updatedAt: new Date().toISOString(),
       updatedBy: req.user.id

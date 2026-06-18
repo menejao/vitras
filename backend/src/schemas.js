@@ -570,6 +570,7 @@ const LOCALIZACAO_VALUES = ["URBANA", "RURAL"];
 // ACS Visit schemas
 const ACS_TURNO_VALUES = ["manha", "tarde", "noite"];
 const ACS_DESFECHO_VALUES = ["realizada", "recusada", "ausente"];
+const ACS_MOMENTO_GLICEMIA_VALUES = ["jejum", "pos_prandial_1h", "pos_prandial_2h", "aleatorio"];
 
 const AcsVisitCreateSchema = z.object({
   patientId:         z.string().trim().min(1).max(100),
@@ -577,6 +578,8 @@ const AcsVisitCreateSchema = z.object({
   taskId:            z.string().trim().max(100).optional().nullable(),
   date:              z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, "date deve ser YYYY-MM-DD"),
   turno:             z.enum(ACS_TURNO_VALUES).optional().nullable(),
+  microarea:         z.string().trim().max(50).optional().nullable(),
+  foraArea:          z.boolean().optional().default(false),
   desfecho:          z.enum(ACS_DESFECHO_VALUES),
   motivos:           z.array(z.string().trim().min(1).max(100)).max(30).optional().default([]),
   buscaAtiva:        z.array(z.string().trim().min(1).max(100)).max(30).optional().default([]),
@@ -584,24 +587,43 @@ const AcsVisitCreateSchema = z.object({
   controleAmbiental: z.array(z.string().trim().min(1).max(100)).max(10).optional().default([]),
   peso:              z.number().min(0).max(700).optional().nullable(),
   altura:            z.number().min(0).max(300).optional().nullable(),
+  // APS-01G: sinais vitais
+  temperatura:       z.number().min(30).max(45).optional().nullable(),
+  paSistolica:       z.number().int().min(50).max(300).optional().nullable(),
+  paDiastolica:      z.number().int().min(20).max(200).optional().nullable(),
+  // APS-01G: glicemia
+  glicemia:          z.number().min(10).max(600).optional().nullable(),
+  momentoGlicemia:   z.enum(ACS_MOMENTO_GLICEMIA_VALUES).optional().nullable(),
   observacoes:       z.string().trim().max(2000).optional().nullable()
 });
 
 const AcsVisitUpdateSchema = z.object({
   desfecho:          z.enum(ACS_DESFECHO_VALUES).optional(),
   turno:             z.enum(ACS_TURNO_VALUES).optional().nullable(),
+  microarea:         z.string().trim().max(50).optional().nullable(),
+  foraArea:          z.boolean().optional(),
   motivos:           z.array(z.string().trim().min(1).max(100)).max(30).optional(),
   buscaAtiva:        z.array(z.string().trim().min(1).max(100)).max(30).optional(),
   acompanhamentos:   z.array(z.string().trim().min(1).max(100)).max(30).optional(),
   controleAmbiental: z.array(z.string().trim().min(1).max(100)).max(10).optional(),
   peso:              z.number().min(0).max(700).optional().nullable(),
   altura:            z.number().min(0).max(300).optional().nullable(),
+  temperatura:       z.number().min(30).max(45).optional().nullable(),
+  paSistolica:       z.number().int().min(50).max(300).optional().nullable(),
+  paDiastolica:      z.number().int().min(20).max(200).optional().nullable(),
+  glicemia:          z.number().min(10).max(600).optional().nullable(),
+  momentoGlicemia:   z.enum(ACS_MOMENTO_GLICEMIA_VALUES).optional().nullable(),
   observacoes:       z.string().trim().max(2000).optional().nullable()
 });
 
 const SITUACAO_MORADIA_VALUES = ["PROPRIO", "FINANCIADO", "ALUGADO", "ARRENDADO", "CEDIDO", "OCUPACAO", "SITUACAO_RUA", "OUTRO"];
 // C04A: LEDI APS 7.4.0 — tipoEndereco (novo campo obrigatório v7.4.0: 1=logradouro, 2=sem endereço)
 const TIPO_ENDERECO_VALUES = ["LOGRADOURO", "SEM_ENDERECO"];
+
+// APS-01G: Tipo de domicílio arquitetônico (diferente de tipoImovel=DOMICILIO/COMERCIO)
+const TIPO_DOMICILIO_VALUES = ["CASA", "APARTAMENTO", "COMODO", "MALOCA", "IMPROVISADO", "OUTRO"];
+// APS-01G: Animais no domicílio
+const TIPOS_ANIMAIS_VALUES = ["cachorro", "gato", "passaro", "outros"];
 
 const HouseholdCreateSchema = z.object({
   patientId: z.string().trim().min(1).max(100),
@@ -610,6 +632,8 @@ const HouseholdCreateSchema = z.object({
   // Frontend alias (housingType) and canonical (tipoImovel) — both accepted; canonical preferred
   housingType: z.enum(TIPO_IMOVEL_VALUES).optional(),
   tipoImovel: z.enum(TIPO_IMOVEL_VALUES).optional(),
+  // APS-01G: tipo arquitetônico do domicílio
+  tipoDomicilio: z.enum(TIPO_DOMICILIO_VALUES).optional(),
   // Numeric counts
   numMoradores: z.number().int().min(0).optional(),
   numComodos: z.number().int().min(0).optional(),
@@ -627,7 +651,12 @@ const HouseholdCreateSchema = z.object({
   electricity: optionalShortString(100),
   localizacao: z.enum(LOCALIZACAO_VALUES).optional(),
   situacaoMoradiaPosseTerra: z.enum(SITUACAO_MORADIA_VALUES).optional(),
-  tipoEndereco: z.enum(TIPO_ENDERECO_VALUES).optional()
+  tipoEndereco: z.enum(TIPO_ENDERECO_VALUES).optional(),
+  // APS-01G: fora da área + animais
+  foraArea: z.boolean().optional(),
+  animaisNoDomicilio: z.boolean().optional(),
+  tiposAnimais: z.array(z.enum(TIPOS_ANIMAIS_VALUES)).max(10).optional(),
+  quantidadeAnimais: z.number().int().min(0).max(999).optional().nullable()
 });
 
 const HouseholdUpdateSchema = z.object({
@@ -635,6 +664,7 @@ const HouseholdUpdateSchema = z.object({
   homeVisitFreq: optionalShortString(50),
   housingType: z.enum(TIPO_IMOVEL_VALUES).optional(),
   tipoImovel: z.enum(TIPO_IMOVEL_VALUES).optional(),
+  tipoDomicilio: z.enum(TIPO_DOMICILIO_VALUES).optional(),
   numMoradores: z.number().int().min(0).optional(),
   numComodos: z.number().int().min(0).optional(),
   materialPredominanteParedes: z.enum(MATERIAL_PAREDES_VALUES).optional(),
@@ -650,7 +680,11 @@ const HouseholdUpdateSchema = z.object({
   electricity: optionalShortString(100),
   localizacao: z.enum(LOCALIZACAO_VALUES).optional(),
   situacaoMoradiaPosseTerra: z.enum(SITUACAO_MORADIA_VALUES).optional(),
-  tipoEndereco: z.enum(TIPO_ENDERECO_VALUES).optional()
+  tipoEndereco: z.enum(TIPO_ENDERECO_VALUES).optional(),
+  foraArea: z.boolean().optional(),
+  animaisNoDomicilio: z.boolean().optional(),
+  tiposAnimais: z.array(z.enum(TIPOS_ANIMAIS_VALUES)).max(10).optional(),
+  quantidadeAnimais: z.number().int().min(0).max(999).optional().nullable()
 }).strict();
 
 // F4-04 / F4-06: Unit fields — CNES from deployment env (DEFAULT_UNIT_CNES), never hardcoded

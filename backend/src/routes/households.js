@@ -94,6 +94,11 @@ router.post(
         situacaoMoradiaPosseTerra: payload.situacaoMoradiaPosseTerra || "",
         tipoEndereco: payload.tipoEndereco || "",
         homeVisitFreq: String(payload.homeVisitFreq || "").trim(),
+        tipoDomicilio: payload.tipoDomicilio || "",
+        foraArea: payload.foraArea === true,
+        animaisNoDomicilio: payload.animaisNoDomicilio === true,
+        tiposAnimais: Array.isArray(payload.tiposAnimais) ? payload.tiposAnimais : [],
+        quantidadeAnimais: payload.quantidadeAnimais ?? null,
         createdAt: now,
         updatedAt: now
       };
@@ -158,6 +163,11 @@ router.patch(
       if (payload.situacaoMoradiaPosseTerra !== undefined) next.situacaoMoradiaPosseTerra = payload.situacaoMoradiaPosseTerra;
       if (payload.tipoEndereco !== undefined) next.tipoEndereco = payload.tipoEndereco;
       if (payload.homeVisitFreq !== undefined) next.homeVisitFreq = String(payload.homeVisitFreq || "").trim();
+      if (payload.tipoDomicilio !== undefined) next.tipoDomicilio = payload.tipoDomicilio;
+      if (payload.foraArea !== undefined) next.foraArea = Boolean(payload.foraArea);
+      if (payload.animaisNoDomicilio !== undefined) next.animaisNoDomicilio = Boolean(payload.animaisNoDomicilio);
+      if (payload.tiposAnimais !== undefined) next.tiposAnimais = Array.isArray(payload.tiposAnimais) ? payload.tiposAnimais : [];
+      if (payload.quantidadeAnimais !== undefined) next.quantidadeAnimais = payload.quantidadeAnimais ?? null;
 
       db.households[idx] = next;
       addAuditLog(db, buildHouseholdActor(req), "household.updated", "household", householdId, {

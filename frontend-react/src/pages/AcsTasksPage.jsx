@@ -636,8 +636,12 @@ const ACOMPANHAMENTO_OPTIONS = [
   { key: "ac_acamada",           label: "Pessoa acamada"                    },
   { key: "ac_domiciliada",       label: "Pessoa domiciliada"                },
   { key: "ac_tabagista",         label: "Tabagista"                         },
-  { key: "ac_alcool",            label: "Usuário de álcool"                 },
-  { key: "ac_outras_drogas",     label: "Usuário de outras drogas"          },
+  { key: "ac_alcool",                    label: "Usuário de álcool"                    },
+  { key: "ac_outras_drogas",            label: "Usuário de outras drogas"             },
+  { key: "ac_pessoa_idosa",             label: "Pessoa idosa"                         },
+  { key: "ac_sintomaticos_resp",        label: "Sintomáticos respiratórios"           },
+  { key: "ac_outras_doencas_cronicas",  label: "Outras doenças crônicas"             },
+  { key: "ac_vulnerabilidade_social",   label: "Condições de vulnerabilidade social"  },
 ];
 
 const CONTROLE_AMBIENTAL_OPTIONS = [
@@ -647,10 +651,12 @@ const CONTROLE_AMBIENTAL_OPTIONS = [
   { key: "ca_trat_focal",      label: "Tratamento focal"  },
 ];
 
-function emptyVisitForm(today) {
+function emptyVisitForm(today, patient) {
   return {
     date:               today,
     turno:              "manha",
+    microarea:          patient?.microarea || patient?.microArea || "",
+    foraArea:           false,
     desfecho:           "realizada",
     motivos:            {},
     buscaAtiva:         {},
@@ -658,6 +664,11 @@ function emptyVisitForm(today) {
     controleAmbiental:  {},
     peso:               "",
     altura:             "",
+    temperatura:        "",
+    paSistolica:        "",
+    paDiastolica:       "",
+    glicemia:           "",
+    momentoGlicemia:    "jejum",
     observacoes:        "",
   };
 }
@@ -806,7 +817,7 @@ function AccordionBlock({ title, badge, defaultOpen = false, children }) {
 
 function VisitForm({ patient, taskOrigin, userId, token, onSave, onCancel }) {
   const today = new Date().toISOString().slice(0, 10);
-  const [form, setForm] = useState(() => emptyVisitForm(today));
+  const [form, setForm] = useState(() => emptyVisitForm(today, patient));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -830,6 +841,8 @@ function VisitForm({ patient, taskOrigin, userId, token, onSave, onCancel }) {
       taskId:            taskOrigin?.id || null,
       date:              form.date,
       turno:             form.turno || null,
+      microarea:         form.microarea || null,
+      foraArea:          form.foraArea === true,
       desfecho:          form.desfecho,
       motivos:           Object.keys(form.motivos).filter(k => form.motivos[k]),
       buscaAtiva:        Object.keys(form.buscaAtiva).filter(k => form.buscaAtiva[k]),
@@ -837,6 +850,11 @@ function VisitForm({ patient, taskOrigin, userId, token, onSave, onCancel }) {
       controleAmbiental: Object.keys(form.controleAmbiental).filter(k => form.controleAmbiental[k]),
       peso:              form.peso ? Number(form.peso) : null,
       altura:            form.altura ? Number(form.altura) : null,
+      temperatura:       form.temperatura ? Number(form.temperatura) : null,
+      paSistolica:       form.paSistolica ? Number(form.paSistolica) : null,
+      paDiastolica:      form.paDiastolica ? Number(form.paDiastolica) : null,
+      glicemia:          form.glicemia ? Number(form.glicemia) : null,
+      momentoGlicemia:   form.glicemia ? (form.momentoGlicemia || "aleatorio") : null,
       observacoes:       form.observacoes || null,
     };
 
@@ -916,7 +934,28 @@ function VisitForm({ patient, taskOrigin, userId, token, onSave, onCancel }) {
               {TURNO_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           </div>
+          <div className="acs-vis-field">
+            <label className="acs-vis-label" htmlFor="vis-microarea">Microárea</label>
+            <input
+              id="vis-microarea"
+              className="acs-vis-input"
+              type="text"
+              maxLength={50}
+              value={form.microarea}
+              onChange={e => upd("microarea", e.target.value)}
+              placeholder="Ex: 01"
+            />
+          </div>
         </div>
+        <label className="acs-vis-check-label" style={{ marginTop: "8px" }}>
+          <input
+            type="checkbox"
+            className="acs-vis-checkbox"
+            checked={form.foraArea}
+            onChange={e => upd("foraArea", e.target.checked)}
+          />
+          <span>Fora da área de cobertura</span>
+        </label>
       </AccordionBlock>
 
       {/* Bloco 2 — Motivo da visita */}
