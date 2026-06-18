@@ -1,0 +1,844 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#060F1B" />
+  <meta name="robots" content="index, follow" />
+  <meta name="author" content="Vitras" />
+  <title>Política de Privacidade | VITRAS APS</title>
+  <meta name="description" content="Política de Privacidade do VITRAS APS sobre tratamento de dados pessoais, dados sensíveis de saúde, LGPD, segurança e direitos dos titulares." />
+
+  <link rel="canonical" href="https://vitras.com.br/privacidade" />
+
+  <link rel="icon" type="image/svg+xml" href="/brand/favicon/favicon.svg" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/brand/favicon/favicon-32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/brand/favicon/favicon-16.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/brand/favicon/apple-touch-icon.png" />
+
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Vitras" />
+  <meta property="og:url" content="https://vitras.com.br/privacidade" />
+  <meta property="og:title" content="Política de Privacidade | VITRAS APS" />
+  <meta property="og:description" content="Política de Privacidade do VITRAS APS sobre tratamento de dados pessoais, dados sensíveis de saúde, LGPD, segurança e direitos dos titulares." />
+  <meta property="og:image" content="https://vitras.com.br/brand/social/og-image.svg" />
+  <meta property="og:image:type" content="image/svg+xml" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Política de Privacidade | VITRAS APS" />
+  <meta name="twitter:description" content="Política de Privacidade do VITRAS APS sobre tratamento de dados pessoais, dados sensíveis de saúde, LGPD, segurança e direitos dos titulares." />
+  <meta name="twitter:image" content="https://vitras.com.br/brand/social/twitter-card.svg" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Inter', system-ui, -apple-system, sans-serif; -webkit-font-smoothing: antialiased; background: var(--bg); color: var(--text); }
+    a { text-decoration: none; color: inherit; }
+    ul { list-style: none; }
+    button { cursor: pointer; font-family: inherit; }
+    img { max-width: 100%; display: block; }
+
+    .skip-link {
+      position: absolute; top: -100%; left: 16px; z-index: 200;
+      padding: 8px 16px; background: var(--navy); color: #fff;
+      border-radius: 0 0 8px 8px; font: 500 14px var(--font-sans); transition: top 80ms;
+    }
+    .skip-link:focus { top: 0; outline: 2px solid var(--teal-400); outline-offset: 2px; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+
+    /* ── Tokens ── */
+    :root {
+      --teal-300: #5EEAD4; --teal-400: #2DD4BF; --teal-500: #14B8A6; --teal-600: #0D9488;
+      --navy: #060F1B; --navy-2: #0F1F35;
+      --bg: #F8FAFC; --surface: #FFFFFF; --surface-2: #F1F5F9; --surface-3: #E2E8F0;
+      --text: #0F172A; --text-muted: #64748B; --text-dim: #94A3B8; --text-on-accent: #FFFFFF;
+      --border: #E2E8F0; --border-subtle: rgba(0,0,0,.06); --border-strong: #CBD5E1;
+      --accent: #14B8A6; --accent-hover: #0D9488; --accent-soft: rgba(20,184,166,.10);
+      --accent-soft-2: rgba(20,184,166,.20); --accent-text: #0D9488;
+      --hero-grad: linear-gradient(135deg,#060F1B 0%,#0F1F35 55%,#133756 100%);
+      --hero-text: #FFFFFF; --hero-text-muted: rgba(255,255,255,.72); --hero-kicker: #5EEAD4;
+      --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+      --font-mono: 'IBM Plex Mono', 'Courier New', monospace;
+      --t-xs:11px; --t-sm:12px; --t-base:13.5px; --t-md:15px; --t-lg:18px; --t-xl:24px;
+      --ls-base:-0.005em; --ls-snug:-0.02em;
+      --r-sm:4px; --r-md:8px; --r-lg:12px; --r-xl:16px; --r-full:999px;
+      --s-1:4px; --s-2:8px; --s-3:12px; --s-4:16px; --s-5:20px; --s-6:24px; --s-8:32px; --s-10:40px; --s-12:48px; --s-16:64px;
+      --d-fast:120ms; --d-base:200ms;
+      --shadow-xs: 0 1px 2px rgba(0,0,0,.06),0 1px 3px rgba(0,0,0,.04);
+      --shadow-sm: 0 2px 4px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.06);
+      --shadow-md: 0 4px 12px rgba(0,0,0,.10),0 2px 4px rgba(0,0,0,.06);
+      --focus-ring: 0 0 0 3px rgba(20,184,166,.25);
+      --topbar-h: 56px;
+      --success:#22C55E; --danger:#EF4444; --info:#3B82F6;
+    }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex; align-items: center; gap: var(--s-2);
+      height: 32px; padding: 0 14px;
+      font: 500 var(--t-base)/1 var(--font-sans); letter-spacing: var(--ls-base);
+      border-radius: var(--r-md); border: 1px solid transparent;
+      background: transparent; color: inherit; cursor: pointer;
+      user-select: none; white-space: nowrap;
+      transition: background var(--d-fast), border-color var(--d-fast), box-shadow var(--d-base), color var(--d-fast);
+    }
+    .btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+    .btn--primary { background: var(--accent); color: var(--text-on-accent); font-weight: 600; }
+    .btn--primary:hover { background: var(--accent-hover); }
+
+    /* ── Nav ── */
+    .nav-bar {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(248,250,252,0.85);
+      backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .nav-inner {
+      max-width: 1280px; margin: 0 auto; padding: 0 32px;
+      height: var(--topbar-h); display: flex; align-items: center; justify-content: space-between; gap: 24px;
+    }
+    .nav-brand { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+    .nav-brand span { font: 700 17px/1 var(--font-sans); letter-spacing: -0.02em; color: var(--text); }
+    .nav-links { display: flex; gap: 28px; align-items: center; }
+    .nav-links a {
+      font: 500 13.5px var(--font-sans); color: var(--text-muted); letter-spacing: -0.005em;
+      transition: color var(--d-fast); border-radius: 4px; padding: 2px 4px; margin: -2px -4px;
+    }
+    .nav-links a:hover { color: var(--text); }
+    .nav-links a:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+    .nav-links a.nav-active { color: var(--accent); font-weight: 600; }
+    .nav-ctas { display: flex; gap: 10px; align-items: center; flex-shrink: 0; }
+    .btn-platform {
+      font: 500 13.5px var(--font-sans); color: var(--text);
+      padding: 8px 14px; border-radius: var(--r-md); border: 1px solid var(--border);
+      background: var(--surface); display: inline-flex; align-items: center; gap: 6px;
+      transition: background var(--d-fast), border-color var(--d-fast); white-space: nowrap;
+    }
+    .btn-platform:hover { background: var(--surface-2); border-color: var(--border-strong); }
+    .btn-platform:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+    .nav-toggle {
+      display: none; align-items: center; justify-content: center;
+      width: 36px; height: 36px; background: transparent; border: 1px solid var(--border);
+      border-radius: var(--r-md); color: var(--text); flex-shrink: 0;
+      transition: background var(--d-fast), border-color var(--d-fast);
+    }
+    .nav-toggle:hover { background: var(--surface-2); border-color: var(--border-strong); }
+    .nav-toggle:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+    .mobile-nav {
+      display: none; position: fixed; top: var(--topbar-h); left: 0; right: 0; bottom: 0;
+      background: var(--navy); z-index: 90; padding: 24px 24px 40px;
+      flex-direction: column; overflow-y: auto; border-top: 1px solid rgba(255,255,255,.07);
+    }
+    .mobile-nav.is-open { display: flex; }
+    .mobile-nav a {
+      display: block; padding: 12px 16px; font: 500 16px/1 var(--font-sans); color: rgba(255,255,255,.75);
+      border-radius: var(--r-md); transition: background var(--d-fast), color var(--d-fast);
+    }
+    .mobile-nav a:hover { background: rgba(255,255,255,.06); color: #fff; }
+    .mobile-nav a:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(93,234,212,.3); }
+    .mobile-nav-divider { margin: 16px 0; border: none; border-top: 1px solid rgba(255,255,255,.07); }
+    .mobile-nav-ctas { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+    .mobile-nav-ctas a, .mobile-nav-ctas button { width: 100%; height: 44px; justify-content: center; font-size: 15px; border-radius: var(--r-md); }
+    .btn-platform-mobile {
+      display: flex; align-items: center; justify-content: center; gap: 6px; height: 44px;
+      background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12);
+      border-radius: var(--r-md); color: #fff; font: 500 15px var(--font-sans); transition: background var(--d-fast);
+    }
+    .btn-platform-mobile:hover { background: rgba(255,255,255,.10); }
+
+    /* ── Page hero ── */
+    .priv-hero {
+      background: var(--hero-grad); padding: 80px 32px 72px; overflow: hidden;
+      position: relative;
+    }
+    .priv-hero__glow {
+      position: absolute; inset: 0; pointer-events: none;
+      background: radial-gradient(620px 460px at 80% -10%,rgba(20,184,166,.28),transparent 55%),
+                  radial-gradient(400px 320px at -5% 110%,rgba(34,211,238,.13),transparent 65%);
+    }
+    .priv-hero__inner { max-width: 800px; margin: 0 auto; position: relative; }
+    .priv-eyebrow {
+      font: 600 11px var(--font-mono); letter-spacing: .12em; text-transform: uppercase;
+      color: var(--hero-kicker); margin-bottom: 16px; display: inline-block;
+    }
+    .priv-hero__title {
+      font: 800 clamp(2rem,5vw,3.25rem)/1.08 var(--font-sans); color: var(--hero-text);
+      letter-spacing: var(--ls-snug); margin-bottom: 20px;
+    }
+    .priv-hero__sub {
+      font: 400 17px/1.65 var(--font-sans); color: var(--hero-text-muted);
+      max-width: 600px; margin-bottom: 24px;
+    }
+    .priv-hero__meta { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+    .priv-badge {
+      font: 500 11px var(--font-mono); letter-spacing: .06em;
+      color: var(--teal-400); background: rgba(20,184,166,.12);
+      border: 1px solid rgba(20,184,166,.25); border-radius: var(--r-full); padding: 4px 10px;
+    }
+    .priv-hero__updated { font: 400 12px var(--font-sans); color: rgba(255,255,255,.5); }
+
+    /* ── Layout ── */
+    .priv-layout {
+      max-width: 1280px; margin: 0 auto; padding: 64px 32px 80px;
+      display: grid; grid-template-columns: 220px minmax(0,1fr); gap: 56px; align-items: start;
+    }
+
+    /* ── Sidebar ── */
+    .priv-sidebar {
+      position: sticky; top: calc(var(--topbar-h) + 24px);
+      max-height: calc(100vh - 120px); overflow-y: auto;
+    }
+    .priv-sidebar__label {
+      font: 600 10px var(--font-mono); letter-spacing: .12em; text-transform: uppercase;
+      color: var(--text-dim); margin-bottom: 12px;
+    }
+    .priv-sidebar__list { display: flex; flex-direction: column; gap: 2px; }
+    .priv-sidebar__link {
+      display: block; font: 400 13px/1.4 var(--font-sans); color: var(--text-muted);
+      padding: 6px 10px; border-radius: var(--r-md); transition: background var(--d-fast), color var(--d-fast);
+      text-decoration: none; cursor: pointer; background: none; border: none; text-align: left; width: 100%;
+    }
+    .priv-sidebar__link:hover { background: var(--accent-soft); color: var(--accent-text); }
+    .priv-sidebar__link:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+    /* ── Content ── */
+    .priv-content { display: flex; flex-direction: column; }
+    .priv-section {
+      padding: 40px 0; border-bottom: 1px solid var(--border);
+    }
+    .priv-section:last-child { border-bottom: none; }
+    .priv-section--highlight {
+      background: var(--accent-soft); border-radius: var(--r-xl); padding: 32px;
+      border: 1px solid var(--accent-soft-2); margin-bottom: 0;
+    }
+    .priv-section h2 {
+      font: 700 22px/1.2 var(--font-sans); color: var(--text);
+      letter-spacing: var(--ls-snug); margin-bottom: 20px; scroll-margin-top: 80px;
+    }
+    .priv-section h3 {
+      font: 600 15px/1.3 var(--font-sans); color: var(--text); margin: 24px 0 10px;
+    }
+    .priv-section p {
+      font: 400 14px/1.7 var(--font-sans); color: var(--text-muted); margin-bottom: 14px;
+    }
+    .priv-section p:last-child { margin-bottom: 0; }
+    .priv-section a { color: var(--accent-text); text-decoration: underline; text-underline-offset: 2px; }
+    .priv-section a:hover { color: var(--accent-hover); }
+
+    /* ── Tables ── */
+    .priv-table-wrap { overflow-x: auto; margin: 16px 0; border-radius: var(--r-lg); border: 1px solid var(--border); }
+    .priv-table { width: 100%; border-collapse: collapse; font: 400 13px/1.4 var(--font-sans); }
+    .priv-table th {
+      background: var(--surface-2); color: var(--text-muted); font-weight: 600;
+      font-size: 11px; letter-spacing: .05em; text-transform: uppercase;
+      padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border);
+    }
+    .priv-table td { padding: 10px 14px; color: var(--text-muted); border-bottom: 1px solid var(--border); vertical-align: top; }
+    .priv-table td:first-child { font-weight: 500; color: var(--text); white-space: nowrap; }
+    .priv-table tr:last-child td { border-bottom: none; }
+    .priv-table tbody tr:hover { background: var(--surface-2); }
+
+    /* ── Lists ── */
+    .priv-list { margin: 0 0 14px; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+    .priv-list li { font: 400 14px/1.7 var(--font-sans); color: var(--text-muted); }
+    .priv-list--compact { gap: 4px; }
+    .priv-list--compact li { font-size: 13px; }
+    .priv-list--grid {
+      display: grid; grid-template-columns: repeat(2,1fr); gap: 12px;
+      padding-left: 0; list-style: none;
+    }
+    .priv-list--grid li {
+      display: flex; flex-direction: column; gap: 4px; padding: 14px; border-radius: var(--r-lg);
+      background: var(--surface); border: 1px solid var(--border);
+    }
+    .priv-list--grid li strong { font: 600 13px/1 var(--font-sans); color: var(--text); }
+    .priv-list--grid li span { font: 400 12px/1.5 var(--font-sans); color: var(--text-muted); }
+
+    /* ── Callouts ── */
+    .priv-callout {
+      background: var(--accent-soft); border: 1px solid var(--accent-soft-2);
+      border-left: 3px solid var(--accent); border-radius: var(--r-lg);
+      padding: 16px 18px; margin: 16px 0;
+    }
+    .priv-callout strong { display: block; font: 600 13px/1 var(--font-sans); color: var(--accent-text); margin-bottom: 10px; }
+    .priv-callout p { font: 400 13px/1.6 var(--font-sans); color: var(--text-muted); margin: 0 0 6px; }
+    .priv-callout p:last-child { margin: 0; }
+
+    /* ── DPO Card ── */
+    .priv-dpo-card {
+      display: flex; align-items: flex-start; gap: 18px;
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-xl);
+      padding: 22px; margin: 16px 0;
+      box-shadow: var(--shadow-xs);
+    }
+    .priv-dpo-card__avatar {
+      width: 44px; height: 44px; border-radius: var(--r-full);
+      background: var(--accent-soft-2); color: var(--accent-text);
+      font: 600 10px var(--font-mono); display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; letter-spacing: .04em;
+    }
+    .priv-dpo-card__info { display: flex; flex-direction: column; gap: 4px; }
+    .priv-dpo-card__info strong { font: 600 14px/1 var(--font-sans); color: var(--text); }
+    .priv-dpo-card__info span { font: 400 13px/1 var(--font-sans); color: var(--text-muted); }
+    .priv-dpo-card__email { font: 500 13px/1 var(--font-sans); margin-top: 4px; }
+    .priv-dpo-card__sla { font: 400 11px var(--font-mono) !important; color: var(--text-dim) !important; letter-spacing: .04em; }
+
+    code {
+      font: 500 .88em var(--font-mono); background: var(--surface-2); border: 1px solid var(--border);
+      padding: 2px 6px; border-radius: var(--r-sm); color: var(--text);
+    }
+
+    /* ── Footer ── */
+    footer {
+      padding: 64px 32px 36px; background: var(--navy);
+      color: rgba(255,255,255,.7); border-top: 1px solid rgba(255,255,255,.06);
+    }
+    .footer-inner { max-width: 1280px; margin: 0 auto; }
+    .footer-grid {
+      display: grid; grid-template-columns: 1.5fr repeat(4,1fr); gap: 48px;
+    }
+    .footer-col-title {
+      font: 600 11px var(--font-mono); letter-spacing: .1em; color: rgba(255,255,255,.5);
+      text-transform: uppercase; margin-bottom: 16px;
+    }
+    .footer-links { display: flex; flex-direction: column; gap: 8px; }
+    .footer-links a {
+      font: 400 13px var(--font-sans); color: rgba(255,255,255,.7); transition: color var(--d-fast);
+    }
+    .footer-links a:hover { color: #fff; }
+    .footer-links a.footer-link--active { color: var(--teal-400); font-weight: 500; }
+    .footer-bottom {
+      margin-top: 56px; padding-top: 24px; border-top: 1px solid rgba(255,255,255,.06);
+      display: flex; justify-content: space-between; align-items: center; gap: 24px; flex-wrap: wrap;
+    }
+    .footer-legal { font: 400 12px var(--font-sans); color: rgba(255,255,255,.45); }
+    .footer-compliance { font: 500 11px var(--font-mono); color: rgba(255,255,255,.4); letter-spacing: .08em; }
+
+    /* ── Responsive ── */
+    @media (max-width: 1024px) {
+      .nav-links { display: none !important; }
+      .nav-toggle { display: flex !important; }
+      .footer-grid { grid-template-columns: 1fr 1fr !important; }
+    }
+    @media (max-width: 900px) {
+      .priv-layout { grid-template-columns: 1fr; gap: 32px; padding-top: 40px; }
+      .priv-sidebar {
+        position: static; max-height: none;
+        background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-xl);
+        padding: 18px;
+      }
+      .priv-sidebar__list { flex-direction: row; flex-wrap: wrap; gap: 4px; }
+      .priv-list--grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 768px) {
+      .nav-inner { padding: 0 20px; }
+      .priv-hero { padding: 60px 20px 56px; }
+      footer { padding: 48px 20px 28px; }
+    }
+    @media (max-width: 480px) {
+      .priv-hero__title { font-size: 1.75rem; }
+      .priv-section--highlight { padding: 22px; }
+      .priv-list--grid { grid-template-columns: 1fr; }
+      .footer-grid { grid-template-columns: 1fr !important; }
+      .priv-dpo-card { flex-direction: column; gap: 14px; }
+    }
+  </style>
+</head>
+<body>
+
+<a class="skip-link" href="#main-content">Pular para o conteúdo principal</a>
+
+<!-- ════ NAV ════ -->
+<nav class="nav-bar" aria-label="Navegação principal">
+  <div class="nav-inner">
+    <a href="/" class="nav-brand" aria-label="Vitras — página inicial">
+      <svg width="28" height="28" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <defs>
+          <linearGradient id="nm-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2DD4BF"/><stop offset="1" stop-color="#0D9488"/></linearGradient>
+          <linearGradient id="nm-hl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".18"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/></linearGradient>
+        </defs>
+        <rect width="32" height="32" rx="7" fill="url(#nm-g)"/>
+        <rect width="32" height="32" rx="7" fill="url(#nm-hl)"/>
+        <rect x="6" y="6"  width="20" height="4" rx="1.6" fill="#fff"/>
+        <rect x="22" y="6" width="4"  height="12" rx="1.6" fill="#fff"/>
+        <rect x="6" y="14" width="20" height="4" rx="1.6" fill="#fff"/>
+        <rect x="6" y="14" width="4"  height="12" rx="1.6" fill="#fff"/>
+        <rect x="6" y="22" width="20" height="4" rx="1.6" fill="#fff"/>
+      </svg>
+      <span>Vitras</span>
+    </a>
+
+    <div class="nav-links" role="list">
+      <a href="/" role="listitem">Início</a>
+      <a href="/#produto" role="listitem">Produto</a>
+      <a href="/#módulos" role="listitem">Módulos</a>
+      <a href="/#segurança" role="listitem">Segurança</a>
+      <a href="/#contato" role="listitem">Contato</a>
+      <a href="/privacidade" class="nav-active" role="listitem" aria-current="page">Privacidade</a>
+    </div>
+
+    <div class="nav-ctas">
+      <a href="https://app.vitras.com.br" class="btn-platform" target="_blank" rel="noopener noreferrer">
+        Acessar plataforma
+        <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 2h4v4M14 2L8 8M6 3H3a1 1 0 00-1 1v9a1 1 0 001 1h9a1 1 0 001-1v-3"/></svg>
+      </a>
+      <button class="nav-toggle" id="nav-toggle-btn" aria-label="Abrir menu" aria-expanded="false" aria-controls="mobile-nav">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+          <line x1="3" y1="6" x2="21" y2="6"/>
+          <line x1="3" y1="12" x2="21" y2="12"/>
+          <line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<!-- Mobile nav -->
+<div id="mobile-nav" class="mobile-nav" role="dialog" aria-modal="true" aria-label="Menu de navegação" aria-hidden="true">
+  <a href="/"          onclick="closeMobileNav()">Início</a>
+  <a href="/#produto"  onclick="closeMobileNav()">Produto</a>
+  <a href="/#módulos"  onclick="closeMobileNav()">Módulos</a>
+  <a href="/#segurança" onclick="closeMobileNav()">Segurança</a>
+  <a href="/#contato"  onclick="closeMobileNav()">Contato</a>
+  <a href="/privacidade" onclick="closeMobileNav()" style="color:#5EEAD4;">Privacidade</a>
+  <hr class="mobile-nav-divider" />
+  <div class="mobile-nav-ctas">
+    <a href="https://app.vitras.com.br" class="btn-platform-mobile" target="_blank" rel="noopener noreferrer" onclick="closeMobileNav()">
+      Acessar plataforma
+      <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 2h4v4M14 2L8 8M6 3H3a1 1 0 00-1 1v9a1 1 0 001 1h9a1 1 0 001-1v-3"/></svg>
+    </a>
+    <button class="btn btn--primary" style="height:44px;font-size:15px;justify-content:center;" onclick="closeMobileNav();window.location.href='/#contato'">
+      Falar com a equipe
+    </button>
+  </div>
+</div>
+
+<main id="main-content">
+
+<!-- ════ HERO ════ -->
+<div class="priv-hero" aria-label="Cabeçalho da página">
+  <div class="priv-hero__glow" aria-hidden="true"></div>
+  <div class="priv-hero__inner">
+    <span class="priv-eyebrow">Compliance · LGPD</span>
+    <h1 class="priv-hero__title">Política de Privacidade</h1>
+    <p class="priv-hero__sub">
+      Descrevemos como o VITRAS APS trata dados pessoais e dados sensíveis de saúde,
+      em conformidade com a Lei 13.709/2018 (LGPD) e as regulamentações do setor de saúde pública.
+    </p>
+    <div class="priv-hero__meta">
+      <span class="priv-badge">LGPD · Lei 13.709/2018</span>
+      <span class="priv-badge">CFM Res. 2.299/2021</span>
+      <span class="priv-badge">PNAB 2.436/2017</span>
+      <span class="priv-badge">Dados no Brasil · AWS sa-east-1</span>
+    </div>
+    <p class="priv-hero__updated">Última atualização: 18 de junho de 2026</p>
+  </div>
+</div>
+
+<!-- ════ BODY ════ -->
+<div class="priv-layout">
+
+  <!-- Sidebar -->
+  <aside class="priv-sidebar" aria-label="Navegação do conteúdo">
+    <p class="priv-sidebar__label">Nesta página</p>
+    <ul class="priv-sidebar__list" role="list">
+      <li><button class="priv-sidebar__link" onclick="document.getElementById('quem-somos').scrollIntoView({behavior:'smooth'})">Quem somos</button></li>
+      <li><button class="priv-sidebar__link" onclick="document.getElementById('papeis-lgpd').scrollIntoView({behavior:'smooth'})">Papéis LGPD</button></li>
+      <li><button class="priv-sidebar__link" onclick="document.getElementById('dados-tratados').scrollIntoView({behavior:'smooth'})">Dados tratados</button></li>
+      <li><button class="priv-sidebar__link" onclick="document.getElementById('dados-saude').scrollIntoView({behavior:'smooth'})">Dados de saúde</button></li>
+      <li><button class="priv-sidebar__link" onclick="document.getElementById('nome-social').scrollIntoView({behavior:'smooth'})">Nome social</button></li>
+      <li><button class="priv-sidebar__link" onclick="document.getElementById('finalidades').scrollIntoView({behavior:'smooth'})">Finalidades</button></li>
+      <li><button class="priv-sidebar__link" onclick="document.getElementById('bases-legais').scrollIntoView({behavior:'smooth'})">Bases legais</button></li>
+      <li><button class="priv-sidebar__link" onclick="document.getElementById('esus').scrollIntoView({behavior:'smooth'})">Exportação e-SUS</button></li>
+      <li><button class="priv-sidebar__link" onclick="document.getElementById('seguranca').scrollIntoView({behavior:'smooth'})">Segurança</button></li>
+      <li><button class="priv-sidebar__link" onclick="document.getElementById('retencao').scrollIntoView({behavior:'smooth'})">Retenção e exclusão</button></li>
+      <li><button class="priv-sidebar__link" onclick="document.getElementById('direitos').scrollIntoView({behavior:'smooth'})">Direitos dos titulares</button></li>
+      <li><button class="priv-sidebar__link" onclick="document.getElementById('contato-lgpd').scrollIntoView({behavior:'smooth'})">Contato LGPD</button></li>
+      <li><button class="priv-sidebar__link" onclick="document.getElementById('atualizacoes').scrollIntoView({behavior:'smooth'})">Atualizações</button></li>
+    </ul>
+  </aside>
+
+  <!-- Content -->
+  <article class="priv-content" aria-label="Política de Privacidade completa">
+
+    <!-- 1. Quem somos -->
+    <section class="priv-section" id="quem-somos">
+      <h2>1. Quem somos</h2>
+      <p>O <strong>VITRAS APS</strong> é uma plataforma de gestão integrada para saúde pública, voltada exclusivamente para a Atenção Primária à Saúde (APS). A plataforma unifica prontuário eletrônico, agenda, farmácia, dashboards e cadeia de auditoria para UBS, equipes ESF e secretarias municipais de saúde.</p>
+      <p><strong>Operador:</strong> VITRAS — [CNPJ será informado após formalização empresarial]</p>
+      <p><strong>Encarregado de Dados (DPO):</strong> João Pedro Menegucci Benedito</p>
+      <p><strong>Canal LGPD:</strong> <a href="mailto:lgpd@vitras.com.br">lgpd@vitras.com.br</a></p>
+    </section>
+
+    <!-- 2. Papéis LGPD -->
+    <section class="priv-section" id="papeis-lgpd">
+      <h2>2. Papéis LGPD — Controlador e Operador</h2>
+      <div class="priv-table-wrap">
+        <table class="priv-table">
+          <thead>
+            <tr><th>Papel</th><th>Entidade</th><th>Responsabilidade</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Controlador</td>
+              <td>Município / Secretaria Municipal de Saúde</td>
+              <td>Define as finalidades do tratamento; é responsável perante os titulares e a ANPD</td>
+            </tr>
+            <tr>
+              <td>Operador</td>
+              <td>VITRAS</td>
+              <td>Trata os dados pessoais conforme instruções documentadas do Controlador; implementa medidas de segurança; notifica incidentes</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>O VITRAS atua exclusivamente como Operador nos termos do Art. 7º, inciso III, e Art. 39 da LGPD. Os dados pessoais dos pacientes e usuários pertencem ao Controlador (Município). O VITRAS não comercializa, compartilha ou usa os dados para finalidades próprias fora do escopo do contrato.</p>
+    </section>
+
+    <!-- 3. Dados tratados -->
+    <section class="priv-section" id="dados-tratados">
+      <h2>3. Dados pessoais tratados</h2>
+      <div class="priv-table-wrap">
+        <table class="priv-table">
+          <thead>
+            <tr><th>Categoria</th><th>Dados</th><th>Sensível?</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Identificação do paciente</td><td>Nome civil, nome social, data de nascimento, sexo biológico, raça/cor</td><td>Parcialmente</td></tr>
+            <tr><td>Documentos</td><td>CPF, CNS (Cartão Nacional de Saúde), NIS — armazenados criptografados</td><td>Sim</td></tr>
+            <tr><td>Endereço</td><td>Logradouro, CEP, município, microárea ACS</td><td>Não</td></tr>
+            <tr><td>Contato</td><td>Telefone, e-mail</td><td>Não</td></tr>
+            <tr><td>Dados de saúde</td><td>Diagnósticos, CID-10, CIAP-2, atendimentos clínicos, prescrições, vacinas, exames</td><td>Sim (Art. 11 LGPD)</td></tr>
+            <tr><td>Dados domiciliares</td><td>Composição familiar, condições de moradia, saneamento — uso exclusivo ACS/APS</td><td>Parcialmente</td></tr>
+            <tr><td>Dados de usuários da plataforma</td><td>Nome, e-mail institucional, CRM/COREN/CNS do profissional, perfil de acesso</td><td>Não</td></tr>
+            <tr><td>Logs de auditoria</td><td>Registro de acessos, ações clínicas, exportações — imutáveis, SHA-256</td><td>Não</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Campos sensíveis (<code>CPF</code>, <code>CNS</code>, <code>NIS</code>) são cifrados com AES-256-GCM em repouso. Nenhum dado pessoal de paciente aparece em logs técnicos de sistema.</p>
+    </section>
+
+    <!-- 4. Dados de saúde -->
+    <section class="priv-section priv-section--highlight" id="dados-saude">
+      <h2>4. Dados de Saúde e Dados Sensíveis</h2>
+      <p>Dados de saúde são considerados dados pessoais sensíveis nos termos do Art. 5º, inciso II, e Art. 11 da LGPD. O tratamento de dados sensíveis pelo VITRAS APS ocorre exclusivamente com base nas hipóteses previstas no Art. 11, inciso II, em especial:</p>
+      <ul class="priv-list">
+        <li><strong>b)</strong> Tratamento indispensável para cumprimento de obrigação legal ou regulatória — SISAB, e-SUS APS, RNDS, notificações compulsórias</li>
+        <li><strong>f)</strong> Tutela da saúde, em procedimento realizado por profissionais da área da saúde</li>
+        <li><strong>g)</strong> Garantia da prevenção à fraude e da segurança do titular em processos de identificação e autenticação</li>
+      </ul>
+      <p>O VITRAS APS não usa dados de saúde para fins de marketing, pesquisa de mercado ou qualquer finalidade não assistencial. Dados de saúde são acessados exclusivamente por profissionais de saúde com credencial válida e perfil de acesso compatível (RBAC).</p>
+      <div class="priv-callout">
+        <strong>Controle de acesso a prontuários</strong>
+        <p>O acesso a dados clínicos de pacientes é restrito por perfil (médico, enfermeiro, ACS, farmacêutico) e por territorialidade (microárea / equipe ESF). Todo acesso é registrado na cadeia de auditoria imutável.</p>
+        <p>Break-glass (acesso emergencial a dados fora do território) é logado, auditado e requer justificativa clínica.</p>
+      </div>
+    </section>
+
+    <!-- 5. Nome social -->
+    <section class="priv-section priv-section--highlight" id="nome-social">
+      <h2>5. Nome Social e Respeito à Identidade de Gênero</h2>
+      <p>O VITRAS APS implementa proteção ativa ao nome social em conformidade com o princípio da minimização de danos (Art. 6º, IX, LGPD) e com as diretrizes do SUS para população LGBTQIA+.</p>
+      <ul class="priv-list">
+        <li>O <strong>nome social</strong> é a identidade padrão em todas as interfaces operacionais (prontuário, lista de pacientes, agenda, farmácia)</li>
+        <li>O <strong>nome civil</strong> permanece armazenado para fins legais (documentação, SISAB/e-SUS) mas <strong>não é exibido nas telas de atendimento</strong></li>
+        <li>Profissionais de saúde interagem com o paciente pelo nome social por padrão</li>
+        <li>A distinção é transparente: o sistema não destaca ou diferencia pacientes por identidade de gênero</li>
+      </ul>
+      <p>Esta implementação está em conformidade com a Portaria MS 2.836/2011 (Política Nacional de Saúde Integral LGBT) e segue as boas práticas do e-SUS APS para registro de nome social.</p>
+    </section>
+
+    <!-- 6. Finalidades -->
+    <section class="priv-section" id="finalidades">
+      <h2>6. Finalidades do Tratamento</h2>
+      <div class="priv-table-wrap">
+        <table class="priv-table">
+          <thead>
+            <tr><th>Finalidade</th><th>Descrição</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Assistência à saúde</td><td>Registro de atendimentos, prontuário eletrônico, prescrição, vacinação, exames</td></tr>
+            <tr><td>Gestão de território ACS</td><td>Cadastro domiciliar, visitas, mapeamento de microárea ESF</td></tr>
+            <tr><td>Envio ao SISAB / e-SUS APS</td><td>Exportação de fichas CDS (Coleta de Dados Simplificada) ao PEC e-SUS da prefeitura</td></tr>
+            <tr><td>Agenda e fila de espera</td><td>Agendamento de consultas, triagem, recepção</td></tr>
+            <tr><td>Farmácia e insumos</td><td>Dispensação e controle de estoque de medicamentos e insumos da UBS</td></tr>
+            <tr><td>Auditoria e conformidade</td><td>Cadeia de auditoria SHA-256 imutável para rastreabilidade de ações clínicas</td></tr>
+            <tr><td>Segurança e autenticação</td><td>Login, 2FA, controle de sessão, RBAC por perfil profissional</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 7. Bases legais -->
+    <section class="priv-section" id="bases-legais">
+      <h2>7. Bases Legais do Tratamento</h2>
+      <div class="priv-table-wrap">
+        <table class="priv-table">
+          <thead>
+            <tr><th>Base legal</th><th>Artigo LGPD</th><th>Aplicação no VITRAS</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Obrigação legal ou regulatória</td><td>Art. 7º, II / Art. 11, II, a</td><td>Envio ao SISAB, RNDS, notificações compulsórias, prontuário clínico (CFM)</td></tr>
+            <tr><td>Execução de políticas públicas</td><td>Art. 7º, III / Art. 11, II, b</td><td>Atenção Primária à Saúde — PNAB, e-SUS APS, ESF</td></tr>
+            <tr><td>Tutela da saúde</td><td>Art. 11, II, f</td><td>Prontuário, prescrição, atendimentos clínicos diretos</td></tr>
+            <tr><td>Legítimo interesse</td><td>Art. 7º, IX</td><td>Logs de auditoria e segurança da informação (fraude, acesso não autorizado)</td></tr>
+            <tr><td>Contrato</td><td>Art. 7º, V</td><td>Dados de usuários/profissionais — execução do contrato com o Município</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 8. Exportação e-SUS -->
+    <section class="priv-section priv-section--highlight" id="esus">
+      <h2>8. Compartilhamento com e-SUS APS / PEC / DATASUS</h2>
+      <p>O VITRAS APS é capaz de exportar fichas CDS (Cadastro Individual, Cadastro Domiciliar, Atendimento Individual) no formato Thrift binário compatível com o <strong>PEC e-SUS APS ≥ 5.4.36</strong> do Ministério da Saúde.</p>
+      <div class="priv-callout">
+        <strong>Governança da exportação CDS</strong>
+        <p>A exportação só pode ser realizada por gestor ou administrador com capability <code>cds.export</code> ativa. Cada exportação é registrada na cadeia de auditoria com identificador único da ficha (<code>fichaUuid</code>), responsável, data e hora.</p>
+        <p>A UBS deve estar operando com PEC e-SUS APS ≥ 5.4.36 — o sistema verifica este requisito antes de habilitar a exportação.</p>
+      </div>
+      <p>Os dados exportados passam a ser governados pelo Ministério da Saúde (DATASUS/SISAB) após importação no PEC. O VITRAS não mantém controle sobre os dados após a exportação e não se responsabiliza pelo tratamento realizado pelo Controlador no sistema federal.</p>
+    </section>
+
+    <!-- 9. Segurança -->
+    <section class="priv-section" id="seguranca">
+      <h2>9. Segurança da Informação</h2>
+      <ul class="priv-list--grid">
+        <li>
+          <strong>Criptografia em repouso</strong>
+          <span>CPF, CNS e NIS cifrados com AES-256-GCM. Banco de dados PostgreSQL AWS com criptografia em repouso.</span>
+        </li>
+        <li>
+          <strong>Criptografia em trânsito</strong>
+          <span>TLS 1.2+ em todas as conexões. HTTPS obrigatório. Certificados gerenciados via AWS.</span>
+        </li>
+        <li>
+          <strong>Autenticação e 2FA</strong>
+          <span>JWT com expiração de 12h. Autenticação de dois fatores (TOTP) disponível para todos os perfis.</span>
+        </li>
+        <li>
+          <strong>Controle de acesso (RBAC)</strong>
+          <span>Perfis: médico, enfermeiro, ACS, farmacêutico, recepcionista, gestor. Acesso restrito por perfil e território.</span>
+        </li>
+        <li>
+          <strong>Cadeia de auditoria imutável</strong>
+          <span>Todos os eventos clínicos registrados com hash SHA-256 encadeado (hashVersion v2). Auditoria exportável.</span>
+        </li>
+        <li>
+          <strong>Infraestrutura AWS Brasil</strong>
+          <span>Hospedagem exclusiva na região sa-east-1 (São Paulo). Elastic Beanstalk, PostgreSQL AWS RDS, CloudWatch, backups automáticos diários.</span>
+        </li>
+        <li>
+          <strong>Redaction em logs</strong>
+          <span>Dados pessoais de pacientes não aparecem em logs técnicos de sistema. CPF/CNS são substituídos por tokens nos logs.</span>
+        </li>
+        <li>
+          <strong>Rate limiting e proteção</strong>
+          <span>Rate limiting global e por endpoint. Proteção contra força bruta em autenticação. CORS configurado por domínio.</span>
+        </li>
+      </ul>
+      <p style="margin-top:20px;">Todos os dados são hospedados <strong>exclusivamente no Brasil</strong> — nenhuma transferência internacional de dados pessoais é realizada.</p>
+    </section>
+
+    <!-- 10. Retenção -->
+    <section class="priv-section" id="retencao">
+      <h2>10. Retenção e Exclusão de Dados</h2>
+      <div class="priv-table-wrap">
+        <table class="priv-table">
+          <thead>
+            <tr><th>Tipo de dado</th><th>Retenção mínima</th><th>Base</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Prontuário e registros clínicos</td><td>20 anos após último atendimento</td><td>CFM Res. 2.299/2021</td></tr>
+            <tr><td>Cadastro individual do paciente</td><td>20 anos</td><td>Instruções do Controlador</td></tr>
+            <tr><td>Logs de auditoria</td><td>5 anos</td><td>Rastreabilidade e LGPD</td></tr>
+            <tr><td>Logs de acesso técnico</td><td>90 dias</td><td>Segurança operacional</td></tr>
+            <tr><td>Dados de usuários desativados</td><td>2 anos após desativação</td><td>Contrato / LGPD</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>O VITRAS não elimina dados assistenciais por solicitação direta do titular sem autorização expressa do Controlador (Município) e avaliação da obrigação legal de retenção.</p>
+      <p>Ao término do contrato com o Município, o VITRAS disponibiliza exportação completa dos dados em até 30 dias e realiza eliminação segura (crypto-shredding para dados criptografados) em até 90 dias, emitindo certificado de eliminação.</p>
+    </section>
+
+    <!-- 11. Direitos -->
+    <section class="priv-section" id="direitos">
+      <h2>11. Direitos dos Titulares</h2>
+      <p>Em conformidade com o Art. 18 da LGPD, os titulares têm os seguintes direitos, exercíveis mediante solicitação ao DPO:</p>
+      <ul class="priv-list">
+        <li><strong>Confirmação e acesso:</strong> confirmar se dados são tratados e acessar cópia dos dados</li>
+        <li><strong>Correção:</strong> solicitar correção de dados incompletos, inexatos ou desatualizados</li>
+        <li><strong>Anonimização ou bloqueio:</strong> de dados desnecessários, excessivos ou em desconformidade</li>
+        <li><strong>Eliminação:</strong> dos dados tratados com consentimento (quando aplicável) — respeitadas as obrigações legais de retenção</li>
+        <li><strong>Portabilidade:</strong> dos dados a outro fornecedor de serviço — mediante requisição e conforme regulamentação da ANPD</li>
+        <li><strong>Informação sobre compartilhamento:</strong> com quais entidades públicas e privadas os dados são compartilhados</li>
+        <li><strong>Revogação de consentimento:</strong> quando o tratamento for baseado em consentimento</li>
+        <li><strong>Oposição:</strong> ao tratamento em desconformidade com a LGPD</li>
+        <li><strong>Revisão de decisões automatizadas:</strong> direito de solicitar revisão humana de decisões tomadas exclusivamente por processamento automatizado</li>
+      </ul>
+      <p><strong>Atenção:</strong> Como o VITRAS atua como Operador, algumas solicitações de direitos devem ser encaminhadas diretamente ao Controlador (Município / Secretaria de Saúde), que é o responsável pelo tratamento perante os titulares. O DPO do VITRAS orientará o encaminhamento correto.</p>
+      <p><strong>Prazo de resposta:</strong> 15 dias corridos (Art. 18, §5º, LGPD).</p>
+    </section>
+
+    <!-- 12. Contato LGPD -->
+    <section class="priv-section" id="contato-lgpd">
+      <h2>12. Contato LGPD — Encarregado de Dados (DPO)</h2>
+      <p>Para exercer direitos, reportar incidentes, solicitar informações sobre o tratamento de dados ou entrar em contato sobre qualquer questão relacionada à privacidade:</p>
+      <div class="priv-dpo-card">
+        <div class="priv-dpo-card__avatar" aria-hidden="true">DPO</div>
+        <div class="priv-dpo-card__info">
+          <strong>João Pedro Menegucci Benedito</strong>
+          <span>Encarregado de Dados (DPO) — VITRAS APS</span>
+          <a href="mailto:lgpd@vitras.com.br" class="priv-dpo-card__email">lgpd@vitras.com.br</a>
+          <span class="priv-dpo-card__sla">SLA de resposta: 15 dias corridos (Art. 18, §5º, LGPD)</span>
+        </div>
+      </div>
+      <p>Para reclamações não resolvidas pelo DPO, o titular pode recorrer à <strong>Autoridade Nacional de Proteção de Dados (ANPD)</strong> em <a href="https://www.gov.br/anpd" target="_blank" rel="noopener noreferrer">gov.br/anpd</a>.</p>
+    </section>
+
+    <!-- 13. Atualizações -->
+    <section class="priv-section" id="atualizacoes">
+      <h2>13. Atualizações desta Política</h2>
+      <p>Esta Política de Privacidade pode ser atualizada periodicamente para refletir mudanças na legislação, nas operações do VITRAS APS ou nas orientações da ANPD.</p>
+      <p>Alterações relevantes serão comunicadas ao Controlador (Município) com antecedência mínima de 15 dias, conforme previsto no contrato DPA. A versão vigente é sempre acessível nesta URL.</p>
+      <div class="priv-table-wrap">
+        <table class="priv-table">
+          <thead>
+            <tr><th>Versão</th><th>Data</th><th>Descrição</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>1.0</td><td>18/06/2026</td><td>Versão inicial — estabelecimento do LGPD GREEN package para piloto UBS</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p style="margin-top:16px;font:400 12px var(--font-mono);color:var(--text-dim);letter-spacing:.04em;">
+        VITRAS APS · Política de Privacidade v1.0 · 18 de junho de 2026<br>
+        Encarregado: João Pedro Menegucci Benedito · lgpd@vitras.com.br
+      </p>
+    </section>
+
+  </article>
+</div><!-- /priv-layout -->
+
+</main>
+
+<!-- ════ FOOTER ════ -->
+<footer>
+  <div class="footer-inner">
+    <div class="footer-grid">
+
+      <div>
+        <a href="/" style="display:flex;align-items:center;gap:10px;text-decoration:none;margin-bottom:20px;" aria-label="Vitras — página inicial">
+          <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <defs>
+              <linearGradient id="ft-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2DD4BF"/><stop offset="1" stop-color="#0D9488"/></linearGradient>
+              <linearGradient id="ft-hl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".18"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/></linearGradient>
+            </defs>
+            <rect width="32" height="32" rx="7" fill="url(#ft-g)"/>
+            <rect width="32" height="32" rx="7" fill="url(#ft-hl)"/>
+            <rect x="6" y="6"  width="20" height="4" rx="1.6" fill="#fff"/>
+            <rect x="22" y="6" width="4"  height="12" rx="1.6" fill="#fff"/>
+            <rect x="6" y="14" width="20" height="4" rx="1.6" fill="#fff"/>
+            <rect x="6" y="14" width="4"  height="12" rx="1.6" fill="#fff"/>
+            <rect x="6" y="22" width="20" height="4" rx="1.6" fill="#fff"/>
+          </svg>
+          <span style="font:700 17px/1 'Inter',sans-serif;letter-spacing:-0.02em;color:#fff;">Vitras</span>
+        </a>
+        <p style="font:400 13.5px/1.6 Inter;color:rgba(255,255,255,.55);max-width:32ch;">
+          Plataforma integrada para gestão da saúde pública — prontuário, agenda, farmácia e auditoria municipal.
+        </p>
+      </div>
+
+      <div>
+        <div class="footer-col-title">Produto</div>
+        <ul class="footer-links">
+          <li><a href="/#módulos">Prontuário</a></li>
+          <li><a href="/#módulos">Agenda</a></li>
+          <li><a href="/#módulos">Farmácia</a></li>
+          <li><a href="/#módulos">Dashboards</a></li>
+          <li><a href="/#módulos">Auditoria</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <div class="footer-col-title">Empresa</div>
+        <ul class="footer-links">
+          <li><a href="/#produto">Sobre</a></li>
+          <li><a href="/#contato">Contato</a></li>
+          <li><a href="/#implantação">Implantação</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <div class="footer-col-title">Recursos</div>
+        <ul class="footer-links">
+          <li><a href="#">Documentação</a></li>
+          <li><a href="#">Status</a></li>
+          <li><a href="#">Blog</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <div class="footer-col-title">Legal</div>
+        <ul class="footer-links">
+          <li><a href="/privacidade" class="footer-link--active" aria-current="page">Política de Privacidade</a></li>
+          <li><a href="/privacidade#papeis-lgpd">LGPD</a></li>
+          <li><a href="/privacidade#contato-lgpd">DPO / Encarregado</a></li>
+          <li><a href="#">Termos de Uso</a></li>
+        </ul>
+      </div>
+
+    </div>
+
+    <div class="footer-bottom">
+      <div class="footer-legal">© 2026 Vitras · Plataforma integrada para gestão da saúde pública</div>
+      <div class="footer-compliance">CONFORME LGPD · CFM 1638/2002 · PNAB 2.436/2017</div>
+    </div>
+  </div>
+</footer>
+
+<script>
+  (function () {
+    var btn = document.getElementById('nav-toggle-btn');
+    var nav = document.getElementById('mobile-nav');
+    var open = false;
+
+    function openMobileNav() {
+      open = true;
+      nav.classList.add('is-open');
+      nav.setAttribute('aria-hidden', 'false');
+      btn.setAttribute('aria-expanded', 'true');
+      btn.setAttribute('aria-label', 'Fechar menu');
+      btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeMobileNav() {
+      open = false;
+      nav.classList.remove('is-open');
+      nav.setAttribute('aria-hidden', 'true');
+      btn.setAttribute('aria-expanded', 'false');
+      btn.setAttribute('aria-label', 'Abrir menu');
+      btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>';
+      document.body.style.overflow = '';
+    }
+
+    window.closeMobileNav = closeMobileNav;
+
+    btn.addEventListener('click', function () {
+      open ? closeMobileNav() : openMobileNav();
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && open) closeMobileNav();
+    });
+  })();
+</script>
+
+</body>
+</html>
