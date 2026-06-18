@@ -143,10 +143,10 @@ export const SITUACAO_MORADIA_MAP = {
   OUTRO: 8n,
 };
 
-// tipoEndereco (CadastroDomiciliar, required LEDI 7.4.0, i32)
+// tipoEndereco (CadastroDomiciliar, field 20, i64)
 export const TIPO_ENDERECO_MAP = {
-  LOGRADOURO: 1,
-  SEM_ENDERECO: 2,
+  LOGRADOURO: 1n,
+  SEM_ENDERECO: 2n,
 };
 
 // motivoSaidaCidadao (SaidaCidadaoCadastro, optional, i64)
