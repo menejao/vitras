@@ -104,10 +104,277 @@ const IconHome = () => (
   </svg>
 );
 
-function FamilyGroupsSection({ token, user, patients, onNavigatePatient }) {
+// ── FamilyGroupWorkspace ────────────────────────────────────────────────────
+
+const SEVERITY_CLS = { danger: "fg-ws-pend--danger", warn: "fg-ws-pend--warn", info: "fg-ws-pend--info" };
+
+const TIMELINE_ICON = {
+  group_created:   "🏠",
+  member_joined:   "➕",
+  member_left:     "➖",
+  group_transferred: "🔄",
+  visit:           "👣",
+  task_done:       "✅",
+};
+
+function HousingRow({ label, value }) {
+  if (!value && value !== 0) return null;
+  return (
+    <div className="fg-ws-housing-row">
+      <span className="fg-ws-housing-row__label">{label}</span>
+      <span className="fg-ws-housing-row__val">{String(value)}</span>
+    </div>
+  );
+}
+
+function FamilyGroupWorkspace({ groupId, token, onBack, onNavigatePatient, onStartVisit }) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [openBlock, setOpenBlock] = useState({ summary: true, members: true, visits: false, tasks: false, housing: false, pendencies: true, timeline: false });
+
+  useEffect(() => {
+    if (!groupId || !token) return;
+    setLoading(true);
+    setError("");
+    fetch(`/family-groups/${groupId}`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : r.json().then(d => Promise.reject(d?.error || "Erro")))
+      .then(d => { setData(d); setLoading(false); })
+      .catch(e => { setError(typeof e === "string" ? e : "Erro ao carregar grupo."); setLoading(false); });
+  }, [groupId, token]);
+
+  function toggle(block) {
+    setOpenBlock(s => ({ ...s, [block]: !s[block] }));
+  }
+
+  if (loading) return <div className="acs-loading">Carregando workspace do grupo...</div>;
+  if (error)   return <div className="acs-vis-error">{error}</div>;
+  if (!data)   return null;
+
+  const { group, acsName, members, visits, tasks, household, pendencies, timeline } = data;
+  const activeMembers = members.filter(m => !m.inactive);
+  const pendingTasks  = tasks.filter(t => t.status !== "done");
+  const doneTasks     = tasks.filter(t => t.status === "done");
+
+  return (
+    <div className="fg-ws">
+      {/* Header */}
+      <div className="fg-ws__header">
+        <button type="button" className="acs-vis-back-btn" onClick={onBack}>
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          Grupos familiares
+        </button>
+        <div className="fg-ws__title-row">
+          <span className="fg-ws__addr">
+            <IconHome /> {group.address}
+          </span>
+          {group.microArea && <span className="acs-fg-card__micro">{group.microArea}</span>}
+        </div>
+        {pendencies.length > 0 && (
+          <div className="fg-ws__pend-bar">
+            {pendencies.filter(p => p.severity === "danger").length > 0 && (
+              <span className="fg-ws-pend-chip fg-ws-pend-chip--danger">
+                {pendencies.filter(p => p.severity === "danger").length} critica{pendencies.filter(p => p.severity === "danger").length > 1 ? "s" : ""}
+              </span>
+            )}
+            {pendencies.filter(p => p.severity === "warn").length > 0 && (
+              <span className="fg-ws-pend-chip fg-ws-pend-chip--warn">
+                {pendencies.filter(p => p.severity === "warn").length} atenção
+              </span>
+            )}
+          </div>
+        )}
+        <button
+          type="button"
+          className="acs-vis-new-btn fg-ws__new-visit-btn"
+          onClick={() => onStartVisit && onStartVisit(activeMembers[0] || null)}
+        >
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+          </svg>
+          Nova Visita
+        </button>
+      </div>
+
+      {/* Block 1 — Summary */}
+      <FgBlock label="Resumo" open={openBlock.summary} onToggle={() => toggle("summary")}>
+        <div className="fg-ws-summary">
+          <div className="fg-ws-summary__row"><span>ACS responsável</span><strong>{acsName || "—"}</strong></div>
+          <div className="fg-ws-summary__row"><span>Moradores ativos</span><strong>{activeMembers.length}</strong></div>
+          <div className="fg-ws-summary__row"><span>Microárea</span><strong>{group.microArea || "—"}</strong></div>
+          <div className="fg-ws-summary__row"><span>Criado em</span><strong>{fmtDate(group.createdAt?.slice(0, 10))}</strong></div>
+          <div className="fg-ws-summary__row"><span>Atualizado em</span><strong>{fmtDate(group.updatedAt?.slice(0, 10))}</strong></div>
+        </div>
+      </FgBlock>
+
+      {/* Block 2 — Residents */}
+      <FgBlock label={`Moradores (${activeMembers.length})`} open={openBlock.members} onToggle={() => toggle("members")} badge={activeMembers.length}>
+        {activeMembers.length === 0
+          ? <p className="fg-ws-empty-msg">Nenhum morador ativo vinculado.</p>
+          : (
+            <div className="fg-ws-members">
+              {activeMembers.map(m => (
+                <div key={m.id} className="fg-ws-member">
+                  <div className="fg-ws-member__name-row">
+                    <button type="button" className="fg-ws-member__name-btn" onClick={() => onNavigatePatient && onNavigatePatient(m.id)}>
+                      {m.socialName || m.name}
+                    </button>
+                    {m.ageYears != null && <span className="fg-ws-member__meta">{m.ageYears} anos</span>}
+                    {m.sex && <span className="fg-ws-member__meta">{m.sex === "M" ? "Masc." : m.sex === "F" ? "Fem." : m.sex}</span>}
+                  </div>
+                  <div className="fg-ws-member__detail-row">
+                    {m.cns ? <span className="fg-ws-member__cns">CNS {m.cns}</span> : <span className="fg-ws-member__cns fg-ws-member__cns--missing">Sem CNS</span>}
+                    {m.phone && <span className="fg-ws-member__meta">{m.phone}</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )
+        }
+      </FgBlock>
+
+      {/* Block 3 — Visits */}
+      <FgBlock label={`Visitas (${visits.length})`} open={openBlock.visits} onToggle={() => toggle("visits")} badge={visits.length}>
+        {visits.length === 0
+          ? <p className="fg-ws-empty-msg">Nenhuma visita registrada para este grupo.</p>
+          : (
+            <div className="fg-ws-visits">
+              {visits.slice(0, 10).map(v => (
+                <div key={v.id} className="fg-ws-visit-row">
+                  <span className={`acs-vis-desfecho ${DESFECHO_CLS[v.desfecho] || ""}`}>
+                    {DESFECHO_LABEL[v.desfecho] || v.desfecho}
+                  </span>
+                  <span className="fg-ws-visit-row__date">{fmtDate(v.date)}</span>
+                  <span className="fg-ws-visit-row__patient">{v.patientName || "—"}</span>
+                  {v.turno && <span className="fg-ws-visit-row__turno">{v.turno === "manha" ? "Manhã" : v.turno === "tarde" ? "Tarde" : "Noite"}</span>}
+                </div>
+              ))}
+              {visits.length > 10 && <p className="fg-ws-more">+ {visits.length - 10} anteriores</p>}
+            </div>
+          )
+        }
+      </FgBlock>
+
+      {/* Block 4 — Tasks */}
+      <FgBlock label={`Tarefas (${pendingTasks.length} pendentes)`} open={openBlock.tasks} onToggle={() => toggle("tasks")} badge={pendingTasks.length}>
+        {tasks.length === 0
+          ? <p className="fg-ws-empty-msg">Nenhuma tarefa para moradores deste grupo.</p>
+          : (
+            <div className="fg-ws-tasks">
+              {pendingTasks.length > 0 && (
+                <>
+                  <p className="fg-ws-tasks__section-label">Pendentes</p>
+                  {pendingTasks.map(t => (
+                    <div key={t.id} className="fg-ws-task-row">
+                      <span className="fg-ws-task-row__title">{t.title}</span>
+                      {t.dueDate && <span className="fg-ws-task-row__due">{fmtDate(t.dueDate)}</span>}
+                    </div>
+                  ))}
+                </>
+              )}
+              {doneTasks.length > 0 && (
+                <>
+                  <p className="fg-ws-tasks__section-label">Concluídas ({doneTasks.length})</p>
+                  {doneTasks.slice(0, 5).map(t => (
+                    <div key={t.id} className="fg-ws-task-row fg-ws-task-row--done">
+                      <span className="fg-ws-task-row__title">{t.title}</span>
+                    </div>
+                  ))}
+                </>
+              )}
+            </div>
+          )
+        }
+      </FgBlock>
+
+      {/* Block 5 — Housing conditions */}
+      <FgBlock label="Condições de Moradia" open={openBlock.housing} onToggle={() => toggle("housing")}>
+        {!household
+          ? <p className="fg-ws-empty-msg">Cadastro domiciliar não disponível.</p>
+          : (
+            <div className="fg-ws-housing">
+              <HousingRow label="Tipo de imóvel"      value={household.tipoImovel || household.housingType} />
+              <HousingRow label="Situação de posse"   value={household.situacaoMoradiaPosseTerra} />
+              <HousingRow label="Nº de cômodos"       value={household.numComodos} />
+              <HousingRow label="Nº de moradores"     value={household.numMoradores} />
+              <HousingRow label="Abastecimento água"  value={household.abastecimentoAgua} />
+              <HousingRow label="Tratamento água"     value={household.tratamentoAgua} />
+              <HousingRow label="Esgotamento"         value={household.esgotamento} />
+              <HousingRow label="Destino do lixo"     value={household.destinacaoLixo} />
+              <HousingRow label="Energia elétrica"    value={household.energiaEletrica != null ? (household.energiaEletrica ? "Sim" : "Não") : null} />
+              <HousingRow label="Localização"         value={household.localizacao} />
+            </div>
+          )
+        }
+      </FgBlock>
+
+      {/* Block 6 — Pendencies */}
+      <FgBlock label={`Pendências${pendencies.length > 0 ? ` (${pendencies.length})` : ""}`} open={openBlock.pendencies} onToggle={() => toggle("pendencies")} badge={pendencies.filter(p => p.severity === "danger").length || undefined}>
+        {pendencies.length === 0
+          ? <p className="fg-ws-empty-msg fg-ws-empty-msg--ok">Nenhuma pendência identificada.</p>
+          : (
+            <div className="fg-ws-pendings">
+              {pendencies.map((p, i) => (
+                <div key={i} className={`fg-ws-pend ${SEVERITY_CLS[p.severity] || ""}`}>
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                    <path d="M8 3v5M8 11h.01" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                    <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.3"/>
+                  </svg>
+                  {p.label}
+                </div>
+              ))}
+            </div>
+          )
+        }
+      </FgBlock>
+
+      {/* Block 7 — Timeline */}
+      <FgBlock label="Histórico" open={openBlock.timeline} onToggle={() => toggle("timeline")}>
+        {timeline.length === 0
+          ? <p className="fg-ws-empty-msg">Sem eventos registrados.</p>
+          : (
+            <div className="fg-ws-timeline">
+              {timeline.map((ev, i) => (
+                <div key={i} className="fg-ws-tl-event">
+                  <span className="fg-ws-tl-event__icon" aria-hidden="true">{TIMELINE_ICON[ev.type] || "•"}</span>
+                  <div className="fg-ws-tl-event__body">
+                    <span className="fg-ws-tl-event__label">{ev.label}</span>
+                    <span className="fg-ws-tl-event__date">{fmtDate(ev.at?.slice(0, 10))}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )
+        }
+      </FgBlock>
+    </div>
+  );
+}
+
+function FgBlock({ label, open, onToggle, badge, children }) {
+  return (
+    <div className={`fg-ws-block${open ? " is-open" : ""}`}>
+      <button type="button" className="fg-ws-block__toggle" onClick={onToggle} aria-expanded={open}>
+        <span className="fg-ws-block__title">{label}</span>
+        {badge > 0 && <span className="acs-vis-block__badge">{badge}</span>}
+        <svg className="acs-vis-block__chevron" width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      </button>
+      {open && <div className="fg-ws-block__body">{children}</div>}
+    </div>
+  );
+}
+
+// ── FamilyGroupsSection ─────────────────────────────────────────────────────
+
+function FamilyGroupsSection({ token, user, patients, onNavigatePatient, onStartVisitForGroup }) {
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [activeGroupId, setActiveGroupId] = useState(null);
 
   useEffect(() => {
     if (!token) return;
@@ -152,12 +419,30 @@ function FamilyGroupsSection({ token, user, patients, onNavigatePatient }) {
       if ((g.microArea || "").toLowerCase().includes(q)) return true;
       return (g.memberPatientIds || []).some(id => {
         const p = patientMap[id];
-        return p && p.name.toLowerCase().includes(q);
+        return p && (
+          p.name.toLowerCase().includes(q) ||
+          (p.socialName || "").toLowerCase().includes(q) ||
+          (p.cns || "").replace(/\s/g, "").includes(q.replace(/\s/g, "")) ||
+          (p.cpf || "").replace(/\D/g, "").includes(q.replace(/\D/g, ""))
+        );
       });
     });
   }, [groups, q, patientMap]);
 
   if (loading) return <div className="acs-loading">Carregando grupos familiares...</div>;
+
+  // Workspace view
+  if (activeGroupId) {
+    return (
+      <FamilyGroupWorkspace
+        groupId={activeGroupId}
+        token={token}
+        onBack={() => setActiveGroupId(null)}
+        onNavigatePatient={onNavigatePatient}
+        onStartVisit={onStartVisitForGroup}
+      />
+    );
+  }
 
   const hasResults = filteredGroups.length > 0 || ungrouped.length > 0 || noAddress.length > 0;
 
@@ -183,7 +468,7 @@ function FamilyGroupsSection({ token, user, patients, onNavigatePatient }) {
           type="text"
           value={search}
           onChange={e => setSearch(e.target.value)}
-          placeholder="Buscar por endereço ou paciente..."
+          placeholder="Buscar por endereço, nome, CNS ou CPF..."
           aria-label="Buscar grupo familiar"
         />
       </div>
@@ -208,28 +493,38 @@ function FamilyGroupsSection({ token, user, patients, onNavigatePatient }) {
               {filteredGroups.map(fg => {
                 const members = (fg.memberPatientIds || []).map(id => patientMap[id]).filter(Boolean);
                 return (
-                  <div key={fg.id} className="acs-fg-card">
+                  <button
+                    key={fg.id}
+                    type="button"
+                    className="acs-fg-card acs-fg-card--clickable"
+                    onClick={() => setActiveGroupId(fg.id)}
+                  >
                     <div className="acs-fg-card__head">
                       <div className="acs-fg-card__addr">
                         <IconHome />
                         {fg.address}
                       </div>
-                      {fg.microArea && <span className="acs-fg-card__micro">{fg.microArea}</span>}
+                      <div className="acs-fg-card__meta-row">
+                        {fg.microArea && <span className="acs-fg-card__micro">{fg.microArea}</span>}
+                        <span className="acs-fg-card__count">{members.length} morador{members.length !== 1 ? "es" : ""}</span>
+                      </div>
                     </div>
                     <div className="acs-fg-card__members">
                       {members.length > 0
-                        ? members.map(m => (
-                            <PatBtn key={m.id} patientId={m.id} name={m.name} onNavigate={onNavigatePatient} />
+                        ? members.slice(0, 4).map(m => (
+                            <span key={m.id} className="acs-fg-card__member-chip">{m.socialName || m.name}</span>
                           ))
                         : <span className="acs-fg-card__no-members">Nenhum membro ativo.</span>
                       }
+                      {members.length > 4 && <span className="acs-fg-card__member-chip acs-fg-card__member-chip--more">+{members.length - 4}</span>}
                     </div>
                     {fg.transferHistory && fg.transferHistory.length > 0 && (
                       <div className="acs-fg-card__history">
                         Última transferência: {fmtDate(fg.transferHistory[fg.transferHistory.length - 1].transferredAt?.split("T")[0])}
                       </div>
                     )}
-                  </div>
+                    <span className="acs-fg-card__arrow" aria-hidden="true">›</span>
+                  </button>
                 );
               })}
             </div>
@@ -1155,6 +1450,10 @@ function AcsTasksPage({ patients, users, user, token, onNavigatePatient }) {
             user={user}
             patients={patients}
             onNavigatePatient={onNavigatePatient}
+            onStartVisitForGroup={(patient) => {
+              if (patient) setVisitPreSelect(patient);
+              setActiveTab("visitas");
+            }}
           />
         )}
       </div>
