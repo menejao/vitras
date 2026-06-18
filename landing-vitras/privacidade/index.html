@@ -511,13 +511,13 @@
           </thead>
           <tbody>
             <tr><td>Identificação do paciente</td><td>Nome civil, nome social, data de nascimento, sexo biológico, raça/cor</td><td>Parcialmente</td></tr>
-            <tr><td>Documentos</td><td>CPF, CNS (Cartão Nacional de Saúde), NIS (armazenados criptografados)</td><td>Sim</td></tr>
+            <tr><td>Documentos</td><td>CPF, CNS (Cartão Nacional de Saúde), NIS — armazenados criptografados</td><td>Sim</td></tr>
             <tr><td>Endereço</td><td>Logradouro, CEP, município, microárea ACS</td><td>Não</td></tr>
             <tr><td>Contato</td><td>Telefone, e-mail</td><td>Não</td></tr>
             <tr><td>Dados de saúde</td><td>Diagnósticos, CID-10, CIAP-2, atendimentos clínicos, prescrições, vacinas, exames</td><td>Sim (Art. 11 LGPD)</td></tr>
-            <tr><td>Dados domiciliares</td><td>Composição familiar, condições de moradia, saneamento (uso exclusivo ACS/APS)</td><td>Parcialmente</td></tr>
+            <tr><td>Dados domiciliares</td><td>Composição familiar, condições de moradia, saneamento — uso exclusivo ACS/APS</td><td>Parcialmente</td></tr>
             <tr><td>Dados de usuários da plataforma</td><td>Nome, e-mail institucional, CRM/COREN/CNS do profissional, perfil de acesso</td><td>Não</td></tr>
-            <tr><td>Logs de auditoria</td><td>Registro de acessos, ações clínicas, exportações (imutáveis, SHA-256)</td><td>Não</td></tr>
+            <tr><td>Logs de auditoria</td><td>Registro de acessos, ações clínicas, exportações — imutáveis, SHA-256</td><td>Não</td></tr>
           </tbody>
         </table>
       </div>
@@ -529,7 +529,7 @@
       <h2>4. Dados de Saúde e Dados Sensíveis</h2>
       <p>Dados de saúde são considerados dados pessoais sensíveis nos termos do Art. 5º, inciso II, e Art. 11 da LGPD. O tratamento de dados sensíveis pelo VITRAS APS ocorre exclusivamente com base nas hipóteses previstas no Art. 11, inciso II, em especial:</p>
       <ul class="priv-list">
-        <li><strong>b)</strong> Tratamento indispensável para cumprimento de obrigação legal ou regulatória: SISAB, e-SUS APS, RNDS, notificações compulsórias</li>
+        <li><strong>b)</strong> Tratamento indispensável para cumprimento de obrigação legal ou regulatória — SISAB, e-SUS APS, RNDS, notificações compulsórias</li>
         <li><strong>f)</strong> Tutela da saúde, em procedimento realizado por profissionais da área da saúde</li>
         <li><strong>g)</strong> Garantia da prevenção à fraude e da segurança do titular em processos de identificação e autenticação</li>
       </ul>
@@ -585,10 +585,10 @@
           </thead>
           <tbody>
             <tr><td>Obrigação legal ou regulatória</td><td>Art. 7º, II / Art. 11, II, a</td><td>Envio ao SISAB, RNDS, notificações compulsórias, prontuário clínico (CFM)</td></tr>
-            <tr><td>Execução de políticas públicas</td><td>Art. 7º, III / Art. 11, II, b</td><td>Atenção Primária à Saúde: PNAB, e-SUS APS, ESF</td></tr>
+            <tr><td>Execução de políticas públicas</td><td>Art. 7º, III / Art. 11, II, b</td><td>Atenção Primária à Saúde — PNAB, e-SUS APS, ESF</td></tr>
             <tr><td>Tutela da saúde</td><td>Art. 11, II, f</td><td>Prontuário, prescrição, atendimentos clínicos diretos</td></tr>
             <tr><td>Legítimo interesse</td><td>Art. 7º, IX</td><td>Logs de auditoria e segurança da informação (fraude, acesso não autorizado)</td></tr>
-            <tr><td>Contrato</td><td>Art. 7º, V</td><td>Dados de usuários/profissionais: execução do contrato com o Município</td></tr>
+            <tr><td>Contrato</td><td>Art. 7º, V</td><td>Dados de usuários/profissionais — execução do contrato com o Município</td></tr>
           </tbody>
         </table>
       </div>
@@ -601,7 +601,7 @@
       <div class="priv-callout">
         <strong>Governança da exportação CDS</strong>
         <p>A exportação só pode ser realizada por gestor ou administrador com capability <code>cds.export</code> ativa. Cada exportação é registrada na cadeia de auditoria com identificador único da ficha (<code>fichaUuid</code>), responsável, data e hora.</p>
-        <p>A UBS deve estar operando com PEC e-SUS APS ≥ 5.4.36. O sistema verifica este requisito antes de habilitar a exportação.</p>
+        <p>A UBS deve estar operando com PEC e-SUS APS ≥ 5.4.36 — o sistema verifica este requisito antes de habilitar a exportação.</p>
       </div>
       <p>Os dados exportados passam a ser governados pelo Ministério da Saúde (DATASUS/SISAB) após importação no PEC. O VITRAS não mantém controle sobre os dados após a exportação e não se responsabiliza pelo tratamento realizado pelo Controlador no sistema federal.</p>
     </section>
@@ -643,7 +643,7 @@
           <span>Rate limiting global e por endpoint. Proteção contra força bruta em autenticação. CORS configurado por domínio.</span>
         </li>
       </ul>
-      <p style="margin-top:20px;">Todos os dados são hospedados <strong>exclusivamente no Brasil</strong>. Nenhuma transferência internacional de dados pessoais é realizada.</p>
+      <p style="margin-top:20px;">Todos os dados são hospedados <strong>exclusivamente no Brasil</strong> — nenhuma transferência internacional de dados pessoais é realizada.</p>
     </section>
 
     <!-- 10. Retenção -->
@@ -675,7 +675,7 @@
         <li><strong>Confirmação e acesso:</strong> confirmar se dados são tratados e acessar cópia dos dados</li>
         <li><strong>Correção:</strong> solicitar correção de dados incompletos, inexatos ou desatualizados</li>
         <li><strong>Anonimização ou bloqueio:</strong> de dados desnecessários, excessivos ou em desconformidade</li>
-        <li><strong>Eliminação:</strong> dos dados tratados com consentimento (quando aplicável), respeitadas as obrigações legais de retenção</li>
+        <li><strong>Eliminação:</strong> dos dados tratados com consentimento (quando aplicável) — respeitadas as obrigações legais de retenção</li>
         <li><strong>Portabilidade:</strong> dos dados a outro fornecedor de serviço — mediante requisição e conforme regulamentação da ANPD</li>
         <li><strong>Informação sobre compartilhamento:</strong> com quais entidades públicas e privadas os dados são compartilhados</li>
         <li><strong>Revogação de consentimento:</strong> quando o tratamento for baseado em consentimento</li>
