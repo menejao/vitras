@@ -118,6 +118,7 @@ export function emptyPatientForm() {
     familySituation: "", familySupport: "",
     socialVulnerability: "", socialBenefit: "",
     substanceDependency: "", domesticViolence: "",
+    triaAlimentosAcabaram: null, triaTipoUnico: null,
   };
 }
 

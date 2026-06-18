@@ -63,6 +63,8 @@ function buildPatientFormState(p) {
     socialBenefit: String(p?.socialBenefit || ""),
     substanceDependency: String(p?.substanceDependency || ""),
     domesticViolence: String(p?.domesticViolence || ""),
+    triaAlimentosAcabaram: p?.triaAlimentosAcabaram ?? null,
+    triaTipoUnico: p?.triaTipoUnico ?? null,
   };
 }
 
@@ -154,6 +156,8 @@ export function usePatientModal({
         familySituation: form.familySituation || "", familySupport: form.familySupport || "",
         socialVulnerability: form.socialVulnerability || "", socialBenefit: (form.socialBenefit || "").trim(),
         substanceDependency: form.substanceDependency || "", domesticViolence: form.domesticViolence || "",
+        triaAlimentosAcabaram: form.triaAlimentosAcabaram,
+        triaTipoUnico: form.triaTipoUnico,
       };
       if (editingPatient?.id) {
         await updatePatient(token, editingPatient.id, payload);

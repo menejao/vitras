@@ -1525,10 +1525,12 @@ const TIPO_ENDERECO_LABELS = {
 
 function emptyHouseholdForm() {
   return {
-    tipoImovel: "", numMoradores: "", numComodos: "", localizacao: "",
+    tipoImovel: "", tipoDomicilio: "", numMoradores: "", numComodos: "", localizacao: "",
     abastecimentoAgua: "", tratamentoAgua: "", esgotamento: "",
     destinacaoLixo: "", energiaEletrica: "", familyCode: "", homeVisitFreq: "",
-    situacaoMoradiaPosseTerra: "", tipoEndereco: ""
+    situacaoMoradiaPosseTerra: "", tipoEndereco: "",
+    foraArea: false,
+    animaisNoDomicilio: false, tiposAnimais: [], quantidadeAnimais: ""
   };
 }
 
@@ -1562,6 +1564,7 @@ function HouseholdTab({ patient, token, canWriteRecords }) {
     if (!household) return;
     setForm({
       tipoImovel: household.tipoImovel || household.housingType || "",
+      tipoDomicilio: household.tipoDomicilio || "",
       numMoradores: household.numMoradores !== undefined ? String(household.numMoradores) : "",
       numComodos: household.numComodos !== undefined ? String(household.numComodos) : "",
       localizacao: household.localizacao || "",
@@ -1573,7 +1576,11 @@ function HouseholdTab({ patient, token, canWriteRecords }) {
       familyCode: household.familyCode || "",
       homeVisitFreq: household.homeVisitFreq || "",
       situacaoMoradiaPosseTerra: household.situacaoMoradiaPosseTerra || "",
-      tipoEndereco: household.tipoEndereco || ""
+      tipoEndereco: household.tipoEndereco || "",
+      foraArea: household.foraArea === true,
+      animaisNoDomicilio: household.animaisNoDomicilio === true,
+      tiposAnimais: Array.isArray(household.tiposAnimais) ? household.tiposAnimais : [],
+      quantidadeAnimais: household.quantidadeAnimais !== undefined && household.quantidadeAnimais !== null ? String(household.quantidadeAnimais) : ""
     });
     setEditing(true);
     setError("");
@@ -1597,7 +1604,12 @@ function HouseholdTab({ patient, token, canWriteRecords }) {
         familyCode: form.familyCode || undefined,
         homeVisitFreq: form.homeVisitFreq || undefined,
         situacaoMoradiaPosseTerra: form.situacaoMoradiaPosseTerra || undefined,
-        tipoEndereco: form.tipoEndereco || undefined
+        tipoEndereco: form.tipoEndereco || undefined,
+        tipoDomicilio: form.tipoDomicilio || undefined,
+        foraArea: form.foraArea === true ? true : undefined,
+        animaisNoDomicilio: form.animaisNoDomicilio,
+        tiposAnimais: form.animaisNoDomicilio ? (form.tiposAnimais.length ? form.tiposAnimais : undefined) : undefined,
+        quantidadeAnimais: form.animaisNoDomicilio && form.quantidadeAnimais !== "" ? Number(form.quantidadeAnimais) : undefined
       };
       let updated;
       if (household) {
@@ -1625,6 +1637,15 @@ function HouseholdTab({ patient, token, canWriteRecords }) {
           <Select label="Tipo de imóvel" value={form.tipoImovel} onChange={upd("tipoImovel")}>
             <option value="">Não informado</option>
             {Object.entries(TIPO_IMOVEL_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+          </Select>
+          <Select label="Tipo de domicílio" value={form.tipoDomicilio} onChange={upd("tipoDomicilio")}>
+            <option value="">Não informado</option>
+            <option value="CASA">Casa</option>
+            <option value="APARTAMENTO">Apartamento</option>
+            <option value="COMODO">Cômodo</option>
+            <option value="MALOCA">Maloca</option>
+            <option value="IMPROVISADO">Improvisado</option>
+            <option value="OUTRO">Outro</option>
           </Select>
           <Select label="Localização" value={form.localizacao} onChange={upd("localizacao")}>
             <option value="">Não informado</option>
@@ -1665,6 +1686,40 @@ function HouseholdTab({ patient, token, canWriteRecords }) {
             {Object.entries(TIPO_ENDERECO_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </Select>
         </div>
+        <div className="household-form__checks">
+          <label className="household-check-label">
+            <input type="checkbox" checked={form.foraArea}
+              onChange={e => setForm(f => ({ ...f, foraArea: e.target.checked }))} />
+            <span>Fora da área de cobertura</span>
+          </label>
+          <label className="household-check-label">
+            <input type="checkbox" checked={form.animaisNoDomicilio}
+              onChange={e => setForm(f => ({ ...f, animaisNoDomicilio: e.target.checked, tiposAnimais: e.target.checked ? f.tiposAnimais : [] }))} />
+            <span>Animais no domicílio</span>
+          </label>
+        </div>
+        {form.animaisNoDomicilio && (
+          <div className="household-form__animais">
+            <p className="household-form__animais-label">Quais animais:</p>
+            <div className="household-form__animais-checks">
+              {[["cachorro","Cachorro"],["gato","Gato"],["passaro","Pássaro"],["outros","Outros"]].map(([v, l]) => (
+                <label key={v} className="household-check-label">
+                  <input type="checkbox"
+                    checked={form.tiposAnimais.includes(v)}
+                    onChange={e => setForm(f => ({
+                      ...f,
+                      tiposAnimais: e.target.checked
+                        ? [...f.tiposAnimais, v]
+                        : f.tiposAnimais.filter(a => a !== v)
+                    }))} />
+                  <span>{l}</span>
+                </label>
+              ))}
+            </div>
+            <Input label="Quantidade" type="number" min="0" max="999" value={form.quantidadeAnimais}
+              onChange={e => setForm(f => ({ ...f, quantidadeAnimais: e.target.value }))} placeholder="0" />
+          </div>
+        )}
         {error ? <Alert tone="error">{error}</Alert> : null}
         <div className="household-form__actions">
           <Button variant="ghost" size="sm" onClick={() => setEditing(false)} disabled={saving}>Cancelar</Button>
@@ -1692,6 +1747,7 @@ function HouseholdTab({ patient, token, canWriteRecords }) {
     <div className="household-view">
       <div className="field-grid">
         <Input label="Tipo de imóvel" value={lbl(TIPO_IMOVEL_LABELS, hh.tipoImovel || hh.housingType)} disabled />
+        <Input label="Tipo de domicílio" value={hh.tipoDomicilio ? ({ CASA:"Casa",APARTAMENTO:"Apartamento",COMODO:"Cômodo",MALOCA:"Maloca",IMPROVISADO:"Improvisado",OUTRO:"Outro" }[hh.tipoDomicilio] || hh.tipoDomicilio) : "Não informado"} disabled />
         <Input label="Localização" value={hh.localizacao === "URBANA" ? "Urbana" : hh.localizacao === "RURAL" ? "Rural" : "Não informado"} disabled />
         <Input label="Código familiar" value={hh.familyCode || "Não informado"} disabled />
         <Input label="Nº de moradores" value={hh.numMoradores !== undefined && hh.numMoradores !== null ? String(hh.numMoradores) : "Não informado"} disabled />
@@ -1704,6 +1760,12 @@ function HouseholdTab({ patient, token, canWriteRecords }) {
         <Input label="Freq. visita domiciliar" value={hh.homeVisitFreq || "Não informado"} disabled />
         <Input label="Situação de moradia / posse" value={lbl(SITUACAO_MORADIA_LABELS, hh.situacaoMoradiaPosseTerra)} disabled />
         <Input label="Tipo de endereço" value={lbl(TIPO_ENDERECO_LABELS, hh.tipoEndereco)} disabled />
+        {hh.foraArea && <Input label="Cobertura" value="Fora da área" disabled />}
+        {hh.animaisNoDomicilio && (
+          <Input label="Animais no domicílio"
+            value={[...(hh.tiposAnimais || []).map(a => ({cachorro:"Cachorro",gato:"Gato",passaro:"Pássaro",outros:"Outros"})[a] || a), hh.quantidadeAnimais != null ? `qtd: ${hh.quantidadeAnimais}` : ""].filter(Boolean).join(", ") || "Sim"}
+            disabled />
+        )}
       </div>
       {canWriteRecords ? (
         <div className="household-view__actions">

@@ -997,36 +997,55 @@ function VisitForm({ patient, taskOrigin, userId, token, onSave, onCancel }) {
       </AccordionBlock>
 
       {/* Bloco 6 — Antropometria */}
-      <AccordionBlock title="Antropometria e sinais">
+      <AccordionBlock title="Antropometria e sinais vitais">
         <div className="acs-vis-fields">
           <div className="acs-vis-field">
             <label className="acs-vis-label" htmlFor="vis-peso">Peso (kg)</label>
-            <input
-              id="vis-peso"
-              className="acs-vis-input"
-              type="number"
-              min="1"
-              max="300"
-              step="0.1"
-              value={form.peso}
-              onChange={e => upd("peso", e.target.value)}
-              placeholder="Ex: 65.5"
-            />
+            <input id="vis-peso" className="acs-vis-input" type="number" min="1" max="300" step="0.1"
+              value={form.peso} onChange={e => upd("peso", e.target.value)} placeholder="Ex: 65.5" />
           </div>
           <div className="acs-vis-field">
             <label className="acs-vis-label" htmlFor="vis-altura">Altura (cm)</label>
-            <input
-              id="vis-altura"
-              className="acs-vis-input"
-              type="number"
-              min="30"
-              max="250"
-              step="0.5"
-              value={form.altura}
-              onChange={e => upd("altura", e.target.value)}
-              placeholder="Ex: 170"
-            />
+            <input id="vis-altura" className="acs-vis-input" type="number" min="30" max="250" step="0.5"
+              value={form.altura} onChange={e => upd("altura", e.target.value)} placeholder="Ex: 170" />
           </div>
+          <div className="acs-vis-field">
+            <label className="acs-vis-label" htmlFor="vis-temp">Temperatura (°C)</label>
+            <input id="vis-temp" className="acs-vis-input" type="number" min="30" max="45" step="0.1"
+              value={form.temperatura} onChange={e => upd("temperatura", e.target.value)} placeholder="Ex: 36.5" />
+          </div>
+          <div className="acs-vis-field">
+            <label className="acs-vis-label" htmlFor="vis-pas">PA Sistólica (mmHg)</label>
+            <input id="vis-pas" className="acs-vis-input" type="number" min="50" max="300" step="1"
+              value={form.paSistolica} onChange={e => upd("paSistolica", e.target.value)} placeholder="Ex: 120" />
+          </div>
+          <div className="acs-vis-field">
+            <label className="acs-vis-label" htmlFor="vis-pad">PA Diastólica (mmHg)</label>
+            <input id="vis-pad" className="acs-vis-input" type="number" min="20" max="200" step="1"
+              value={form.paDiastolica} onChange={e => upd("paDiastolica", e.target.value)} placeholder="Ex: 80" />
+          </div>
+        </div>
+      </AccordionBlock>
+
+      {/* Bloco 6b — Glicemia */}
+      <AccordionBlock title="Glicemia">
+        <div className="acs-vis-fields">
+          <div className="acs-vis-field">
+            <label className="acs-vis-label" htmlFor="vis-glic">Glicemia capilar (mg/dL)</label>
+            <input id="vis-glic" className="acs-vis-input" type="number" min="10" max="600" step="1"
+              value={form.glicemia} onChange={e => upd("glicemia", e.target.value)} placeholder="Ex: 95" />
+          </div>
+          {form.glicemia && (
+            <div className="acs-vis-field">
+              <label className="acs-vis-label" htmlFor="vis-momento">Momento da coleta</label>
+              <select id="vis-momento" className="acs-vis-select" value={form.momentoGlicemia} onChange={e => upd("momentoGlicemia", e.target.value)}>
+                <option value="jejum">Em jejum</option>
+                <option value="pos_prandial_1h">Pós-prandial 1h</option>
+                <option value="pos_prandial_2h">Pós-prandial 2h</option>
+                <option value="aleatorio">Aleatório</option>
+              </select>
+            </div>
+          )}
         </div>
       </AccordionBlock>
 

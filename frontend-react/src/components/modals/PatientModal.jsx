@@ -427,6 +427,18 @@ export default function PatientModal({
                 <option value="confirmada">Confirmada</option>
               </AppSelect>
             </Section>
+            <Section title="Triagem de Risco Alimentar (TRIA)">
+              <AppSelect label="Alimentos acabaram antes de ter dinheiro para comprar?" value={form.triaAlimentosAcabaram === true ? "sim" : form.triaAlimentosAcabaram === false ? "nao" : ""} onChange={e => upd("triaAlimentosAcabaram")({ target: { value: e.target.value === "sim" ? true : e.target.value === "nao" ? false : null } })} disabled={readOnly}>
+                <option value="">Não informado</option>
+                <option value="sim">Sim</option>
+                <option value="nao">Não</option>
+              </AppSelect>
+              <AppSelect label="Precisou consumir só um tipo de alimento por falta de recursos?" value={form.triaTipoUnico === true ? "sim" : form.triaTipoUnico === false ? "nao" : ""} onChange={e => upd("triaTipoUnico")({ target: { value: e.target.value === "sim" ? true : e.target.value === "nao" ? false : null } })} disabled={readOnly}>
+                <option value="">Não informado</option>
+                <option value="sim">Sim</option>
+                <option value="nao">Não</option>
+              </AppSelect>
+            </Section>
           </>
         )}
 

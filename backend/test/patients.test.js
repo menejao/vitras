@@ -130,7 +130,8 @@ describe("Patients and clinical records", () => {
     const { status, json } = await post("/patients", {
       name: "Teste Integração",
       phone: "(11)90000-0001",
-      careCategory: "general"
+      careCategory: "general",
+      cns: "123456789012345"
     }, token);
     assert.ok(
       status === 201 || status === 200,
