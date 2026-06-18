@@ -12,7 +12,8 @@ test("exams flow persists create, attachment upload and justified delete", async
   const createdPatient = await post("/patients", {
     name: "Paciente Exames",
     phone: "11999999999",
-    careCategory: "general"
+    careCategory: "general",
+    cns: "545896320147852"
   }, token);
   assert.equal(createdPatient.status, 201);
   const patientId = createdPatient.json.id;

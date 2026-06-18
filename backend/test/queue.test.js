@@ -68,7 +68,8 @@ describe("Queue multiuser flow", () => {
       name: "Paciente Fila Integração",
       teamId,
       phone: "(11)90000-0099",
-      careCategory: "general"
+      careCategory: "general",
+      cns: "12345745892345"
     }, nurseToken);
     assert.equal(patientCreate.status, 201, JSON.stringify(patientCreate.json));
     patientId = patientCreate.json?.id || null;

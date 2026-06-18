@@ -62,7 +62,8 @@ describe("Agenda multiuser flow", () => {
       name: "Paciente Agenda Integração",
       teamId,
       phone: "(11)90000-0098",
-      careCategory: "general"
+      careCategory: "general",
+      cns: "147852036985412"
     }, nurseToken);
     assert.equal(patientCreate.status, 201, JSON.stringify(patientCreate.json));
     patientId = patientCreate.json?.id || null;

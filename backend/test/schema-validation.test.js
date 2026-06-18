@@ -20,6 +20,7 @@ const BASE_PATIENT = {
   name: "Paciente Teste",
   phone: "(11)90000-0001",
   careCategory: "general",
+  cns: "754123650145963"
 };
 
 describe("optionalNumberLike gestational age fields", () => {

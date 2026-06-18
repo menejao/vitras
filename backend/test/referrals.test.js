@@ -52,7 +52,8 @@ describe("Referrals multiuser flow", () => {
       name: "Paciente Referral Integração",
       teamId,
       phone: "(11)90000-0097",
-      careCategory: "general"
+      careCategory: "general",
+      cns: "856974120365987"
     }, nurseToken);
     assert.equal(patientCreate.status, 201, JSON.stringify(patientCreate.json));
     patientId = patientCreate.json?.id || null;
