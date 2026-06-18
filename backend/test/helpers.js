@@ -22,6 +22,7 @@ process.env.COUNCIL_VERIFY_MODE = "off";
 process.env.REQUEST_LOG_ENABLED = "false";
 process.env.BACKUP_EXPORT_KEY = "test-backup-key-for-integration-tests";
 process.env.TEST_DB_PATH = _tmpDb;
+if (!process.env.MUNICIPALITY_ID) process.env.MUNICIPALITY_ID = "test-municipality-001";
 
 process.on("exit", () => { try { rmSync(_tmpDir, { recursive: true }); } catch {} });
 

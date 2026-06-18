@@ -40,7 +40,9 @@ const ROLE_CAPABILITIES = {
     "backup.export",
     "admin.seed",
     "metrics.internal.read",
-    "ai.access"
+    "ai.access",
+    "acs.visit.read",
+    "acs.visit.update"
   ],
   doctor: [
     "dashboard.read",
@@ -66,7 +68,8 @@ const ROLE_CAPABILITIES = {
     "supplies.read",
     "users.read.scoped",
     "audit.read",
-    "ai.access"
+    "ai.access",
+    "acs.visit.read"
   ],
   dentist: [
     "dashboard.read",
@@ -100,7 +103,8 @@ const ROLE_CAPABILITIES = {
     "backup.export",
     "admin.seed",
     "metrics.internal.read",
-    "cds.export"
+    "cds.export",
+    "acs.visit.read"
   ],
   acs: [
     "dashboard.read",
@@ -110,7 +114,10 @@ const ROLE_CAPABILITIES = {
     "referrals.read",
     "referrals.write",
     "tasks.read",
-    "tasks.write"
+    "tasks.write",
+    "acs.visit.create",
+    "acs.visit.read",
+    "acs.visit.update"
   ],
   nursing_tech: [
     "dashboard.read",
@@ -186,7 +193,8 @@ const ROLE_CAPABILITIES = {
     "audit.read",
     "users.activity_log.read",
     "metrics.internal.read",
-    "session.impersonate"
+    "session.impersonate",
+    "acs.visit.read"
   ],
   break_glass_admin: [
     "dashboard.read",
@@ -227,7 +235,10 @@ const ROLE_CAPABILITIES = {
     "session.impersonate",
     "session.break_glass.activate",
     "ai.access",
-    "cds.export"
+    "cds.export",
+    "acs.visit.create",
+    "acs.visit.read",
+    "acs.visit.update"
   ]
 };
 

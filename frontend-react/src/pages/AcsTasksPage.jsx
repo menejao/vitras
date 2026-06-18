@@ -505,7 +505,7 @@ function AccordionBlock({ title, badge, defaultOpen = false, children }) {
 
 // ── VisitForm ──────────────────────────────────────────────────────────────
 
-function VisitForm({ patient, taskOrigin, userId, onSave, onCancel }) {
+function VisitForm({ patient, taskOrigin, userId, token, onSave, onCancel }) {
   const today = new Date().toISOString().slice(0, 10);
   const [form, setForm] = useState(() => emptyVisitForm(today));
   const [saving, setSaving] = useState(false);
@@ -526,37 +526,39 @@ function VisitForm({ patient, taskOrigin, userId, onSave, onCancel }) {
     setError("");
     setSaving(true);
 
-    const visit = {
-      id:              crypto.randomUUID(),
-      patientId:       patient.id,
-      patientName:     patient.socialName || patient.name,
-      acsId:           userId,
-      taskOriginId:    taskOrigin?.id || null,
-      date:            form.date,
-      turno:           form.turno,
-      desfecho:        form.desfecho,
-      motivos:         Object.keys(form.motivos).filter(k => form.motivos[k]),
-      buscaAtiva:      Object.keys(form.buscaAtiva).filter(k => form.buscaAtiva[k]),
-      acompanhamentos: Object.keys(form.acompanhamentos).filter(k => form.acompanhamentos[k]),
+    const body = {
+      patientId:         patient.id,
+      taskId:            taskOrigin?.id || null,
+      date:              form.date,
+      turno:             form.turno || null,
+      desfecho:          form.desfecho,
+      motivos:           Object.keys(form.motivos).filter(k => form.motivos[k]),
+      buscaAtiva:        Object.keys(form.buscaAtiva).filter(k => form.buscaAtiva[k]),
+      acompanhamentos:   Object.keys(form.acompanhamentos).filter(k => form.acompanhamentos[k]),
       controleAmbiental: Object.keys(form.controleAmbiental).filter(k => form.controleAmbiental[k]),
-      peso:            form.peso || null,
-      altura:          form.altura || null,
-      observacoes:     form.observacoes || null,
-      createdAt:       new Date().toISOString(),
-      // TODO: POST /acs-visits when backend route is implemented (APS-01C)
-      _localOnly:      true,
+      peso:              form.peso ? Number(form.peso) : null,
+      altura:            form.altura ? Number(form.altura) : null,
+      observacoes:       form.observacoes || null,
     };
 
-    // TODO: replace with POST /acs-visits
-    // For now: persist to localStorage until backend /acs-visits is implemented
     try {
-      const key = `vitras_acs_visits_${userId}`;
-      const existing = JSON.parse(localStorage.getItem(key) || "[]");
-      existing.unshift(visit);
-      localStorage.setItem(key, JSON.stringify(existing));
+      const res = await fetch("/acs-visits", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(data?.error || `Erro ao salvar visita (${res.status}).`);
+        return;
+      }
+      const visit = await res.json();
       onSave(visit);
     } catch {
-      setError("Erro ao salvar visita. Tente novamente.");
+      setError("Erro de conexão. Verifique a rede e tente novamente.");
     } finally {
       setSaving(false);
     }
@@ -735,17 +737,21 @@ function VisitForm({ patient, taskOrigin, userId, onSave, onCancel }) {
 const DESFECHO_LABEL = { realizada: "Realizada", recusada: "Recusada", ausente: "Ausente" };
 const DESFECHO_CLS   = { realizada: "acs-vis-desfecho--ok", recusada: "acs-vis-desfecho--warn", ausente: "acs-vis-desfecho--dim" };
 
-function VisitasTab({ patients, user, preSelectPatient, clearPreSelect }) {
+function VisitasTab({ patients, user, token, preSelectPatient, clearPreSelect }) {
   // view: "list" | "patient-select" | "form"
   const [view, setView] = useState(preSelectPatient ? "form" : "list");
   const [selectedPatient, setSelectedPatient] = useState(preSelectPatient || null);
   const [taskOrigin, setTaskOrigin] = useState(null);
+  const [visits, setVisits] = useState([]);
+  const [loadingVisits, setLoadingVisits] = useState(true);
 
-  const storageKey = `vitras_acs_visits_${user?.id || "anon"}`;
-  const [visits, setVisits] = useState(() => {
-    try { return JSON.parse(localStorage.getItem(storageKey) || "[]"); }
-    catch { return []; }
-  });
+  useEffect(() => {
+    if (!token) { setLoadingVisits(false); return; }
+    fetch("/acs-visits", { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : [])
+      .then(data => { setVisits(Array.isArray(data) ? data : []); setLoadingVisits(false); })
+      .catch(() => setLoadingVisits(false));
+  }, [token]);
 
   const myPatients = useMemo(() =>
     patients.filter(p => p.assignedAcsId === user?.id && !p.inactive),
@@ -793,6 +799,7 @@ function VisitasTab({ patients, user, preSelectPatient, clearPreSelect }) {
         patient={selectedPatient}
         taskOrigin={taskOrigin}
         userId={user?.id}
+        token={token}
         onSave={handleSave}
         onCancel={handleCancel}
       />
@@ -804,10 +811,8 @@ function VisitasTab({ patients, user, preSelectPatient, clearPreSelect }) {
     <div className="acs-vis-list-view">
       <div className="acs-vis-list-header">
         <div>
-          <span className="acs-vis-list-count">{visits.length} visita{visits.length !== 1 ? "s" : ""} registrada{visits.length !== 1 ? "s" : ""}</span>
-          {/* TODO: replace with GET /acs-visits when backend route implemented (APS-01C) */}
-          <span className="acs-vis-local-badge" title="Visitas salvas localmente — backend /acs-visits pendente (APS-01C)">
-            ⚠ Local
+          <span className="acs-vis-list-count">
+            {loadingVisits ? "Carregando…" : `${visits.length} visita${visits.length !== 1 ? "s" : ""} registrada${visits.length !== 1 ? "s" : ""}`}
           </span>
         </div>
         <button type="button" className="acs-vis-new-btn" onClick={startNewVisit}>
@@ -1138,6 +1143,7 @@ function AcsTasksPage({ patients, users, user, token, onNavigatePatient }) {
           <VisitasTab
             patients={patients}
             user={user}
+            token={token}
             preSelectPatient={visitPreSelect}
             clearPreSelect={() => setVisitPreSelect(null)}
           />

@@ -567,6 +567,38 @@ const ESGOTAMENTO_VALUES = ["REDE_COLETORA", "FOSSA_SEPTICA", "FOSSA_RUDIMENTAR"
 const DESTINO_LIXO_VALUES = ["COLETA_PUBLICA", "QUEIMADO", "ENTERRADO", "TERRENO_BALDIO", "CORPO_AGUA", "OUTROS"];
 const LOCALIZACAO_VALUES = ["URBANA", "RURAL"];
 // C04A: LEDI APS 7.4.0 — condicaoMoradia.situacaoMoradiaPosseTerra (obrigatório para exportação CDS)
+// ACS Visit schemas
+const ACS_TURNO_VALUES = ["manha", "tarde", "noite"];
+const ACS_DESFECHO_VALUES = ["realizada", "recusada", "ausente"];
+
+const AcsVisitCreateSchema = z.object({
+  patientId:         z.string().trim().min(1).max(100),
+  householdId:       z.string().trim().max(100).optional().nullable(),
+  taskId:            z.string().trim().max(100).optional().nullable(),
+  date:              z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, "date deve ser YYYY-MM-DD"),
+  turno:             z.enum(ACS_TURNO_VALUES).optional().nullable(),
+  desfecho:          z.enum(ACS_DESFECHO_VALUES),
+  motivos:           z.array(z.string().trim().min(1).max(100)).max(30).optional().default([]),
+  buscaAtiva:        z.array(z.string().trim().min(1).max(100)).max(30).optional().default([]),
+  acompanhamentos:   z.array(z.string().trim().min(1).max(100)).max(30).optional().default([]),
+  controleAmbiental: z.array(z.string().trim().min(1).max(100)).max(10).optional().default([]),
+  peso:              z.number().min(0).max(700).optional().nullable(),
+  altura:            z.number().min(0).max(300).optional().nullable(),
+  observacoes:       z.string().trim().max(2000).optional().nullable()
+});
+
+const AcsVisitUpdateSchema = z.object({
+  desfecho:          z.enum(ACS_DESFECHO_VALUES).optional(),
+  turno:             z.enum(ACS_TURNO_VALUES).optional().nullable(),
+  motivos:           z.array(z.string().trim().min(1).max(100)).max(30).optional(),
+  buscaAtiva:        z.array(z.string().trim().min(1).max(100)).max(30).optional(),
+  acompanhamentos:   z.array(z.string().trim().min(1).max(100)).max(30).optional(),
+  controleAmbiental: z.array(z.string().trim().min(1).max(100)).max(10).optional(),
+  peso:              z.number().min(0).max(700).optional().nullable(),
+  altura:            z.number().min(0).max(300).optional().nullable(),
+  observacoes:       z.string().trim().max(2000).optional().nullable()
+});
+
 const SITUACAO_MORADIA_VALUES = ["PROPRIO", "FINANCIADO", "ALUGADO", "ARRENDADO", "CEDIDO", "OCUPACAO", "SITUACAO_RUA", "OUTRO"];
 // C04A: LEDI APS 7.4.0 — tipoEndereco (novo campo obrigatório v7.4.0: 1=logradouro, 2=sem endereço)
 const TIPO_ENDERECO_VALUES = ["LOGRADOURO", "SEM_ENDERECO"];
@@ -713,6 +745,8 @@ export {
   QueueCreateSchema,
   QueuePatchSchema,
   PrivacyRequestCreateSchema,
+  AcsVisitCreateSchema,
+  AcsVisitUpdateSchema,
   HouseholdCreateSchema,
   HouseholdUpdateSchema,
   UnitPatchSchema,
