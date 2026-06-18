@@ -419,6 +419,12 @@
   text-decoration: underline;
 }
 
+.auth-footer-sep {
+  color: var(--text-dim);
+  margin: 0 var(--s-2);
+  opacity: .5;
+}
+
 /* ── E-mail vinculado ao token (badge read-only) ────────── */
 
 .auth-activate-email-badge {

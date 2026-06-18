@@ -106,13 +106,28 @@
   display: inline-flex;
   align-items: center;
   gap: var(--s-2);
-  pointer-events: none;
   font: 500 10px var(--font-mono);
 }
 
 .compliance-badge__icon {
   color: var(--success);
   font-weight: 700;
+}
+
+.compliance-badge__sep {
+  opacity: .4;
+}
+
+.compliance-badge__link {
+  color: var(--slate-300);
+  text-decoration: none;
+  opacity: .7;
+  transition: opacity .15s;
+}
+
+.compliance-badge__link:hover {
+  opacity: 1;
+  text-decoration: underline;
 }
 
 .error-banner {

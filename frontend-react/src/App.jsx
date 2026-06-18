@@ -27,6 +27,7 @@ import { listNotifications } from "./api";
 import ReceptionistApp from "./pages/ReceptionistApp";
 import AuthScreen from "./pages/AuthScreen";
 import ActivateAccountPage from "./pages/ActivateAccountPage";
+import PrivacyPage from "./pages/PrivacyPage";
 import AppErrorBoundary from "./components/feedback/AppErrorBoundary";
 import OfflineBanner from "./components/feedback/OfflineBanner";
 import ComplianceBadge from "./components/feedback/ComplianceBadge";
@@ -190,6 +191,9 @@ function AppInner() {
   const _path = typeof window !== "undefined" ? window.location.pathname : "/";
   if (_path === "/activate" || _path === "/primeiro-acesso") {
     return <ActivateAccountPage />;
+  }
+  if (_path === "/privacidade") {
+    return <PrivacyPage />;
   }
 
   if (!token || !user || typeof user !== 'object') {

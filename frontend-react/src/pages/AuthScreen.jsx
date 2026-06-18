@@ -323,6 +323,8 @@ function AuthScreen({ onLogin, onVerifyTwoFactor, loginChallenge, onCancelTwoFac
 
           <p className="auth-page-footer">
             <a href="/activate" className="auth-footer-link">Primeiro acesso institucional →</a>
+            <span className="auth-footer-sep">·</span>
+            <a href="/privacidade" className="auth-footer-link">Política de Privacidade</a>
           </p>
         </div>
       </section>
