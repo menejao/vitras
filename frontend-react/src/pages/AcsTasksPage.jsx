@@ -1112,8 +1112,8 @@ function VisitasTab({ patients, user, token, preSelectPatient, clearPreSelect })
   }, [token]);
 
   const myPatients = useMemo(() =>
-    patients.filter(p => p.assignedAcsId === user?.id && !p.inactive),
-    [patients, user?.id]
+    patients.filter(p => !p.inactive),
+    [patients]
   );
 
   function handleSelectPatient(p) {
