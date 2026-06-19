@@ -57,6 +57,29 @@ router.get(
   }
 );
 
+// SEC-API-01A: GET /households/:id — single household detail, team-scoped
+router.get(
+  "/households/:id",
+  requireAuth,
+  async (req, res) => {
+    const id = String(req.params.id || "").trim();
+    if (!id) return res.status(400).json({ error: "id obrigatório" });
+
+    const { readDb } = await import("../db.js");
+    const db = await readDb();
+    ensureDbShape(db);
+
+    const household = db.households.find((h) => h.id === id);
+    if (!household) return res.status(404).json({ error: "Domicílio não encontrado" });
+
+    if (req.user.role !== "break_glass_admin" && household.teamId !== req.user.teamId) {
+      return res.status(403).json({ error: "Sem permissão para visualizar este domicílio" });
+    }
+
+    return res.json(household);
+  }
+);
+
 // POST /households — create household linked to a patient
 router.post(
   "/households",

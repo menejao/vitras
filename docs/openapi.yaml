@@ -1,0 +1,1486 @@
+openapi: "3.0.3"
+info:
+  title: VITRAS APS API
+  version: "1.0.0"
+  description: >
+    API do sistema VITRAS APS para Atenção Primária à Saúde.
+    Autenticação via JWT (Bearer) ou cookie httpOnly (vitras_access).
+    Todos os endpoints autenticados exigem CSRF token (X-CSRF-Token) quando usando cookie.
+    CPF e CNS em listagens são sempre mascarados (últimos 2 dígitos visíveis).
+  contact:
+    name: Equipe VITRAS
+
+servers:
+  - url: https://api.vitras.com.br
+    description: Produção
+  - url: http://localhost:3000
+    description: Desenvolvimento local
+
+security:
+  - cookieAuth: []
+  - bearerAuth: []
+
+tags:
+  - name: Infra
+    description: Health checks e readiness
+  - name: Auth
+    description: Autenticação, registro, sessão e 2FA
+  - name: Me
+    description: Perfil do usuário autenticado
+  - name: Users
+    description: Gestão de usuários e equipes
+  - name: Patients
+    description: Cadastro de pacientes
+  - name: Clinical
+    description: Registros clínicos, agendamentos e histórico
+  - name: Households
+    description: Cadastro Domiciliar e Territorial
+  - name: ACS
+    description: Visitas domiciliares e busca ativa
+  - name: FamilyGroups
+    description: Grupos familiares
+  - name: Production
+    description: Métricas de produção
+  - name: Audit
+    description: Logs de auditoria
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: "JWT obtido via /auth/login. Validade configurada (padrão: 15m)."
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: vitras_access
+      description: "Cookie httpOnly definido em /auth/login. Requer X-CSRF-Token para mutações."
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "Recurso não encontrado"
+      required: [error]
+
+    SessionPayload:
+      type: object
+      properties:
+        user:
+          $ref: "#/components/schemas/UserContext"
+        token:
+          type: string
+          description: "JWT de acesso. Presente apenas em modo Bearer."
+        refreshToken:
+          type: string
+          description: "Refresh token raw. Presente apenas em modo Bearer."
+        csrfToken:
+          type: string
+          description: "CSRF token. Presente apenas em modo cookie."
+
+    UserContext:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        email: { type: string, format: email }
+        role: { type: string, enum: [acs, nurse, nurse_manager, doctor, dentist, receptionist, gestor, break_glass_admin] }
+        teamId: { type: string }
+        teamName: { type: string }
+        unitId: { type: string }
+        municipalityId: { type: string }
+        capabilities: { type: array, items: { type: string } }
+
+    Patient:
+      type: object
+      description: "CPF e CNS mascarados em respostas de lista e detalhe (últimos 2 dígitos visíveis)."
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        birthDate: { type: string, format: date }
+        cpf:
+          type: string
+          example: "***.***.***-12"
+          description: "Mascarado. Últimos 2 dígitos visíveis."
+        cns:
+          type: string
+          example: "*************45"
+          description: "Mascarado. Últimos 2 dígitos visíveis."
+        phone: { type: string }
+        careCategory:
+          type: string
+          enum: [general, pregnant, chronic, priority, child]
+        teamId: { type: string }
+        unitId: { type: string }
+        municipalityId: { type: string }
+        inactive: { type: boolean }
+        updatedAt: { type: string, format: date-time }
+
+    PatientCreate:
+      type: object
+      required: [name, phone, careCategory]
+      properties:
+        name: { type: string, maxLength: 200 }
+        phone: { type: string }
+        phoneAlt: { type: string }
+        cpf: { type: string, description: "11 dígitos" }
+        cns: { type: string, description: "15 dígitos" }
+        birthDate: { type: string, format: date }
+        motherName: { type: string }
+        address: { type: string }
+        microArea: { type: string }
+        careCategory: { type: string, enum: [general, pregnant, chronic, priority, child] }
+        sexAtBirth: { type: string }
+        genderIdentity: { type: string }
+        teamId: { type: string }
+
+    Household:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        patientId: { type: string }
+        patientIds: { type: array, items: { type: string } }
+        teamId: { type: string }
+        logradouro: { type: string }
+        numero: { type: string }
+        bairro: { type: string }
+        cep: { type: string }
+        uf: { type: string }
+        municipioIbge: { type: string }
+        tipoImovel: { type: string }
+        tipoDomicilio: { type: string }
+        localizacao: { type: string, enum: [URBANA, RURAL, PERIURBANA] }
+        abastecimentoAgua: { type: string }
+        esgotamento: { type: string }
+        destinacaoLixo: { type: string }
+        energiaEletrica: { type: boolean }
+        microarea: { type: string }
+        familias: { type: array, items: { type: object } }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    AcsVisit:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        patientId: { type: string }
+        householdId: { type: string }
+        acsId: { type: string }
+        visitDate: { type: string, format: date }
+        outcome: { type: string }
+        motivos: { type: array, items: { type: string } }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    FamilyGroup:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        teamId: { type: string }
+        familyCode: { type: string }
+        members: { type: array, items: { type: object } }
+        updatedAt: { type: string, format: date-time }
+
+paths:
+  # ─── INFRA ────────────────────────────────────────────────────────────────
+
+  /health:
+    get:
+      summary: Health check
+      description: Retorna 200 se o serviço está operacional.
+      security: []
+      tags: [Infra]
+      responses:
+        "200":
+          description: Serviço saudável
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: ok }
+
+  /readyz:
+    get:
+      summary: Readiness check
+      description: Retorna 200 quando o serviço está pronto para receber tráfego (migrações concluídas).
+      security: []
+      tags: [Infra]
+      responses:
+        "200":
+          description: Serviço pronto
+        "503":
+          description: Serviço não pronto
+
+  # ─── AUTH ─────────────────────────────────────────────────────────────────
+
+  /auth/login:
+    post:
+      summary: Login com e-mail e senha
+      security: []
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, minLength: 8 }
+      responses:
+        "200":
+          description: Sessão criada (ou desafio 2FA emitido)
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/SessionPayload"
+                  - type: object
+                    description: Desafio 2FA
+                    properties:
+                      twoFactorRequired: { type: boolean, example: true }
+                      challengeId: { type: string }
+                      challengeExpiresAt: { type: string, format: date-time }
+        "401":
+          description: Credenciais inválidas
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "429":
+          description: Muitas tentativas — rate limit ativo
+
+  /auth/login/verify:
+    post:
+      summary: Verificar código TOTP (2FA)
+      security: []
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [challengeId, code]
+              properties:
+                challengeId: { type: string }
+                code: { type: string, pattern: "^[0-9]{6}$" }
+      responses:
+        "200":
+          description: Sessão criada após verificação 2FA
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionPayload"
+        "400":
+          description: challengeId ou code inválido
+        "401":
+          description: Código 2FA inválido ou expirado
+
+  /auth/refresh:
+    post:
+      summary: Renovar access token usando refresh token
+      description: >
+        Aceita refresh token via corpo JSON ou cookie vitras_refresh.
+        O token antigo é revogado (rotação). Emite novo par access+refresh.
+      security: []
+      tags: [Auth]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refreshToken: { type: string }
+      responses:
+        "200":
+          description: Novo access token emitido
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionPayload"
+        "400":
+          description: refreshToken ausente
+        "401":
+          description: Refresh token inválido, revogado ou expirado
+
+  /auth/logout:
+    post:
+      summary: Encerrar sessão
+      description: Revoga refresh token e limpa cookies.
+      tags: [Auth]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refreshToken: { type: string }
+      responses:
+        "200":
+          description: Sessão encerrada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+        "401":
+          description: Não autenticado
+
+  /auth/register:
+    post:
+      summary: Auto-cadastro de profissional de saúde
+      description: >
+        Disponível apenas para roles listadas em PUBLIC_SELF_REGISTER_ROLES.
+        Valida conselho profissional externamente quando aplicável.
+      security: []
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, password, role]
+              properties:
+                name: { type: string }
+                email: { type: string, format: email }
+                password: { type: string, minLength: 8 }
+                role: { type: string }
+                teamId: { type: string }
+                unitId: { type: string }
+                councilNumber: { type: string }
+                councilUf: { type: string, maxLength: 2 }
+      responses:
+        "201":
+          description: Usuário criado e sessão iniciada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionPayload"
+        "400":
+          description: Dados inválidos ou senha fraca
+        "409":
+          description: E-mail ou conselho já cadastrado
+
+  /auth/access-requests:
+    get:
+      summary: Listar solicitações de acesso (admin)
+      tags: [Auth]
+      responses:
+        "200":
+          description: Lista de solicitações
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  requests: { type: array, items: { type: object } }
+        "403":
+          description: Sem permissão access_requests.read
+
+    post:
+      summary: Criar solicitação de acesso (público)
+      security: []
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, jobTitle]
+              properties:
+                name: { type: string }
+                email: { type: string, format: email }
+                jobTitle: { type: string }
+      responses:
+        "201":
+          description: Solicitação criada
+        "409":
+          description: Já existe solicitação ou usuário com este e-mail
+
+  /auth/access-requests/{id}/approve:
+    post:
+      summary: Aprovar solicitação de acesso
+      tags: [Auth]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Solicitação aprovada
+        "404":
+          description: Solicitação não encontrada
+        "409":
+          description: Solicitação já decidida
+
+  /auth/access-requests/{id}/reject:
+    post:
+      summary: Rejeitar solicitação de acesso
+      tags: [Auth]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason: { type: string }
+      responses:
+        "200":
+          description: Solicitação rejeitada
+        "404":
+          description: Solicitação não encontrada
+
+  # ─── ME ───────────────────────────────────────────────────────────────────
+
+  /me:
+    get:
+      summary: Perfil do usuário autenticado
+      tags: [Me]
+      responses:
+        "200":
+          description: Dados do usuário autenticado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserContext"
+        "401":
+          description: Não autenticado
+
+    patch:
+      summary: Atualizar perfil próprio
+      tags: [Me]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                email: { type: string, format: email }
+                password: { type: string }
+      responses:
+        "200":
+          description: Perfil atualizado
+
+  /me/access-context:
+    get:
+      summary: Contexto de acesso completo (capacidades, impersonation, break glass)
+      tags: [Me]
+      responses:
+        "200":
+          description: Contexto de acesso
+
+  /me/2fa/status:
+    get:
+      summary: Status do 2FA do usuário
+      tags: [Me]
+      responses:
+        "200":
+          description: Status 2FA
+
+  /me/2fa/setup:
+    post:
+      summary: Iniciar configuração de 2FA (TOTP)
+      tags: [Me]
+      responses:
+        "200":
+          description: QR code e secret para configuração
+
+  /me/2fa/enable:
+    post:
+      summary: Confirmar e ativar 2FA
+      tags: [Me]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code: { type: string, pattern: "^[0-9]{6}$" }
+      responses:
+        "200":
+          description: 2FA ativado
+
+  /me/2fa/disable:
+    post:
+      summary: Desativar 2FA
+      tags: [Me]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code: { type: string, pattern: "^[0-9]{6}$" }
+      responses:
+        "200":
+          description: 2FA desativado
+
+  /me/verify-password:
+    post:
+      summary: Verificar senha atual (pré-operação sensível)
+      tags: [Me]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [password]
+              properties:
+                password: { type: string }
+      responses:
+        "200":
+          description: Senha válida
+        "401":
+          description: Senha incorreta
+
+  /me/impersonation/start:
+    post:
+      summary: Iniciar impersonação de usuário (admin)
+      tags: [Me]
+      responses:
+        "200":
+          description: Sessão impersonada iniciada
+
+  /me/impersonation/stop:
+    post:
+      summary: Encerrar impersonação
+      tags: [Me]
+      responses:
+        "200":
+          description: Impersonação encerrada
+
+  /me/break-glass/activate:
+    post:
+      summary: Ativar acesso break glass (emergência)
+      tags: [Me]
+      responses:
+        "200":
+          description: Break glass ativo
+
+  /me/break-glass/deactivate:
+    post:
+      summary: Desativar break glass
+      tags: [Me]
+      responses:
+        "200":
+          description: Break glass desativado
+
+  /me/presence:
+    post:
+      summary: Registrar presença / keep-alive de sessão
+      tags: [Me]
+      responses:
+        "200":
+          description: Presença registrada
+
+  # ─── USERS & TEAMS ────────────────────────────────────────────────────────
+
+  /users:
+    get:
+      summary: Listar usuários da unidade/município
+      tags: [Users]
+      responses:
+        "200":
+          description: Lista de usuários
+        "403":
+          description: Sem permissão
+
+    post:
+      summary: Criar usuário (gestor/admin)
+      tags: [Users]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatientCreate"
+      responses:
+        "201":
+          description: Usuário criado
+        "409":
+          description: E-mail já cadastrado
+
+  /users/{id}:
+    put:
+      summary: Atualizar usuário
+      tags: [Users]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Usuário atualizado
+        "404":
+          description: Usuário não encontrado
+
+    delete:
+      summary: Desativar usuário
+      tags: [Users]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Usuário desativado
+
+  /users/{id}/usage:
+    get:
+      summary: Relatório de uso do usuário
+      tags: [Users]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Dados de uso
+
+  /users/activity-log:
+    get:
+      summary: Log de atividade de usuários
+      tags: [Users]
+      responses:
+        "200":
+          description: Log de atividade
+
+  /teams/public:
+    get:
+      summary: Listar equipes públicas (sem autenticação, para registro)
+      security: []
+      tags: [Users]
+      responses:
+        "200":
+          description: Lista de equipes com id e nome
+
+  /teams/{id}:
+    get:
+      summary: Detalhe de equipe
+      tags: [Users]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Dados da equipe
+        "404":
+          description: Equipe não encontrada
+
+    patch:
+      summary: Atualizar equipe
+      tags: [Users]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Equipe atualizada
+
+  # ─── PATIENTS ─────────────────────────────────────────────────────────────
+
+  /patients:
+    get:
+      summary: Listar pacientes da equipe
+      description: >
+        CPF e CNS mascarados (últimos 2 dígitos visíveis).
+        Recepcionista recebe sumário restrito sem dados clínicos.
+        Demais roles recebem lista completa da própria equipe.
+      tags: [Patients]
+      parameters:
+        - name: microArea
+          in: query
+          schema: { type: string }
+          description: Filtrar por micro área
+        - name: acsId
+          in: query
+          schema: { type: string }
+          description: Filtrar por ACS responsável
+        - name: careCategory
+          in: query
+          schema: { type: string }
+          description: Filtrar por categoria de cuidado
+        - name: q
+          in: query
+          schema: { type: string }
+          description: Busca por nome, CPF parcial, CNS parcial, endereço
+      responses:
+        "200":
+          description: Lista de pacientes com CPF/CNS mascarados
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Patient"
+        "401":
+          description: Não autenticado
+
+    post:
+      summary: Criar paciente
+      tags: [Patients]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatientCreate"
+      responses:
+        "201":
+          description: Paciente criado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Patient"
+        "400":
+          description: Dados inválidos
+        "403":
+          description: Apenas enfermeira ou médica podem criar pacientes
+        "409":
+          description: CPF ou CNS duplicado
+
+  /patients/{id}:
+    get:
+      summary: Detalhe de paciente por ID
+      description: >
+        CPF e CNS mascarados (últimos 2 dígitos visíveis).
+        Receptionist não tem acesso (403).
+        Demais roles: acesso apenas à própria equipe, exceto break_glass_admin.
+      tags: [Patients]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Dados do paciente com CPF/CNS mascarados
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Patient"
+        "401":
+          description: Não autenticado
+        "403":
+          description: Sem permissão (equipe diferente ou role receptionist)
+        "404":
+          description: Paciente não encontrado
+
+    delete:
+      summary: Inativar/excluir paciente
+      tags: [Patients]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string }
+      responses:
+        "200":
+          description: Paciente inativado
+        "403":
+          description: Apenas enfermeira ou médica podem excluir pacientes
+
+  /patients/{id}/cadastro-individual:
+    patch:
+      summary: Atualizar Cadastro Individual e-SUS
+      tags: [Patients]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Campos do Cadastro Individual e-SUS. Todos opcionais (PATCH parcial).
+              properties:
+                racaCor: { type: string }
+                etniaIndigena: { type: string }
+                situacaoRua: { type: boolean }
+                responsavelFamiliar: { type: boolean }
+                cnsResponsavel: { type: string }
+                nomeResponsavel: { type: string }
+                relacaoResponsavel: { type: string }
+      responses:
+        "200":
+          description: Cadastro Individual atualizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Patient"
+        "400":
+          description: Dados inválidos
+        "403":
+          description: Sem permissão
+        "404":
+          description: Paciente não encontrado
+
+  /patients/{id}/appointments:
+    get:
+      summary: Listar agendamentos do paciente
+      tags: [Clinical]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Lista de agendamentos
+        "403":
+          description: Sem permissão
+        "404":
+          description: Paciente não encontrado
+
+    post:
+      summary: Criar agendamento para paciente
+      tags: [Clinical]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [date, type]
+              properties:
+                date: { type: string, format: date-time }
+                type: { type: string }
+                notes: { type: string }
+      responses:
+        "201":
+          description: Agendamento criado
+
+  /patients/{id}/appointments/{appointmentId}:
+    delete:
+      summary: Cancelar agendamento
+      tags: [Clinical]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+        - name: appointmentId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string }
+      responses:
+        "200":
+          description: Agendamento cancelado
+
+  /patients/{id}/records:
+    post:
+      summary: Criar registro clínico (prontuário)
+      tags: [Clinical]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [type, content]
+              properties:
+                type: { type: string, enum: [soap, prescription, medical_attest, certificate, referral] }
+                content: { type: string }
+      responses:
+        "201":
+          description: Registro criado
+
+  /patients/{id}/records/{recordId}:
+    delete:
+      summary: Inativar registro clínico
+      tags: [Clinical]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+        - name: recordId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string }
+      responses:
+        "200":
+          description: Registro inativado
+
+  /patients/{id}/records/{recordId}/inactivate:
+    patch:
+      summary: Inativar registro clínico (alternativo)
+      tags: [Clinical]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+        - name: recordId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Registro inativado
+
+  /patients/{id}/history:
+    get:
+      summary: Histórico clínico completo do paciente
+      tags: [Clinical]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Histórico clínico ordenado por data
+
+  /patients/{id}/protocol-summary:
+    get:
+      summary: Resumo de protocolo clínico do paciente
+      tags: [Clinical]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Resumo de protocolo com alertas
+
+  /patients/{id}/messages:
+    get:
+      summary: Mensagens/recados do paciente
+      tags: [Clinical]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Lista de mensagens
+
+    post:
+      summary: Criar mensagem para paciente
+      tags: [Clinical]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content]
+              properties:
+                content: { type: string }
+      responses:
+        "201":
+          description: Mensagem criada
+
+  /patients/protocol-summaries:
+    get:
+      summary: Resumos de protocolo para múltiplos pacientes
+      tags: [Clinical]
+      parameters:
+        - name: ids
+          in: query
+          description: IDs separados por vírgula
+          schema: { type: string }
+      responses:
+        "200":
+          description: Mapa de resumos por paciente ID
+
+  /records/prescriptions:
+    get:
+      summary: Listar prescrições da equipe
+      tags: [Clinical]
+      responses:
+        "200":
+          description: Lista de prescrições
+
+  /metrics/demand/monthly:
+    get:
+      summary: Métricas de demanda mensal
+      tags: [Clinical]
+      responses:
+        "200":
+          description: Métricas mensais de demanda
+
+  /metrics/data-quality:
+    get:
+      summary: Métricas de qualidade de dados
+      tags: [Clinical]
+      responses:
+        "200":
+          description: Qualidade de dados da equipe
+
+  # ─── HOUSEHOLDS ───────────────────────────────────────────────────────────
+
+  /households:
+    get:
+      summary: Listar domicílios de um paciente
+      description: Requer patientId como query param. Valida que paciente pertence à equipe do usuário.
+      tags: [Households]
+      parameters:
+        - name: patientId
+          in: query
+          required: true
+          schema: { type: string, format: uuid }
+          description: ID do paciente
+      responses:
+        "200":
+          description: Lista de domicílios do paciente
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Household"
+        "400":
+          description: patientId obrigatório
+        "403":
+          description: Sem permissão para visualizar domicílios desta equipe
+        "404":
+          description: Paciente não encontrado
+
+    post:
+      summary: Criar Cadastro Domiciliar e Territorial
+      description: >
+        Cria novo domicílio ou reutiliza existente com mesmo endereço na mesma equipe.
+        Vincula paciente ao domicílio.
+      tags: [Households]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [patientId]
+              properties:
+                patientId: { type: string, format: uuid }
+                tipoImovel: { type: string }
+                tipoDomicilio: { type: string }
+                localizacao: { type: string, enum: [URBANA, RURAL, PERIURBANA] }
+                logradouro: { type: string }
+                numero: { type: string }
+                semNumero: { type: boolean }
+                complemento: { type: string }
+                bairro: { type: string }
+                cep: { type: string }
+                uf: { type: string }
+                municipioIbge: { type: string }
+                microarea: { type: string }
+                abastecimentoAgua: { type: string }
+                tratamentoAgua: { type: string }
+                esgotamento: { type: string }
+                destinacaoLixo: { type: string }
+                energiaEletrica: { type: boolean }
+                origemEnergiaEletrica: { type: string }
+                materialPredominanteParedes: { type: string }
+                situacaoMoradiaPosseTerra: { type: string }
+                tipoAcesso: { type: string }
+                numMoradores: { type: integer, minimum: 0 }
+                numComodos: { type: integer, minimum: 0 }
+                animaisNoDomicilio: { type: boolean }
+                tiposAnimais: { type: array, items: { type: string } }
+                familias: { type: array, maxItems: 20, items: { type: object } }
+                termoRecusa: { type: boolean }
+                dataCadastro: { type: string, format: date }
+      responses:
+        "201":
+          description: Domicílio criado (ou reutilizado e paciente vinculado)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Household"
+        "400":
+          description: Dados inválidos
+        "403":
+          description: Sem permissão para criar domicílio nesta equipe
+        "404":
+          description: Paciente não encontrado
+
+  /households/{id}:
+    get:
+      summary: Detalhe de domicílio por ID
+      description: Valida que domicílio pertence à equipe do usuário (exceto break_glass_admin).
+      tags: [Households]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Dados do domicílio
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Household"
+        "401":
+          description: Não autenticado
+        "403":
+          description: Sem permissão para visualizar este domicílio
+        "404":
+          description: Domicílio não encontrado
+
+    patch:
+      summary: Atualizar Cadastro Domiciliar e Territorial
+      tags: [Households]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Campos atualizáveis do domicílio. Todos opcionais (PATCH parcial).
+              properties:
+                tipoImovel: { type: string }
+                tipoDomicilio: { type: string }
+                localizacao: { type: string }
+                abastecimentoAgua: { type: string }
+                esgotamento: { type: string }
+                microarea: { type: string }
+                familias: { type: array, maxItems: 20, items: { type: object } }
+      responses:
+        "200":
+          description: Domicílio atualizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Household"
+        "400":
+          description: Dados inválidos
+        "403":
+          description: Sem permissão
+        "404":
+          description: Domicílio não encontrado
+
+  # ─── ACS ──────────────────────────────────────────────────────────────────
+
+  /acs-visits:
+    get:
+      summary: Listar visitas ACS
+      tags: [ACS]
+      parameters:
+        - name: patientId
+          in: query
+          schema: { type: string }
+        - name: acsId
+          in: query
+          schema: { type: string }
+        - name: householdId
+          in: query
+          schema: { type: string }
+        - name: startDate
+          in: query
+          schema: { type: string, format: date }
+        - name: endDate
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        "200":
+          description: Lista de visitas ACS
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AcsVisit"
+
+    post:
+      summary: Registrar visita ACS
+      tags: [ACS]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [patientId]
+              properties:
+                patientId: { type: string, format: uuid }
+                householdId: { type: string }
+                visitDate: { type: string, format: date }
+                outcome: { type: string }
+                motivos: { type: array, items: { type: string } }
+                microarea: { type: string }
+      responses:
+        "201":
+          description: Visita registrada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AcsVisit"
+
+  /acs-visits/{id}:
+    get:
+      summary: Detalhe de visita ACS por ID
+      tags: [ACS]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Visita ACS
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AcsVisit"
+        "404":
+          description: Visita não encontrada
+
+    patch:
+      summary: Atualizar visita ACS
+      tags: [ACS]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                outcome: { type: string }
+                motivos: { type: array, items: { type: string } }
+      responses:
+        "200":
+          description: Visita atualizada
+
+  /acs-visits/patient/{patientId}:
+    get:
+      summary: Listar visitas por paciente
+      tags: [ACS]
+      parameters:
+        - name: patientId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Visitas do paciente
+
+  /acs-visits/household/{householdId}:
+    get:
+      summary: Listar visitas por domicílio
+      tags: [ACS]
+      parameters:
+        - name: householdId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Visitas do domicílio
+
+  /acs-visits/task/{taskId}:
+    get:
+      summary: Listar visitas por tarefa
+      tags: [ACS]
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Visitas da tarefa
+
+  /active-search:
+    get:
+      summary: Busca ativa — grupos de risco
+      description: Lista grupos de pacientes em risco identificados pelo algoritmo de busca ativa.
+      tags: [ACS]
+      responses:
+        "200":
+          description: Lista de grupos de busca ativa
+
+  /active-search/stats:
+    get:
+      summary: Estatísticas de busca ativa da equipe
+      tags: [ACS]
+      responses:
+        "200":
+          description: Estatísticas agregadas por categoria de risco
+
+  /active-search/group/{groupId}:
+    get:
+      summary: Detalhe de grupo de busca ativa
+      tags: [ACS]
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Grupo de busca ativa com membros e score
+
+  # ─── FAMILY GROUPS ────────────────────────────────────────────────────────
+
+  /family-groups:
+    get:
+      summary: Listar grupos familiares da equipe
+      tags: [FamilyGroups]
+      responses:
+        "200":
+          description: Lista de grupos familiares
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FamilyGroup"
+
+  /family-groups/{id}:
+    get:
+      summary: Detalhe de grupo familiar
+      tags: [FamilyGroups]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Grupo familiar com membros
+        "404":
+          description: Grupo não encontrado
+
+  # ─── PRODUCTION ───────────────────────────────────────────────────────────
+
+  /production/acs:
+    get:
+      summary: Métricas de produção do ACS
+      tags: [Production]
+      responses:
+        "200":
+          description: Produção mensal do ACS
+
+  /production/nurse:
+    get:
+      summary: Métricas de produção da enfermeira
+      tags: [Production]
+      responses:
+        "200":
+          description: Produção da equipe de enfermagem
+
+  /production/manager:
+    get:
+      summary: Métricas de produção para gestão
+      tags: [Production]
+      responses:
+        "200":
+          description: Visão gerencial da produção
+
+  /production/microareas:
+    get:
+      summary: Produção por micro áreas
+      tags: [Production]
+      responses:
+        "200":
+          description: Produção segmentada por micro área
+
+  # ─── AUDIT ────────────────────────────────────────────────────────────────
+
+  /audit-logs:
+    get:
+      summary: Listar logs de auditoria
+      description: Acesso restrito a roles com capacidade audit.read.
+      tags: [Audit]
+      parameters:
+        - name: startDate
+          in: query
+          schema: { type: string, format: date }
+        - name: endDate
+          in: query
+          schema: { type: string, format: date }
+        - name: action
+          in: query
+          schema: { type: string }
+        - name: userId
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: Lista de eventos de auditoria
+        "403":
+          description: Sem permissão audit.read

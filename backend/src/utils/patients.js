@@ -446,11 +446,25 @@ function buildPatientHistory(db, patientId) {
   });
 }
 
+function maskCpf(raw) {
+  const digits = String(raw || "").replace(/\D/g, "");
+  if (digits.length === 11) return `***.***.***-${digits.slice(9)}`;
+  if (raw) return "***.***.***-**";
+  return raw;
+}
+
+function maskCns(raw) {
+  const digits = String(raw || "").replace(/\D/g, "");
+  if (digits.length === 15) return `*************${digits.slice(13)}`;
+  if (raw) return "***************";
+  return raw;
+}
+
 function maskSensitivePatientFields(patient) {
   if (!patient) return patient;
   const masked = { ...patient };
-  if (masked.cpf) masked.cpf = "***.***.***-**";
-  if (masked.cns) masked.cns = "***.***.***.*****-**";
+  if (masked.cpf) masked.cpf = maskCpf(masked.cpf);
+  if (masked.cns) masked.cns = maskCns(masked.cns);
   return masked;
 }
 
@@ -465,6 +479,8 @@ export {
   getPatientOrError,
   buildPatientHistory,
   maskSensitivePatientFields,
+  maskCpf,
+  maskCns,
   buildReceptionistPatientSummary,
   CLINICAL_WRITE_CROSS_TEAM_ROLES
 };

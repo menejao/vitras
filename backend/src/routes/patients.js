@@ -350,6 +350,46 @@ router.get("/patients/protocol-summaries", async (req, res) => {
   });
 });
 
+// SEC-API-01A: GetByID — single patient detail, team-scoped
+router.get("/patients/:id", sensitiveDataRateLimit, async (req, res) => {
+  const id = String(req.params.id || "").trim();
+  if (!id) return res.status(400).json({ error: "id obrigatório" });
+
+  const role = canonicalRole(req.user?.role);
+  if (role === "receptionist") {
+    return res.status(403).json({ error: "Recepcionista não tem acesso ao detalhe individual do paciente" });
+  }
+
+  const db = await readDb();
+  ensureDbShape(db);
+
+  const patient = db.patients.find((p) => p.id === id);
+  if (!patient) return res.status(404).json({ error: "Paciente não encontrado" });
+
+  if (role !== "break_glass_admin" && patient.teamId !== req.user.teamId) {
+    return res.status(403).json({ error: "Sem permissão para acessar este paciente" });
+  }
+
+  await withDb((auditDb) => {
+    ensureDbShape(auditDb);
+    addAuditLog(auditDb, req.user, "patient.detail_read", "patient", id, {
+      outcome: "success",
+      teamId: patient.teamId,
+      isCrossTeam: patient.teamId !== req.user.teamId,
+    });
+  });
+
+  return res.json(
+    filterNis(
+      filterGestorSpecialCategory(
+        filterCnsResponsavel(maskSensitivePatientFields(patient), req.user),
+        req.user
+      ),
+      req.user
+    )
+  );
+});
+
 router.post("/patients", requireManagerOrDoctor, validate(PatientCreateSchema), async (req, res) => {
   // F1-05/F1-06/F1-07/F1-08: normalize legacy aliases to canonical field names before persistence
   const payload = (() => {
