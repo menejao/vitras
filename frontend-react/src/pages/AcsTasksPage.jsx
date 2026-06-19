@@ -618,31 +618,28 @@ const BUSCA_ATIVA_OPTIONS = [
 ];
 
 const ACOMPANHAMENTO_OPTIONS = [
-  { key: "ac_gestante",          label: "Gestante"                          },
-  { key: "ac_puerpera",          label: "Puérpera"                          },
-  { key: "ac_recem_nascido",     label: "Recém-nascido"                     },
-  { key: "ac_crianca",           label: "Criança"                           },
-  { key: "ac_desnutrida",        label: "Pessoa desnutrida"                 },
-  { key: "ac_reabilitacao",      label: "Pessoa em reabilitação / deficiência" },
-  { key: "ac_hipertensao",       label: "Pessoa com hipertensão"            },
-  { key: "ac_diabetes",          label: "Pessoa com diabetes"               },
-  { key: "ac_asma",              label: "Pessoa com asma"                   },
-  { key: "ac_dpoc",              label: "Pessoa com DPOC/enfisema"          },
-  { key: "ac_cancer",            label: "Pessoa com câncer"                 },
-  { key: "ac_cardiovascular",    label: "Pessoa com doença cardiovascular"  },
-  { key: "ac_renal",             label: "Pessoa com doença renal"           },
-  { key: "ac_hanseniase",        label: "Pessoa com hanseníase"             },
-  { key: "ac_tuberculose",       label: "Pessoa com tuberculose"            },
-  { key: "ac_sofrimento_mental", label: "Pessoa com sofrimento mental"      },
-  { key: "ac_acamada",           label: "Pessoa acamada"                    },
-  { key: "ac_domiciliada",       label: "Pessoa domiciliada"                },
-  { key: "ac_tabagista",         label: "Tabagista"                         },
-  { key: "ac_alcool",                    label: "Usuário de álcool"                    },
-  { key: "ac_outras_drogas",            label: "Usuário de outras drogas"             },
-  { key: "ac_pessoa_idosa",             label: "Pessoa idosa"                         },
-  { key: "ac_sintomaticos_resp",        label: "Sintomáticos respiratórios"           },
-  { key: "ac_outras_doencas_cronicas",  label: "Outras doenças crônicas"             },
-  { key: "ac_vulnerabilidade_social",   label: "Condições de vulnerabilidade social"  },
+  { key: "ac_gestante",                label: "Gestante"                              },
+  { key: "ac_puerpera",                label: "Puérpera"                              },
+  { key: "ac_recem_nascido",           label: "Recém-nascido"                         },
+  { key: "ac_crianca",                 label: "Criança"                               },
+  { key: "ac_desnutrida",              label: "Pessoa com desnutrição"                },
+  { key: "ac_reabilitacao",            label: "Pessoa em reabilitação ou deficiência" },
+  { key: "ac_hipertensao",             label: "Pessoa com hipertensão"                },
+  { key: "ac_diabetes",                label: "Pessoa com diabetes"                   },
+  { key: "ac_asma",                    label: "Pessoa com asma"                       },
+  { key: "ac_dpoc",                    label: "Pessoa com DPOC/enfisema"              },
+  { key: "ac_cancer",                  label: "Pessoa com câncer"                     },
+  { key: "ac_outras_doencas_cronicas", label: "Outras doenças crônicas"               },
+  { key: "ac_hanseniase",              label: "Pessoa com hanseníase"                 },
+  { key: "ac_tuberculose",             label: "Pessoa com tuberculose"                },
+  { key: "ac_sintomaticos_resp",       label: "Sintomáticos respiratórios"            },
+  { key: "ac_tabagista",               label: "Tabagista"                             },
+  { key: "ac_acamada",                 label: "Pessoa acamada"                        },
+  { key: "ac_vulnerabilidade_social",  label: "Vulnerabilidade social"                },
+  { key: "ac_sofrimento_mental",       label: "Saúde mental"                          },
+  { key: "ac_alcool",                  label: "Usuário de álcool"                     },
+  { key: "ac_outras_drogas",           label: "Usuário de outras drogas"              },
+  { key: "ac_pessoa_idosa",            label: "Pessoa idosa"                          },
 ];
 
 const CONTROLE_AMBIENTAL_OPTIONS = [
@@ -723,10 +720,8 @@ const VISIT_TABS = [
   { id: 6,  short: "Acomp.",    full: "Acompanhamento"       },
   { id: 7,  short: "Controle",  full: "Controle Ambiental"   },
   { id: 8,  short: "Sinais",    full: "Sinais Vitais"        },
-  { id: 9,  short: "C.Ind.",    full: "Cadastro Individual"  },
-  { id: 10, short: "Domiciliar",full: "Cadastro Domiciliar"  },
-  { id: 11, short: "Família",   full: "Grupo Familiar"       },
-  { id: 12, short: "Revisão",   full: "Revisão e Salvar"     },
+  { id: 9,  short: "Família",   full: "Grupo Familiar"       },
+  { id: 10, short: "Revisão",   full: "Revisão e Salvar"     },
 ];
 
 function emptyVisitForm(today, patient) {
@@ -750,36 +745,6 @@ function emptyVisitForm(today, patient) {
     glicemia:           "",
     momentoGlicemia:    "jejum",
     observacoes:        "",
-    ci: {
-      nome:                     patient?.name || "",
-      nomeSocial:               patient?.socialName || "",
-      dataNascimento:           patient?.birthDate || "",
-      sexo:                     patient?.sex || "",
-      raca:                     patient?.raceColor || "",
-      cpf:                      patient?.cpf || "",
-      cns:                      patient?.cns || "",
-      prontuarioFamiliar:       patient?.prontuarioFamiliar || "",
-      triaMesFimComida:         false,
-      triaComeuMenosQuantidade: false,
-      triaFicouSemComida:       false,
-      triaPassouFome:           false,
-    },
-    cd: {
-      tipoImovel:                "",
-      tipoDomicilio:             "",
-      numMoradores:              "",
-      numComodos:                "",
-      localizacao:               "",
-      abastecimentoAgua:         "",
-      tratamentoAgua:            "",
-      esgotamento:               "",
-      destinacaoLixo:            "",
-      energiaEletrica:           "",
-      situacaoMoradiaPosseTerra: "",
-      animaisNoDomicilio:        false,
-      tiposAnimais:              [],
-      quantidadeAnimais:         "",
-    },
   };
 }
 
@@ -803,7 +768,7 @@ function PatientSelector({ patients, onSelect, onCancel }) {
 
   const results = useMemo(() => {
     const term = q.trim().toLowerCase();
-    if (!term) return patients.slice(0, 20);
+    if (!term) return [];
     return patients.filter(p => {
       const name   = (p.name          || "").toLowerCase();
       const social = (p.socialName    || "").toLowerCase();
@@ -847,33 +812,39 @@ function PatientSelector({ patients, onSelect, onCancel }) {
         />
       </div>
 
-      {results.length === 0 ? (
+      {q.trim() === "" ? (
+        <p className="acs-vis-selector__empty">Digite nome, CPF ou CNS para buscar.</p>
+      ) : results.length === 0 ? (
         <p className="acs-vis-selector__empty">Nenhum paciente encontrado.</p>
       ) : (
         <div className="acs-vis-selector__list">
-          {results.map(p => (
-            <button
-              key={p.id}
-              type="button"
-              className="acs-vis-pat-row"
-              onClick={() => onSelect(p)}
-            >
-              <div className="acs-vis-pat-row__name">
-                {p.socialName ? (
-                  <><strong>{p.socialName}</strong><span className="acs-vis-pat-row__civil"> ({p.name})</span></>
-                ) : <strong>{p.name}</strong>}
-              </div>
-              <div className="acs-vis-pat-row__meta">
-                {ageStr(p.birthDate) && <span>{ageStr(p.birthDate)}</span>}
-                {p.sex === "male" || p.sex === "masculino" ? <span>M</span>
-                  : p.sex === "female" || p.sex === "feminino" ? <span>F</span> : null}
-                {p.microarea && <span>Microárea {p.microarea}</span>}
-              </div>
-              {p.address && (
-                <div className="acs-vis-pat-row__addr">{p.address}{p.addressNumber ? `, ${p.addressNumber}` : ""}</div>
-              )}
-            </button>
-          ))}
+          {results.map(p => {
+            const displayName = p.socialName || p.name || "";
+            const initials = displayName.split(" ").filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join("");
+            const doc = p.cpf ? `CPF ${p.cpf}` : p.cns ? `CNS ${p.cns}` : "";
+            return (
+              <button
+                key={p.id}
+                type="button"
+                className="acs-vis-pat-row"
+                onClick={() => onSelect(p)}
+              >
+                <span className="acs-vis-pat-row__avatar" aria-hidden="true">{initials}</span>
+                <span className="acs-vis-pat-row__info">
+                  <span className="acs-vis-pat-row__name">
+                    {p.socialName ? (
+                      <><strong>{p.socialName}</strong><span className="acs-vis-pat-row__civil"> ({p.name})</span></>
+                    ) : <strong>{p.name}</strong>}
+                  </span>
+                  <span className="acs-vis-pat-row__meta">
+                    {ageStr(p.birthDate) && <span>{ageStr(p.birthDate)}</span>}
+                    {p.phone && <span>{p.phone}</span>}
+                    {doc && <span>{doc}</span>}
+                  </span>
+                </span>
+              </button>
+            );
+          })}
         </div>
       )}
     </div>
@@ -948,12 +919,6 @@ function VisitForm({ patient, taskOrigin, userId, token, onSave, onCancel }) {
   const upd = useCallback((field, val) =>
     setForm(s => ({ ...s, [field]: val })), []);
 
-  const updCi = useCallback((field, val) =>
-    setForm(s => ({ ...s, ci: { ...s.ci, [field]: val } })), []);
-
-  const updCd = useCallback((field, val) =>
-    setForm(s => ({ ...s, cd: { ...s.cd, [field]: val } })), []);
-
   const toggleMap = useCallback((mapField, key, checked) =>
     setForm(s => ({ ...s, [mapField]: { ...s[mapField], [key]: checked } })), []);
 
@@ -964,38 +929,6 @@ function VisitForm({ patient, taskOrigin, userId, token, onSave, onCancel }) {
     if (!form.desfecho) { setError("Selecione o desfecho (Aba 3)."); setActiveTab(3); return; }
     setError("");
     setSaving(true);
-
-    const ciClean = {
-      nome:                     form.ci.nome || null,
-      nomeSocial:               form.ci.nomeSocial || null,
-      dataNascimento:           form.ci.dataNascimento || null,
-      sexo:                     form.ci.sexo || null,
-      raca:                     form.ci.raca || null,
-      cpf:                      form.ci.cpf || null,
-      cns:                      form.ci.cns || null,
-      prontuarioFamiliar:       form.ci.prontuarioFamiliar || null,
-      triaMesFimComida:         form.ci.triaMesFimComida,
-      triaComeuMenosQuantidade: form.ci.triaComeuMenosQuantidade,
-      triaFicouSemComida:       form.ci.triaFicouSemComida,
-      triaPassouFome:           form.ci.triaPassouFome,
-    };
-
-    const cdClean = {
-      tipoImovel:                form.cd.tipoImovel || null,
-      tipoDomicilio:             form.cd.tipoDomicilio || null,
-      numMoradores:              form.cd.numMoradores !== "" ? Number(form.cd.numMoradores) : null,
-      numComodos:                form.cd.numComodos !== "" ? Number(form.cd.numComodos) : null,
-      localizacao:               form.cd.localizacao || null,
-      abastecimentoAgua:         form.cd.abastecimentoAgua || null,
-      tratamentoAgua:            form.cd.tratamentoAgua || null,
-      esgotamento:               form.cd.esgotamento || null,
-      destinacaoLixo:            form.cd.destinacaoLixo || null,
-      energiaEletrica:           form.cd.energiaEletrica === "true" ? true : form.cd.energiaEletrica === "false" ? false : null,
-      situacaoMoradiaPosseTerra: form.cd.situacaoMoradiaPosseTerra || null,
-      animaisNoDomicilio:        form.cd.animaisNoDomicilio,
-      tiposAnimais:              form.cd.tiposAnimais,
-      quantidadeAnimais:         form.cd.quantidadeAnimais !== "" ? Number(form.cd.quantidadeAnimais) : null,
-    };
 
     const body = {
       patientId:         patient.id,
@@ -1019,8 +952,6 @@ function VisitForm({ patient, taskOrigin, userId, token, onSave, onCancel }) {
       glicemia:          form.glicemia ? Number(form.glicemia) : null,
       momentoGlicemia:   form.glicemia ? (form.momentoGlicemia || "aleatorio") : null,
       observacoes:       form.observacoes || null,
-      cadastroIndividual: ciClean,
-      cadastroDomiciliar: cdClean,
     };
 
     try {
@@ -1226,193 +1157,6 @@ function VisitForm({ patient, taskOrigin, userId, token, onSave, onCancel }) {
 
       case 9:
         return (
-          <div className="acs-vis-tab-body">
-            <div className="acs-vis-fields">
-              <div className="acs-vis-field">
-                <label className="acs-vis-label" htmlFor="ci-nome">Nome completo</label>
-                <input id="ci-nome" className="acs-vis-input" type="text" maxLength={200}
-                  value={form.ci.nome} onChange={e => updCi("nome", e.target.value)} />
-              </div>
-              <div className="acs-vis-field">
-                <label className="acs-vis-label" htmlFor="ci-nomesocial">Nome social</label>
-                <input id="ci-nomesocial" className="acs-vis-input" type="text" maxLength={200}
-                  value={form.ci.nomeSocial} onChange={e => updCi("nomeSocial", e.target.value)} placeholder="Se diferente do nome" />
-              </div>
-              <div className="acs-vis-field">
-                <label className="acs-vis-label" htmlFor="ci-nasc">Data de nascimento</label>
-                <input id="ci-nasc" className="acs-vis-input" type="date"
-                  value={form.ci.dataNascimento} onChange={e => updCi("dataNascimento", e.target.value)} />
-              </div>
-              <div className="acs-vis-field">
-                <label className="acs-vis-label" htmlFor="ci-sexo">Sexo</label>
-                <select id="ci-sexo" className="acs-vis-select" value={form.ci.sexo} onChange={e => updCi("sexo", e.target.value)}>
-                  <option value="">Não informado</option>
-                  <option value="male">Masculino</option>
-                  <option value="female">Feminino</option>
-                </select>
-              </div>
-              <div className="acs-vis-field">
-                <label className="acs-vis-label" htmlFor="ci-raca">Raça / Cor</label>
-                <select id="ci-raca" className="acs-vis-select" value={form.ci.raca} onChange={e => updCi("raca", e.target.value)}>
-                  <option value="">Não informado</option>
-                  {RACA_COR_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
-              </div>
-              <div className="acs-vis-field">
-                <label className="acs-vis-label" htmlFor="ci-cpf">CPF</label>
-                <input id="ci-cpf" className="acs-vis-input" type="text" maxLength={20}
-                  value={form.ci.cpf} onChange={e => updCi("cpf", e.target.value)} placeholder="000.000.000-00" />
-              </div>
-              <div className="acs-vis-field">
-                <label className="acs-vis-label" htmlFor="ci-cns">CNS</label>
-                <input id="ci-cns" className="acs-vis-input" type="text" maxLength={20}
-                  value={form.ci.cns} onChange={e => updCi("cns", e.target.value)} placeholder="000 0000 0000 0000" />
-              </div>
-              <div className="acs-vis-field">
-                <label className="acs-vis-label" htmlFor="ci-pront">Prontuário familiar</label>
-                <input id="ci-pront" className="acs-vis-input" type="text" maxLength={50}
-                  value={form.ci.prontuarioFamiliar} onChange={e => updCi("prontuarioFamiliar", e.target.value)} />
-              </div>
-            </div>
-            <div style={{ marginTop: 12 }}>
-              <p className="acs-vis-label" style={{ marginBottom: 6 }}>TRIA — Triagem de Insegurança Alimentar</p>
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                {[
-                  ["triaMesFimComida",         "Nos últimos 3 meses, preocupou-se que a comida acabasse antes de poder comprar mais?"],
-                  ["triaComeuMenosQuantidade",  "Nos últimos 3 meses, comeu menos do que achou que deveria porque não havia dinheiro suficiente?"],
-                  ["triaFicouSemComida",        "Nos últimos 3 meses, ficou sem comida por não ter dinheiro para comprar mais?"],
-                  ["triaPassouFome",            "Nos últimos 3 meses, passou fome mas não comeu porque não havia dinheiro para comprar comida?"],
-                ].map(([field, label]) => (
-                  <label key={field} className="acs-vis-check-label">
-                    <input type="checkbox" className="acs-vis-checkbox"
-                      checked={!!form.ci[field]} onChange={e => updCi(field, e.target.checked)} />
-                    <span>{label}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          </div>
-        );
-
-      case 10:
-        return (
-          <div className="acs-vis-tab-body">
-            <div className="acs-vis-fields">
-              <div className="acs-vis-field">
-                <label className="acs-vis-label" htmlFor="cd-tipoimovel">Tipo de imóvel</label>
-                <select id="cd-tipoimovel" className="acs-vis-select" value={form.cd.tipoImovel} onChange={e => updCd("tipoImovel", e.target.value)}>
-                  <option value="">Não informado</option>
-                  {TIPO_IMOVEL_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
-              </div>
-              <div className="acs-vis-field">
-                <label className="acs-vis-label" htmlFor="cd-tipodom">Tipo de domicílio</label>
-                <select id="cd-tipodom" className="acs-vis-select" value={form.cd.tipoDomicilio} onChange={e => updCd("tipoDomicilio", e.target.value)}>
-                  <option value="">Não informado</option>
-                  <option value="CASA">Casa</option>
-                  <option value="APARTAMENTO">Apartamento</option>
-                  <option value="COMODO">Cômodo</option>
-                  <option value="MALOCA">Maloca</option>
-                  <option value="IMPROVISADO">Improvisado</option>
-                  <option value="OUTRO">Outro</option>
-                </select>
-              </div>
-              <div className="acs-vis-field">
-                <label className="acs-vis-label" htmlFor="cd-loc">Localização</label>
-                <select id="cd-loc" className="acs-vis-select" value={form.cd.localizacao} onChange={e => updCd("localizacao", e.target.value)}>
-                  <option value="">Não informado</option>
-                  <option value="URBANA">Urbana</option>
-                  <option value="RURAL">Rural</option>
-                </select>
-              </div>
-              <div className="acs-vis-field">
-                <label className="acs-vis-label" htmlFor="cd-nmor">Nº de moradores</label>
-                <input id="cd-nmor" className="acs-vis-input" type="number" min="0" max="50"
-                  value={form.cd.numMoradores} onChange={e => updCd("numMoradores", e.target.value)} placeholder="0" />
-              </div>
-              <div className="acs-vis-field">
-                <label className="acs-vis-label" htmlFor="cd-ncom">Nº de cômodos</label>
-                <input id="cd-ncom" className="acs-vis-input" type="number" min="0" max="50"
-                  value={form.cd.numComodos} onChange={e => updCd("numComodos", e.target.value)} placeholder="0" />
-              </div>
-              <div className="acs-vis-field">
-                <label className="acs-vis-label" htmlFor="cd-agua">Abastecimento de água</label>
-                <select id="cd-agua" className="acs-vis-select" value={form.cd.abastecimentoAgua} onChange={e => updCd("abastecimentoAgua", e.target.value)}>
-                  <option value="">Não informado</option>
-                  {ABAST_AGUA_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
-              </div>
-              <div className="acs-vis-field">
-                <label className="acs-vis-label" htmlFor="cd-trat">Tratamento da água</label>
-                <select id="cd-trat" className="acs-vis-select" value={form.cd.tratamentoAgua} onChange={e => updCd("tratamentoAgua", e.target.value)}>
-                  <option value="">Não informado</option>
-                  {TRATAMENTO_AGUA_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
-              </div>
-              <div className="acs-vis-field">
-                <label className="acs-vis-label" htmlFor="cd-esg">Esgotamento sanitário</label>
-                <select id="cd-esg" className="acs-vis-select" value={form.cd.esgotamento} onChange={e => updCd("esgotamento", e.target.value)}>
-                  <option value="">Não informado</option>
-                  {ESGOTAMENTO_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
-              </div>
-              <div className="acs-vis-field">
-                <label className="acs-vis-label" htmlFor="cd-lixo">Destino do lixo</label>
-                <select id="cd-lixo" className="acs-vis-select" value={form.cd.destinacaoLixo} onChange={e => updCd("destinacaoLixo", e.target.value)}>
-                  <option value="">Não informado</option>
-                  {DESTINO_LIXO_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
-              </div>
-              <div className="acs-vis-field">
-                <label className="acs-vis-label" htmlFor="cd-energia">Energia elétrica</label>
-                <select id="cd-energia" className="acs-vis-select" value={form.cd.energiaEletrica} onChange={e => updCd("energiaEletrica", e.target.value)}>
-                  <option value="">Não informado</option>
-                  <option value="true">Sim</option>
-                  <option value="false">Não</option>
-                </select>
-              </div>
-              <div className="acs-vis-field">
-                <label className="acs-vis-label" htmlFor="cd-moradia">Situação de moradia</label>
-                <select id="cd-moradia" className="acs-vis-select" value={form.cd.situacaoMoradiaPosseTerra} onChange={e => updCd("situacaoMoradiaPosseTerra", e.target.value)}>
-                  <option value="">Não informado</option>
-                  {SITUACAO_MORADIA_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
-              </div>
-            </div>
-            <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
-              <label className="acs-vis-check-label">
-                <input type="checkbox" className="acs-vis-checkbox" checked={form.cd.animaisNoDomicilio}
-                  onChange={e => updCd("animaisNoDomicilio", e.target.checked)} />
-                <span>Animais no domicílio</span>
-              </label>
-              {form.cd.animaisNoDomicilio && (
-                <div style={{ paddingLeft: 20, display: "flex", flexDirection: "column", gap: 6 }}>
-                  <p className="acs-vis-label" style={{ marginBottom: 4 }}>Quais animais:</p>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                    {[["cachorro","Cachorro"],["gato","Gato"],["passaro","Pássaro"],["outros","Outros"]].map(([v, l]) => (
-                      <label key={v} className="acs-vis-check-label">
-                        <input type="checkbox" className="acs-vis-checkbox"
-                          checked={form.cd.tiposAnimais.includes(v)}
-                          onChange={e => updCd("tiposAnimais", e.target.checked
-                            ? [...form.cd.tiposAnimais, v]
-                            : form.cd.tiposAnimais.filter(a => a !== v))} />
-                        <span>{l}</span>
-                      </label>
-                    ))}
-                  </div>
-                  <div className="acs-vis-field" style={{ maxWidth: 160 }}>
-                    <label className="acs-vis-label" htmlFor="cd-qtdanim">Quantidade</label>
-                    <input id="cd-qtdanim" className="acs-vis-input" type="number" min="0" max="999"
-                      value={form.cd.quantidadeAnimais} onChange={e => updCd("quantidadeAnimais", e.target.value)} placeholder="0" />
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        );
-
-      case 11:
-        return (
           <div className="acs-vis-tab-body acs-vis-fg-mini">
             {familyGroup ? (
               <>
@@ -1430,7 +1174,7 @@ function VisitForm({ patient, taskOrigin, userId, token, onSave, onCancel }) {
           </div>
         );
 
-      case 12:
+      case 10:
         return (
           <div className="acs-vis-tab-body">
             <div className="acs-vis-review">
