@@ -6,6 +6,7 @@ import { requireAuth } from "../middlewares/auth.js";
 import { hasCapability } from "../utils/helpers.js";
 import { validate, HouseholdCreateSchema, HouseholdUpdateSchema } from "../schemas.js";
 import { addAuditLog } from "../services/audit.js";
+import { buildAddressKey } from "../utils/family-groups.js";
 
 const router = express.Router();
 
@@ -45,7 +46,13 @@ router.get(
       return res.status(403).json({ error: "Sem permissão para visualizar domicílios desta equipe" });
     }
 
-    const households = db.households.filter((h) => h.patientId === patientId);
+    // Find by direct patientId link OR by patient.householdId pointing to the household
+    const householdId = patient.householdId || null;
+    const households = db.households.filter(
+      (h) => h.patientId === patientId ||
+             (householdId && h.id === householdId) ||
+             (Array.isArray(h.patientIds) && h.patientIds.includes(patientId))
+    );
     return res.json(households);
   }
 );
@@ -70,10 +77,56 @@ router.post(
       }
 
       const now = new Date().toISOString();
+      const teamId = String(patient.teamId || req.user.teamId || "");
+
+      // APS-01J-E: compute addressKey from payload structured fields or patient's own address
+      const addrSource = {
+        logradouro: payload.logradouro || patient.logradouro || "",
+        numero: payload.numero || patient.numero || "",
+        bairro: payload.bairro || patient.bairro || "",
+        cep: payload.cep || patient.cep || "",
+      };
+      const addressKey = buildAddressKey(addrSource);
+
+      // Dedup: look for existing household in same team with same non-empty address
+      let existingIdx = -1;
+      if (addressKey) {
+        existingIdx = db.households.findIndex(
+          (h) => h.teamId === teamId && h.addressKey === addressKey
+        );
+      }
+
+      if (existingIdx >= 0) {
+        // Reuse existing household — link this patient to it
+        const existing = db.households[existingIdx];
+        if (!Array.isArray(existing.patientIds)) existing.patientIds = [existing.patientId].filter(Boolean);
+        if (!existing.patientIds.includes(payload.patientId)) {
+          existing.patientIds.push(payload.patientId);
+          existing.updatedAt = now;
+        }
+        // Update patient.householdId
+        const patientIdx = db.patients.findIndex((p) => p.id === payload.patientId);
+        if (patientIdx >= 0) db.patients[patientIdx].householdId = existing.id;
+
+        addAuditLog(db, buildHouseholdActor(req), "household.patientLinked", "household", existing.id, {
+          patientId: payload.patientId, teamId, addressKey, outcome: "reused_existing",
+        });
+
+        return { household: existing, reused: true };
+      }
+
       const household = {
         id: uuidv4(),
         patientId: String(payload.patientId || "").trim(),
-        teamId: String(patient.teamId || req.user.teamId || ""),
+        patientIds: [String(payload.patientId || "").trim()],
+        teamId,
+        addressKey: addressKey || "",
+        logradouro: addrSource.logradouro,
+        numero: addrSource.numero,
+        bairro: addrSource.bairro,
+        cep: addrSource.cep,
+        municipioIbge: payload.municipioIbge || patient.municipioIbge || "",
+        uf: payload.uf || patient.uf || "",
         familyCode: String(payload.familyCode || "").trim(),
         housingType: payload.tipoImovel || payload.housingType || "",
         tipoImovel: payload.tipoImovel || payload.housingType || "",
@@ -104,9 +157,15 @@ router.post(
       };
 
       db.households.push(household);
+
+      // Link patient to this household
+      const patientIdx = db.patients.findIndex((p) => p.id === payload.patientId);
+      if (patientIdx >= 0) db.patients[patientIdx].householdId = household.id;
+
       addAuditLog(db, buildHouseholdActor(req), "household.created", "household", household.id, {
         patientId: household.patientId,
         teamId: household.teamId,
+        addressKey: household.addressKey,
         outcome: "success",
         after: { ...household }
       });
@@ -143,6 +202,19 @@ router.patch(
 
       const now = new Date().toISOString();
       const next = { ...current, updatedAt: now };
+
+      // APS-01J-E: address fields on household
+      let addrChanged = false;
+      if (payload.logradouro !== undefined) { next.logradouro = payload.logradouro; addrChanged = true; }
+      if (payload.numero !== undefined) { next.numero = payload.numero; addrChanged = true; }
+      if (payload.bairro !== undefined) { next.bairro = payload.bairro; addrChanged = true; }
+      if (payload.cep !== undefined) { next.cep = payload.cep; addrChanged = true; }
+      if (payload.municipioIbge !== undefined) next.municipioIbge = payload.municipioIbge;
+      if (payload.uf !== undefined) next.uf = payload.uf;
+      if (addrChanged) {
+        next.addressKey = buildAddressKey({ logradouro: next.logradouro, numero: next.numero, bairro: next.bairro, cep: next.cep });
+      }
+
       if (payload.familyCode !== undefined)  next.familyCode  = String(payload.familyCode  || "").trim();
       if (payload.tipoImovel !== undefined) { next.tipoImovel = payload.tipoImovel; next.housingType = payload.tipoImovel; }
       if (payload.housingType !== undefined && payload.tipoImovel === undefined) { next.housingType = payload.housingType; next.tipoImovel = payload.housingType; }

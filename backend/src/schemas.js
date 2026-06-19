@@ -213,6 +213,8 @@ const PatientBaseShape = {
   // APS-01J-C: TRIA — Triagem de Insegurança Alimentar (2 perguntas e-SUS CDS)
   triaAlimentosAcabaram: z.boolean().optional(),
   triaConsomiuApenasAlgunsDosAlimentos: z.boolean().optional(),
+  // APS-01J-E: link para Domicílio compartilhado (householdId da coleção households)
+  householdId: optionalShortString(100),
 };
 
 // C13: CPF ou CNS obrigatório em criação (Portaria 940/2011 — identificação do cidadão no SUS)
@@ -727,6 +729,13 @@ const HouseholdCreateSchema = z.object({
   localizacao: z.enum(LOCALIZACAO_VALUES).optional(),
   situacaoMoradiaPosseTerra: z.enum(SITUACAO_MORADIA_VALUES).optional(),
   tipoEndereco: z.enum(TIPO_ENDERECO_VALUES).optional(),
+  // APS-01J-E: endereço canônico do domicílio (para deduplicação por endereço)
+  logradouro: optionalShortString(250),
+  numero: optionalShortString(30),
+  bairro: optionalShortString(100),
+  cep: normalizedCepField(),
+  municipioIbge: optionalShortString(7),
+  uf: optionalShortString(2),
   // APS-01G: fora da área + animais
   foraArea: z.boolean().optional(),
   animaisNoDomicilio: z.boolean().optional(),
@@ -756,6 +765,13 @@ const HouseholdUpdateSchema = z.object({
   localizacao: z.enum(LOCALIZACAO_VALUES).optional(),
   situacaoMoradiaPosseTerra: z.enum(SITUACAO_MORADIA_VALUES).optional(),
   tipoEndereco: z.enum(TIPO_ENDERECO_VALUES).optional(),
+  // APS-01J-E: endereço canônico do domicílio
+  logradouro: optionalShortString(250),
+  numero: optionalShortString(30),
+  bairro: optionalShortString(100),
+  cep: normalizedCepField(),
+  municipioIbge: optionalShortString(7),
+  uf: optionalShortString(2),
   foraArea: z.boolean().optional(),
   animaisNoDomicilio: z.boolean().optional(),
   tiposAnimais: z.array(z.enum(TIPOS_ANIMAIS_VALUES)).max(10).optional(),

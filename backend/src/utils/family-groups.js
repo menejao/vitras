@@ -6,9 +6,25 @@ import { addAuditLog } from "../services/audit.js";
 // "Rua Camargo, 71, apto 5" → "rua camargo 71"
 const COMPLEMENT_RE = /,?\s*(apto?\.?\s*\S+|ap\.?\s*\d+|casa\s*\S+|bl(?:oco)?\s*\S+|loja\s*\S+|sala\s*\S+|flat\s*\S+)\s*$/i;
 
-export function buildAddressKey(address) {
-  if (!address || typeof address !== "string") return "";
-  const stripped = address.replace(COMPLEMENT_RE, "").trim();
+// Accepts either a free-text string or a structured address object
+// { logradouro, numero, bairro, cep, municipioIbge }.
+export function buildAddressKey(addressOrObj) {
+  if (!addressOrObj) return "";
+
+  if (typeof addressOrObj === "object") {
+    // Prefer CEP + logradouro + numero when structured fields available
+    const parts = [
+      String(addressOrObj.logradouro || "").trim(),
+      String(addressOrObj.numero || "").trim(),
+      String(addressOrObj.bairro || "").trim(),
+      String(addressOrObj.cep || "").replace(/\D/g, ""),
+    ].filter(Boolean).join(" ");
+    if (!parts) return "";
+    return buildAddressKey(parts);
+  }
+
+  if (typeof addressOrObj !== "string") return "";
+  const stripped = addressOrObj.replace(COMPLEMENT_RE, "").trim();
   if (!stripped) return "";
   return stripped
     .normalize("NFD")
@@ -19,14 +35,21 @@ export function buildAddressKey(address) {
     .trim();
 }
 
-// Syncs a patient's family group membership based on their address.
+// Syncs a patient's family group membership.
+// Primary grouping key: patient.householdId (when set, all patients sharing the household → one group).
+// Fallback: patient.address free-text normalized via buildAddressKey.
 // Must be called INSIDE a withDb callback (operates on mutable db directly).
 export function syncPatientFamilyGroup(db, patient, actorUser, reason) {
   ensureDbShape(db);
 
-  const addressKey = buildAddressKey(patient.address);
   const now = new Date().toISOString();
   const actorId = actorUser?.id || "system";
+
+  // Determine grouping key and lookup strategy
+  const useHouseholdId = Boolean(patient.householdId);
+  const addressKey = useHouseholdId
+    ? null
+    : buildAddressKey(patient.address);
 
   const currentGroupIdx = db.familyGroups.findIndex(
     (g) => g.teamId === patient.teamId &&
@@ -34,7 +57,8 @@ export function syncPatientFamilyGroup(db, patient, actorUser, reason) {
            g.memberPatientIds.includes(patient.id)
   );
 
-  if (!addressKey) {
+  // No grouping key available → remove from any current group
+  if (!useHouseholdId && !addressKey) {
     if (currentGroupIdx >= 0) {
       const grp = db.familyGroups[currentGroupIdx];
       grp.memberPatientIds = grp.memberPatientIds.filter((id) => id !== patient.id);
@@ -50,11 +74,17 @@ export function syncPatientFamilyGroup(db, patient, actorUser, reason) {
     return;
   }
 
-  const targetGroupIdx = db.familyGroups.findIndex(
-    (g) => g.teamId === patient.teamId && g.addressKey === addressKey
-  );
+  // Find the target group: by householdId (primary) or addressKey (fallback)
+  const targetGroupIdx = useHouseholdId
+    ? db.familyGroups.findIndex(
+        (g) => g.teamId === patient.teamId && g.householdId === patient.householdId
+      )
+    : db.familyGroups.findIndex(
+        (g) => g.teamId === patient.teamId && g.addressKey === addressKey
+      );
 
   if (targetGroupIdx < 0) {
+    // Remove from old group if any
     if (currentGroupIdx >= 0) {
       const old = db.familyGroups[currentGroupIdx];
       old.memberPatientIds = old.memberPatientIds.filter((id) => id !== patient.id);
@@ -64,11 +94,23 @@ export function syncPatientFamilyGroup(db, patient, actorUser, reason) {
       old.updatedAt = now;
     }
 
+    // Resolve household address for display
+    const household = useHouseholdId
+      ? db.households?.find((h) => h.id === patient.householdId)
+      : null;
+    const groupAddressKey = useHouseholdId
+      ? buildAddressKey({ logradouro: household?.logradouro, numero: household?.numero, bairro: household?.bairro, cep: household?.cep })
+      : addressKey;
+    const groupAddress = household
+      ? [household.logradouro, household.numero, household.bairro].filter(Boolean).join(", ")
+      : (patient.address || "");
+
     const newGroup = {
       id: uuidv4(),
       teamId: patient.teamId,
-      addressKey,
-      address: patient.address,
+      householdId: patient.householdId || null,
+      addressKey: groupAddressKey,
+      address: groupAddress,
       microArea: patient.microArea || "",
       assignedAcsId: patient.assignedAcsId || "",
       memberPatientIds: [patient.id],
@@ -82,7 +124,8 @@ export function syncPatientFamilyGroup(db, patient, actorUser, reason) {
     };
     db.familyGroups.push(newGroup);
     addAuditLog(db, actorUser || { id: "system" }, "familyGroup.created", "familyGroup", newGroup.id, {
-      address: newGroup.address, addressKey, patientId: patient.id, reason,
+      address: newGroup.address, addressKey: groupAddressKey, householdId: newGroup.householdId,
+      patientId: patient.id, reason,
     });
     return;
   }
