@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { API_URL } from "../api";
 import PageHeader from "../components/layout/PageHeader";
 import KPI from "../components/ui/KPI";
 import { parseLocalDate } from "../utils/dates";
@@ -137,7 +138,7 @@ function FamilyGroupWorkspace({ groupId, token, onBack, onNavigatePatient, onSta
     if (!groupId || !token) return;
     setLoading(true);
     setError("");
-    fetch(`/family-groups/${groupId}`, { headers: { Authorization: `Bearer ${token}` } })
+    fetch(`${API_URL}/family-groups/${groupId}`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.ok ? r.json() : r.json().then(d => Promise.reject(d?.error || "Erro")))
       .then(d => { setData(d); setLoading(false); })
       .catch(e => { setError(typeof e === "string" ? e : "Erro ao carregar grupo."); setLoading(false); });
@@ -382,7 +383,7 @@ function FamilyGroupsSection({ token, user, patients, onNavigatePatient, onStart
 
   useEffect(() => {
     if (!token) return;
-    fetch("/family-groups", { headers: { Authorization: `Bearer ${token}` } })
+    fetch(`${API_URL}/family-groups`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.ok ? r.json() : [])
       .then(data => { setGroups(Array.isArray(data) ? data : []); setLoading(false); })
       .catch(() => setLoading(false));
@@ -859,7 +860,7 @@ function VisitForm({ patient, taskOrigin, userId, token, onSave, onCancel }) {
     };
 
     try {
-      const res = await fetch("/acs-visits", {
+      const res = await fetch(`${API_URL}/acs-visits`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -1104,7 +1105,7 @@ function VisitasTab({ patients, user, token, preSelectPatient, clearPreSelect })
 
   useEffect(() => {
     if (!token) { setLoadingVisits(false); return; }
-    fetch("/acs-visits", { headers: { Authorization: `Bearer ${token}` } })
+    fetch(`${API_URL}/acs-visits`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.ok ? r.json() : [])
       .then(data => { setVisits(Array.isArray(data) ? data : []); setLoadingVisits(false); })
       .catch(() => setLoadingVisits(false));
@@ -1252,8 +1253,8 @@ function ProductionSection({ token, user }) {
     setError(null);
     try {
       const [prodRes, statsRes] = await Promise.all([
-        fetch(`/production/acs?period=${period}`, { headers: { Authorization: `Bearer ${token}` } }),
-        fetch(`/active-search/stats`,             { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${API_URL}/production/acs?period=${period}`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${API_URL}/active-search/stats`,             { headers: { Authorization: `Bearer ${token}` } }),
       ]);
       if (!prodRes.ok) throw new Error("Erro ao carregar produção");
       const [prod, st] = await Promise.all([prodRes.json(), statsRes.ok ? statsRes.json() : null]);
@@ -1449,8 +1450,8 @@ function ActiveSearchSection({ token, user, onOpenGroup, onStartVisit }) {
       if (filterAcs)     params.set("acsId",    filterAcs);
 
       const [listRes, statsRes] = await Promise.all([
-        fetch(`/active-search?${params}`, { headers: { Authorization: `Bearer ${token}` } }),
-        fetch("/active-search/stats",     { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${API_URL}/active-search?${params}`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${API_URL}/active-search/stats`,     { headers: { Authorization: `Bearer ${token}` } }),
       ]);
 
       if (!listRes.ok || !statsRes.ok) throw new Error("Erro ao carregar busca ativa");
@@ -1606,7 +1607,7 @@ function AcsTasksPage({ patients, users, user, token, onNavigatePatient }) {
     if (!myPatients.length) { setAllTasks([]); setLoading(false); return; }
     setLoading(true);
     Promise.all(myPatients.map(p =>
-      fetch(`/patients/${p.id}/tasks`, { headers: { Authorization: `Bearer ${token}` } })
+      fetch(`${API_URL}/patients/${p.id}/tasks`, { headers: { Authorization: `Bearer ${token}` } })
         .then(r => r.ok ? r.json() : [])
         .then(tasks => (Array.isArray(tasks) ? tasks : []).map(t => ({
           ...t,
@@ -1652,7 +1653,7 @@ function AcsTasksPage({ patients, users, user, token, onNavigatePatient }) {
 
   async function changeStatus(task, status) {
     try {
-      await fetch(`/patients/${task.patientId}/tasks/${task.id}`, {
+      await fetch(`${API_URL}/patients/${task.patientId}/tasks/${task.id}`, {
         method: "PATCH",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify({ status }),
