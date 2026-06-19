@@ -806,6 +806,12 @@ router.patch("/patients/:id/cadastro-individual", validate(PatientCIUpdateSchema
 
       const current = db.patients[index];
 
+      // Optimistic locking: if client sends updatedAt, detect concurrent edits
+      const clientUpdatedAt = payload?.updatedAt;
+      if (clientUpdatedAt && current.updatedAt && clientUpdatedAt !== current.updatedAt) {
+        return "conflict";
+      }
+
       // ACS can only edit patients in own team
       if (isAcs(req.user) && current.teamId !== req.user.teamId) {
         addAuditLog(db, req.user, "patient.access_denied", "patient", id, { outcome: "denied", reason: "access_control", actorRole: String(req.user?.role || "") });
@@ -857,6 +863,7 @@ router.patch("/patients/:id/cadastro-individual", validate(PatientCIUpdateSchema
   }
 
   if (!updated) return res.status(404).json({ error: "Paciente não encontrado" });
+  if (updated === "conflict") return res.status(409).json({ error: "Este registro foi alterado por outro usuário. Atualize os dados antes de salvar novamente.", code: "CONFLICT" });
   if (updated === "forbidden") return res.status(403).json({ error: "Sem permissão para editar este paciente" });
 
   return res.json(filterNis(filterCnsResponsavel(updated, req.user), req.user));

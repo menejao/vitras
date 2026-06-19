@@ -2615,11 +2615,15 @@ function CadastroIndividualSection({ token, user, patients }) {
       const res = await fetch(`/api/patients/${selectedPatient.id}/cadastro-individual`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ ...payload, updatedAt: selectedPatient.updatedAt }),
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setSaveError(body.error || `Erro ${res.status}`);
+        if (res.status === 409) {
+          setSaveError("Este registro foi alterado por outro usuário. Atualize os dados antes de salvar novamente.");
+        } else {
+          setSaveError(body.error || `Erro ${res.status}`);
+        }
       } else {
         setSelectedPatient(body);
         setForm(emptyCiForm(body));

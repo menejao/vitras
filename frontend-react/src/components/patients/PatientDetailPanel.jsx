@@ -1613,14 +1613,18 @@ function HouseholdTab({ patient, token, canWriteRecords }) {
       };
       let updated;
       if (household) {
-        updated = await patchHousehold(household.id, payload, token);
+        updated = await patchHousehold(household.id, { ...payload, updatedAt: household.updatedAt }, token);
       } else {
         updated = await createHousehold({ ...payload, patientId: patient.id }, token);
       }
       setHousehold(updated);
       setEditing(false);
     } catch (err) {
-      setError(err?.message || "Erro ao salvar domicílio.");
+      if (err?.status === 409) {
+        setError("Este registro foi alterado por outro usuário. Atualize os dados antes de salvar novamente.");
+      } else {
+        setError(err?.message || "Erro ao salvar domicílio.");
+      }
     } finally {
       setSaving(false);
     }

@@ -223,6 +223,12 @@ router.patch(
         return { error: { status: 403, message: "Sem permissão para editar este domicílio" } };
       }
 
+      // Optimistic locking: if client sends updatedAt, detect concurrent edits
+      const clientUpdatedAt = payload.updatedAt;
+      if (clientUpdatedAt && current.updatedAt && clientUpdatedAt !== current.updatedAt) {
+        return { error: { status: 409, message: "Este registro foi alterado por outro usuário. Atualize os dados antes de salvar novamente.", code: "CONFLICT" } };
+      }
+
       const now = new Date().toISOString();
       const next = { ...current, updatedAt: now };
 

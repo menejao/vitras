@@ -853,6 +853,8 @@ paths:
           description: Sem permissão
         "404":
           description: Paciente não encontrado
+        "409":
+          description: Conflito de concorrência — registro foi alterado por outro usuário
 
   /patients/{id}/appointments:
     get:
@@ -1228,6 +1230,8 @@ paths:
           description: Sem permissão
         "404":
           description: Domicílio não encontrado
+        "409":
+          description: Conflito de concorrência — registro foi alterado por outro usuário
 
   # ─── ACS ──────────────────────────────────────────────────────────────────
 
@@ -1324,6 +1328,12 @@ paths:
       responses:
         "200":
           description: Visita atualizada
+        "403":
+          description: Sem permissão
+        "404":
+          description: Visita não encontrada
+        "409":
+          description: Conflito de concorrência — registro foi alterado por outro usuário
 
   /acs-visits/patient/{patientId}:
     get:

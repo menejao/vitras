@@ -392,6 +392,7 @@ const PatientCIUpdateSchema = z.object({
   situacaoRua: z.boolean().optional(),
   triaAlimentosAcabaram: z.boolean().optional(),
   triaConsomiuApenasAlgunsDosAlimentos: z.boolean().optional(),
+  updatedAt: z.string().optional(),
 }).strict();
 
 const TaskCreateSchema = z.object({
@@ -878,6 +879,7 @@ const HouseholdUpdateSchema = z.object({
   origemEnergiaEletrica: z.enum(ORIGEM_ENERGIA_VALUES).optional(),
   familias: z.array(FamiliaSchema).max(20).optional(),
   instituicaoPermanencia: optionalShortString(500),
+  updatedAt: z.string().optional(),
 }).strict();
 
 // F4-04 / F4-06: Unit fields — CNES from deployment env (DEFAULT_UNIT_CNES), never hardcoded

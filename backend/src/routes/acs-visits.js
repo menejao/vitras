@@ -255,6 +255,12 @@ router.patch("/acs-visits/:id", requireAuth, validate(AcsVisitUpdateSchema), asy
       return { error: { status: 403, message: "Sem permissão para editar esta visita" } };
     }
 
+    // Optimistic locking: if client sends updatedAt, detect concurrent edits
+    const clientUpdatedAt = payload.updatedAt;
+    if (clientUpdatedAt && current.updatedAt && clientUpdatedAt !== current.updatedAt) {
+      return { error: { status: 409, message: "Este registro foi alterado por outro usuário. Atualize os dados antes de salvar novamente.", code: "CONFLICT" } };
+    }
+
     const now = new Date().toISOString();
     const next = { ...current, updatedAt: now };
     if (payload.desfecho          !== undefined) next.desfecho          = payload.desfecho;
