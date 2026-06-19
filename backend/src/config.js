@@ -2,7 +2,7 @@
 const IS_PROD = String(process.env.NODE_ENV || "").trim().toLowerCase() === "production";
 const PORT = process.env.PORT || 3001;
 const JWT_SECRET = String(process.env.JWT_SECRET || "").trim() || "dev-only-jwt-secret-change-me";
-const JWT_EXPIRES_IN = String(process.env.JWT_EXPIRES_IN || "12h").trim() || "12h";
+const JWT_EXPIRES_IN = String(process.env.JWT_EXPIRES_IN || "15m").trim() || "15m";
 const JWT_ISSUER = String(process.env.JWT_ISSUER || "vitras-backend").trim() || "vitras-backend";
 const JWT_AUDIENCE = String(process.env.JWT_AUDIENCE || "vitras-client").trim() || "vitras-client";
 const FRONTEND_ORIGINS = String(process.env.FRONTEND_ORIGINS || "")

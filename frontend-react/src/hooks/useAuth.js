@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { login, verifyLogin2fa, register, refreshSession, logoutApi } from "../api";
+import { login, verifyLogin2fa, register, refreshSession, logoutApi, setOnAuthRefreshed } from "../api";
 import { readSession } from "../utils/storage";
 import { SESSION_KEY, UI_STATE_KEY, RECEPTION_KEY, IDLE_ACTIVITY_KEY, IDLE_LOGOUT_KEY } from "../config/constants";
 import { onlyDigits } from "../utils/formatting";
@@ -76,6 +76,10 @@ export function useAuth({ onSessionExpired, onLoginSuccess } = {}) {
     applyCookieSession(nextUser);
   }
 
+  // Register the refresh callback so api() can update React state after a background refresh.
+  // setOnAuthRefreshed is idempotent — safe to call on every render since the function is stable.
+  setOnAuthRefreshed(applySessionFromPayload);
+
   async function handleLogin(email, password) {
     setError(""); setBusy(true);
     try {
@@ -138,6 +142,17 @@ export function useAuth({ onSessionExpired, onLoginSuccess } = {}) {
   }
 
   async function handleApiError(e) {
+    // api() intercepts 401s, refreshes, and retries automatically.
+    // If we arrive here with _refreshFailed, the refresh token itself expired → logout.
+    // If we arrive here with a raw 401 (no interceptor active yet, or non-session 401), attempt
+    // a fallback refresh to handle edge cases during app bootstrap.
+    if (e?._refreshFailed) {
+      setToken(""); setUser(null);
+      sessionStorage.removeItem(SESSION_KEY);
+      setError("Sessão expirada. Faça login novamente.");
+      onSessionExpired?.();
+      return true;
+    }
     const msg = String(e?.message || e || "").toLowerCase();
     const is401 = e?.status === 401 || msg.includes("token ausente") || msg.includes("token inválido") ||
                   msg.includes("expirad") || msg.includes("não autorizado");

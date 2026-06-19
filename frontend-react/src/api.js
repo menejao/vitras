@@ -4,6 +4,53 @@ const SESSION_KEY = "vitras_react_session";
 // 429 excluded: retrying rate-limited requests amplifies the storm
 const RETRYABLE_STATUSES = new Set([408, 425, 500, 502, 503, 504]);
 
+// ─── Auth interceptor ────────────────────────────────────────────────────────
+// Registered once by useAuth. On 401, api() calls _attemptRefresh() (deduped),
+// then _onAuthRefreshed(payload) to update React state, then retries the request.
+let _onAuthRefreshed = null;
+let _refreshPromise = null;
+
+/**
+ * Register the auth refresh callback. Called once from useAuth on mount.
+ * onRefreshed receives the full /auth/refresh payload and must update app state.
+ */
+export function setOnAuthRefreshed(onRefreshed) {
+  _onAuthRefreshed = onRefreshed;
+}
+
+function _readSessionRaw() {
+  try {
+    const raw = sessionStorage.getItem(SESSION_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Deduped /auth/refresh call. All concurrent callers share the same promise. */
+function _attemptRefresh() {
+  if (_refreshPromise) return _refreshPromise;
+  _refreshPromise = fetch(`${API_URL}/auth/refresh`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ refreshToken: _readSessionRaw()?.refreshToken || "" }),
+  })
+    .then((r) => {
+      if (!r.ok) {
+        return r.json().catch(() => ({})).then((body) => {
+          const err = new Error(body?.error || "Sessão expirada");
+          err.status = r.status;
+          err._refreshFailed = true;
+          throw err;
+        });
+      }
+      return r.json();
+    })
+    .finally(() => { _refreshPromise = null; });
+  return _refreshPromise;
+}
+
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -35,6 +82,7 @@ export async function api(path, options = {}, token = "") {
     retryCount = 0,
     retryDelayMs = 350,
     retryStatuses,
+    _skipRefresh = false, // internal guard: prevents 401-refresh loop
     ...fetchOptions
   } = options || {};
 
@@ -73,6 +121,42 @@ export async function api(path, options = {}, token = "") {
     }
 
     if (!response.ok) {
+      // 401: attempt token refresh + single retry (deduped, no loop)
+      if (response.status === 401 && !_skipRefresh && _onAuthRefreshed) {
+        try {
+          const payload = await _attemptRefresh();
+          _onAuthRefreshed(payload);
+          // Build retry headers with new token
+          const retryHeaders = { ...headers };
+          const newToken = String(payload?.token || "");
+          if (newToken) {
+            retryHeaders.Authorization = `Bearer ${newToken}`;
+          } else {
+            delete retryHeaders.Authorization; // cookie mode: browser sends new cookie
+          }
+          // CSRF may have rotated after refresh (cookie mode)
+          const newCsrf = getCsrfToken();
+          if (newCsrf && !["GET", "HEAD", "OPTIONS"].includes(method)) {
+            retryHeaders["X-CSRF-Token"] = newCsrf;
+          }
+          const retryRes = await fetch(`${API_URL}${path}`, {
+            ...fetchOptions,
+            headers: retryHeaders,
+            credentials: "include",
+          });
+          if (retryRes.ok) return retryRes.json();
+          const retryBody = await retryRes.json().catch(() => ({}));
+          const retryErr = new Error(retryBody?.error || "Erro na API");
+          retryErr.status = retryRes.status;
+          throw retryErr;
+        } catch (refreshErr) {
+          const err = new Error(refreshErr?.message || "Sessão expirada");
+          err.status = refreshErr?.status || 401;
+          err._refreshFailed = true;
+          throw err;
+        }
+      }
+
       if (attempt < retryCount && shouldRetryStatus(response.status, retryStatuses)) {
         const waitMs = retryDelayMs * (attempt + 1) + Math.floor(Math.random() * 120);
         await sleep(waitMs);
@@ -112,9 +196,12 @@ export async function register(payload) {
 }
 
 export async function refreshSession(refreshToken) {
+  // Reuse in-flight dedup promise if one exists; otherwise start fresh with explicit token
+  if (_refreshPromise) return _refreshPromise;
   return api("/auth/refresh", {
     method: "POST",
-    body: JSON.stringify(refreshToken ? { refreshToken } : {})
+    body: JSON.stringify(refreshToken ? { refreshToken } : {}),
+    _skipRefresh: true, // prevent 401 loop on refresh itself
   });
 }
 
