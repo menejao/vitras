@@ -1574,33 +1574,61 @@ function emptyCdForm(h) {
   };
 }
 
+function cdStatusInfo(households) {
+  if (!households || households.length === 0) return { status: "none", label: "Sem domicílio cadastrado", action: "Cadastrar Domicílio" };
+  const hh = households[0];
+  const keyFields = [hh.tipoImovel, hh.tipoDomicilio, hh.localizacao, hh.abastecimentoAgua, hh.esgotamento];
+  const filled = keyFields.filter(Boolean).length;
+  if (filled >= 4) return { status: "complete", label: "Cadastro Domiciliar preenchido", action: null };
+  if (filled >= 1) return { status: "incomplete", label: "Cadastro Domiciliar incompleto", action: "Continuar preenchimento" };
+  return { status: "none", label: "Cadastro Domiciliar não preenchido", action: "Preencher Cadastro Domiciliar" };
+}
+
 function CadastroDomiciliarSection({ token, user, patients }) {
+  const [search, setSearch]           = useState("");
+  const [dropFocused, setDropFocused] = useState(false);
+  const searchRef                     = useRef(null);
   const [selectedPatient, setSelectedPatient] = useState(null);
-  const [households, setHouseholds]           = useState([]);
-  const [selectedHh, setSelectedHh]           = useState(null);
-  const [editing, setEditing]                 = useState(false);
-  const [creating, setCreating]               = useState(false);
-  const [form, setForm]                       = useState(emptyCdForm(null));
-  const [loading, setLoading]                 = useState(false);
-  const [saving, setSaving]                   = useState(false);
-  const [error, setError]                     = useState("");
-  const [saveOk, setSaveOk]                   = useState(false);
+  const [households, setHouseholds]   = useState([]);
+  const [selectedHh, setSelectedHh]   = useState(null);
+  const [loading, setLoading]         = useState(false);
+  const [showModal, setShowModal]     = useState(false);
+  const [modalMode, setModalMode]     = useState("view");
+  const [form, setForm]               = useState(emptyCdForm(null));
+  const [saving, setSaving]           = useState(false);
+  const [saveError, setSaveError]     = useState("");
+  const [saveOk, setSaveOk]           = useState(false);
+
+  const results = useMemo(() => {
+    const q = search.trim();
+    if (q.length < 2) return [];
+    const norm = s => String(s||"").toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu,"").trim();
+    const nq = norm(q);
+    const qd = q.replace(/\D/g,"");
+    return patients.filter(p => {
+      if (matchesPatientSearch(p, q)) return true;
+      if (nq.length >= 3 && norm(p.logradouro||p.address||"").includes(nq)) return true;
+      if (nq.length >= 3 && norm(p.bairro||p.neighborhood||"").includes(nq)) return true;
+      const cep = (p.cep||"").replace(/\D/g,"");
+      if (qd.length >= 5 && cep.includes(qd)) return true;
+      return false;
+    }).slice(0, 8);
+  }, [search, patients]);
+
+  const showDrop = dropFocused && search.trim().length >= 2 && !selectedPatient;
+  const dropRect = showDrop ? searchRef.current?.getBoundingClientRect() : null;
 
   async function loadHouseholds(patient) {
     if (!patient) return;
     setLoading(true);
-    setError("");
     try {
       const res = await fetch(`/api/households?patientId=${patient.id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const body = await res.json().catch(() => ([]));
       setHouseholds(Array.isArray(body) ? body : []);
-      setSelectedHh(null);
-      setEditing(false);
-      setCreating(false);
     } catch {
-      setError("Erro ao carregar domicílios.");
+      setHouseholds([]);
     } finally {
       setLoading(false);
     }
@@ -1608,7 +1636,41 @@ function CadastroDomiciliarSection({ token, user, patients }) {
 
   function selectPatient(p) {
     setSelectedPatient(p);
+    setSearch(p.name);
+    setDropFocused(false);
+    setSaveError(""); setSaveOk(false);
     loadHouseholds(p);
+  }
+
+  function clearSelection() {
+    setSelectedPatient(null);
+    setHouseholds([]);
+    setSearch("");
+    setShowModal(false);
+    setSaveError(""); setSaveOk(false);
+  }
+
+  function openCreate() {
+    setSelectedHh(null);
+    setForm(emptyCdForm(null));
+    setModalMode("create");
+    setSaveError(""); setSaveOk(false);
+    setShowModal(true);
+  }
+
+  function openView(hh) {
+    setSelectedHh(hh);
+    setModalMode("view");
+    setSaveError(""); setSaveOk(false);
+    setShowModal(true);
+  }
+
+  function openEdit(hh) {
+    setSelectedHh(hh);
+    setForm(emptyCdForm(hh));
+    setModalMode("edit");
+    setSaveError(""); setSaveOk(false);
+    setShowModal(true);
   }
 
   function fld(key, value) { setForm(f => ({ ...f, [key]: value })); }
@@ -1628,7 +1690,6 @@ function CadastroDomiciliarSection({ token, user, patients }) {
     else delete p.numComodos;
     if (p.quantidadeAnimais !== "") p.quantidadeAnimais = parseInt(p.quantidadeAnimais, 10);
     else delete p.quantidadeAnimais;
-    // strip empty strings from enum fields
     for (const key of ["tipoImovel","tipoDomicilio","localizacao","abastecimentoAgua",
       "tratamentoAgua","esgotamento","destinacaoLixo","homeVisitFreq",
       "situacaoMoradiaPosseTerra","tipoEndereco"]) {
@@ -1640,7 +1701,7 @@ function CadastroDomiciliarSection({ token, user, patients }) {
 
   async function handleCreate(e) {
     e.preventDefault();
-    setSaving(true); setError(""); setSaveOk(false);
+    setSaving(true); setSaveError(""); setSaveOk(false);
     try {
       const payload = { ...buildPayload(), patientId: selectedPatient.id };
       const res = await fetch("/api/households", {
@@ -1649,19 +1710,22 @@ function CadastroDomiciliarSection({ token, user, patients }) {
         body: JSON.stringify(payload),
       });
       const body = await res.json().catch(() => ({}));
-      if (!res.ok) { setError(body.error || `Erro ${res.status}`); return; }
-      setHouseholds(prev => [...prev, body]);
+      if (!res.ok) { setSaveError(body.error || `Erro ${res.status}`); return; }
+      setHouseholds(prev => {
+        const idx = prev.findIndex(h => h.id === body.id);
+        return idx >= 0 ? prev.map(h => h.id === body.id ? body : h) : [...prev, body];
+      });
       setSelectedHh(body);
-      setCreating(false);
+      setModalMode("view");
       setSaveOk(true);
-      setTimeout(() => setSaveOk(false), 3000);
-    } catch { setError("Erro de conexão"); }
+      setTimeout(() => setSaveOk(false), 4000);
+    } catch { setSaveError("Erro de conexão"); }
     finally { setSaving(false); }
   }
 
   async function handleUpdate(e) {
     e.preventDefault();
-    setSaving(true); setError(""); setSaveOk(false);
+    setSaving(true); setSaveError(""); setSaveOk(false);
     try {
       const payload = buildPayload();
       const res = await fetch(`/api/households/${selectedHh.id}`, {
@@ -1670,272 +1734,309 @@ function CadastroDomiciliarSection({ token, user, patients }) {
         body: JSON.stringify(payload),
       });
       const body = await res.json().catch(() => ({}));
-      if (!res.ok) { setError(body.error || `Erro ${res.status}`); return; }
+      if (!res.ok) { setSaveError(body.error || `Erro ${res.status}`); return; }
       setHouseholds(prev => prev.map(h => h.id === body.id ? body : h));
       setSelectedHh(body);
-      setEditing(false);
+      setModalMode("view");
       setSaveOk(true);
-      setTimeout(() => setSaveOk(false), 3000);
-    } catch { setError("Erro de conexão"); }
+      setTimeout(() => setSaveOk(false), 4000);
+    } catch { setSaveError("Erro de conexão"); }
     finally { setSaving(false); }
   }
 
-  function startCreate() {
-    setSelectedHh(null);
-    setForm(emptyCdForm(null));
-    setCreating(true);
-    setEditing(false);
-    setError("");
-    setSaveOk(false);
-  }
-
-  function startEdit(hh) {
-    setSelectedHh(hh);
-    setForm(emptyCdForm(hh));
-    setEditing(true);
-    setCreating(false);
-    setError("");
-    setSaveOk(false);
-  }
-
-  function cancelForm() {
-    setEditing(false);
-    setCreating(false);
-    setError("");
-  }
-
-  const showForm = editing || creating;
-  const formTitle = creating ? "Novo Domicílio" : "Editar Domicílio";
-  const handleSubmit = creating ? handleCreate : handleUpdate;
+  const handleSubmit = modalMode === "create" ? handleCreate : handleUpdate;
+  const statusInfo = cdStatusInfo(households);
 
   return (
-    <div className="cd-section">
-      <div className="cd-section__header">
-        <h2 className="cd-section__title">Cadastro Domiciliar</h2>
-        <p className="cd-section__sub">Busque um paciente para visualizar ou registrar domicílios (e-SUS).</p>
+    <div className="ci-section">
+      <div className="ci-section__header">
+        <h2 className="ci-section__title">Cadastro Domiciliar</h2>
+        <p className="ci-section__sub">Busque um paciente para visualizar ou registrar domicílios (e-SUS).</p>
       </div>
 
-      <PatientSelector patients={patients} onSelect={selectPatient} placeholder="Buscar paciente por nome, CPF ou CNS…" />
-
-      {selectedPatient && (
-        <div className="cd-patient-ctx">
-          <span className="cd-patient-ctx__name">{selectedPatient.nomeSocial || selectedPatient.name}</span>
-          {!showForm && (
-            <button type="button" className="cd-patient-ctx__new-btn" onClick={startCreate}>
-              + Novo domicílio
+      {/* ── Search bar ── */}
+      <div className="ci-search-wrap" ref={searchRef}>
+        <div className="input">
+          <span className="input__icon"><CiSearchIcon /></span>
+          <input
+            className="input__control"
+            value={search}
+            onChange={e => {
+              setSearch(e.target.value);
+              if (selectedPatient && e.target.value !== selectedPatient.name) setSelectedPatient(null);
+            }}
+            onFocus={() => setDropFocused(true)}
+            onBlur={() => setTimeout(() => setDropFocused(false), 150)}
+            placeholder="Buscar por nome, CPF, CNS, telefone, endereço ou CEP..."
+            autoComplete="off"
+            aria-label="Buscar paciente para Cadastro Domiciliar"
+          />
+          {selectedPatient && (
+            <button type="button" className="ci-search-clear" onClick={clearSelection} aria-label="Limpar seleção de paciente">
+              <CiClearIcon />
             </button>
           )}
         </div>
-      )}
+      </div>
 
-      {loading && <p className="cd-status">Carregando…</p>}
-      {error   && <p className="cd-status cd-status--error" role="alert">{error}</p>}
-      {saveOk  && <p className="cd-status cd-status--ok"    role="status">Salvo com sucesso.</p>}
-
-      {selectedPatient && !loading && !showForm && (
-        <>
-          {households.length === 0 ? (
-            <p className="cd-empty">Nenhum domicílio cadastrado. Clique em "+ Novo domicílio" para cadastrar.</p>
-          ) : (
-            <div className="cd-list">
-              {households.map(hh => (
-                <div key={hh.id} className={`cd-card ${selectedHh?.id === hh.id ? "cd-card--active" : ""}`}
-                  role="button" tabIndex={0}
-                  onClick={() => setSelectedHh(hh === selectedHh ? null : hh)}
-                  onKeyDown={e => e.key === "Enter" && setSelectedHh(hh === selectedHh ? null : hh)}
-                >
-                  <div className="cd-card__row">
-                    <span className="cd-card__label">{hh.tipoDomicilio || hh.tipoImovel || "Domicílio"}</span>
-                    <span className="cd-card__meta">{hh.localizacao || ""} {hh.familyCode ? `· Cód. ${hh.familyCode}` : ""}</span>
+      {/* ── Autocomplete dropdown (portal) ── */}
+      {dropRect && createPortal(
+        <div
+          className="agenda-pat-dropdown"
+          style={{ position: "fixed", top: dropRect.bottom + 4, left: dropRect.left, width: dropRect.width, zIndex: 9999 }}
+        >
+          {results.length === 0 ? (
+            <div className="agenda-pat-empty">Nenhum paciente encontrado.</div>
+          ) : results.map(p => {
+            const am = ageInMonths(p.birthDate);
+            const ageLabel = am !== null ? (am < 24 ? `${am}m` : `${Math.floor(am / 12)}a`) : "";
+            const addr = [p.logradouro||p.address, p.bairro||p.neighborhood].filter(Boolean).join(", ");
+            const meta = [
+              ageLabel,
+              p.phone,
+              p.cpf ? `CPF ${maskCpf(p.cpf)}` : (p.cns ? `CNS ●●●…${String(p.cns).slice(-3)}` : null),
+              addr || null,
+            ].filter(Boolean).join(" · ");
+            return (
+              <button key={p.id} type="button" className="agenda-pat-opt" onClick={() => selectPatient(p)}>
+                <span className="agenda-pat-opt__avatar">{initials(p.name)}</span>
+                <span>
+                  <div className="agenda-pat-opt__name">
+                    {p.nomeSocial
+                      ? <>{p.nomeSocial} <span className="agenda-pat-opt__civil">({p.name})</span></>
+                      : p.name}
                   </div>
-                  {hh.numMoradores != null && <span className="cd-card__detail">{hh.numMoradores} morador(es)</span>}
-                  {selectedHh?.id === hh.id && (
-                    <div className="cd-card__detail-view">
-                      <CdRow label="Tipo de imóvel"      value={hh.tipoImovel} />
-                      <CdRow label="Tipo de domicílio"   value={hh.tipoDomicilio} />
-                      <CdRow label="Localização"         value={hh.localizacao} />
-                      <CdRow label="Código familiar"     value={hh.familyCode} />
-                      <CdRow label="Nº moradores"        value={hh.numMoradores} />
-                      <CdRow label="Nº cômodos"          value={hh.numComodos} />
-                      <CdRow label="Abastecimento água"  value={hh.abastecimentoAgua} />
-                      <CdRow label="Tratamento água"     value={hh.tratamentoAgua} />
-                      <CdRow label="Esgotamento"         value={hh.esgotamento} />
-                      <CdRow label="Destino do lixo"     value={hh.destinacaoLixo} />
-                      <CdRow label="Energia elétrica"    value={hh.energiaEletrica == null ? "" : hh.energiaEletrica ? "Sim" : "Não"} />
-                      <CdRow label="Freq. visita"        value={hh.homeVisitFreq} />
-                      <CdRow label="Situação de moradia" value={hh.situacaoMoradiaPosseTerra} />
-                      <CdRow label="Tipo de endereço"    value={hh.tipoEndereco} />
-                      <CdRow label="Fora da área"        value={hh.foraArea ? "Sim" : "Não"} />
-                      {hh.animaisNoDomicilio && (
-                        <>
-                          <CdRow label="Animais" value={(hh.tiposAnimais || []).join(", ")} />
-                          {hh.quantidadeAnimais != null && <CdRow label="Qtd animais" value={hh.quantidadeAnimais} />}
-                        </>
-                      )}
-                      <button type="button" className="cd-card__edit-btn" onClick={e => { e.stopPropagation(); startEdit(hh); }}>
-                        Editar
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </>
+                  {meta && <div className="agenda-pat-opt__meta">{meta}</div>}
+                </span>
+              </button>
+            );
+          })}
+        </div>,
+        document.body
       )}
 
-      {showForm && (
-        <form className="cd-form" onSubmit={handleSubmit} noValidate>
-          <div className="cd-form__title">{formTitle}</div>
+      {/* ── Empty state ── */}
+      {!selectedPatient && (
+        <div className="ci-empty">
+          <EmptyState
+            title="Selecione um paciente"
+            description="Busque um paciente pelo nome, CPF, CNS, telefone, endereço ou CEP para visualizar ou registrar o Cadastro Domiciliar."
+          />
+        </div>
+      )}
 
-          <div className="cd-form__section-title">Imóvel</div>
-          <div className="cd-form__row">
-            <label className="cd-form__field">
-              <span className="cd-form__label">Tipo de imóvel</span>
-              <select className="acs-vis-select" value={form.tipoImovel} onChange={e => fld("tipoImovel", e.target.value)}>
-                {CD_TIPO_IMOVEL_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-              </select>
-            </label>
-            <label className="cd-form__field">
-              <span className="cd-form__label">Tipo de domicílio</span>
-              <select className="acs-vis-select" value={form.tipoDomicilio} onChange={e => fld("tipoDomicilio", e.target.value)}>
-                {CD_TIPO_DOMICILIO_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-              </select>
-            </label>
-          </div>
-          <div className="cd-form__row">
-            <label className="cd-form__field">
-              <span className="cd-form__label">Localização</span>
-              <select className="acs-vis-select" value={form.localizacao} onChange={e => fld("localizacao", e.target.value)}>
-                {CD_LOCALIZACAO_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-              </select>
-            </label>
-            <label className="cd-form__field">
-              <span className="cd-form__label">Tipo de endereço</span>
-              <select className="acs-vis-select" value={form.tipoEndereco} onChange={e => fld("tipoEndereco", e.target.value)}>
-                {CD_TIPO_ENDERECO_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-              </select>
-            </label>
-          </div>
-          <div className="cd-form__row">
-            <label className="cd-form__field">
-              <span className="cd-form__label">Código familiar</span>
-              <input className="acs-vis-input" value={form.familyCode} onChange={e => fld("familyCode", e.target.value)} maxLength={50} />
-            </label>
-            <label className="cd-form__field">
-              <span className="cd-form__label">Situação de moradia</span>
-              <select className="acs-vis-select" value={form.situacaoMoradiaPosseTerra} onChange={e => fld("situacaoMoradiaPosseTerra", e.target.value)}>
-                {CD_SITUACAO_MORADIA_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-              </select>
-            </label>
-          </div>
-          <div className="cd-form__row">
-            <label className="cd-form__field">
-              <span className="cd-form__label">Nº de moradores</span>
-              <input type="number" className="acs-vis-input" min="0" value={form.numMoradores} onChange={e => fld("numMoradores", e.target.value)} />
-            </label>
-            <label className="cd-form__field">
-              <span className="cd-form__label">Nº de cômodos</span>
-              <input type="number" className="acs-vis-input" min="0" value={form.numComodos} onChange={e => fld("numComodos", e.target.value)} />
-            </label>
-          </div>
-
-          <div className="cd-form__section-title">Saneamento</div>
-          <div className="cd-form__row">
-            <label className="cd-form__field">
-              <span className="cd-form__label">Abastecimento de água</span>
-              <select className="acs-vis-select" value={form.abastecimentoAgua} onChange={e => fld("abastecimentoAgua", e.target.value)}>
-                {CD_ABASTECIMENTO_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-              </select>
-            </label>
-            <label className="cd-form__field">
-              <span className="cd-form__label">Tratamento da água</span>
-              <select className="acs-vis-select" value={form.tratamentoAgua} onChange={e => fld("tratamentoAgua", e.target.value)}>
-                {CD_TRATAMENTO_AGUA_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-              </select>
-            </label>
-          </div>
-          <div className="cd-form__row">
-            <label className="cd-form__field">
-              <span className="cd-form__label">Esgotamento sanitário</span>
-              <select className="acs-vis-select" value={form.esgotamento} onChange={e => fld("esgotamento", e.target.value)}>
-                {CD_ESGOTAMENTO_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-              </select>
-            </label>
-            <label className="cd-form__field">
-              <span className="cd-form__label">Destino do lixo</span>
-              <select className="acs-vis-select" value={form.destinacaoLixo} onChange={e => fld("destinacaoLixo", e.target.value)}>
-                {CD_DESTINO_LIXO_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-              </select>
-            </label>
-          </div>
-          <div className="cd-form__row">
-            <fieldset className="cd-form__fieldset">
-              <legend className="cd-form__label">Energia elétrica</legend>
-              <div className="ci-form__radios">
-                {[["sim", true], ["nao", false], ["ni", null]].map(([id, val]) => (
-                  <label key={id} className="ci-form__radio-label">
-                    <input type="radio" name="energiaEletrica" className="acs-vis-radio"
-                      checked={form.energiaEletrica === val}
-                      onChange={() => fld("energiaEletrica", val)} />
-                    <span>{val === true ? "Sim" : val === false ? "Não" : "Não informado"}</span>
-                  </label>
-                ))}
-              </div>
-            </fieldset>
-            <label className="cd-form__field">
-              <span className="cd-form__label">Frequência de visita domiciliar</span>
-              <select className="acs-vis-select" value={form.homeVisitFreq} onChange={e => fld("homeVisitFreq", e.target.value)}>
-                {CD_HOME_FREQ_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-              </select>
-            </label>
-          </div>
-
-          <div className="cd-form__section-title">Animais no domicílio</div>
-          <label className="ci-form__radio-label cd-form__fora-check">
-            <input type="checkbox" className="acs-vis-checkbox"
-              checked={!!form.animaisNoDomicilio}
-              onChange={e => fld("animaisNoDomicilio", e.target.checked)} />
-            <span>Tem animais no domicílio?</span>
-          </label>
-          {form.animaisNoDomicilio && (
-            <div className="cd-form__animals">
-              <div className="ci-form__checks">
-                {CD_ANIMAIS_OPTIONS.map(({ key, label }) => (
-                  <label key={key} className="acs-vis-check-label">
-                    <input type="checkbox" className="acs-vis-checkbox"
-                      checked={(form.tiposAnimais || []).includes(key)}
-                      onChange={() => toggleAnimal(key)} />
-                    <span>{label}</span>
-                  </label>
-                ))}
-              </div>
-              <label className="cd-form__field cd-form__qty">
-                <span className="cd-form__label">Quantidade de animais</span>
-                <input type="number" className="acs-vis-input" min="0" max="999"
-                  value={form.quantidadeAnimais}
-                  onChange={e => fld("quantidadeAnimais", e.target.value)} />
-              </label>
+      {/* ── Patient card ── */}
+      {selectedPatient && (() => {
+        const am = ageInMonths(selectedPatient.birthDate);
+        const ageLabel = am !== null ? (am < 24 ? `${am}m` : `${Math.floor(am / 12)}a`) : "";
+        const addr = [selectedPatient.logradouro, selectedPatient.numero, selectedPatient.bairro]
+          .filter(Boolean).join(", ") || selectedPatient.address || "";
+        return (
+          <div className="ci-patient-card">
+            <div className="ci-patient-card__avatar" aria-hidden="true">
+              {initials(selectedPatient.name)}
             </div>
-          )}
-
-          <div className="cd-form__section-title">Outras informações</div>
-          <label className="ci-form__radio-label cd-form__fora-check">
-            <input type="checkbox" className="acs-vis-checkbox"
-              checked={!!form.foraArea}
-              onChange={e => fld("foraArea", e.target.checked)} />
-            <span>Imóvel fora da área de abrangência</span>
-          </label>
-
-          {error && <p className="ci-form__error" role="alert">{error}</p>}
-
-          <div className="ci-form__actions">
-            <button type="button" className="ci-form__cancel-btn" onClick={cancelForm}>Cancelar</button>
-            <button type="submit" className="ci-form__save-btn" disabled={saving}>
-              {saving ? "Salvando…" : "Salvar Cadastro Domiciliar"}
-            </button>
+            <div className="ci-patient-card__body">
+              <div className="ci-patient-card__name">
+                {selectedPatient.nomeSocial || selectedPatient.name}
+              </div>
+              {selectedPatient.nomeSocial && (
+                <div className="ci-patient-card__civil">{selectedPatient.name}</div>
+              )}
+              <div className="ci-patient-card__meta">
+                {ageLabel && <span>{ageLabel}</span>}
+                {selectedPatient.phone && <span>{selectedPatient.phone}</span>}
+                {selectedPatient.cpf && <span>CPF {maskCpf(selectedPatient.cpf)}</span>}
+                {!selectedPatient.cpf && selectedPatient.cns && (
+                  <span>CNS ●●●…{String(selectedPatient.cns).slice(-4)}</span>
+                )}
+              </div>
+              {addr && <div className="ci-patient-card__addr">{addr}</div>}
+              {!loading && (
+                <span className={`ci-status ci-status--${statusInfo.status}`}>
+                  {statusInfo.label}
+                </span>
+              )}
+            </div>
+            <div className="ci-patient-card__actions">
+              {statusInfo.status === "none" ? (
+                <Button size="sm" onClick={openCreate}>{statusInfo.action}</Button>
+              ) : (
+                <>
+                  <Button variant="secondary" size="sm" onClick={() => openView(households[0])}>Ver domicílio</Button>
+                  <Button size="sm" onClick={openCreate}>+ Novo</Button>
+                </>
+              )}
+            </div>
           </div>
-        </form>
+        );
+      })()}
+
+      {/* ── Household list ── */}
+      {selectedPatient && !loading && households.length > 0 && (
+        <div className="cd-hh-list">
+          {households.map(hh => {
+            const hhAddr = [hh.logradouro, hh.numero, hh.bairro].filter(Boolean).join(", ");
+            const hhLabel = [hh.tipoDomicilio||hh.tipoImovel, hh.localizacao].filter(Boolean).join(" · ") || "Domicílio";
+            return (
+              <button key={hh.id} type="button" className="cd-hh-card" onClick={() => openView(hh)}>
+                <div className="cd-hh-card__label">{hhLabel}</div>
+                {hhAddr && <div className="cd-hh-card__addr">{hhAddr}</div>}
+                {hh.numMoradores != null && <div className="cd-hh-card__detail">{hh.numMoradores} morador(es)</div>}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {loading && <p className="cd-loading">Carregando…</p>}
+
+      {/* ── Modal ── */}
+      {showModal && selectedPatient && (
+        <Modal
+          title={modalMode === "create"
+            ? "Novo Domicílio"
+            : `Domicílio — ${selectedPatient.nomeSocial || selectedPatient.name}`}
+          className="modal--ci"
+          onClose={() => { setShowModal(false); setSaveError(""); }}
+          actions={
+            modalMode === "view" ? (
+              <>
+                <Button variant="secondary" size="sm" onClick={openCreate}>+ Novo domicílio</Button>
+                <Button onClick={() => openEdit(selectedHh)}>Editar</Button>
+              </>
+            ) : (
+              <>
+                <Button
+                  variant="secondary"
+                  type="button"
+                  onClick={() => {
+                    if (modalMode === "create") { setShowModal(false); }
+                    else { setModalMode("view"); setForm(emptyCdForm(selectedHh)); setSaveError(""); }
+                  }}
+                >
+                  Cancelar
+                </Button>
+                <Button type="submit" form="cd-form" disabled={saving}>
+                  {saving ? "Salvando…" : modalMode === "create" ? "Cadastrar Domicílio" : "Salvar Domicílio"}
+                </Button>
+              </>
+            )
+          }
+        >
+          {saveOk    && <div className="alert alert--success" role="status">Cadastro Domiciliar salvo com sucesso.</div>}
+          {saveError && <div className="alert alert--danger"  role="alert">{saveError}</div>}
+
+          {modalMode === "view" && selectedHh ? (
+            <div className="ci-view">
+              <CdRow label="Tipo de imóvel"      value={selectedHh.tipoImovel} />
+              <CdRow label="Tipo de domicílio"   value={selectedHh.tipoDomicilio} />
+              <CdRow label="Localização"         value={selectedHh.localizacao} />
+              <CdRow label="Código familiar"     value={selectedHh.familyCode} />
+              <CdRow label="Nº moradores"        value={selectedHh.numMoradores} />
+              <CdRow label="Nº cômodos"          value={selectedHh.numComodos} />
+              <CdRow label="Abastecimento água"  value={selectedHh.abastecimentoAgua} />
+              <CdRow label="Tratamento água"     value={selectedHh.tratamentoAgua} />
+              <CdRow label="Esgotamento"         value={selectedHh.esgotamento} />
+              <CdRow label="Destino do lixo"     value={selectedHh.destinacaoLixo} />
+              <CdRow label="Energia elétrica"    value={selectedHh.energiaEletrica == null ? "" : selectedHh.energiaEletrica ? "Sim" : "Não"} />
+              <CdRow label="Freq. visita"        value={selectedHh.homeVisitFreq} />
+              <CdRow label="Situação de moradia" value={selectedHh.situacaoMoradiaPosseTerra} />
+              <CdRow label="Tipo de endereço"    value={selectedHh.tipoEndereco} />
+              <CdRow label="Fora da área"        value={selectedHh.foraArea ? "Sim" : "Não"} />
+              {selectedHh.animaisNoDomicilio && (
+                <>
+                  <CdRow label="Animais" value={(selectedHh.tiposAnimais || []).join(", ")} />
+                  {selectedHh.quantidadeAnimais != null && <CdRow label="Qtd animais" value={selectedHh.quantidadeAnimais} />}
+                </>
+              )}
+            </div>
+          ) : (
+            <form id="cd-form" className="field-grid field-grid--no-pad" onSubmit={handleSubmit} noValidate>
+
+              <p className="ci-form-section field--span-2">Imóvel</p>
+              <Select label="Tipo de imóvel" value={form.tipoImovel} onChange={e => fld("tipoImovel", e.target.value)}>
+                {CD_TIPO_IMOVEL_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </Select>
+              <Select label="Tipo de domicílio" value={form.tipoDomicilio} onChange={e => fld("tipoDomicilio", e.target.value)}>
+                {CD_TIPO_DOMICILIO_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </Select>
+              <Select label="Localização" value={form.localizacao} onChange={e => fld("localizacao", e.target.value)}>
+                {CD_LOCALIZACAO_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </Select>
+              <Select label="Tipo de endereço" value={form.tipoEndereco} onChange={e => fld("tipoEndereco", e.target.value)}>
+                {CD_TIPO_ENDERECO_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </Select>
+              <Input label="Código familiar" value={form.familyCode} onChange={e => fld("familyCode", e.target.value)} maxLength={50} />
+              <Select label="Situação de moradia" value={form.situacaoMoradiaPosseTerra} onChange={e => fld("situacaoMoradiaPosseTerra", e.target.value)}>
+                {CD_SITUACAO_MORADIA_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </Select>
+              <Input label="Nº de moradores" type="number" min="0" value={form.numMoradores} onChange={e => fld("numMoradores", e.target.value)} />
+              <Input label="Nº de cômodos" type="number" min="0" value={form.numComodos} onChange={e => fld("numComodos", e.target.value)} />
+
+              <p className="ci-form-section field--span-2">Saneamento</p>
+              <Select label="Abastecimento de água" value={form.abastecimentoAgua} onChange={e => fld("abastecimentoAgua", e.target.value)}>
+                {CD_ABASTECIMENTO_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </Select>
+              <Select label="Tratamento da água" value={form.tratamentoAgua} onChange={e => fld("tratamentoAgua", e.target.value)}>
+                {CD_TRATAMENTO_AGUA_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </Select>
+              <Select label="Esgotamento sanitário" value={form.esgotamento} onChange={e => fld("esgotamento", e.target.value)}>
+                {CD_ESGOTAMENTO_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </Select>
+              <Select label="Destino do lixo" value={form.destinacaoLixo} onChange={e => fld("destinacaoLixo", e.target.value)}>
+                {CD_DESTINO_LIXO_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </Select>
+              <fieldset className="ci-form__fieldset field--span-2">
+                <legend className="field__label">Energia elétrica</legend>
+                <div className="ci-form__radios">
+                  {[["sim", true], ["nao", false], ["ni", null]].map(([id, val]) => (
+                    <label key={id} className="ci-form__radio-label">
+                      <input type="radio" name="energiaEletrica" className="acs-vis-radio"
+                        checked={form.energiaEletrica === val}
+                        onChange={() => fld("energiaEletrica", val)} />
+                      <span>{val === true ? "Sim" : val === false ? "Não" : "Não informado"}</span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+              <Select label="Frequência de visita domiciliar" className="field--span-2" value={form.homeVisitFreq} onChange={e => fld("homeVisitFreq", e.target.value)}>
+                {CD_HOME_FREQ_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </Select>
+
+              <p className="ci-form-section field--span-2">Animais no domicílio</p>
+              <label className="ci-form__radio-label field--span-2">
+                <input type="checkbox" className="acs-vis-checkbox"
+                  checked={!!form.animaisNoDomicilio}
+                  onChange={e => fld("animaisNoDomicilio", e.target.checked)} />
+                <span>Tem animais no domicílio?</span>
+              </label>
+              {form.animaisNoDomicilio && (
+                <div className="ci-form__checks field--span-2">
+                  {CD_ANIMAIS_OPTIONS.map(({ key, label }) => (
+                    <label key={key} className="acs-vis-check-label">
+                      <input type="checkbox" className="acs-vis-checkbox"
+                        checked={(form.tiposAnimais || []).includes(key)}
+                        onChange={() => toggleAnimal(key)} />
+                      <span>{label}</span>
+                    </label>
+                  ))}
+                  <Input label="Quantidade de animais" type="number" min="0" max="999"
+                    value={form.quantidadeAnimais}
+                    onChange={e => fld("quantidadeAnimais", e.target.value)} />
+                </div>
+              )}
+
+              <p className="ci-form-section field--span-2">Outras informações</p>
+              <label className="ci-form__radio-label field--span-2">
+                <input type="checkbox" className="acs-vis-checkbox"
+                  checked={!!form.foraArea}
+                  onChange={e => fld("foraArea", e.target.checked)} />
+                <span>Imóvel fora da área de abrangência</span>
+              </label>
+            </form>
+          )}
+        </Modal>
       )}
     </div>
   );

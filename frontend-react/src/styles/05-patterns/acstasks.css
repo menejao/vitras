@@ -2273,100 +2273,23 @@
 
 /* ── Cadastro Domiciliar — APS-01J-D ─────────────────────────────────────── */
 
-.cd-section { padding: 1rem; max-width: 720px; }
-.cd-section__header { margin-bottom: 1rem; }
-.cd-section__title  { font-size: 1.125rem; font-weight: 600; color: var(--text-primary); margin: 0 0 .25rem; }
-.cd-section__sub    { font-size: .875rem; color: var(--text-secondary); margin: 0; }
+/* Cadastro Domiciliar — APS-01L (now shares .ci-section / .ci-patient-card / modal--ci) */
 
-.cd-patient-ctx {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: .5rem;
-  margin-top: .75rem;
-  padding: .5rem .75rem;
-  background: var(--surface-secondary, #f8fafc);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-}
-.cd-patient-ctx__name    { font-weight: 600; font-size: .9375rem; }
-.cd-patient-ctx__new-btn {
-  flex-shrink: 0;
-  padding: .375rem .875rem;
-  border: 1px solid var(--primary, #0f766e);
-  border-radius: 6px;
-  background: transparent;
-  color: var(--primary, #0f766e);
-  font-size: .875rem;
-  cursor: pointer;
-}
-.cd-patient-ctx__new-btn:hover { background: color-mix(in srgb, var(--primary,#0f766e) 8%, transparent); }
+.cd-loading { font-size: .875rem; color: var(--text-secondary); margin: .75rem 0 0; }
 
-.cd-status         { font-size: .875rem; margin: .75rem 0 0; padding: .5rem .75rem; border-radius: 6px; }
-.cd-status--error  { color: var(--color-error, #dc2626); background: #fef2f2; }
-.cd-status--ok     { color: var(--color-success, #16a34a); background: #f0fdf4; }
+.cd-hh-list { display: flex; flex-direction: column; gap: .5rem; margin-top: .75rem; }
 
-.cd-empty { font-size: .875rem; color: var(--text-secondary); margin: 1rem 0; }
-
-.cd-list { display: flex; flex-direction: column; gap: .5rem; margin-top: .75rem; }
-
-.cd-card {
+.cd-hh-card {
+  width: 100%;
+  text-align: left;
+  background: var(--surface, #fff);
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: .75rem;
+  padding: .75rem 1rem;
   cursor: pointer;
-  transition: border-color .15s;
+  transition: border-color .15s, box-shadow .15s;
 }
-.cd-card:hover, .cd-card--active { border-color: var(--primary, #0f766e); }
-.cd-card__row   { display: flex; align-items: baseline; gap: .5rem; }
-.cd-card__label { font-weight: 600; font-size: .9375rem; }
-.cd-card__meta  { font-size: .8125rem; color: var(--text-secondary); }
-.cd-card__detail { font-size: .8125rem; color: var(--text-secondary); margin-top: .25rem; }
-.cd-card__detail-view {
-  margin-top: .75rem;
-  border-top: 1px solid var(--border-soft, #e2e8f0);
-  padding-top: .75rem;
-  display: flex;
-  flex-direction: column;
-  gap: .25rem;
-}
-.cd-card__edit-btn {
-  align-self: flex-start;
-  margin-top: .5rem;
-  padding: .25rem .75rem;
-  border: 1px solid var(--primary, #0f766e);
-  border-radius: 6px;
-  background: transparent;
-  color: var(--primary, #0f766e);
-  font-size: .8125rem;
-  cursor: pointer;
-}
-
-/* form */
-.cd-form { padding: 1rem; display: flex; flex-direction: column; gap: .75rem; margin-top: .75rem; border: 1px solid var(--border); border-radius: 8px; }
-.cd-form__title        { font-size: 1rem; font-weight: 600; color: var(--text-primary); }
-.cd-form__section-title {
-  font-weight: 600; font-size: .8125rem; color: var(--text-secondary);
-  text-transform: uppercase; letter-spacing: .04em;
-  margin-top: .25rem; padding-bottom: .25rem;
-  border-bottom: 1px solid var(--border-soft, #e2e8f0);
-}
-.cd-form__row     { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
-.cd-form__field   { display: flex; flex-direction: column; gap: .25rem; }
-.cd-form__label   { font-size: .8125rem; color: var(--text-secondary); font-weight: 500; }
-.cd-form__fieldset {
-  border: 1px solid var(--border-soft, #e2e8f0);
-  border-radius: 6px;
-  padding: .625rem .75rem;
-  margin: 0;
-}
-.cd-form__fieldset legend { font-size: .8125rem; color: var(--text-secondary); padding: 0 .25rem; }
-.cd-form__fora-check { margin-top: .25rem; }
-.cd-form__animals { display: flex; flex-direction: column; gap: .5rem; margin-top: .25rem; padding: .75rem; background: var(--surface-secondary,#f8fafc); border-radius: 6px; }
-.cd-form__qty { max-width: 200px; }
-
-@media (max-width: 420px) {
-  .cd-section    { padding: .75rem; }
-  .cd-form__row  { grid-template-columns: 1fr; }
-  .cd-form__qty  { max-width: 100%; }
-}
+.cd-hh-card:hover { border-color: var(--primary, #0f766e); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary,#0f766e) 10%, transparent); }
+.cd-hh-card__label  { font-weight: 600; font-size: .9375rem; color: var(--text-primary); }
+.cd-hh-card__addr   { font-size: .8125rem; color: var(--text-secondary); margin-top: .125rem; }
+.cd-hh-card__detail { font-size: .8125rem; color: var(--text-secondary); margin-top: .125rem; }
