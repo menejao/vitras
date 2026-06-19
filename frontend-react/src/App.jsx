@@ -191,7 +191,7 @@ function AppInner() {
   if (_path === "/activate" || _path === "/primeiro-acesso") {
     return <ActivateAccountPage />;
   }
-  if (path === "/privacidade") {
+  if (_path === "/privacidade") {
   window.location.href = "https://vitras.com.br/privacidade";
   return null;
 }
