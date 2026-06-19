@@ -4,7 +4,7 @@ import { createPatient, createQueueEntry } from "../api";
 import { matchesPatientSearch, emptyPatientForm, isProfileIncomplete, ageInMonths } from "../utils/clinical";
 import { inferQueuePriorityFromPatient } from "../utils/queue";
 import { isUnavailableDay, unavailableReason } from "../utils/dates";
-import { formatCpf, formatPhone, initials } from "../utils/formatting";
+import { formatCpf, formatPhone, initials, maskCpf } from "../utils/formatting";
 import { useAgenda } from "../hooks/useAgenda";
 import { AGENDA_HOURS, AGENDA_STATUS_LABELS, AGENDA_PROCEDURE_SUBTYPES, describeAgendaType } from "../utils/agenda";
 import Button from "../components/ui/Button";
@@ -489,7 +489,7 @@ function AgendaPage({ patients, users, user, token, onNewPatient, onPatientCreat
                           <div className="agenda-pat-opt__meta">
                             {p.careCategory || "Geral"}
                             {am !== null ? ` · ${am < 24 ? am + "m" : Math.floor(am / 12) + "a"}` : ""}
-                            {p.cpf ? ` · CPF ${p.cpf}` : ""}
+                            {p.cpf ? ` · CPF ${maskCpf(p.cpf)}` : ""}
                           </div>
                         </span>
                       </Button>

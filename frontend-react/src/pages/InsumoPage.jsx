@@ -1,7 +1,7 @@
 ﻿import { useMemo, useState } from "react";
 import { isAdmin, roleLabel } from "../utils/roles";
 import { matchesPatientSearch } from "../utils/clinical";
-import { fmtDate } from "../utils/formatting";
+import { fmtDate, maskCpf } from "../utils/formatting";
 import PageHeader from "../components/layout/PageHeader";
 import Button from "../components/ui/Button";
 import { Tabs, Tab } from "../components/ui/Tabs";
@@ -281,7 +281,7 @@ function InsumoPage({
                       return (
                         <Button key={patient.id} variant="ghost" className="ins-pat-opt" onClick={() => selectPat(patient)}>
                           <div className="ins-pat-opt__name">{patient.name}</div>
-                          <div className="ins-pat-opt__sub">{patient.cpf || ""}{currentContinuous ? " · Continuo" : ""}</div>
+                          <div className="ins-pat-opt__sub">{patient.cpf ? maskCpf(patient.cpf) : ""}{currentContinuous ? " · Continuo" : ""}</div>
                         </Button>
                       );
                     })}
@@ -292,7 +292,7 @@ function InsumoPage({
                     <div className="ins-pat-card__name">{patSelected.name}</div>
                     <div className="ins-pat-card__meta">
                       {patSelected.birthDate ? `Nasc.: ${fmtDate(patSelected.birthDate)}` : ""}
-                      {patSelected.cpf ? ` · CPF: ${patSelected.cpf}` : ""}
+                      {patSelected.cpf ? ` · CPF: ${maskCpf(patSelected.cpf)}` : ""}
                     </div>
                     {continuousByPatient.get(patSelected.id) && <div className="ins-pat-card__cont">Paciente continuo ativo</div>}
                   </div>

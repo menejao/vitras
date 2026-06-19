@@ -1,9 +1,16 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import { API_URL } from "../api";
 import PageHeader from "../components/layout/PageHeader";
 import KPI from "../components/ui/KPI";
+import Modal from "../components/ui/Modal";
+import EmptyState from "../components/ui/EmptyState";
+import Button from "../components/ui/Button";
+import Input from "../components/ui/Input";
+import Select from "../components/ui/Select";
 import { parseLocalDate } from "../utils/dates";
-import { fmtDate } from "../utils/formatting";
+import { fmtDate, initials, maskCpf, formatPhone } from "../utils/formatting";
+import { matchesPatientSearch, ageInMonths } from "../utils/clinical";
 
 const TASK_TYPES = {
   home_visit:      { label: "Visita Domiciliar",  color: "blue"   },
@@ -1944,7 +1951,7 @@ function CdRow({ label, value }) {
   );
 }
 
-// ── CadastroIndividualSection — APS-01J-C ─────────────────────────────────────
+// ── CadastroIndividualSection — APS-01J-C / APS-01K ─────────────────────────
 
 const CI_ESCOLARIDADE_OPTIONS = [
   ["", "— selecionar —"],
@@ -2066,68 +2073,112 @@ function emptyCiForm(patient) {
   };
 }
 
+function ciStatusInfo(p) {
+  if (!p) return { status: "none", label: "Cadastro Individual não preenchido", action: "Preencher Cadastro Individual" };
+  const keyFields = [p.escolaridade, p.racaCor, p.situacaoMercadoTrabalho, p.sexAtBirth, p.birthDate, p.nacionalidade];
+  const filled = keyFields.filter(Boolean).length;
+  if (filled >= 4) return { status: "complete", label: "Cadastro Individual preenchido", action: null };
+  if (filled >= 1) return { status: "incomplete", label: "Cadastro Individual incompleto", action: "Continuar preenchimento" };
+  return { status: "none", label: "Cadastro Individual não preenchido", action: "Preencher Cadastro Individual" };
+}
+
+function CiSearchIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" strokeWidth="1.4"/>
+      <path d="M11 11l3.5 3.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+    </svg>
+  );
+}
+
+function CiClearIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M2 2l12 12M14 2L2 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    </svg>
+  );
+}
+
 function CadastroIndividualSection({ token, user, patients }) {
+  const [search, setSearch]           = useState("");
+  const [dropFocused, setDropFocused] = useState(false);
+  const searchRef                     = useRef(null);
   const [selectedPatient, setSelectedPatient] = useState(null);
-  const [editing, setEditing]                 = useState(false);
-  const [form, setForm]                       = useState(emptyCiForm(null));
-  const [saving, setSaving]                   = useState(false);
-  const [saveError, setSaveError]             = useState("");
-  const [saveOk, setSaveOk]                   = useState(false);
+  const [showModal, setShowModal]     = useState(false);
+  const [modalMode, setModalMode]     = useState("view");
+  const [form, setForm]               = useState(emptyCiForm(null));
+  const [saving, setSaving]           = useState(false);
+  const [saveError, setSaveError]     = useState("");
+  const [saveOk, setSaveOk]           = useState(false);
+
+  const results = useMemo(() => {
+    const q = search.trim();
+    if (q.length < 2) return [];
+    return patients.filter(p => matchesPatientSearch(p, q)).slice(0, 8);
+  }, [search, patients]);
+
+  const showDrop = dropFocused && search.trim().length >= 2 && !selectedPatient;
+  const dropRect = showDrop ? searchRef.current?.getBoundingClientRect() : null;
 
   function selectPatient(p) {
     setSelectedPatient(p);
+    setSearch(p.name);
+    setDropFocused(false);
     setForm(emptyCiForm(p));
-    setEditing(false);
-    setSaveError("");
-    setSaveOk(false);
+    setSaveError(""); setSaveOk(false);
   }
 
-  function fld(key, value) {
-    setForm(f => ({ ...f, [key]: value }));
+  function clearSelection() {
+    setSelectedPatient(null);
+    setSearch("");
+    setShowModal(false);
+    setSaveError(""); setSaveOk(false);
   }
+
+  function openModal(mode) {
+    setModalMode(mode);
+    setForm(emptyCiForm(selectedPatient));
+    setSaveError(""); setSaveOk(false);
+    setShowModal(true);
+  }
+
+  function fld(key, value) { setForm(f => ({ ...f, [key]: value })); }
 
   function toggleArr(key, val) {
     setForm(f => {
       const cur = f[key] || [];
-      return {
-        ...f,
-        [key]: cur.includes(val) ? cur.filter(v => v !== val) : [...cur, val],
-      };
+      return { ...f, [key]: cur.includes(val) ? cur.filter(v => v !== val) : [...cur, val] };
     });
   }
 
   async function handleSave(e) {
     e.preventDefault();
-    setSaving(true);
-    setSaveError("");
-    setSaveOk(false);
-
+    setSaving(true); setSaveError(""); setSaveOk(false);
     const payload = {
       ...(form.cns  ? { cns:  form.cns  } : {}),
       ...(form.cpf  ? { cpf:  form.cpf  } : {}),
       ...(form.name ? { name: form.name } : {}),
-      ...(form.nomeSocial            ? { nomeSocial:              form.nomeSocial            } : {}),
-      ...(form.birthDate             ? { birthDate:               form.birthDate             } : {}),
-      ...(form.sexAtBirth            ? { sexAtBirth:              form.sexAtBirth            } : {}),
-      ...(form.racaCor               ? { racaCor:                 form.racaCor               } : {}),
-      ...(form.etnia                 ? { etnia:                   form.etnia                 } : {}),
-      ...(form.nacionalidade         ? { nacionalidade:           form.nacionalidade         } : {}),
+      ...(form.nomeSocial              ? { nomeSocial:              form.nomeSocial              } : {}),
+      ...(form.birthDate               ? { birthDate:               form.birthDate               } : {}),
+      ...(form.sexAtBirth              ? { sexAtBirth:              form.sexAtBirth              } : {}),
+      ...(form.racaCor                 ? { racaCor:                 form.racaCor                 } : {}),
+      ...(form.etnia                   ? { etnia:                   form.etnia                   } : {}),
+      ...(form.nacionalidade           ? { nacionalidade:           form.nacionalidade           } : {}),
       ...(form.municipioNascimentoIbge ? { municipioNascimentoIbge: form.municipioNascimentoIbge } : {}),
-      ...(form.phone                 ? { phone:                   form.phone                 } : {}),
-      ...(form.email                 ? { email:                   form.email                 } : {}),
-      ...(form.escolaridade          ? { escolaridade:            form.escolaridade          } : {}),
-      ...(form.occupation            ? { occupation:              form.occupation            } : {}),
+      ...(form.phone                   ? { phone:                   form.phone                   } : {}),
+      ...(form.email                   ? { email:                   form.email                   } : {}),
+      ...(form.escolaridade            ? { escolaridade:            form.escolaridade            } : {}),
+      ...(form.occupation              ? { occupation:              form.occupation              } : {}),
       ...(form.situacaoMercadoTrabalho ? { situacaoMercadoTrabalho: form.situacaoMercadoTrabalho } : {}),
-      ...(form.responsavelFamiliar   ? { responsavelFamiliar:     form.responsavelFamiliar   } : {}),
-      ...(form.cnsResponsavel        ? { cnsResponsavel:          form.cnsResponsavel        } : {}),
-      ...(form.relacaoResponsavel    ? { responsible: { relationship: form.relacaoResponsavel } } : {}),
-      deficiencia:   form.deficiencia   || [],
+      ...(form.responsavelFamiliar     ? { responsavelFamiliar:     form.responsavelFamiliar     } : {}),
+      ...(form.cnsResponsavel          ? { cnsResponsavel:          form.cnsResponsavel          } : {}),
+      ...(form.relacaoResponsavel      ? { responsible: { relationship: form.relacaoResponsavel } } : {}),
+      deficiencia:    form.deficiencia    || [],
       condicoesSaude: form.condicoesSaude || [],
-      ...(form.situacaoRua !== null             ? { situacaoRua:             form.situacaoRua             } : {}),
-      ...(form.triaAlimentosAcabaram !== null   ? { triaAlimentosAcabaram:   form.triaAlimentosAcabaram   } : {}),
+      ...(form.situacaoRua !== null                          ? { situacaoRua:                          form.situacaoRua                          } : {}),
+      ...(form.triaAlimentosAcabaram !== null                ? { triaAlimentosAcabaram:                form.triaAlimentosAcabaram                } : {}),
       ...(form.triaConsomiuApenasAlgunsDosAlimentos !== null ? { triaConsomiuApenasAlgunsDosAlimentos: form.triaConsomiuApenasAlgunsDosAlimentos } : {}),
     };
-
     try {
       const res = await fetch(`/api/patients/${selectedPatient.id}/cadastro-individual`, {
         method: "PATCH",
@@ -2140,9 +2191,9 @@ function CadastroIndividualSection({ token, user, patients }) {
       } else {
         setSelectedPatient(body);
         setForm(emptyCiForm(body));
-        setEditing(false);
+        setModalMode("view");
         setSaveOk(true);
-        setTimeout(() => setSaveOk(false), 3000);
+        setTimeout(() => setSaveOk(false), 4000);
       }
     } catch {
       setSaveError("Erro de conexão");
@@ -2151,57 +2202,176 @@ function CadastroIndividualSection({ token, user, patients }) {
     }
   }
 
+  const statusInfo = ciStatusInfo(selectedPatient);
+
   return (
     <div className="ci-section">
       <div className="ci-section__header">
         <h2 className="ci-section__title">Cadastro Individual</h2>
-        <p className="ci-section__sub">Busque um paciente para visualizar ou editar o Cadastro Individual (e-SUS).</p>
+        <p className="ci-section__sub">Busque um paciente para visualizar ou preencher o Cadastro Individual (e-SUS).</p>
       </div>
 
-      <PatientSelector
-        patients={patients}
-        onSelect={selectPatient}
-        placeholder="Buscar paciente por nome, CPF ou CNS…"
-      />
+      {/* ── Search bar ── */}
+      <div className="ci-search-wrap" ref={searchRef}>
+        <div className="input">
+          <span className="input__icon"><CiSearchIcon /></span>
+          <input
+            className="input__control"
+            value={search}
+            onChange={e => {
+              setSearch(e.target.value);
+              if (selectedPatient && e.target.value !== selectedPatient.name) setSelectedPatient(null);
+            }}
+            onFocus={() => setDropFocused(true)}
+            onBlur={() => setTimeout(() => setDropFocused(false), 150)}
+            placeholder="Buscar por nome, CPF, CNS ou telefone..."
+            autoComplete="off"
+            aria-label="Buscar paciente para Cadastro Individual"
+          />
+          {selectedPatient && (
+            <button type="button" className="ci-search-clear" onClick={clearSelection} aria-label="Limpar seleção de paciente">
+              <CiClearIcon />
+            </button>
+          )}
+        </div>
+      </div>
 
-      {selectedPatient && (
-        <div className="ci-card">
-          <div className="ci-card__topbar">
-            <div className="ci-card__identity">
-              <span className="ci-card__name">
-                {selectedPatient.nomeSocial
-                  ? <><strong>{selectedPatient.nomeSocial}</strong> <span className="ci-card__civil">({selectedPatient.name})</span></>
-                  : <strong>{selectedPatient.name}</strong>}
-              </span>
-              {selectedPatient.cpf && <span className="ci-card__doc">CPF {selectedPatient.cpf}</span>}
-              {selectedPatient.cns && <span className="ci-card__doc">CNS {selectedPatient.cns}</span>}
-            </div>
-            {!editing && (
-              <button type="button" className="ci-card__edit-btn" onClick={() => setEditing(true)}>
-                Editar
+      {/* ── Autocomplete dropdown (portal) ── */}
+      {dropRect && createPortal(
+        <div
+          className="agenda-pat-dropdown"
+          style={{ position: "fixed", top: dropRect.bottom + 4, left: dropRect.left, width: dropRect.width, zIndex: 9999 }}
+        >
+          {results.length === 0 ? (
+            <div className="agenda-pat-empty">Nenhum paciente encontrado.</div>
+          ) : results.map(p => {
+            const am = ageInMonths(p.birthDate);
+            const ageLabel = am !== null ? (am < 24 ? `${am}m` : `${Math.floor(am / 12)}a`) : "";
+            const meta = [
+              ageLabel,
+              p.phone,
+              p.cpf ? `CPF ${maskCpf(p.cpf)}` : (p.cns ? `CNS ●●●…${String(p.cns).slice(-3)}` : null),
+            ].filter(Boolean).join(" · ");
+            return (
+              <button key={p.id} type="button" className="agenda-pat-opt" onClick={() => selectPatient(p)}>
+                <span className="agenda-pat-opt__avatar">{initials(p.name)}</span>
+                <span>
+                  <div className="agenda-pat-opt__name">
+                    {p.nomeSocial
+                      ? <>{p.nomeSocial} <span className="agenda-pat-opt__civil">({p.name})</span></>
+                      : p.name}
+                  </div>
+                  {meta && <div className="agenda-pat-opt__meta">{meta}</div>}
+                </span>
               </button>
-            )}
-          </div>
+            );
+          })}
+        </div>,
+        document.body
+      )}
 
-          {!editing ? (
+      {/* ── Empty state ── */}
+      {!selectedPatient && (
+        <div className="ci-empty">
+          <EmptyState
+            title="Selecione um paciente"
+            description="Busque um paciente pelo nome, CPF, CNS ou telefone para visualizar ou preencher o Cadastro Individual."
+          />
+        </div>
+      )}
+
+      {/* ── Patient card ── */}
+      {selectedPatient && (() => {
+        const am = ageInMonths(selectedPatient.birthDate);
+        const ageLabel = am !== null ? (am < 24 ? `${am}m` : `${Math.floor(am / 12)}a`) : "";
+        const addr = [selectedPatient.logradouro, selectedPatient.numero, selectedPatient.bairro]
+          .filter(Boolean).join(", ") || selectedPatient.address || "";
+        return (
+          <div className="ci-patient-card">
+            <div className="ci-patient-card__avatar" aria-hidden="true">
+              {initials(selectedPatient.name)}
+            </div>
+            <div className="ci-patient-card__body">
+              <div className="ci-patient-card__name">
+                {selectedPatient.nomeSocial || selectedPatient.name}
+              </div>
+              {selectedPatient.nomeSocial && (
+                <div className="ci-patient-card__civil">{selectedPatient.name}</div>
+              )}
+              <div className="ci-patient-card__meta">
+                {ageLabel && <span>{ageLabel}</span>}
+                {selectedPatient.phone && <span>{selectedPatient.phone}</span>}
+                {selectedPatient.cpf && <span>CPF {maskCpf(selectedPatient.cpf)}</span>}
+                {!selectedPatient.cpf && selectedPatient.cns && (
+                  <span>CNS ●●●…{String(selectedPatient.cns).slice(-4)}</span>
+                )}
+              </div>
+              {addr && <div className="ci-patient-card__addr">{addr}</div>}
+              <span className={`ci-status ci-status--${statusInfo.status}`}>
+                {statusInfo.label}
+              </span>
+            </div>
+            <div className="ci-patient-card__actions">
+              {statusInfo.status === "complete" ? (
+                <>
+                  <Button variant="secondary" size="sm" onClick={() => openModal("view")}>Visualizar</Button>
+                  <Button size="sm" onClick={() => openModal("edit")}>Editar</Button>
+                </>
+              ) : (
+                <Button size="sm" onClick={() => openModal("edit")}>{statusInfo.action}</Button>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ── Modal ── */}
+      {showModal && selectedPatient && (
+        <Modal
+          title={`Cadastro Individual — ${selectedPatient.nomeSocial || selectedPatient.name}`}
+          className="modal--ci"
+          onClose={() => { setShowModal(false); setSaveError(""); }}
+          actions={
+            modalMode === "edit" ? (
+              <>
+                <Button
+                  variant="secondary"
+                  type="button"
+                  onClick={() => { setModalMode("view"); setForm(emptyCiForm(selectedPatient)); setSaveError(""); }}
+                >
+                  Cancelar
+                </Button>
+                <Button type="submit" form="ci-form" disabled={saving}>
+                  {saving ? "Salvando…" : "Salvar Cadastro Individual"}
+                </Button>
+              </>
+            ) : (
+              <Button onClick={() => openModal("edit")}>Editar</Button>
+            )
+          }
+        >
+          {saveOk    && <div className="alert alert--success" role="status">Cadastro Individual salvo com sucesso.</div>}
+          {saveError && <div className="alert alert--danger"  role="alert">{saveError}</div>}
+
+          {modalMode === "view" ? (
             <div className="ci-view">
-              <CiRow label="Nome social"        value={selectedPatient.nomeSocial} />
-              <CiRow label="Data de nascimento" value={selectedPatient.birthDate} />
-              <CiRow label="Sexo"               value={selectedPatient.sexAtBirth} />
-              <CiRow label="Raça/Cor"           value={selectedPatient.racaCor} />
-              <CiRow label="Etnia"              value={selectedPatient.etnia} />
-              <CiRow label="Nacionalidade"      value={selectedPatient.nacionalidade} />
-              <CiRow label="Município nasc."    value={selectedPatient.municipioNascimentoIbge} />
-              <CiRow label="Telefone"           value={selectedPatient.phone} />
-              <CiRow label="E-mail"             value={selectedPatient.email} />
-              <CiRow label="Escolaridade"       value={selectedPatient.escolaridade} />
-              <CiRow label="Ocupação"           value={selectedPatient.occupation} />
-              <CiRow label="Situação trabalho"  value={selectedPatient.situacaoMercadoTrabalho} />
-              <CiRow label="Responsável"        value={selectedPatient.responsavelFamiliar} />
-              <CiRow label="Relação responsável" value={selectedPatient.responsible?.relationship} />
-              <CiRow label="Deficiências"       value={(selectedPatient.deficiencia || []).join(", ")} />
-              <CiRow label="Condições de saúde" value={(selectedPatient.condicoesSaude || []).join(", ")} />
-              <CiRow label="Situação de rua"    value={selectedPatient.situacaoRua == null ? "" : selectedPatient.situacaoRua ? "Sim" : "Não"} />
+              <CiRow label="Nome social"          value={selectedPatient.nomeSocial} />
+              <CiRow label="Data de nascimento"   value={fmtDate(selectedPatient.birthDate)} />
+              <CiRow label="Sexo"                 value={selectedPatient.sexAtBirth} />
+              <CiRow label="Raça/Cor"             value={selectedPatient.racaCor} />
+              <CiRow label="Etnia"                value={selectedPatient.etnia} />
+              <CiRow label="Nacionalidade"        value={selectedPatient.nacionalidade} />
+              <CiRow label="Município nasc."      value={selectedPatient.municipioNascimentoIbge} />
+              <CiRow label="Telefone"             value={selectedPatient.phone} />
+              <CiRow label="E-mail"               value={selectedPatient.email} />
+              <CiRow label="Escolaridade"         value={selectedPatient.escolaridade} />
+              <CiRow label="Ocupação"             value={selectedPatient.occupation} />
+              <CiRow label="Situação trabalho"    value={selectedPatient.situacaoMercadoTrabalho} />
+              <CiRow label="Responsável"          value={selectedPatient.responsavelFamiliar} />
+              <CiRow label="Relação responsável"  value={selectedPatient.responsible?.relationship} />
+              <CiRow label="Deficiências"         value={(selectedPatient.deficiencia || []).join(", ")} />
+              <CiRow label="Condições de saúde"   value={(selectedPatient.condicoesSaude || []).join(", ")} />
+              <CiRow label="Situação de rua"      value={selectedPatient.situacaoRua == null ? "" : selectedPatient.situacaoRua ? "Sim" : "Não"} />
               <div className="ci-view__group ci-view__group--tria">
                 <span className="ci-view__group-title">TRIA — Insegurança Alimentar</span>
                 <CiRow label="Alimentos acabaram antes de ter dinheiro para comprar mais?" value={boolStr(selectedPatient.triaAlimentosAcabaram)} />
@@ -2209,218 +2379,118 @@ function CadastroIndividualSection({ token, user, patients }) {
               </div>
             </div>
           ) : (
-            <form className="ci-form" onSubmit={handleSave} noValidate>
-              <div className="ci-form__section-title">Identificação</div>
-              <div className="ci-form__row">
-                <label className="ci-form__field">
-                  <span className="ci-form__label">CNS</span>
-                  <input className="acs-vis-input" value={form.cns} onChange={e => fld("cns", e.target.value)} maxLength={30} />
-                </label>
-                <label className="ci-form__field">
-                  <span className="ci-form__label">CPF</span>
-                  <input className="acs-vis-input" value={form.cpf} onChange={e => fld("cpf", e.target.value)} maxLength={20} />
-                </label>
-              </div>
-              <div className="ci-form__row">
-                <label className="ci-form__field ci-form__field--wide">
-                  <span className="ci-form__label">Nome *</span>
-                  <input className="acs-vis-input" value={form.name} onChange={e => fld("name", e.target.value)} maxLength={300} />
-                </label>
-              </div>
-              <div className="ci-form__row">
-                <label className="ci-form__field ci-form__field--wide">
-                  <span className="ci-form__label">Nome social</span>
-                  <input className="acs-vis-input" value={form.nomeSocial} onChange={e => fld("nomeSocial", e.target.value)} maxLength={150} />
-                </label>
-              </div>
+            <form id="ci-form" className="field-grid field-grid--no-pad" onSubmit={handleSave} noValidate>
 
-              <div className="ci-form__section-title">Dados demográficos</div>
-              <div className="ci-form__row">
-                <label className="ci-form__field">
-                  <span className="ci-form__label">Data de nascimento</span>
-                  <input type="date" className="acs-vis-input" value={form.birthDate} onChange={e => fld("birthDate", e.target.value)} />
-                </label>
-                <label className="ci-form__field">
-                  <span className="ci-form__label">Sexo</span>
-                  <select className="acs-vis-select" value={form.sexAtBirth} onChange={e => fld("sexAtBirth", e.target.value)}>
-                    {CI_SEXO_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                  </select>
-                </label>
-              </div>
-              <div className="ci-form__row">
-                <label className="ci-form__field">
-                  <span className="ci-form__label">Raça/Cor</span>
-                  <select className="acs-vis-select" value={form.racaCor} onChange={e => fld("racaCor", e.target.value)}>
-                    {CI_RACA_COR_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                  </select>
-                </label>
-                <label className="ci-form__field">
-                  <span className="ci-form__label">Etnia</span>
-                  <input className="acs-vis-input" value={form.etnia} onChange={e => fld("etnia", e.target.value)} maxLength={100} />
-                </label>
-              </div>
-              <div className="ci-form__row">
-                <label className="ci-form__field">
-                  <span className="ci-form__label">Nacionalidade</span>
-                  <select className="acs-vis-select" value={form.nacionalidade} onChange={e => fld("nacionalidade", e.target.value)}>
-                    {CI_NACIONALIDADE_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                  </select>
-                </label>
-                <label className="ci-form__field">
-                  <span className="ci-form__label">Município de nascimento (IBGE)</span>
-                  <input className="acs-vis-input" value={form.municipioNascimentoIbge} onChange={e => fld("municipioNascimentoIbge", e.target.value)} maxLength={7} placeholder="7 dígitos" />
-                </label>
-              </div>
+              <p className="ci-form-section field--span-2">Identificação</p>
+              <Input label="CNS" value={form.cns} onChange={e => fld("cns", e.target.value)} maxLength={30} placeholder="15 dígitos" />
+              <Input label="CPF" value={form.cpf} onChange={e => fld("cpf", e.target.value)} maxLength={14} placeholder="000.000.000-00" />
+              <Input label="Nome *" className="field--span-2" value={form.name} onChange={e => fld("name", e.target.value)} maxLength={300} />
+              <Input label="Nome social" className="field--span-2" value={form.nomeSocial} onChange={e => fld("nomeSocial", e.target.value)} maxLength={150} placeholder="Nome preferido" />
 
-              <div className="ci-form__section-title">Contato</div>
-              <div className="ci-form__row">
-                <label className="ci-form__field">
-                  <span className="ci-form__label">Telefone</span>
-                  <input className="acs-vis-input" value={form.phone} onChange={e => fld("phone", e.target.value)} maxLength={30} />
-                </label>
-                <label className="ci-form__field">
-                  <span className="ci-form__label">E-mail</span>
-                  <input type="email" className="acs-vis-input" value={form.email} onChange={e => fld("email", e.target.value)} maxLength={200} />
-                </label>
-              </div>
+              <p className="ci-form-section field--span-2">Dados demográficos</p>
+              <Input label="Data de nascimento" type="date" value={form.birthDate} onChange={e => fld("birthDate", e.target.value)} />
+              <Select label="Sexo" value={form.sexAtBirth} onChange={e => fld("sexAtBirth", e.target.value)}>
+                {CI_SEXO_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </Select>
+              <Select label="Raça/Cor" value={form.racaCor} onChange={e => fld("racaCor", e.target.value)}>
+                {CI_RACA_COR_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </Select>
+              <Input label="Etnia" value={form.etnia} onChange={e => fld("etnia", e.target.value)} maxLength={100} />
+              <Select label="Nacionalidade" value={form.nacionalidade} onChange={e => fld("nacionalidade", e.target.value)}>
+                {CI_NACIONALIDADE_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </Select>
+              <Input label="Município de nascimento (IBGE)" value={form.municipioNascimentoIbge} onChange={e => fld("municipioNascimentoIbge", e.target.value)} maxLength={7} placeholder="7 dígitos" />
 
-              <div className="ci-form__section-title">Socioeconômico</div>
-              <div className="ci-form__row">
-                <label className="ci-form__field">
-                  <span className="ci-form__label">Escolaridade</span>
-                  <select className="acs-vis-select" value={form.escolaridade} onChange={e => fld("escolaridade", e.target.value)}>
-                    {CI_ESCOLARIDADE_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                  </select>
-                </label>
-                <label className="ci-form__field">
-                  <span className="ci-form__label">Ocupação</span>
-                  <input className="acs-vis-input" value={form.occupation} onChange={e => fld("occupation", e.target.value)} maxLength={200} />
-                </label>
-              </div>
-              <div className="ci-form__row">
-                <label className="ci-form__field ci-form__field--wide">
-                  <span className="ci-form__label">Situação no mercado de trabalho</span>
-                  <select className="acs-vis-select" value={form.situacaoMercadoTrabalho} onChange={e => fld("situacaoMercadoTrabalho", e.target.value)}>
-                    {CI_SITUACAO_TRABALHO_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                  </select>
-                </label>
-              </div>
+              <p className="ci-form-section field--span-2">Contato</p>
+              <Input label="Telefone" value={form.phone} onChange={e => fld("phone", e.target.value)} maxLength={30} placeholder="(00) 00000-0000" />
+              <Input label="E-mail" type="email" value={form.email} onChange={e => fld("email", e.target.value)} maxLength={200} />
 
-              <div className="ci-form__section-title">Responsável familiar</div>
-              <div className="ci-form__row">
-                <label className="ci-form__field ci-form__field--wide">
-                  <span className="ci-form__label">Nome do responsável familiar</span>
-                  <input className="acs-vis-input" value={form.responsavelFamiliar} onChange={e => fld("responsavelFamiliar", e.target.value)} maxLength={300} />
-                </label>
-              </div>
-              <div className="ci-form__row">
-                <label className="ci-form__field">
-                  <span className="ci-form__label">CNS do responsável</span>
-                  <input className="acs-vis-input" value={form.cnsResponsavel} onChange={e => fld("cnsResponsavel", e.target.value)} maxLength={30} />
-                </label>
-                <label className="ci-form__field">
-                  <span className="ci-form__label">Relação com responsável</span>
-                  <select className="acs-vis-select" value={form.relacaoResponsavel} onChange={e => fld("relacaoResponsavel", e.target.value)}>
-                    {CI_RELACAO_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                  </select>
-                </label>
-              </div>
+              <p className="ci-form-section field--span-2">Informações sociodemográficas</p>
+              <Select label="Escolaridade" value={form.escolaridade} onChange={e => fld("escolaridade", e.target.value)}>
+                {CI_ESCOLARIDADE_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </Select>
+              <Input label="Ocupação" value={form.occupation} onChange={e => fld("occupation", e.target.value)} maxLength={200} />
+              <Select label="Situação no mercado de trabalho" className="field--span-2" value={form.situacaoMercadoTrabalho} onChange={e => fld("situacaoMercadoTrabalho", e.target.value)}>
+                {CI_SITUACAO_TRABALHO_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </Select>
 
-              <div className="ci-form__section-title">Deficiências</div>
-              <div className="ci-form__checks">
+              <p className="ci-form-section field--span-2">Responsável familiar</p>
+              <Input label="Nome do responsável" className="field--span-2" value={form.responsavelFamiliar} onChange={e => fld("responsavelFamiliar", e.target.value)} maxLength={300} />
+              <Input label="CNS do responsável" value={form.cnsResponsavel} onChange={e => fld("cnsResponsavel", e.target.value)} maxLength={30} />
+              <Select label="Relação com responsável" value={form.relacaoResponsavel} onChange={e => fld("relacaoResponsavel", e.target.value)}>
+                {CI_RELACAO_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </Select>
+
+              <p className="ci-form-section field--span-2">Deficiências</p>
+              <div className="ci-form__checks field--span-2">
                 {CI_DEFICIENCIA_OPTIONS.map(({ key, label }) => (
                   <label key={key} className="acs-vis-check-label">
-                    <input
-                      type="checkbox"
-                      className="acs-vis-checkbox"
+                    <input type="checkbox" className="acs-vis-checkbox"
                       checked={(form.deficiencia || []).includes(key)}
-                      onChange={() => toggleArr("deficiencia", key)}
-                    />
+                      onChange={() => toggleArr("deficiencia", key)} />
                     <span>{label}</span>
                   </label>
                 ))}
               </div>
 
-              <div className="ci-form__section-title">Condições de saúde</div>
-              <div className="ci-form__checks">
+              <p className="ci-form-section field--span-2">Condições de saúde</p>
+              <div className="ci-form__checks field--span-2">
                 {CI_CONDICOES_OPTIONS.map(({ key, label }) => (
                   <label key={key} className="acs-vis-check-label">
-                    <input
-                      type="checkbox"
-                      className="acs-vis-checkbox"
+                    <input type="checkbox" className="acs-vis-checkbox"
                       checked={(form.condicoesSaude || []).includes(key)}
-                      onChange={() => toggleArr("condicoesSaude", key)}
-                    />
+                      onChange={() => toggleArr("condicoesSaude", key)} />
                     <span>{label}</span>
                   </label>
                 ))}
               </div>
 
-              <div className="ci-form__section-title">Situação de vulnerabilidade</div>
-              <div className="ci-form__row">
-                <fieldset className="ci-form__fieldset">
-                  <legend className="ci-form__label">Situação de rua</legend>
-                  <div className="ci-form__radios">
-                    {[["sim", true], ["nao", false], ["ni", null]].map(([id, val]) => (
-                      <label key={id} className="ci-form__radio-label">
-                        <input
-                          type="radio"
-                          name="situacaoRua"
-                          className="acs-vis-radio"
-                          checked={form.situacaoRua === val}
-                          onChange={() => fld("situacaoRua", val)}
-                        />
-                        <span>{val === true ? "Sim" : val === false ? "Não" : "Não informado"}</span>
-                      </label>
-                    ))}
-                  </div>
-                </fieldset>
-              </div>
+              <p className="ci-form-section field--span-2">Situação de rua</p>
+              <fieldset className="ci-form__fieldset field--span-2">
+                <legend className="field__label">Em situação de rua?</legend>
+                <div className="ci-form__radios">
+                  {[["sim", true], ["nao", false], ["ni", null]].map(([id, val]) => (
+                    <label key={id} className="ci-form__radio-label">
+                      <input type="radio" name="situacaoRua" className="acs-vis-radio"
+                        checked={form.situacaoRua === val}
+                        onChange={() => fld("situacaoRua", val)} />
+                      <span>{val === true ? "Sim" : val === false ? "Não" : "Não informado"}</span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
 
-              <div className="ci-form__section-title">TRIA — Triagem de Insegurança Alimentar</div>
-              <div className="ci-form__tria">
-                <fieldset className="ci-form__fieldset">
-                  <legend className="ci-form__label">Nos últimos 3 meses, os alimentos acabaram antes de ter dinheiro para comprar mais?</legend>
-                  <div className="ci-form__radios">
-                    {[["sim", true], ["nao", false], ["ni", null]].map(([id, val]) => (
-                      <label key={id} className="ci-form__radio-label">
-                        <input type="radio" name="triaAlimentosAcabaram" className="acs-vis-radio"
-                          checked={form.triaAlimentosAcabaram === val}
-                          onChange={() => fld("triaAlimentosAcabaram", val)} />
-                        <span>{val === true ? "Sim" : val === false ? "Não" : "Não informado"}</span>
-                      </label>
-                    ))}
-                  </div>
-                </fieldset>
-                <fieldset className="ci-form__fieldset">
-                  <legend className="ci-form__label">Nos últimos 3 meses, precisou consumir apenas alguns alimentos porque o dinheiro acabou?</legend>
-                  <div className="ci-form__radios">
-                    {[["sim", true], ["nao", false], ["ni", null]].map(([id, val]) => (
-                      <label key={id} className="ci-form__radio-label">
-                        <input type="radio" name="triaConsomiu" className="acs-vis-radio"
-                          checked={form.triaConsomiuApenasAlgunsDosAlimentos === val}
-                          onChange={() => fld("triaConsomiuApenasAlgunsDosAlimentos", val)} />
-                        <span>{val === true ? "Sim" : val === false ? "Não" : "Não informado"}</span>
-                      </label>
-                    ))}
-                  </div>
-                </fieldset>
-              </div>
+              <p className="ci-form-section field--span-2">TRIA — Triagem de Insegurança Alimentar</p>
+              <fieldset className="ci-form__fieldset field--span-2">
+                <legend className="field__label">Nos últimos 3 meses, os alimentos acabaram antes de ter dinheiro para comprar mais?</legend>
+                <div className="ci-form__radios">
+                  {[["sim", true], ["nao", false], ["ni", null]].map(([id, val]) => (
+                    <label key={id} className="ci-form__radio-label">
+                      <input type="radio" name="triaAlimentosAcabaram" className="acs-vis-radio"
+                        checked={form.triaAlimentosAcabaram === val}
+                        onChange={() => fld("triaAlimentosAcabaram", val)} />
+                      <span>{val === true ? "Sim" : val === false ? "Não" : "Não informado"}</span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+              <fieldset className="ci-form__fieldset field--span-2">
+                <legend className="field__label">Nos últimos 3 meses, precisou consumir apenas alguns alimentos porque o dinheiro acabou?</legend>
+                <div className="ci-form__radios">
+                  {[["sim", true], ["nao", false], ["ni", null]].map(([id, val]) => (
+                    <label key={id} className="ci-form__radio-label">
+                      <input type="radio" name="triaConsomiu" className="acs-vis-radio"
+                        checked={form.triaConsomiuApenasAlgunsDosAlimentos === val}
+                        onChange={() => fld("triaConsomiuApenasAlgunsDosAlimentos", val)} />
+                      <span>{val === true ? "Sim" : val === false ? "Não" : "Não informado"}</span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
 
-              {saveError && <p className="ci-form__error" role="alert">{saveError}</p>}
-              {saveOk    && <p className="ci-form__ok"    role="status">Salvo com sucesso.</p>}
-
-              <div className="ci-form__actions">
-                <button type="button" className="ci-form__cancel-btn" onClick={() => { setEditing(false); setForm(emptyCiForm(selectedPatient)); setSaveError(""); }}>
-                  Cancelar
-                </button>
-                <button type="submit" className="ci-form__save-btn" disabled={saving}>
-                  {saving ? "Salvando…" : "Salvar Cadastro Individual"}
-                </button>
-              </div>
             </form>
           )}
-        </div>
+        </Modal>
       )}
     </div>
   );

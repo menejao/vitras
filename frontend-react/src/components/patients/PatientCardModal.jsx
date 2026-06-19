@@ -1,5 +1,5 @@
 import { gestationalAgeInfo, calcAge } from "../../utils/clinical";
-import { fmtDate } from "../../utils/formatting";
+import { fmtDate, maskCpf } from "../../utils/formatting";
 import Avatar from "../ui/Avatar";
 import Button from "../ui/Button";
 import Modal from "../ui/Modal";
@@ -33,7 +33,7 @@ export function PatientCardModal({ patient, users, templates, history, onClose }
             <div className="pharma-pat-card__name">{patient.name}</div>
             <div className="pharma-pat-card__meta-row">
               {patient.birthDate && <span>Nasc.: {fmtDate(patient.birthDate)}{calcAge(patient.birthDate) ? ` · ${calcAge(patient.birthDate)}` : ""}</span>}
-              {patient.cpf && <span>CPF: {patient.cpf}</span>}
+              {patient.cpf && <span>CPF: {maskCpf(patient.cpf)}</span>}
               {patient.cns && <span>CNS: {patient.cns}</span>}
               {patient.sex && <span>Sexo: {patient.sex}</span>}
             </div>

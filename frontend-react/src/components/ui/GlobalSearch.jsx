@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { matchesPatientSearch, gestationalAgeInfo } from "../../utils/clinical";
+import { maskCpf } from "../../utils/formatting";
 import Avatar from "./Avatar";
 import Button from "./Button";
 import Input from "./Input";
@@ -64,7 +65,7 @@ function GlobalSearch({ patients, templates, onNavigate }) {
                   <div className="global-search__result-copy">
                     <div className="global-search__result-name">{p.name}</div>
                     <div className="global-search__result-meta">
-                      {p.cpf&&<span>CPF {p.cpf} · </span>}
+                      {p.cpf&&<span>CPF {maskCpf(p.cpf)} · </span>}
                       <span>{templates.find(t=>t.category===p.careCategory)?.label||p.careCategory||"Geral"}</span>
                       {g&&String(p.careCategory||"").toLowerCase()==="pregnant"&&<span> · IG {g.weeks}s{g.days}d</span>}
                     </div>

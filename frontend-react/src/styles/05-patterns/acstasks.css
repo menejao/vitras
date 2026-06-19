@@ -2096,54 +2096,108 @@
 }
 
 
-/* ── Cadastro Individual — APS-01J-C ─────────────────────────────────────── */
+/* ── Cadastro Individual — APS-01J-C / APS-01K ──────────────────────────── */
 
 .ci-section {
   padding: 1rem;
   max-width: 720px;
 }
 
-.ci-section__header { margin-bottom: 1rem; }
+.ci-section__header { margin-bottom: 1.25rem; }
 .ci-section__title  { font-size: 1.125rem; font-weight: 600; color: var(--text-primary); margin: 0 0 .25rem; }
 .ci-section__sub    { font-size: .875rem; color: var(--text-secondary); margin: 0; }
 
-/* card */
-.ci-card {
-  margin-top: 1rem;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.ci-card__topbar {
+/* search */
+.ci-search-wrap { position: relative; margin-bottom: .75rem; }
+.ci-search-wrap .input { width: 100%; }
+.ci-search-clear {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: .5rem;
-  padding: .75rem 1rem;
-  background: var(--surface-secondary, #f8fafc);
-  border-bottom: 1px solid var(--border);
-}
-
-.ci-card__identity { display: flex; flex-direction: column; gap: .125rem; }
-.ci-card__name     { font-size: 1rem; }
-.ci-card__civil    { font-size: .8125rem; color: var(--text-secondary); }
-.ci-card__doc      { font-size: .8125rem; color: var(--text-secondary); }
-
-.ci-card__edit-btn {
-  flex-shrink: 0;
-  padding: .375rem .875rem;
-  border: 1px solid var(--primary, #0f766e);
-  border-radius: 6px;
+  justify-content: center;
+  width: 28px; height: 28px;
+  border: none;
   background: transparent;
-  color: var(--primary, #0f766e);
-  font-size: .875rem;
+  color: var(--text-secondary);
   cursor: pointer;
+  border-radius: 4px;
 }
-.ci-card__edit-btn:hover { background: color-mix(in srgb, var(--primary,#0f766e) 8%, transparent); }
+.ci-search-clear:hover { background: var(--surface-secondary, #f8fafc); color: var(--text-primary); }
 
-/* view */
-.ci-view { padding: 1rem; display: grid; gap: .375rem; }
+/* empty state */
+.ci-empty { margin-top: 2rem; }
+
+/* patient card */
+.ci-patient-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface, #fff);
+  margin-bottom: 1rem;
+}
+
+.ci-patient-card__avatar {
+  flex-shrink: 0;
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  background: var(--primary, #0f766e);
+  color: #fff;
+  font-size: .9375rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ci-patient-card__body  { flex: 1; min-width: 0; }
+.ci-patient-card__name  { font-weight: 600; font-size: 1rem; color: var(--text-primary); }
+.ci-patient-card__civil { font-size: .8125rem; color: var(--text-secondary); margin-top: .0625rem; }
+
+.ci-patient-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .375rem .75rem;
+  margin-top: .375rem;
+}
+.ci-patient-card__meta > span {
+  font-size: .8125rem;
+  color: var(--text-secondary);
+}
+
+.ci-patient-card__addr {
+  font-size: .8125rem;
+  color: var(--text-secondary);
+  margin-top: .25rem;
+}
+
+.ci-patient-card__actions {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+  align-items: flex-end;
+}
+
+/* status badge */
+.ci-status {
+  display: inline-flex;
+  align-items: center;
+  gap: .3rem;
+  margin-top: .5rem;
+  font-size: .75rem;
+  font-weight: 500;
+  padding: .2rem .6rem;
+  border-radius: 999px;
+}
+.ci-status--complete   { background: color-mix(in srgb, #16a34a 12%, transparent); color: #15803d; }
+.ci-status--incomplete { background: color-mix(in srgb, #d97706 12%, transparent); color: #b45309; }
+.ci-status--none       { background: var(--surface-secondary, #f1f5f9); color: var(--text-secondary); }
+
+/* view (inside modal) */
+.ci-view { display: grid; gap: .375rem; }
 
 .ci-view__row {
   display: flex;
@@ -2170,30 +2224,19 @@
   display: block;
 }
 
-/* form */
-.ci-form { padding: 1rem; display: flex; flex-direction: column; gap: .75rem; }
-
-.ci-form__section-title {
+/* form section heading inside field-grid */
+.ci-form-section {
+  margin: .25rem 0 0;
+  padding-bottom: .375rem;
+  border-bottom: 1px solid var(--border-soft, #e2e8f0);
+  font-size: .75rem;
   font-weight: 600;
-  font-size: .8125rem;
   color: var(--text-secondary);
   text-transform: uppercase;
-  letter-spacing: .04em;
-  margin-top: .5rem;
-  padding-bottom: .25rem;
-  border-bottom: 1px solid var(--border-soft, #e2e8f0);
+  letter-spacing: .05em;
 }
 
-.ci-form__row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: .75rem;
-}
-
-.ci-form__field { display: flex; flex-direction: column; gap: .25rem; }
-.ci-form__field--wide { grid-column: 1 / -1; }
-.ci-form__label { font-size: .8125rem; color: var(--text-secondary); font-weight: 500; }
-
+/* fieldsets, checkboxes, radios */
 .ci-form__fieldset {
   border: 1px solid var(--border-soft, #e2e8f0);
   border-radius: 6px;
@@ -2202,7 +2245,7 @@
 }
 .ci-form__fieldset legend { font-size: .8125rem; color: var(--text-secondary); padding: 0 .25rem; }
 
-.ci-form__radios { display: flex; gap: 1rem; flex-wrap: wrap; margin-top: .375rem; }
+.ci-form__radios      { display: flex; gap: 1rem; flex-wrap: wrap; margin-top: .375rem; }
 .ci-form__radio-label { display: flex; align-items: center; gap: .375rem; font-size: .875rem; cursor: pointer; }
 
 .ci-form__checks {
@@ -2211,53 +2254,21 @@
   gap: .375rem;
 }
 
-.ci-form__tria { display: flex; flex-direction: column; gap: .75rem; }
+/* modal sizing */
+.modal--ci .modal { max-width: 680px; max-height: 90vh; display: flex; flex-direction: column; }
+.modal--ci .modal__body { overflow-y: auto; flex: 1; }
 
-.ci-form__error { color: var(--color-error, #dc2626); font-size: .875rem; margin: 0; }
-.ci-form__ok    { color: var(--color-success, #16a34a); font-size: .875rem; margin: 0; }
-
-.ci-form__actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: .75rem;
-  margin-top: .5rem;
-  padding-top: .75rem;
-  border-top: 1px solid var(--border-soft, #e2e8f0);
-}
-
-.ci-form__cancel-btn {
-  padding: .5rem 1rem;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: transparent;
-  color: var(--text-secondary);
-  font-size: .875rem;
-  cursor: pointer;
-}
-.ci-form__cancel-btn:hover { background: var(--surface-secondary, #f8fafc); }
-
-.ci-form__save-btn {
-  padding: .5rem 1.25rem;
-  border: none;
-  border-radius: 6px;
-  background: var(--primary, #0f766e);
-  color: #fff;
-  font-size: .875rem;
-  font-weight: 500;
-  cursor: pointer;
-}
-.ci-form__save-btn:disabled { opacity: .6; cursor: not-allowed; }
-.ci-form__save-btn:not(:disabled):hover { background: var(--primary-dark, #0d6460); }
+/* dropdown civil name */
+.agenda-pat-opt__civil { font-weight: 400; color: var(--text-secondary); }
 
 /* mobile */
 @media (max-width: 420px) {
-  .ci-section       { padding: .75rem; }
-  .ci-form__row     { grid-template-columns: 1fr; }
-  .ci-view__label   { flex: 0 0 130px; }
-  .ci-form__checks  { grid-template-columns: 1fr 1fr; }
-  .ci-form__actions { flex-direction: column-reverse; }
-  .ci-form__cancel-btn,
-  .ci-form__save-btn { width: 100%; text-align: center; }
+  .ci-section            { padding: .75rem; }
+  .ci-patient-card       { flex-wrap: wrap; }
+  .ci-patient-card__actions { flex-direction: row; flex-wrap: wrap; width: 100%; }
+  .ci-view__label        { flex: 0 0 120px; }
+  .ci-form__checks       { grid-template-columns: 1fr 1fr; }
+  .modal--ci .modal      { max-height: 100vh; border-radius: 0; }
 }
 
 /* ── Cadastro Domiciliar — APS-01J-D ─────────────────────────────────────── */

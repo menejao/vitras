@@ -21,6 +21,18 @@ export function formatCep(v) {
 
 export function formatCns(v) { return onlyDigits(v).slice(0, 15); }
 
+// LGPD-friendly CPF display: shows first 3 and last 2 digits only.
+// maskCpf("11122233344") → "111.***.***-44"
+// Use in all patient lists, cards, and autocomplete results — never in data-entry inputs.
+export function maskCpf(raw) {
+  const d = onlyDigits(String(raw || ""));
+  if (!d) return "";
+  if (d.length < 4) return "*".repeat(d.length);
+  const first = d.slice(0, 3);
+  const last  = d.length >= 11 ? d.slice(9, 11) : d.slice(-Math.min(2, d.length - 3));
+  return `${first}.***.***-${last}`;
+}
+
 export function formatCouncil(v) {
   const d = onlyDigits(v).slice(0, 6);
   if (d.length <= 3) return d;
