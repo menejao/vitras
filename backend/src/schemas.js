@@ -572,29 +572,67 @@ const ACS_TURNO_VALUES = ["manha", "tarde", "noite"];
 const ACS_DESFECHO_VALUES = ["realizada", "recusada", "ausente"];
 const ACS_MOMENTO_GLICEMIA_VALUES = ["jejum", "pos_prandial_1h", "pos_prandial_2h", "aleatorio"];
 
+// APS-01J: Cadastro Individual / Domiciliar sub-schemas
+const AcsCadastroIndividualSchema = z.object({
+  nome:                     z.string().trim().max(200).optional().nullable(),
+  nomeSocial:               z.string().trim().max(200).optional().nullable(),
+  dataNascimento:           z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+  sexo:                     z.string().trim().max(20).optional().nullable(),
+  raca:                     z.string().trim().max(30).optional().nullable(),
+  cpf:                      z.string().trim().max(20).optional().nullable(),
+  cns:                      z.string().trim().max(20).optional().nullable(),
+  prontuarioFamiliar:       z.string().trim().max(50).optional().nullable(),
+  triaMesFimComida:         z.boolean().optional().nullable(),
+  triaComeuMenosQuantidade: z.boolean().optional().nullable(),
+  triaFicouSemComida:       z.boolean().optional().nullable(),
+  triaPassouFome:           z.boolean().optional().nullable(),
+}).optional().nullable();
+
+const AcsCadastroDomiciliarSchema = z.object({
+  tipoImovel:                z.string().trim().max(50).optional().nullable(),
+  tipoDomicilio:             z.string().trim().max(50).optional().nullable(),
+  numMoradores:              z.number().int().min(0).max(200).optional().nullable(),
+  numComodos:                z.number().int().min(0).max(100).optional().nullable(),
+  localizacao:               z.string().trim().max(20).optional().nullable(),
+  abastecimentoAgua:         z.string().trim().max(50).optional().nullable(),
+  tratamentoAgua:            z.string().trim().max(50).optional().nullable(),
+  esgotamento:               z.string().trim().max(50).optional().nullable(),
+  destinacaoLixo:            z.string().trim().max(50).optional().nullable(),
+  energiaEletrica:           z.boolean().optional().nullable(),
+  situacaoMoradiaPosseTerra: z.string().trim().max(50).optional().nullable(),
+  animaisNoDomicilio:        z.boolean().optional().nullable(),
+  tiposAnimais:              z.array(z.string().trim().max(30)).max(10).optional().nullable(),
+  quantidadeAnimais:         z.number().int().min(0).max(999).optional().nullable(),
+}).optional().nullable();
+
 const AcsVisitCreateSchema = z.object({
-  patientId:         z.string().trim().min(1).max(100),
-  householdId:       z.string().trim().max(100).optional().nullable(),
-  taskId:            z.string().trim().max(100).optional().nullable(),
-  date:              z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, "date deve ser YYYY-MM-DD"),
-  turno:             z.enum(ACS_TURNO_VALUES).optional().nullable(),
-  microarea:         z.string().trim().max(50).optional().nullable(),
-  foraArea:          z.boolean().optional().default(false),
-  desfecho:          z.enum(ACS_DESFECHO_VALUES),
-  motivos:           z.array(z.string().trim().min(1).max(100)).max(30).optional().default([]),
-  buscaAtiva:        z.array(z.string().trim().min(1).max(100)).max(30).optional().default([]),
-  acompanhamentos:   z.array(z.string().trim().min(1).max(100)).max(30).optional().default([]),
-  controleAmbiental: z.array(z.string().trim().min(1).max(100)).max(10).optional().default([]),
-  peso:              z.number().min(0).max(700).optional().nullable(),
-  altura:            z.number().min(0).max(300).optional().nullable(),
+  patientId:          z.string().trim().min(1).max(100),
+  householdId:        z.string().trim().max(100).optional().nullable(),
+  taskId:             z.string().trim().max(100).optional().nullable(),
+  date:               z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, "date deve ser YYYY-MM-DD"),
+  turno:              z.enum(ACS_TURNO_VALUES).optional().nullable(),
+  microarea:          z.string().trim().max(50).optional().nullable(),
+  foraArea:           z.boolean().optional().default(false),
+  tipoImovel:         z.string().trim().max(50).optional().nullable(),
+  visitaCompartilhada: z.boolean().optional().default(false),
+  desfecho:           z.enum(ACS_DESFECHO_VALUES),
+  motivos:            z.array(z.string().trim().min(1).max(100)).max(30).optional().default([]),
+  buscaAtiva:         z.array(z.string().trim().min(1).max(100)).max(30).optional().default([]),
+  acompanhamentos:    z.array(z.string().trim().min(1).max(100)).max(30).optional().default([]),
+  controleAmbiental:  z.array(z.string().trim().min(1).max(100)).max(10).optional().default([]),
+  peso:               z.number().min(0).max(700).optional().nullable(),
+  altura:             z.number().min(0).max(300).optional().nullable(),
   // APS-01G: sinais vitais
-  temperatura:       z.number().min(30).max(45).optional().nullable(),
-  paSistolica:       z.number().int().min(50).max(300).optional().nullable(),
-  paDiastolica:      z.number().int().min(20).max(200).optional().nullable(),
+  temperatura:        z.number().min(30).max(45).optional().nullable(),
+  paSistolica:        z.number().int().min(50).max(300).optional().nullable(),
+  paDiastolica:       z.number().int().min(20).max(200).optional().nullable(),
   // APS-01G: glicemia
-  glicemia:          z.number().min(10).max(600).optional().nullable(),
-  momentoGlicemia:   z.enum(ACS_MOMENTO_GLICEMIA_VALUES).optional().nullable(),
-  observacoes:       z.string().trim().max(2000).optional().nullable()
+  glicemia:           z.number().min(10).max(600).optional().nullable(),
+  momentoGlicemia:    z.enum(ACS_MOMENTO_GLICEMIA_VALUES).optional().nullable(),
+  observacoes:        z.string().trim().max(2000).optional().nullable(),
+  // APS-01J: cadastro individual + domiciliar coletados durante visita
+  cadastroIndividual: AcsCadastroIndividualSchema,
+  cadastroDomiciliar: AcsCadastroDomiciliarSchema,
 });
 
 const AcsVisitUpdateSchema = z.object({

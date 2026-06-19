@@ -652,12 +652,91 @@ const CONTROLE_AMBIENTAL_OPTIONS = [
   { key: "ca_trat_focal",      label: "Tratamento focal"  },
 ];
 
+// ── APS-01J: visit form enums ──────────────────────────────────────────────
+
+const TIPO_IMOVEL_OPTIONS = [
+  { value: "DOMICILIO",          label: "Domicílio"         },
+  { value: "COMERCIO",           label: "Comércio"          },
+  { value: "TERRENO_BALDIO",     label: "Terreno baldio"    },
+  { value: "PONTO_ESTRATEGICO",  label: "Ponto estratégico" },
+  { value: "OUTRO",              label: "Outro"             },
+];
+
+const RACA_COR_OPTIONS = [
+  { value: "BRANCA",         label: "Branca"         },
+  { value: "PRETA",          label: "Preta"          },
+  { value: "PARDA",          label: "Parda"          },
+  { value: "AMARELA",        label: "Amarela"        },
+  { value: "INDIGENA",       label: "Indígena"       },
+  { value: "SEM_INFORMACAO", label: "Sem informação" },
+];
+
+const ABAST_AGUA_OPTIONS = [
+  { value: "REDE_PUBLICA",     label: "Rede pública"        },
+  { value: "POCO_CISTERNA",    label: "Poço / cisterna"     },
+  { value: "CARRO_PIPA",       label: "Carro pipa"          },
+  { value: "AGUA_CHUVA",       label: "Água de chuva"       },
+  { value: "RIO_LAGO_IGARAPE", label: "Rio / lago / igarapé"},
+  { value: "OUTRO",            label: "Outro"               },
+];
+
+const TRATAMENTO_AGUA_OPTIONS = [
+  { value: "FILTRACAO",      label: "Filtração"      },
+  { value: "FERVURA",        label: "Fervura"        },
+  { value: "CLORACAO",       label: "Cloração"       },
+  { value: "MINERAL",        label: "Água mineral"   },
+  { value: "SEM_TRATAMENTO", label: "Sem tratamento" },
+];
+
+const ESGOTAMENTO_OPTIONS = [
+  { value: "REDE_COLETORA",    label: "Rede coletora"          },
+  { value: "FOSSA_SEPTICA",    label: "Fossa séptica"          },
+  { value: "FOSSA_RUDIMENTAR", label: "Fossa rudimentar"       },
+  { value: "DIRETO_RIO",       label: "Direto para rio / lago" },
+  { value: "CEU_ABERTO",       label: "Céu aberto"             },
+  { value: "OUTRO",            label: "Outro"                  },
+];
+
+const DESTINO_LIXO_OPTIONS = [
+  { value: "COLETA_PUBLICA", label: "Coleta pública"        },
+  { value: "QUEIMADO",       label: "Queimado / enterrado"  },
+  { value: "JOGADO_TERRENO", label: "Jogado em terreno"     },
+  { value: "OUTRO",          label: "Outro"                 },
+];
+
+const SITUACAO_MORADIA_OPTIONS = [
+  { value: "PROPRIO",      label: "Próprio"         },
+  { value: "FINANCIADO",   label: "Financiado"      },
+  { value: "ALUGADO",      label: "Alugado"         },
+  { value: "CEDIDO",       label: "Cedido"          },
+  { value: "OCUPACAO",     label: "Ocupação"        },
+  { value: "SITUACAO_RUA", label: "Situação de rua" },
+  { value: "OUTRO",        label: "Outro"           },
+];
+
+const VISIT_TABS = [
+  { id: 1,  short: "Visita",    full: "Dados da Visita"      },
+  { id: 2,  short: "Paciente",  full: "Paciente"             },
+  { id: 3,  short: "Desfecho",  full: "Desfecho"             },
+  { id: 4,  short: "Motivo",    full: "Motivo da Visita"     },
+  { id: 5,  short: "Busca",     full: "Busca Ativa"          },
+  { id: 6,  short: "Acomp.",    full: "Acompanhamento"       },
+  { id: 7,  short: "Controle",  full: "Controle Ambiental"   },
+  { id: 8,  short: "Sinais",    full: "Sinais Vitais"        },
+  { id: 9,  short: "C.Ind.",    full: "Cadastro Individual"  },
+  { id: 10, short: "Domiciliar",full: "Cadastro Domiciliar"  },
+  { id: 11, short: "Família",   full: "Grupo Familiar"       },
+  { id: 12, short: "Revisão",   full: "Revisão e Salvar"     },
+];
+
 function emptyVisitForm(today, patient) {
   return {
     date:               today,
     turno:              "manha",
     microarea:          patient?.microarea || patient?.microArea || "",
     foraArea:           false,
+    tipoImovel:         "DOMICILIO",
+    visitaCompartilhada: false,
     desfecho:           "realizada",
     motivos:            {},
     buscaAtiva:         {},
@@ -671,6 +750,36 @@ function emptyVisitForm(today, patient) {
     glicemia:           "",
     momentoGlicemia:    "jejum",
     observacoes:        "",
+    ci: {
+      nome:                     patient?.name || "",
+      nomeSocial:               patient?.socialName || "",
+      dataNascimento:           patient?.birthDate || "",
+      sexo:                     patient?.sex || "",
+      raca:                     patient?.raceColor || "",
+      cpf:                      patient?.cpf || "",
+      cns:                      patient?.cns || "",
+      prontuarioFamiliar:       patient?.prontuarioFamiliar || "",
+      triaMesFimComida:         false,
+      triaComeuMenosQuantidade: false,
+      triaFicouSemComida:       false,
+      triaPassouFome:           false,
+    },
+    cd: {
+      tipoImovel:                "",
+      tipoDomicilio:             "",
+      numMoradores:              "",
+      numComodos:                "",
+      localizacao:               "",
+      abastecimentoAgua:         "",
+      tratamentoAgua:            "",
+      esgotamento:               "",
+      destinacaoLixo:            "",
+      energiaEletrica:           "",
+      situacaoMoradiaPosseTerra: "",
+      animaisNoDomicilio:        false,
+      tiposAnimais:              [],
+      quantidadeAnimais:         "",
+    },
   };
 }
 
@@ -819,23 +928,74 @@ function AccordionBlock({ title, badge, defaultOpen = false, children }) {
 function VisitForm({ patient, taskOrigin, userId, token, onSave, onCancel }) {
   const today = new Date().toISOString().slice(0, 10);
   const [form, setForm] = useState(() => emptyVisitForm(today, patient));
+  const [activeTab, setActiveTab] = useState(1);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [familyGroup, setFamilyGroup] = useState(null);
+
+  useEffect(() => {
+    if (!token || !patient?.id) return;
+    fetch(`${API_URL}/family-groups?patientId=${patient.id}`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : [])
+      .then(data => {
+        const groups = Array.isArray(data) ? data : [];
+        const match = groups.find(g => (g.memberPatientIds || []).includes(patient.id));
+        setFamilyGroup(match || null);
+      })
+      .catch(() => {});
+  }, [token, patient?.id]);
 
   const upd = useCallback((field, val) =>
     setForm(s => ({ ...s, [field]: val })), []);
+
+  const updCi = useCallback((field, val) =>
+    setForm(s => ({ ...s, ci: { ...s.ci, [field]: val } })), []);
+
+  const updCd = useCallback((field, val) =>
+    setForm(s => ({ ...s, cd: { ...s.cd, [field]: val } })), []);
 
   const toggleMap = useCallback((mapField, key, checked) =>
     setForm(s => ({ ...s, [mapField]: { ...s[mapField], [key]: checked } })), []);
 
   const countChecked = obj => Object.values(obj).filter(Boolean).length;
 
-  async function handleSubmit(e) {
-    e.preventDefault();
-    if (!form.date)     { setError("Informe a data da visita."); return; }
-    if (!form.desfecho) { setError("Selecione o desfecho."); return; }
+  async function handleSubmit() {
+    if (!form.date)     { setError("Informe a data da visita (Aba 1)."); setActiveTab(1); return; }
+    if (!form.desfecho) { setError("Selecione o desfecho (Aba 3)."); setActiveTab(3); return; }
     setError("");
     setSaving(true);
+
+    const ciClean = {
+      nome:                     form.ci.nome || null,
+      nomeSocial:               form.ci.nomeSocial || null,
+      dataNascimento:           form.ci.dataNascimento || null,
+      sexo:                     form.ci.sexo || null,
+      raca:                     form.ci.raca || null,
+      cpf:                      form.ci.cpf || null,
+      cns:                      form.ci.cns || null,
+      prontuarioFamiliar:       form.ci.prontuarioFamiliar || null,
+      triaMesFimComida:         form.ci.triaMesFimComida,
+      triaComeuMenosQuantidade: form.ci.triaComeuMenosQuantidade,
+      triaFicouSemComida:       form.ci.triaFicouSemComida,
+      triaPassouFome:           form.ci.triaPassouFome,
+    };
+
+    const cdClean = {
+      tipoImovel:                form.cd.tipoImovel || null,
+      tipoDomicilio:             form.cd.tipoDomicilio || null,
+      numMoradores:              form.cd.numMoradores !== "" ? Number(form.cd.numMoradores) : null,
+      numComodos:                form.cd.numComodos !== "" ? Number(form.cd.numComodos) : null,
+      localizacao:               form.cd.localizacao || null,
+      abastecimentoAgua:         form.cd.abastecimentoAgua || null,
+      tratamentoAgua:            form.cd.tratamentoAgua || null,
+      esgotamento:               form.cd.esgotamento || null,
+      destinacaoLixo:            form.cd.destinacaoLixo || null,
+      energiaEletrica:           form.cd.energiaEletrica === "true" ? true : form.cd.energiaEletrica === "false" ? false : null,
+      situacaoMoradiaPosseTerra: form.cd.situacaoMoradiaPosseTerra || null,
+      animaisNoDomicilio:        form.cd.animaisNoDomicilio,
+      tiposAnimais:              form.cd.tiposAnimais,
+      quantidadeAnimais:         form.cd.quantidadeAnimais !== "" ? Number(form.cd.quantidadeAnimais) : null,
+    };
 
     const body = {
       patientId:         patient.id,
@@ -844,6 +1004,8 @@ function VisitForm({ patient, taskOrigin, userId, token, onSave, onCancel }) {
       turno:             form.turno || null,
       microarea:         form.microarea || null,
       foraArea:          form.foraArea === true,
+      tipoImovel:        form.tipoImovel || null,
+      visitaCompartilhada: form.visitaCompartilhada === true,
       desfecho:          form.desfecho,
       motivos:           Object.keys(form.motivos).filter(k => form.motivos[k]),
       buscaAtiva:        Object.keys(form.buscaAtiva).filter(k => form.buscaAtiva[k]),
@@ -857,6 +1019,8 @@ function VisitForm({ patient, taskOrigin, userId, token, onSave, onCancel }) {
       glicemia:          form.glicemia ? Number(form.glicemia) : null,
       momentoGlicemia:   form.glicemia ? (form.momentoGlicemia || "aleatorio") : null,
       observacoes:       form.observacoes || null,
+      cadastroIndividual: ciClean,
+      cadastroDomiciliar: cdClean,
     };
 
     try {
@@ -882,8 +1046,455 @@ function VisitForm({ patient, taskOrigin, userId, token, onSave, onCancel }) {
     }
   }
 
+  const tabRef = useRef(null);
+  useEffect(() => {
+    if (!tabRef.current) return;
+    const active = tabRef.current.querySelector(".acs-vis-tab.is-active");
+    active?.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" });
+  }, [activeTab]);
+
+  function renderTabContent() {
+    switch (activeTab) {
+      case 1:
+        return (
+          <div className="acs-vis-tab-body">
+            <div className="acs-vis-fields">
+              <div className="acs-vis-field">
+                <label className="acs-vis-label" htmlFor="vis-date">Data</label>
+                <input id="vis-date" className="acs-vis-input" type="date" value={form.date}
+                  max={today} onChange={e => upd("date", e.target.value)} required />
+              </div>
+              <div className="acs-vis-field">
+                <label className="acs-vis-label" htmlFor="vis-turno">Turno</label>
+                <select id="vis-turno" className="acs-vis-select" value={form.turno} onChange={e => upd("turno", e.target.value)}>
+                  {TURNO_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+              <div className="acs-vis-field">
+                <label className="acs-vis-label" htmlFor="vis-microarea">Microárea</label>
+                <input id="vis-microarea" className="acs-vis-input" type="text" maxLength={50}
+                  value={form.microarea} onChange={e => upd("microarea", e.target.value)} placeholder="Ex: 01" />
+              </div>
+              <div className="acs-vis-field">
+                <label className="acs-vis-label" htmlFor="vis-tipoimovel">Tipo de imóvel</label>
+                <select id="vis-tipoimovel" className="acs-vis-select" value={form.tipoImovel} onChange={e => upd("tipoImovel", e.target.value)}>
+                  <option value="">Não informado</option>
+                  {TIPO_IMOVEL_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+            </div>
+            <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 6 }}>
+              <label className="acs-vis-check-label">
+                <input type="checkbox" className="acs-vis-checkbox" checked={form.foraArea}
+                  onChange={e => upd("foraArea", e.target.checked)} />
+                <span>Fora da área de cobertura</span>
+              </label>
+              <label className="acs-vis-check-label">
+                <input type="checkbox" className="acs-vis-checkbox" checked={form.visitaCompartilhada}
+                  onChange={e => upd("visitaCompartilhada", e.target.checked)} />
+                <span>Visita compartilhada com outro profissional</span>
+              </label>
+            </div>
+          </div>
+        );
+
+      case 2:
+        return (
+          <div className="acs-vis-tab-body">
+            <div className="acs-vis-pat-info">
+              {[
+                ["Nome", patient.name],
+                ["Nome social", patient.socialName],
+                ["Nascimento", patient.birthDate ? `${patient.birthDate} (${ageStr(patient.birthDate)})` : null],
+                ["Sexo", patient.sex === "male" || patient.sex === "masculino" ? "Masculino" : patient.sex === "female" || patient.sex === "feminino" ? "Feminino" : patient.sex],
+                ["CPF", patient.cpf],
+                ["CNS", patient.cns],
+                ["Prontuário", patient.prontuarioFamiliar],
+                ["Endereço", patient.address ? `${patient.address}${patient.addressNumber ? `, ${patient.addressNumber}` : ""}` : null],
+                ["Microárea", patient.microarea || patient.microArea],
+              ].filter(([, v]) => v).map(([label, value]) => (
+                <div key={label} className="acs-vis-pat-info-row">
+                  <span className="acs-vis-pat-info-row__label">{label}</span>
+                  <span className="acs-vis-pat-info-row__value">{value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+
+      case 3:
+        return (
+          <div className="acs-vis-tab-body">
+            <div className="acs-vis-desfecho-group">
+              {DESFECHO_OPTIONS.map(o => (
+                <label key={o.value} className={`acs-vis-desfecho-opt${form.desfecho === o.value ? " is-selected" : ""}`}>
+                  <input type="radio" name="desfecho" value={o.value}
+                    checked={form.desfecho === o.value} onChange={() => upd("desfecho", o.value)} />
+                  {o.label}
+                </label>
+              ))}
+            </div>
+          </div>
+        );
+
+      case 4:
+        return (
+          <div className="acs-vis-tab-body">
+            <CheckGroup options={MOTIVO_OPTIONS} values={form.motivos}
+              onChange={(k, v) => toggleMap("motivos", k, v)} columns={1} />
+          </div>
+        );
+
+      case 5:
+        return (
+          <div className="acs-vis-tab-body">
+            <CheckGroup options={BUSCA_ATIVA_OPTIONS} values={form.buscaAtiva}
+              onChange={(k, v) => toggleMap("buscaAtiva", k, v)} />
+          </div>
+        );
+
+      case 6:
+        return (
+          <div className="acs-vis-tab-body">
+            <CheckGroup options={ACOMPANHAMENTO_OPTIONS} values={form.acompanhamentos}
+              onChange={(k, v) => toggleMap("acompanhamentos", k, v)} />
+          </div>
+        );
+
+      case 7:
+        return (
+          <div className="acs-vis-tab-body">
+            <CheckGroup options={CONTROLE_AMBIENTAL_OPTIONS} values={form.controleAmbiental}
+              onChange={(k, v) => toggleMap("controleAmbiental", k, v)} columns={2} />
+          </div>
+        );
+
+      case 8:
+        return (
+          <div className="acs-vis-tab-body">
+            <div className="acs-vis-fields">
+              <div className="acs-vis-field">
+                <label className="acs-vis-label" htmlFor="vis-peso">Peso (kg)</label>
+                <input id="vis-peso" className="acs-vis-input" type="number" min="1" max="300" step="0.1"
+                  value={form.peso} onChange={e => upd("peso", e.target.value)} placeholder="Ex: 65.5" />
+              </div>
+              <div className="acs-vis-field">
+                <label className="acs-vis-label" htmlFor="vis-altura">Altura (cm)</label>
+                <input id="vis-altura" className="acs-vis-input" type="number" min="30" max="250" step="0.5"
+                  value={form.altura} onChange={e => upd("altura", e.target.value)} placeholder="Ex: 170" />
+              </div>
+              <div className="acs-vis-field">
+                <label className="acs-vis-label" htmlFor="vis-temp">Temperatura (°C)</label>
+                <input id="vis-temp" className="acs-vis-input" type="number" min="30" max="45" step="0.1"
+                  value={form.temperatura} onChange={e => upd("temperatura", e.target.value)} placeholder="Ex: 36.5" />
+              </div>
+              <div className="acs-vis-field">
+                <label className="acs-vis-label" htmlFor="vis-pas">PA Sistólica (mmHg)</label>
+                <input id="vis-pas" className="acs-vis-input" type="number" min="50" max="300" step="1"
+                  value={form.paSistolica} onChange={e => upd("paSistolica", e.target.value)} placeholder="Ex: 120" />
+              </div>
+              <div className="acs-vis-field">
+                <label className="acs-vis-label" htmlFor="vis-pad">PA Diastólica (mmHg)</label>
+                <input id="vis-pad" className="acs-vis-input" type="number" min="20" max="200" step="1"
+                  value={form.paDiastolica} onChange={e => upd("paDiastolica", e.target.value)} placeholder="Ex: 80" />
+              </div>
+              <div className="acs-vis-field">
+                <label className="acs-vis-label" htmlFor="vis-glic">Glicemia capilar (mg/dL)</label>
+                <input id="vis-glic" className="acs-vis-input" type="number" min="10" max="600" step="1"
+                  value={form.glicemia} onChange={e => upd("glicemia", e.target.value)} placeholder="Ex: 95" />
+              </div>
+              {form.glicemia && (
+                <div className="acs-vis-field">
+                  <label className="acs-vis-label" htmlFor="vis-momento">Momento da coleta</label>
+                  <select id="vis-momento" className="acs-vis-select" value={form.momentoGlicemia} onChange={e => upd("momentoGlicemia", e.target.value)}>
+                    <option value="jejum">Em jejum</option>
+                    <option value="pos_prandial_1h">Pós-prandial 1h</option>
+                    <option value="pos_prandial_2h">Pós-prandial 2h</option>
+                    <option value="aleatorio">Aleatório</option>
+                  </select>
+                </div>
+              )}
+            </div>
+            <div style={{ marginTop: 10 }}>
+              <label className="acs-vis-label">Observações</label>
+              <textarea className="acs-vis-textarea" rows={3} value={form.observacoes}
+                onChange={e => upd("observacoes", e.target.value)}
+                placeholder="Anotações livres sobre a visita..." aria-label="Observações" />
+            </div>
+          </div>
+        );
+
+      case 9:
+        return (
+          <div className="acs-vis-tab-body">
+            <div className="acs-vis-fields">
+              <div className="acs-vis-field">
+                <label className="acs-vis-label" htmlFor="ci-nome">Nome completo</label>
+                <input id="ci-nome" className="acs-vis-input" type="text" maxLength={200}
+                  value={form.ci.nome} onChange={e => updCi("nome", e.target.value)} />
+              </div>
+              <div className="acs-vis-field">
+                <label className="acs-vis-label" htmlFor="ci-nomesocial">Nome social</label>
+                <input id="ci-nomesocial" className="acs-vis-input" type="text" maxLength={200}
+                  value={form.ci.nomeSocial} onChange={e => updCi("nomeSocial", e.target.value)} placeholder="Se diferente do nome" />
+              </div>
+              <div className="acs-vis-field">
+                <label className="acs-vis-label" htmlFor="ci-nasc">Data de nascimento</label>
+                <input id="ci-nasc" className="acs-vis-input" type="date"
+                  value={form.ci.dataNascimento} onChange={e => updCi("dataNascimento", e.target.value)} />
+              </div>
+              <div className="acs-vis-field">
+                <label className="acs-vis-label" htmlFor="ci-sexo">Sexo</label>
+                <select id="ci-sexo" className="acs-vis-select" value={form.ci.sexo} onChange={e => updCi("sexo", e.target.value)}>
+                  <option value="">Não informado</option>
+                  <option value="male">Masculino</option>
+                  <option value="female">Feminino</option>
+                </select>
+              </div>
+              <div className="acs-vis-field">
+                <label className="acs-vis-label" htmlFor="ci-raca">Raça / Cor</label>
+                <select id="ci-raca" className="acs-vis-select" value={form.ci.raca} onChange={e => updCi("raca", e.target.value)}>
+                  <option value="">Não informado</option>
+                  {RACA_COR_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+              <div className="acs-vis-field">
+                <label className="acs-vis-label" htmlFor="ci-cpf">CPF</label>
+                <input id="ci-cpf" className="acs-vis-input" type="text" maxLength={20}
+                  value={form.ci.cpf} onChange={e => updCi("cpf", e.target.value)} placeholder="000.000.000-00" />
+              </div>
+              <div className="acs-vis-field">
+                <label className="acs-vis-label" htmlFor="ci-cns">CNS</label>
+                <input id="ci-cns" className="acs-vis-input" type="text" maxLength={20}
+                  value={form.ci.cns} onChange={e => updCi("cns", e.target.value)} placeholder="000 0000 0000 0000" />
+              </div>
+              <div className="acs-vis-field">
+                <label className="acs-vis-label" htmlFor="ci-pront">Prontuário familiar</label>
+                <input id="ci-pront" className="acs-vis-input" type="text" maxLength={50}
+                  value={form.ci.prontuarioFamiliar} onChange={e => updCi("prontuarioFamiliar", e.target.value)} />
+              </div>
+            </div>
+            <div style={{ marginTop: 12 }}>
+              <p className="acs-vis-label" style={{ marginBottom: 6 }}>TRIA — Triagem de Insegurança Alimentar</p>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {[
+                  ["triaMesFimComida",         "Nos últimos 3 meses, preocupou-se que a comida acabasse antes de poder comprar mais?"],
+                  ["triaComeuMenosQuantidade",  "Nos últimos 3 meses, comeu menos do que achou que deveria porque não havia dinheiro suficiente?"],
+                  ["triaFicouSemComida",        "Nos últimos 3 meses, ficou sem comida por não ter dinheiro para comprar mais?"],
+                  ["triaPassouFome",            "Nos últimos 3 meses, passou fome mas não comeu porque não havia dinheiro para comprar comida?"],
+                ].map(([field, label]) => (
+                  <label key={field} className="acs-vis-check-label">
+                    <input type="checkbox" className="acs-vis-checkbox"
+                      checked={!!form.ci[field]} onChange={e => updCi(field, e.target.checked)} />
+                    <span>{label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+
+      case 10:
+        return (
+          <div className="acs-vis-tab-body">
+            <div className="acs-vis-fields">
+              <div className="acs-vis-field">
+                <label className="acs-vis-label" htmlFor="cd-tipoimovel">Tipo de imóvel</label>
+                <select id="cd-tipoimovel" className="acs-vis-select" value={form.cd.tipoImovel} onChange={e => updCd("tipoImovel", e.target.value)}>
+                  <option value="">Não informado</option>
+                  {TIPO_IMOVEL_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+              <div className="acs-vis-field">
+                <label className="acs-vis-label" htmlFor="cd-tipodom">Tipo de domicílio</label>
+                <select id="cd-tipodom" className="acs-vis-select" value={form.cd.tipoDomicilio} onChange={e => updCd("tipoDomicilio", e.target.value)}>
+                  <option value="">Não informado</option>
+                  <option value="CASA">Casa</option>
+                  <option value="APARTAMENTO">Apartamento</option>
+                  <option value="COMODO">Cômodo</option>
+                  <option value="MALOCA">Maloca</option>
+                  <option value="IMPROVISADO">Improvisado</option>
+                  <option value="OUTRO">Outro</option>
+                </select>
+              </div>
+              <div className="acs-vis-field">
+                <label className="acs-vis-label" htmlFor="cd-loc">Localização</label>
+                <select id="cd-loc" className="acs-vis-select" value={form.cd.localizacao} onChange={e => updCd("localizacao", e.target.value)}>
+                  <option value="">Não informado</option>
+                  <option value="URBANA">Urbana</option>
+                  <option value="RURAL">Rural</option>
+                </select>
+              </div>
+              <div className="acs-vis-field">
+                <label className="acs-vis-label" htmlFor="cd-nmor">Nº de moradores</label>
+                <input id="cd-nmor" className="acs-vis-input" type="number" min="0" max="50"
+                  value={form.cd.numMoradores} onChange={e => updCd("numMoradores", e.target.value)} placeholder="0" />
+              </div>
+              <div className="acs-vis-field">
+                <label className="acs-vis-label" htmlFor="cd-ncom">Nº de cômodos</label>
+                <input id="cd-ncom" className="acs-vis-input" type="number" min="0" max="50"
+                  value={form.cd.numComodos} onChange={e => updCd("numComodos", e.target.value)} placeholder="0" />
+              </div>
+              <div className="acs-vis-field">
+                <label className="acs-vis-label" htmlFor="cd-agua">Abastecimento de água</label>
+                <select id="cd-agua" className="acs-vis-select" value={form.cd.abastecimentoAgua} onChange={e => updCd("abastecimentoAgua", e.target.value)}>
+                  <option value="">Não informado</option>
+                  {ABAST_AGUA_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+              <div className="acs-vis-field">
+                <label className="acs-vis-label" htmlFor="cd-trat">Tratamento da água</label>
+                <select id="cd-trat" className="acs-vis-select" value={form.cd.tratamentoAgua} onChange={e => updCd("tratamentoAgua", e.target.value)}>
+                  <option value="">Não informado</option>
+                  {TRATAMENTO_AGUA_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+              <div className="acs-vis-field">
+                <label className="acs-vis-label" htmlFor="cd-esg">Esgotamento sanitário</label>
+                <select id="cd-esg" className="acs-vis-select" value={form.cd.esgotamento} onChange={e => updCd("esgotamento", e.target.value)}>
+                  <option value="">Não informado</option>
+                  {ESGOTAMENTO_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+              <div className="acs-vis-field">
+                <label className="acs-vis-label" htmlFor="cd-lixo">Destino do lixo</label>
+                <select id="cd-lixo" className="acs-vis-select" value={form.cd.destinacaoLixo} onChange={e => updCd("destinacaoLixo", e.target.value)}>
+                  <option value="">Não informado</option>
+                  {DESTINO_LIXO_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+              <div className="acs-vis-field">
+                <label className="acs-vis-label" htmlFor="cd-energia">Energia elétrica</label>
+                <select id="cd-energia" className="acs-vis-select" value={form.cd.energiaEletrica} onChange={e => updCd("energiaEletrica", e.target.value)}>
+                  <option value="">Não informado</option>
+                  <option value="true">Sim</option>
+                  <option value="false">Não</option>
+                </select>
+              </div>
+              <div className="acs-vis-field">
+                <label className="acs-vis-label" htmlFor="cd-moradia">Situação de moradia</label>
+                <select id="cd-moradia" className="acs-vis-select" value={form.cd.situacaoMoradiaPosseTerra} onChange={e => updCd("situacaoMoradiaPosseTerra", e.target.value)}>
+                  <option value="">Não informado</option>
+                  {SITUACAO_MORADIA_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+            </div>
+            <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+              <label className="acs-vis-check-label">
+                <input type="checkbox" className="acs-vis-checkbox" checked={form.cd.animaisNoDomicilio}
+                  onChange={e => updCd("animaisNoDomicilio", e.target.checked)} />
+                <span>Animais no domicílio</span>
+              </label>
+              {form.cd.animaisNoDomicilio && (
+                <div style={{ paddingLeft: 20, display: "flex", flexDirection: "column", gap: 6 }}>
+                  <p className="acs-vis-label" style={{ marginBottom: 4 }}>Quais animais:</p>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                    {[["cachorro","Cachorro"],["gato","Gato"],["passaro","Pássaro"],["outros","Outros"]].map(([v, l]) => (
+                      <label key={v} className="acs-vis-check-label">
+                        <input type="checkbox" className="acs-vis-checkbox"
+                          checked={form.cd.tiposAnimais.includes(v)}
+                          onChange={e => updCd("tiposAnimais", e.target.checked
+                            ? [...form.cd.tiposAnimais, v]
+                            : form.cd.tiposAnimais.filter(a => a !== v))} />
+                        <span>{l}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <div className="acs-vis-field" style={{ maxWidth: 160 }}>
+                    <label className="acs-vis-label" htmlFor="cd-qtdanim">Quantidade</label>
+                    <input id="cd-qtdanim" className="acs-vis-input" type="number" min="0" max="999"
+                      value={form.cd.quantidadeAnimais} onChange={e => updCd("quantidadeAnimais", e.target.value)} placeholder="0" />
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+
+      case 11:
+        return (
+          <div className="acs-vis-tab-body acs-vis-fg-mini">
+            {familyGroup ? (
+              <>
+                <p><strong>{familyGroup.address || "Endereço não informado"}</strong>
+                  {familyGroup.microArea ? ` — Microárea ${familyGroup.microArea}` : ""}</p>
+                <div className="acs-vis-fg-mini__members">
+                  {(familyGroup.memberPatientIds || []).map(id => (
+                    <span key={id} className="acs-vis-fg-mini__chip">{id}</span>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <p className="acs-vis-fg-mini__empty">Nenhum grupo familiar encontrado para este paciente.</p>
+            )}
+          </div>
+        );
+
+      case 12:
+        return (
+          <div className="acs-vis-tab-body">
+            <div className="acs-vis-review">
+              <div className="acs-vis-review-group">
+                <div className="acs-vis-review-group__title">Dados da visita</div>
+                <div className="acs-vis-review-row"><span className="acs-vis-review-row__label">Data</span><span className="acs-vis-review-row__value">{form.date}</span></div>
+                <div className="acs-vis-review-row"><span className="acs-vis-review-row__label">Turno</span><span className="acs-vis-review-row__value">{TURNO_OPTIONS.find(o => o.value === form.turno)?.label || form.turno}</span></div>
+                {form.microarea && <div className="acs-vis-review-row"><span className="acs-vis-review-row__label">Microárea</span><span className="acs-vis-review-row__value">{form.microarea}</span></div>}
+                <div className="acs-vis-review-row"><span className="acs-vis-review-row__label">Desfecho</span><span className="acs-vis-review-row__value">{DESFECHO_OPTIONS.find(o => o.value === form.desfecho)?.label || form.desfecho}</span></div>
+              </div>
+              {countChecked(form.motivos) > 0 && (
+                <div className="acs-vis-review-group">
+                  <div className="acs-vis-review-group__title">Motivos ({countChecked(form.motivos)})</div>
+                  {MOTIVO_OPTIONS.filter(o => form.motivos[o.key]).map(o => (
+                    <div key={o.key} className="acs-vis-review-row"><span className="acs-vis-review-row__value">• {o.label}</span></div>
+                  ))}
+                </div>
+              )}
+              {countChecked(form.buscaAtiva) > 0 && (
+                <div className="acs-vis-review-group">
+                  <div className="acs-vis-review-group__title">Busca ativa ({countChecked(form.buscaAtiva)})</div>
+                  {BUSCA_ATIVA_OPTIONS.filter(o => form.buscaAtiva[o.key]).map(o => (
+                    <div key={o.key} className="acs-vis-review-row"><span className="acs-vis-review-row__value">• {o.label}</span></div>
+                  ))}
+                </div>
+              )}
+              {countChecked(form.acompanhamentos) > 0 && (
+                <div className="acs-vis-review-group">
+                  <div className="acs-vis-review-group__title">Acompanhamento ({countChecked(form.acompanhamentos)})</div>
+                  {ACOMPANHAMENTO_OPTIONS.filter(o => form.acompanhamentos[o.key]).map(o => (
+                    <div key={o.key} className="acs-vis-review-row"><span className="acs-vis-review-row__value">• {o.label}</span></div>
+                  ))}
+                </div>
+              )}
+              {(form.peso || form.altura || form.temperatura || form.paSistolica || form.glicemia) && (
+                <div className="acs-vis-review-group">
+                  <div className="acs-vis-review-group__title">Sinais vitais</div>
+                  {form.peso && <div className="acs-vis-review-row"><span className="acs-vis-review-row__label">Peso</span><span className="acs-vis-review-row__value">{form.peso} kg</span></div>}
+                  {form.altura && <div className="acs-vis-review-row"><span className="acs-vis-review-row__label">Altura</span><span className="acs-vis-review-row__value">{form.altura} cm</span></div>}
+                  {form.temperatura && <div className="acs-vis-review-row"><span className="acs-vis-review-row__label">Temperatura</span><span className="acs-vis-review-row__value">{form.temperatura} °C</span></div>}
+                  {form.paSistolica && <div className="acs-vis-review-row"><span className="acs-vis-review-row__label">PA</span><span className="acs-vis-review-row__value">{form.paSistolica}/{form.paDiastolica} mmHg</span></div>}
+                  {form.glicemia && <div className="acs-vis-review-row"><span className="acs-vis-review-row__label">Glicemia</span><span className="acs-vis-review-row__value">{form.glicemia} mg/dL</span></div>}
+                </div>
+              )}
+            </div>
+
+            {error && <div className="acs-vis-error" role="alert" style={{ marginTop: 10 }}>{error}</div>}
+
+            <div className="acs-vis-form__actions" style={{ marginTop: 14 }}>
+              <button type="button" className="acs-vis-btn-cancel" onClick={onCancel}>Cancelar</button>
+              <button type="button" className="acs-vis-btn-save" disabled={saving} onClick={handleSubmit}>
+                {saving ? "Salvando..." : "Salvar Visita"}
+              </button>
+            </div>
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  }
+
   return (
-    <form className="acs-vis-form" onSubmit={handleSubmit} noValidate>
+    <div className="acs-vis-form">
       <div className="acs-vis-form__header">
         <button type="button" className="acs-vis-back-btn" onClick={onCancel}>
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -898,7 +1509,6 @@ function VisitForm({ patient, taskOrigin, userId, token, onSave, onCancel }) {
           </svg>
           <span>{patient.socialName || patient.name}</span>
           {ageStr(patient.birthDate) && <span className="acs-vis-form__patient-age">{ageStr(patient.birthDate)}</span>}
-          {patient.address && <span className="acs-vis-form__patient-addr">{patient.address}{patient.addressNumber ? `, ${patient.addressNumber}` : ""}</span>}
         </div>
       </div>
 
@@ -908,185 +1518,43 @@ function VisitForm({ patient, taskOrigin, userId, token, onSave, onCancel }) {
             <rect x="8" y="2" width="8" height="4" rx="1" stroke="currentColor" strokeWidth="1.3"/>
             <path d="M6 4H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-1" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
           </svg>
-          Originada de tarefa: <strong>{taskOrigin.title}</strong>
+          Tarefa: <strong>{taskOrigin.title}</strong>
         </div>
       )}
 
-      {error && <div className="acs-vis-error" role="alert">{error}</div>}
-
-      {/* Bloco 1 — Dados da visita */}
-      <AccordionBlock title="Dados da visita" defaultOpen>
-        <div className="acs-vis-fields">
-          <div className="acs-vis-field">
-            <label className="acs-vis-label" htmlFor="vis-date">Data</label>
-            <input
-              id="vis-date"
-              className="acs-vis-input"
-              type="date"
-              value={form.date}
-              max={today}
-              onChange={e => upd("date", e.target.value)}
-              required
-            />
-          </div>
-          <div className="acs-vis-field">
-            <label className="acs-vis-label" htmlFor="vis-turno">Turno</label>
-            <select id="vis-turno" className="acs-vis-select" value={form.turno} onChange={e => upd("turno", e.target.value)}>
-              {TURNO_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
-          </div>
-          <div className="acs-vis-field">
-            <label className="acs-vis-label" htmlFor="vis-microarea">Microárea</label>
-            <input
-              id="vis-microarea"
-              className="acs-vis-input"
-              type="text"
-              maxLength={50}
-              value={form.microarea}
-              onChange={e => upd("microarea", e.target.value)}
-              placeholder="Ex: 01"
-            />
-          </div>
-        </div>
-        <label className="acs-vis-check-label" style={{ marginTop: "8px" }}>
-          <input
-            type="checkbox"
-            className="acs-vis-checkbox"
-            checked={form.foraArea}
-            onChange={e => upd("foraArea", e.target.checked)}
-          />
-          <span>Fora da área de cobertura</span>
-        </label>
-      </AccordionBlock>
-
-      {/* Bloco 2 — Motivo da visita */}
-      <AccordionBlock title="Motivo da visita" badge={countChecked(form.motivos)} defaultOpen>
-        <CheckGroup
-          options={MOTIVO_OPTIONS}
-          values={form.motivos}
-          onChange={(k, v) => toggleMap("motivos", k, v)}
-          columns={1}
-        />
-      </AccordionBlock>
-
-      {/* Bloco 3 — Busca ativa */}
-      <AccordionBlock title="Busca ativa" badge={countChecked(form.buscaAtiva)}>
-        <CheckGroup
-          options={BUSCA_ATIVA_OPTIONS}
-          values={form.buscaAtiva}
-          onChange={(k, v) => toggleMap("buscaAtiva", k, v)}
-        />
-      </AccordionBlock>
-
-      {/* Bloco 4 — Acompanhamento */}
-      <AccordionBlock title="Acompanhamento" badge={countChecked(form.acompanhamentos)}>
-        <CheckGroup
-          options={ACOMPANHAMENTO_OPTIONS}
-          values={form.acompanhamentos}
-          onChange={(k, v) => toggleMap("acompanhamentos", k, v)}
-        />
-      </AccordionBlock>
-
-      {/* Bloco 5 — Controle ambiental e vetorial */}
-      <AccordionBlock title="Controle ambiental e vetorial" badge={countChecked(form.controleAmbiental)}>
-        <CheckGroup
-          options={CONTROLE_AMBIENTAL_OPTIONS}
-          values={form.controleAmbiental}
-          onChange={(k, v) => toggleMap("controleAmbiental", k, v)}
-          columns={2}
-        />
-      </AccordionBlock>
-
-      {/* Bloco 6 — Antropometria */}
-      <AccordionBlock title="Antropometria e sinais vitais">
-        <div className="acs-vis-fields">
-          <div className="acs-vis-field">
-            <label className="acs-vis-label" htmlFor="vis-peso">Peso (kg)</label>
-            <input id="vis-peso" className="acs-vis-input" type="number" min="1" max="300" step="0.1"
-              value={form.peso} onChange={e => upd("peso", e.target.value)} placeholder="Ex: 65.5" />
-          </div>
-          <div className="acs-vis-field">
-            <label className="acs-vis-label" htmlFor="vis-altura">Altura (cm)</label>
-            <input id="vis-altura" className="acs-vis-input" type="number" min="30" max="250" step="0.5"
-              value={form.altura} onChange={e => upd("altura", e.target.value)} placeholder="Ex: 170" />
-          </div>
-          <div className="acs-vis-field">
-            <label className="acs-vis-label" htmlFor="vis-temp">Temperatura (°C)</label>
-            <input id="vis-temp" className="acs-vis-input" type="number" min="30" max="45" step="0.1"
-              value={form.temperatura} onChange={e => upd("temperatura", e.target.value)} placeholder="Ex: 36.5" />
-          </div>
-          <div className="acs-vis-field">
-            <label className="acs-vis-label" htmlFor="vis-pas">PA Sistólica (mmHg)</label>
-            <input id="vis-pas" className="acs-vis-input" type="number" min="50" max="300" step="1"
-              value={form.paSistolica} onChange={e => upd("paSistolica", e.target.value)} placeholder="Ex: 120" />
-          </div>
-          <div className="acs-vis-field">
-            <label className="acs-vis-label" htmlFor="vis-pad">PA Diastólica (mmHg)</label>
-            <input id="vis-pad" className="acs-vis-input" type="number" min="20" max="200" step="1"
-              value={form.paDiastolica} onChange={e => upd("paDiastolica", e.target.value)} placeholder="Ex: 80" />
-          </div>
-        </div>
-      </AccordionBlock>
-
-      {/* Bloco 6b — Glicemia */}
-      <AccordionBlock title="Glicemia">
-        <div className="acs-vis-fields">
-          <div className="acs-vis-field">
-            <label className="acs-vis-label" htmlFor="vis-glic">Glicemia capilar (mg/dL)</label>
-            <input id="vis-glic" className="acs-vis-input" type="number" min="10" max="600" step="1"
-              value={form.glicemia} onChange={e => upd("glicemia", e.target.value)} placeholder="Ex: 95" />
-          </div>
-          {form.glicemia && (
-            <div className="acs-vis-field">
-              <label className="acs-vis-label" htmlFor="vis-momento">Momento da coleta</label>
-              <select id="vis-momento" className="acs-vis-select" value={form.momentoGlicemia} onChange={e => upd("momentoGlicemia", e.target.value)}>
-                <option value="jejum">Em jejum</option>
-                <option value="pos_prandial_1h">Pós-prandial 1h</option>
-                <option value="pos_prandial_2h">Pós-prandial 2h</option>
-                <option value="aleatorio">Aleatório</option>
-              </select>
-            </div>
-          )}
-        </div>
-      </AccordionBlock>
-
-      {/* Bloco 7 — Desfecho */}
-      <AccordionBlock title="Desfecho" defaultOpen>
-        <div className="acs-vis-desfecho-group">
-          {DESFECHO_OPTIONS.map(o => (
-            <label key={o.value} className={`acs-vis-desfecho-opt${form.desfecho === o.value ? " is-selected" : ""}`}>
-              <input
-                type="radio"
-                name="desfecho"
-                value={o.value}
-                checked={form.desfecho === o.value}
-                onChange={() => upd("desfecho", o.value)}
-              />
-              {o.label}
-            </label>
-          ))}
-        </div>
-      </AccordionBlock>
-
-      {/* Bloco 8 — Observações */}
-      <AccordionBlock title="Observações">
-        <textarea
-          className="acs-vis-textarea"
-          rows={4}
-          value={form.observacoes}
-          onChange={e => upd("observacoes", e.target.value)}
-          placeholder="Anotações livres sobre a visita..."
-          aria-label="Observações"
-        />
-      </AccordionBlock>
-
-      <div className="acs-vis-form__actions">
-        <button type="button" className="acs-vis-btn-cancel" onClick={onCancel}>Cancelar</button>
-        <button type="submit" className="acs-vis-btn-save" disabled={saving}>
-          {saving ? "Salvando..." : "Salvar Visita"}
-        </button>
+      <div ref={tabRef} className="acs-vis-tabbar" role="tablist">
+        {VISIT_TABS.map(tab => (
+          <button
+            key={tab.id}
+            type="button"
+            role="tab"
+            aria-selected={activeTab === tab.id}
+            className={`acs-vis-tab${activeTab === tab.id ? " is-active" : ""}`}
+            onClick={() => setActiveTab(tab.id)}
+          >
+            <span className="acs-vis-tab__num">{tab.id}</span>
+            {tab.short}
+          </button>
+        ))}
       </div>
-    </form>
+
+      <div className="acs-vis-tab-title">{VISIT_TABS.find(t => t.id === activeTab)?.full}</div>
+
+      {renderTabContent()}
+
+      {activeTab < 12 && (
+        <div className="acs-vis-tab-nav">
+          {activeTab > 1 ? (
+            <button type="button" className="acs-vis-tab-nav__prev" onClick={() => setActiveTab(t => t - 1)}>
+              ← Anterior
+            </button>
+          ) : <span />}
+          <button type="button" className="acs-vis-tab-nav__next" onClick={() => setActiveTab(t => t + 1)}>
+            Próxima →
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
 
