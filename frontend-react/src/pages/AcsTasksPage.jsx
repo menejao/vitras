@@ -1461,6 +1461,7 @@ function ProductionSection({ token, user }) {
   const [error, setError]     = useState(null);
 
   const load = async () => {
+    if (!token) return;
     setLoading(true);
     setError(null);
     try {
@@ -1468,7 +1469,10 @@ function ProductionSection({ token, user }) {
         fetch(`${API_URL}/production/acs?period=${period}`, { headers: { Authorization: `Bearer ${token}` } }),
         fetch(`${API_URL}/active-search/stats`,             { headers: { Authorization: `Bearer ${token}` } }),
       ]);
-      if (!prodRes.ok) throw new Error("Erro ao carregar produção");
+      if (!prodRes.ok) {
+        const body = await prodRes.json().catch(() => ({}));
+        throw new Error(body.error || `Erro ${prodRes.status} ao carregar produção`);
+      }
       const [prod, st] = await Promise.all([prodRes.json(), statsRes.ok ? statsRes.json() : null]);
       setData(prod);
       setStats(st);
@@ -1479,7 +1483,7 @@ function ProductionSection({ token, user }) {
     }
   };
 
-  useEffect(() => { load(); }, [period, token]);
+  useEffect(() => { if (token) load(); }, [period, token]);
 
   const v = data?.visits || {};
   const t = data?.tasks  || {};
@@ -1652,21 +1656,29 @@ function ActiveSearchSection({ token, user, onOpenGroup, onStartVisit }) {
   const [filterAcs, setFilterAcs]         = useState("");
 
   const load = async () => {
+    if (!token) return;
     setLoading(true);
     setError(null);
     try {
       const params = new URLSearchParams({ limit: "200" });
-      if (filterStatus)  params.set("status",   filterStatus);
-      if (filterMicro)   params.set("microarea", filterMicro);
-      if (filterPendency) params.set("pendency", filterPendency);
-      if (filterAcs)     params.set("acsId",    filterAcs);
+      if (filterStatus)   params.set("status",   filterStatus);
+      if (filterMicro)    params.set("microarea", filterMicro);
+      if (filterPendency) params.set("pendency",  filterPendency);
+      if (filterAcs)      params.set("acsId",     filterAcs);
 
       const [listRes, statsRes] = await Promise.all([
         fetch(`${API_URL}/active-search?${params}`, { headers: { Authorization: `Bearer ${token}` } }),
         fetch(`${API_URL}/active-search/stats`,     { headers: { Authorization: `Bearer ${token}` } }),
       ]);
 
-      if (!listRes.ok || !statsRes.ok) throw new Error("Erro ao carregar busca ativa");
+      if (!listRes.ok) {
+        const body = await listRes.json().catch(() => ({}));
+        throw new Error(body.error || `Erro ${listRes.status} ao carregar busca ativa`);
+      }
+      if (!statsRes.ok) {
+        const body = await statsRes.json().catch(() => ({}));
+        throw new Error(body.error || `Erro ${statsRes.status} ao carregar estatísticas`);
+      }
       const [list, st] = await Promise.all([listRes.json(), statsRes.json()]);
       setData(list);
       setStats(st);
@@ -1677,7 +1689,7 @@ function ActiveSearchSection({ token, user, onOpenGroup, onStartVisit }) {
     }
   };
 
-  useEffect(() => { load(); }, [filterStatus, filterMicro, filterPendency, filterAcs]);
+  useEffect(() => { if (token) load(); }, [filterStatus, filterMicro, filterPendency, filterAcs, token]);
 
   const items = data?.items || [];
   const critical  = items.filter(r => r.classification === "critico");

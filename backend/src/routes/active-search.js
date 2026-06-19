@@ -65,127 +65,136 @@ function buildIndices(db) {
 // ── GET /active-search ────────────────────────────────────────────────────────
 
 router.get("/active-search", async (req, res) => {
-  const db = await readDb();
-  ensureDbShape(db);
+  try {
+    const db = await readDb();
+    ensureDbShape(db);
 
-  const {
-    acsId, microarea, status, scoreMin, scoreMax, pendency, page, limit: limitQ,
-  } = req.query;
+    const {
+      acsId, microarea, status, scoreMin, scoreMax, pendency, page, limit: limitQ,
+    } = req.query;
 
-  const groups  = visibleGroups(db, req.user);
-  const indices = buildIndices(db);
+    const groups  = visibleGroups(db, req.user);
+    const indices = buildIndices(db);
 
-  let results = groups.map(g => {
-    const memberIds = new Set(g.memberPatientIds || []);
-    const members   = [...memberIds].map(id => indices.patientById[id]).filter(Boolean);
-    const visits    = indices.visitsByGroup[g.id] || [];
-    const tasks     = indices.tasksByGroup[g.id]  || [];
-    return buildGroupResult(g, members, visits, tasks, indices.usersById);
-  });
+    let results = groups.map(g => {
+      const memberIds = new Set(g.memberPatientIds || []);
+      const members   = [...memberIds].map(id => indices.patientById[id]).filter(Boolean);
+      const visits    = indices.visitsByGroup[g.id] || [];
+      const tasks     = indices.tasksByGroup[g.id]  || [];
+      return buildGroupResult(g, members, visits, tasks, indices.usersById);
+    });
 
-  // ── Filters ────────────────────────────────────────────────────────────────
-  if (acsId)     results = results.filter(r => r.assignedAcsId === acsId);
-  if (microarea) results = results.filter(r => (r.microArea || "").toLowerCase() === microarea.toLowerCase());
-  if (status)    results = results.filter(r => r.classification === status);
-  if (scoreMin !== undefined) results = results.filter(r => r.score >= Number(scoreMin));
-  if (scoreMax !== undefined) results = results.filter(r => r.score <= Number(scoreMax));
-  if (pendency)  results = results.filter(r => r.pendencies.some(p => p.code === pendency));
+    // ── Filters ──────────────────────────────────────────────────────────────
+    if (acsId)     results = results.filter(r => r.assignedAcsId === acsId);
+    if (microarea) results = results.filter(r => (r.microArea || "").toLowerCase() === microarea.toLowerCase());
+    if (status)    results = results.filter(r => r.classification === status);
+    if (scoreMin !== undefined) results = results.filter(r => r.score >= Number(scoreMin));
+    if (scoreMax !== undefined) results = results.filter(r => r.score <= Number(scoreMax));
+    if (pendency)  results = results.filter(r => r.pendencies.some(p => p.code === pendency));
 
-  // ── Sort: most critical first (score asc), then by pendency count ──────────
-  results.sort((a, b) => {
-    if (a.score !== b.score) return a.score - b.score;
-    return b.pendencies.length - a.pendencies.length;
-  });
+    // ── Sort: most critical first (score asc), then by pendency count ────────
+    results.sort((a, b) => {
+      if (a.score !== b.score) return a.score - b.score;
+      return b.pendencies.length - a.pendencies.length;
+    });
 
-  // ── Pagination ─────────────────────────────────────────────────────────────
-  const pageNum  = Math.max(1, parseInt(page || "1", 10));
-  const pageSize = Math.min(100, Math.max(1, parseInt(limitQ || "50", 10)));
-  const total    = results.length;
-  const items    = results.slice((pageNum - 1) * pageSize, pageNum * pageSize);
+    // ── Pagination ────────────────────────────────────────────────────────────
+    const pageNum  = Math.max(1, parseInt(page || "1", 10));
+    const pageSize = Math.min(100, Math.max(1, parseInt(limitQ || "50", 10)));
+    const total    = results.length;
+    const items    = results.slice((pageNum - 1) * pageSize, pageNum * pageSize);
 
-  return res.json({
-    items,
-    total,
-    page:  pageNum,
-    limit: pageSize,
-    pages: Math.ceil(total / pageSize),
-  });
+    return res.json({
+      items,
+      total,
+      page:  pageNum,
+      limit: pageSize,
+      pages: Math.ceil(total / pageSize),
+    });
+  } catch (err) {
+    return res.status(500).json({ error: "Erro interno ao processar busca ativa" });
+  }
 });
 
 // ── GET /active-search/stats ──────────────────────────────────────────────────
 
 router.get("/active-search/stats", async (req, res) => {
-  const db = await readDb();
-  ensureDbShape(db);
+  try {
+    const db = await readDb();
+    ensureDbShape(db);
 
-  const groups  = visibleGroups(db, req.user);
-  const indices = buildIndices(db);
+    const groups  = visibleGroups(db, req.user);
+    const indices = buildIndices(db);
 
-  let critical  = 0;
-  let attention = 0;
-  let healthy   = 0;
-  let totalScore = 0;
-  const pendencyCount = {};
+    let critical  = 0;
+    let attention = 0;
+    let healthy   = 0;
+    let totalScore = 0;
+    const pendencyCount = {};
 
-  for (const g of groups) {
-    const memberIds = new Set(g.memberPatientIds || []);
-    const members   = [...memberIds].map(id => indices.patientById[id]).filter(Boolean);
-    const visits    = indices.visitsByGroup[g.id] || [];
-    const tasks     = indices.tasksByGroup[g.id]  || [];
-    const ev        = evaluateGroup(g, members, visits, tasks);
+    for (const g of groups) {
+      const memberIds = new Set(g.memberPatientIds || []);
+      const members   = [...memberIds].map(id => indices.patientById[id]).filter(Boolean);
+      const visits    = indices.visitsByGroup[g.id] || [];
+      const tasks     = indices.tasksByGroup[g.id]  || [];
+      const ev        = evaluateGroup(g, members, visits, tasks);
 
-    if (ev.classification === CLASSIFICATION.CRITICAL)  critical++;
-    else if (ev.classification === CLASSIFICATION.ATTENTION) attention++;
-    else healthy++;
+      if (ev.classification === CLASSIFICATION.CRITICAL)  critical++;
+      else if (ev.classification === CLASSIFICATION.ATTENTION) attention++;
+      else healthy++;
 
-    totalScore += ev.score;
-    for (const p of ev.pendencies) {
-      pendencyCount[p.code] = (pendencyCount[p.code] || 0) + 1;
+      totalScore += ev.score;
+      for (const p of ev.pendencies) {
+        pendencyCount[p.code] = (pendencyCount[p.code] || 0) + 1;
+      }
     }
-  }
 
-  const total = groups.length;
-  return res.json({
-    total,
-    critical,
-    attention,
-    healthy,
-    avgScore: total > 0 ? Math.round(totalScore / total) : 0,
-    pendencyBreakdown: pendencyCount,
-  });
+    const total = groups.length;
+    return res.json({
+      total,
+      critical,
+      attention,
+      healthy,
+      avgScore: total > 0 ? Math.round(totalScore / total) : 0,
+      pendencyBreakdown: pendencyCount,
+    });
+  } catch (err) {
+    return res.status(500).json({ error: "Erro interno ao calcular estatísticas de busca ativa" });
+  }
 });
 
 // ── GET /active-search/group/:groupId ─────────────────────────────────────────
 
 router.get("/active-search/group/:groupId", async (req, res) => {
-  const db = await readDb();
-  ensureDbShape(db);
+  try {
+    const db = await readDb();
+    ensureDbShape(db);
 
-  const group = db.familyGroups.find(g => g.id === req.params.groupId);
-  if (!group) return res.status(404).json({ error: "Grupo familiar não encontrado" });
+    const group = db.familyGroups.find(g => g.id === req.params.groupId);
+    if (!group) return res.status(404).json({ error: "Grupo familiar não encontrado" });
 
-  // Scope check
-  const role = canonicalRole(req.user?.role);
-  const isBga = role === "break_glass_admin";
-  const visible = isBga
-    ? true
-    : isAcs(req.user)
-      ? group.teamId === req.user.teamId && group.assignedAcsId === req.user.id
-      : group.teamId === req.user.teamId;
+    // Scope check
+    const role = canonicalRole(req.user?.role);
+    const isBga = role === "break_glass_admin";
+    const visible = isBga
+      ? true
+      : isAcs(req.user)
+        ? group.teamId === req.user.teamId && group.assignedAcsId === req.user.id
+        : group.teamId === req.user.teamId;
 
-  if (!visible) return res.status(403).json({ error: "Sem permissão para visualizar este grupo" });
+    if (!visible) return res.status(403).json({ error: "Sem permissão para visualizar este grupo" });
 
-  const indices   = buildIndices(db);
-  const memberIds = new Set(group.memberPatientIds || []);
-  const members   = [...memberIds].map(id => indices.patientById[id]).filter(Boolean);
-  const visits    = indices.visitsByGroup[group.id] || [];
-  const tasks     = indices.tasksByGroup[group.id]  || [];
-  const result    = buildGroupResult(group, members, visits, tasks, indices.usersById);
+    const indices   = buildIndices(db);
+    const memberIds = new Set(group.memberPatientIds || []);
+    const members   = [...memberIds].map(id => indices.patientById[id]).filter(Boolean);
+    const visits    = indices.visitsByGroup[group.id] || [];
+    const tasks     = indices.tasksByGroup[group.id]  || [];
+    const result    = buildGroupResult(group, members, visits, tasks, indices.usersById);
 
-  // Audit event (passive read — track recalculation)
-  // No audit for simple reads; only log when score is persisted (future)
-
-  return res.json(result);
+    return res.json(result);
+  } catch (err) {
+    return res.status(500).json({ error: "Erro interno ao processar grupo de busca ativa" });
+  }
 });
 
 export default router;
