@@ -209,7 +209,10 @@ const PatientBaseShape = {
     cpf: optionalShortString(20),
     phone: optionalShortString(30),
     relationship: optionalShortString(100)
-  }).optional()
+  }).optional(),
+  // APS-01J-C: TRIA — Triagem de Insegurança Alimentar (2 perguntas e-SUS CDS)
+  triaAlimentosAcabaram: z.boolean().optional(),
+  triaConsomiuApenasAlgunsDosAlimentos: z.boolean().optional(),
 };
 
 // C13: CPF ou CNS obrigatório em criação (Portaria 940/2011 — identificação do cidadão no SUS)
@@ -352,7 +355,41 @@ const PatientUpdateSchema = z.object({
     cpf: optionalShortString(20),
     phone: optionalShortString(30),
     relationship: optionalShortString(100)
-  }).optional()
+  }).optional(),
+  // APS-01J-C: TRIA — Triagem de Insegurança Alimentar
+  triaAlimentosAcabaram: z.boolean().optional(),
+  triaConsomiuApenasAlgunsDosAlimentos: z.boolean().optional(),
+}).strict();
+
+// APS-01J-C: CI schema — subset of fields ACS is allowed to update via PATCH /patients/:id/cadastro-individual
+const PatientCIUpdateSchema = z.object({
+  cns: optionalShortString(30),
+  cpf: optionalShortString(20),
+  name: optionalShortString(300),
+  nomeSocial: optionalShortString(150),
+  birthDate: optionalDateString(),
+  sexAtBirth: optionalEnumField("M", "F", "I"),
+  racaCor: racaCorField(),
+  etnia: optionalShortString(100),
+  nacionalidade: optionalEnumField("BRASILEIRA", "NATURALIZADA", "ESTRANGEIRA"),
+  municipioNascimentoIbge: optionalShortString(7),
+  phone: optionalShortString(30),
+  email: optionalShortString(200),
+  escolaridade: optionalEnumField("SEM_ESCOLARIDADE", "FUNDAMENTAL_INCOMPLETO", "FUNDAMENTAL_COMPLETO", "MEDIO_INCOMPLETO", "MEDIO_COMPLETO", "SUPERIOR_INCOMPLETO", "SUPERIOR_COMPLETO", "ESPECIALIZACAO", "MESTRADO", "DOUTORADO", "NAO_INFORMADO"),
+  occupation: optionalShortString(200),
+  situacaoMercadoTrabalho: optionalEnumField("EMPREGADO_COM_CARTEIRA", "EMPREGADO_SEM_CARTEIRA", "AUTONOMO", "APOSENTADO_PENSIONISTA", "DESEMPREGADO", "NAO_TRABALHA", "NAO_SE_APLICA", "OUTRO"),
+  responsavelFamiliar: optionalShortString(300),
+  cnsResponsavel: optionalShortString(30),
+  responsible: z.object({ relationship: optionalShortString(100) }).optional(),
+  deficiencia: z.array(z.enum(["AUDITIVA", "VISUAL", "INTELECTUAL_COGNITIVA", "FISICA", "MULTIPLA", "NAO_INFORMADO"])).max(6).optional(),
+  condicoesSaude: z.array(z.enum([
+    "HIPERTENSAO", "DIABETES", "AVC", "INFARTO", "DOENCA_CARDIACA", "DOENCA_RESPIRATORIA",
+    "HANSENIASE", "TUBERCULOSE", "CANCER", "DOENCA_RENAL", "GESTANTE", "PUERICULTURA",
+    "TABAGISMO", "ALCOOL_DROGAS", "DST", "VULNERABILIDADE_SOCIAL", "OUTRO"
+  ])).max(17).optional(),
+  situacaoRua: z.boolean().optional(),
+  triaAlimentosAcabaram: z.boolean().optional(),
+  triaConsomiuApenasAlgunsDosAlimentos: z.boolean().optional(),
 }).strict();
 
 const TaskCreateSchema = z.object({
@@ -795,6 +832,7 @@ export {
   RegisterSchema,
   PatientCreateSchema,
   PatientUpdateSchema,
+  PatientCIUpdateSchema,
   TaskCreateSchema,
   TaskPatchSchema,
   AppointmentCreateSchema,

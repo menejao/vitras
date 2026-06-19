@@ -6,6 +6,7 @@ import {
   validate,
   PatientCreateSchema,
   PatientUpdateSchema,
+  PatientCIUpdateSchema,
   AppointmentCreateSchema,
   RecordCreateSchema,
   VisitCreateSchema,
@@ -740,6 +741,83 @@ router.put("/patients/:id", validate(PatientUpdateSchema), async (req, res) => {
   if (updated === "forbidden") {
     return res.status(403).json({ error: "Sem permissão para editar paciente" });
   }
+
+  return res.json(filterNis(filterCnsResponsavel(updated, req.user), req.user));
+});
+
+// ── PATCH /patients/:id/cadastro-individual — APS-01J-C ──────────────────────
+// Allows ACS (own team), manager, and doctor to update Cadastro Individual fields.
+router.patch("/patients/:id/cadastro-individual", validate(PatientCIUpdateSchema), async (req, res) => {
+  const { id } = req.params;
+  const payload = req.body;
+
+  const role = canonicalRole(req.user?.role);
+  const allowed = isAcs(req.user) || isManager(req.user) || isDoctor(req.user) || role === "break_glass_admin";
+  if (!allowed) {
+    return res.status(403).json({ error: "Sem permissão para editar Cadastro Individual" });
+  }
+
+  let updated;
+  try {
+    updated = await withDb((db) => {
+      ensureDbShape(db);
+      const index = db.patients.findIndex((p) => p.id === id);
+      if (index < 0) return null;
+
+      const current = db.patients[index];
+
+      // ACS can only edit patients in own team
+      if (isAcs(req.user) && current.teamId !== req.user.teamId) {
+        addAuditLog(db, req.user, "patient.access_denied", "patient", id, { outcome: "denied", reason: "access_control", actorRole: String(req.user?.role || "") });
+        return "forbidden";
+      }
+      if (!isAcs(req.user) && !canAccessPatient(req.user, current)) {
+        addAuditLog(db, req.user, "patient.access_denied", "patient", id, { outcome: "denied", reason: "access_control", actorRole: String(req.user?.role || "") });
+        return "forbidden";
+      }
+
+      // Duplicate CPF/CNS check (skip self)
+      const incomingCpf = payload?.cpf !== undefined ? String(payload.cpf || "").trim() : null;
+      const incomingCns = payload?.cns !== undefined ? String(payload.cns || "").trim() : null;
+      if (incomingCpf) {
+        const dup = db.patients.find((p) => p.id !== id && String(p.cpf || "").trim() === incomingCpf && !p.inactive);
+        if (dup) throw Object.assign(new Error("CPF já cadastrado"), { statusCode: 409, code: "CPF_DUPLICATE" });
+      }
+      if (incomingCns) {
+        const dup = db.patients.find((p) => p.id !== id && String(p.cns || "").trim() === incomingCns && !p.inactive);
+        if (dup) throw Object.assign(new Error("CNS já cadastrado"), { statusCode: 409, code: "CNS_DUPLICATE" });
+      }
+
+      const before = buildPatientAuditSnapshot(current);
+      const next = {
+        ...current,
+        ...payload,
+        // merge responsible sub-object instead of replacing
+        responsible: payload.responsible
+          ? { ...(current.responsible || {}), ...payload.responsible }
+          : current.responsible,
+        teamId: current.teamId,
+        updatedAt: new Date().toISOString(),
+        updatedBy: req.user?.id,
+      };
+
+      db.patients[index] = next;
+      addAuditLog(db, req.user, "patient.cadastro_individual.updated", "patient", id, {
+        changedFields: Object.keys(payload || {}),
+        before,
+        after: buildPatientAuditSnapshot(next),
+      });
+
+      return next;
+    });
+  } catch (err) {
+    if (err.code === "CPF_DUPLICATE") return res.status(409).json({ error: "Paciente com este CPF já existe" });
+    if (err.code === "CNS_DUPLICATE") return res.status(409).json({ error: "Paciente com este CNS já existe" });
+    return res.status(500).json({ error: "Erro interno ao atualizar Cadastro Individual" });
+  }
+
+  if (!updated) return res.status(404).json({ error: "Paciente não encontrado" });
+  if (updated === "forbidden") return res.status(403).json({ error: "Sem permissão para editar este paciente" });
 
   return res.json(filterNis(filterCnsResponsavel(updated, req.user), req.user));
 });

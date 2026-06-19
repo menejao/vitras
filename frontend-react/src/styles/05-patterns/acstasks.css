@@ -2094,3 +2094,168 @@
   .gp-acs-thead > span:nth-child(n+4),
   .gp-acs-row  > span:nth-child(n+4) { display: none; }
 }
+
+
+/* ── Cadastro Individual — APS-01J-C ─────────────────────────────────────── */
+
+.ci-section {
+  padding: 1rem;
+  max-width: 720px;
+}
+
+.ci-section__header { margin-bottom: 1rem; }
+.ci-section__title  { font-size: 1.125rem; font-weight: 600; color: var(--text-primary); margin: 0 0 .25rem; }
+.ci-section__sub    { font-size: .875rem; color: var(--text-secondary); margin: 0; }
+
+/* card */
+.ci-card {
+  margin-top: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.ci-card__topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem;
+  padding: .75rem 1rem;
+  background: var(--surface-secondary, #f8fafc);
+  border-bottom: 1px solid var(--border);
+}
+
+.ci-card__identity { display: flex; flex-direction: column; gap: .125rem; }
+.ci-card__name     { font-size: 1rem; }
+.ci-card__civil    { font-size: .8125rem; color: var(--text-secondary); }
+.ci-card__doc      { font-size: .8125rem; color: var(--text-secondary); }
+
+.ci-card__edit-btn {
+  flex-shrink: 0;
+  padding: .375rem .875rem;
+  border: 1px solid var(--primary, #0f766e);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--primary, #0f766e);
+  font-size: .875rem;
+  cursor: pointer;
+}
+.ci-card__edit-btn:hover { background: color-mix(in srgb, var(--primary,#0f766e) 8%, transparent); }
+
+/* view */
+.ci-view { padding: 1rem; display: grid; gap: .375rem; }
+
+.ci-view__row {
+  display: flex;
+  gap: .5rem;
+  font-size: .875rem;
+  border-bottom: 1px solid var(--border-soft, #e2e8f0);
+  padding: .25rem 0;
+}
+
+.ci-view__label { flex: 0 0 180px; color: var(--text-secondary); font-size: .8125rem; }
+.ci-view__value { flex: 1; color: var(--text-primary); word-break: break-word; }
+
+.ci-view__group {
+  margin-top: .75rem;
+  border: 1px solid var(--border-soft, #e2e8f0);
+  border-radius: 6px;
+  padding: .75rem;
+}
+.ci-view__group-title {
+  font-weight: 600;
+  font-size: .8125rem;
+  color: var(--text-secondary);
+  margin-bottom: .5rem;
+  display: block;
+}
+
+/* form */
+.ci-form { padding: 1rem; display: flex; flex-direction: column; gap: .75rem; }
+
+.ci-form__section-title {
+  font-weight: 600;
+  font-size: .8125rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  margin-top: .5rem;
+  padding-bottom: .25rem;
+  border-bottom: 1px solid var(--border-soft, #e2e8f0);
+}
+
+.ci-form__row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: .75rem;
+}
+
+.ci-form__field { display: flex; flex-direction: column; gap: .25rem; }
+.ci-form__field--wide { grid-column: 1 / -1; }
+.ci-form__label { font-size: .8125rem; color: var(--text-secondary); font-weight: 500; }
+
+.ci-form__fieldset {
+  border: 1px solid var(--border-soft, #e2e8f0);
+  border-radius: 6px;
+  padding: .625rem .75rem;
+  margin: 0;
+}
+.ci-form__fieldset legend { font-size: .8125rem; color: var(--text-secondary); padding: 0 .25rem; }
+
+.ci-form__radios { display: flex; gap: 1rem; flex-wrap: wrap; margin-top: .375rem; }
+.ci-form__radio-label { display: flex; align-items: center; gap: .375rem; font-size: .875rem; cursor: pointer; }
+
+.ci-form__checks {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: .375rem;
+}
+
+.ci-form__tria { display: flex; flex-direction: column; gap: .75rem; }
+
+.ci-form__error { color: var(--color-error, #dc2626); font-size: .875rem; margin: 0; }
+.ci-form__ok    { color: var(--color-success, #16a34a); font-size: .875rem; margin: 0; }
+
+.ci-form__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: .75rem;
+  margin-top: .5rem;
+  padding-top: .75rem;
+  border-top: 1px solid var(--border-soft, #e2e8f0);
+}
+
+.ci-form__cancel-btn {
+  padding: .5rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: .875rem;
+  cursor: pointer;
+}
+.ci-form__cancel-btn:hover { background: var(--surface-secondary, #f8fafc); }
+
+.ci-form__save-btn {
+  padding: .5rem 1.25rem;
+  border: none;
+  border-radius: 6px;
+  background: var(--primary, #0f766e);
+  color: #fff;
+  font-size: .875rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+.ci-form__save-btn:disabled { opacity: .6; cursor: not-allowed; }
+.ci-form__save-btn:not(:disabled):hover { background: var(--primary-dark, #0d6460); }
+
+/* mobile */
+@media (max-width: 420px) {
+  .ci-section       { padding: .75rem; }
+  .ci-form__row     { grid-template-columns: 1fr; }
+  .ci-view__label   { flex: 0 0 130px; }
+  .ci-form__checks  { grid-template-columns: 1fr 1fr; }
+  .ci-form__actions { flex-direction: column-reverse; }
+  .ci-form__cancel-btn,
+  .ci-form__save-btn { width: 100%; text-align: center; }
+}

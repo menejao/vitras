@@ -1435,6 +1435,504 @@ function VisitasTab({ patients, user, token, preSelectPatient, clearPreSelect })
   );
 }
 
+// ── CadastroIndividualSection — APS-01J-C ─────────────────────────────────────
+
+const CI_ESCOLARIDADE_OPTIONS = [
+  ["", "— selecionar —"],
+  ["SEM_ESCOLARIDADE", "Sem escolaridade"],
+  ["FUNDAMENTAL_INCOMPLETO", "Fundamental incompleto"],
+  ["FUNDAMENTAL_COMPLETO", "Fundamental completo"],
+  ["MEDIO_INCOMPLETO", "Médio incompleto"],
+  ["MEDIO_COMPLETO", "Médio completo"],
+  ["SUPERIOR_INCOMPLETO", "Superior incompleto"],
+  ["SUPERIOR_COMPLETO", "Superior completo"],
+  ["ESPECIALIZACAO", "Especialização"],
+  ["MESTRADO", "Mestrado"],
+  ["DOUTORADO", "Doutorado"],
+  ["NAO_INFORMADO", "Não informado"],
+];
+
+const CI_SITUACAO_TRABALHO_OPTIONS = [
+  ["", "— selecionar —"],
+  ["EMPREGADO_COM_CARTEIRA", "Empregado com carteira"],
+  ["EMPREGADO_SEM_CARTEIRA", "Empregado sem carteira"],
+  ["AUTONOMO", "Autônomo"],
+  ["APOSENTADO_PENSIONISTA", "Aposentado / pensionista"],
+  ["DESEMPREGADO", "Desempregado"],
+  ["NAO_TRABALHA", "Não trabalha"],
+  ["NAO_SE_APLICA", "Não se aplica"],
+  ["OUTRO", "Outro"],
+];
+
+const CI_NACIONALIDADE_OPTIONS = [
+  ["", "— selecionar —"],
+  ["BRASILEIRA", "Brasileira"],
+  ["NATURALIZADA", "Naturalizada"],
+  ["ESTRANGEIRA", "Estrangeira"],
+];
+
+const CI_RACA_COR_OPTIONS = [
+  ["", "— selecionar —"],
+  ["BRANCA", "Branca"],
+  ["PRETA", "Preta"],
+  ["PARDA", "Parda"],
+  ["AMARELA", "Amarela"],
+  ["INDIGENA", "Indígena"],
+];
+
+const CI_SEXO_OPTIONS = [
+  ["", "— selecionar —"],
+  ["M", "Masculino"],
+  ["F", "Feminino"],
+  ["I", "Indeterminado"],
+];
+
+const CI_DEFICIENCIA_OPTIONS = [
+  { key: "AUDITIVA",               label: "Auditiva" },
+  { key: "VISUAL",                 label: "Visual" },
+  { key: "INTELECTUAL_COGNITIVA",  label: "Intelectual / cognitiva" },
+  { key: "FISICA",                 label: "Física" },
+  { key: "MULTIPLA",               label: "Múltipla" },
+  { key: "NAO_INFORMADO",          label: "Não informado" },
+];
+
+const CI_CONDICOES_OPTIONS = [
+  { key: "HIPERTENSAO",         label: "Hipertensão" },
+  { key: "DIABETES",            label: "Diabetes" },
+  { key: "AVC",                 label: "AVC/Derrame" },
+  { key: "INFARTO",             label: "Infarto" },
+  { key: "DOENCA_CARDIACA",     label: "Doença cardíaca" },
+  { key: "DOENCA_RESPIRATORIA", label: "Doença respiratória" },
+  { key: "HANSENIASE",          label: "Hanseníase" },
+  { key: "TUBERCULOSE",         label: "Tuberculose" },
+  { key: "CANCER",              label: "Câncer" },
+  { key: "DOENCA_RENAL",        label: "Doença renal" },
+  { key: "GESTANTE",            label: "Gestante" },
+  { key: "PUERICULTURA",        label: "Puericultura" },
+  { key: "TABAGISMO",           label: "Tabagismo" },
+  { key: "ALCOOL_DROGAS",       label: "Álcool/drogas" },
+  { key: "DST",                 label: "DST/IST" },
+  { key: "VULNERABILIDADE_SOCIAL", label: "Vulnerabilidade social" },
+  { key: "OUTRO",               label: "Outro" },
+];
+
+const CI_RELACAO_OPTIONS = [
+  ["", "— selecionar —"],
+  ["CONJUGE", "Cônjuge"],
+  ["FILHO", "Filho(a)"],
+  ["PAI", "Pai"],
+  ["MAE", "Mãe"],
+  ["IRMAO", "Irmão/Irmã"],
+  ["AVO", "Avô/Avó"],
+  ["NETO", "Neto(a)"],
+  ["OUTRO", "Outro"],
+];
+
+function emptyCiForm(patient) {
+  const p = patient || {};
+  return {
+    cns:                               p.cns || "",
+    cpf:                               p.cpf || "",
+    name:                              p.name || "",
+    nomeSocial:                        p.nomeSocial || "",
+    birthDate:                         p.birthDate || "",
+    sexAtBirth:                        p.sexAtBirth || "",
+    racaCor:                           p.racaCor || "",
+    etnia:                             p.etnia || "",
+    nacionalidade:                     p.nacionalidade || "",
+    municipioNascimentoIbge:           p.municipioNascimentoIbge || "",
+    phone:                             p.phone || "",
+    email:                             p.email || "",
+    escolaridade:                      p.escolaridade || "",
+    occupation:                        p.occupation || "",
+    situacaoMercadoTrabalho:           p.situacaoMercadoTrabalho || "",
+    responsavelFamiliar:               p.responsavelFamiliar || "",
+    cnsResponsavel:                    p.cnsResponsavel || "",
+    relacaoResponsavel:                p.responsible?.relationship || "",
+    deficiencia:                       p.deficiencia || [],
+    condicoesSaude:                    p.condicoesSaude || [],
+    situacaoRua:                       p.situacaoRua ?? null,
+    triaAlimentosAcabaram:             p.triaAlimentosAcabaram ?? null,
+    triaConsomiuApenasAlgunsDosAlimentos: p.triaConsomiuApenasAlgunsDosAlimentos ?? null,
+  };
+}
+
+function CadastroIndividualSection({ token, user, patients }) {
+  const [selectedPatient, setSelectedPatient] = useState(null);
+  const [editing, setEditing]                 = useState(false);
+  const [form, setForm]                       = useState(emptyCiForm(null));
+  const [saving, setSaving]                   = useState(false);
+  const [saveError, setSaveError]             = useState("");
+  const [saveOk, setSaveOk]                   = useState(false);
+
+  function selectPatient(p) {
+    setSelectedPatient(p);
+    setForm(emptyCiForm(p));
+    setEditing(false);
+    setSaveError("");
+    setSaveOk(false);
+  }
+
+  function fld(key, value) {
+    setForm(f => ({ ...f, [key]: value }));
+  }
+
+  function toggleArr(key, val) {
+    setForm(f => {
+      const cur = f[key] || [];
+      return {
+        ...f,
+        [key]: cur.includes(val) ? cur.filter(v => v !== val) : [...cur, val],
+      };
+    });
+  }
+
+  async function handleSave(e) {
+    e.preventDefault();
+    setSaving(true);
+    setSaveError("");
+    setSaveOk(false);
+
+    const payload = {
+      ...(form.cns  ? { cns:  form.cns  } : {}),
+      ...(form.cpf  ? { cpf:  form.cpf  } : {}),
+      ...(form.name ? { name: form.name } : {}),
+      ...(form.nomeSocial            ? { nomeSocial:              form.nomeSocial            } : {}),
+      ...(form.birthDate             ? { birthDate:               form.birthDate             } : {}),
+      ...(form.sexAtBirth            ? { sexAtBirth:              form.sexAtBirth            } : {}),
+      ...(form.racaCor               ? { racaCor:                 form.racaCor               } : {}),
+      ...(form.etnia                 ? { etnia:                   form.etnia                 } : {}),
+      ...(form.nacionalidade         ? { nacionalidade:           form.nacionalidade         } : {}),
+      ...(form.municipioNascimentoIbge ? { municipioNascimentoIbge: form.municipioNascimentoIbge } : {}),
+      ...(form.phone                 ? { phone:                   form.phone                 } : {}),
+      ...(form.email                 ? { email:                   form.email                 } : {}),
+      ...(form.escolaridade          ? { escolaridade:            form.escolaridade          } : {}),
+      ...(form.occupation            ? { occupation:              form.occupation            } : {}),
+      ...(form.situacaoMercadoTrabalho ? { situacaoMercadoTrabalho: form.situacaoMercadoTrabalho } : {}),
+      ...(form.responsavelFamiliar   ? { responsavelFamiliar:     form.responsavelFamiliar   } : {}),
+      ...(form.cnsResponsavel        ? { cnsResponsavel:          form.cnsResponsavel        } : {}),
+      ...(form.relacaoResponsavel    ? { responsible: { relationship: form.relacaoResponsavel } } : {}),
+      deficiencia:   form.deficiencia   || [],
+      condicoesSaude: form.condicoesSaude || [],
+      ...(form.situacaoRua !== null             ? { situacaoRua:             form.situacaoRua             } : {}),
+      ...(form.triaAlimentosAcabaram !== null   ? { triaAlimentosAcabaram:   form.triaAlimentosAcabaram   } : {}),
+      ...(form.triaConsomiuApenasAlgunsDosAlimentos !== null ? { triaConsomiuApenasAlgunsDosAlimentos: form.triaConsomiuApenasAlgunsDosAlimentos } : {}),
+    };
+
+    try {
+      const res = await fetch(`/api/patients/${selectedPatient.id}/cadastro-individual`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify(payload),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setSaveError(body.error || `Erro ${res.status}`);
+      } else {
+        setSelectedPatient(body);
+        setForm(emptyCiForm(body));
+        setEditing(false);
+        setSaveOk(true);
+        setTimeout(() => setSaveOk(false), 3000);
+      }
+    } catch {
+      setSaveError("Erro de conexão");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="ci-section">
+      <div className="ci-section__header">
+        <h2 className="ci-section__title">Cadastro Individual</h2>
+        <p className="ci-section__sub">Busque um paciente para visualizar ou editar o Cadastro Individual (e-SUS).</p>
+      </div>
+
+      <PatientSelector
+        patients={patients}
+        onSelect={selectPatient}
+        placeholder="Buscar paciente por nome, CPF ou CNS…"
+      />
+
+      {selectedPatient && (
+        <div className="ci-card">
+          <div className="ci-card__topbar">
+            <div className="ci-card__identity">
+              <span className="ci-card__name">
+                {selectedPatient.nomeSocial
+                  ? <><strong>{selectedPatient.nomeSocial}</strong> <span className="ci-card__civil">({selectedPatient.name})</span></>
+                  : <strong>{selectedPatient.name}</strong>}
+              </span>
+              {selectedPatient.cpf && <span className="ci-card__doc">CPF {selectedPatient.cpf}</span>}
+              {selectedPatient.cns && <span className="ci-card__doc">CNS {selectedPatient.cns}</span>}
+            </div>
+            {!editing && (
+              <button type="button" className="ci-card__edit-btn" onClick={() => setEditing(true)}>
+                Editar
+              </button>
+            )}
+          </div>
+
+          {!editing ? (
+            <div className="ci-view">
+              <CiRow label="Nome social"        value={selectedPatient.nomeSocial} />
+              <CiRow label="Data de nascimento" value={selectedPatient.birthDate} />
+              <CiRow label="Sexo"               value={selectedPatient.sexAtBirth} />
+              <CiRow label="Raça/Cor"           value={selectedPatient.racaCor} />
+              <CiRow label="Etnia"              value={selectedPatient.etnia} />
+              <CiRow label="Nacionalidade"      value={selectedPatient.nacionalidade} />
+              <CiRow label="Município nasc."    value={selectedPatient.municipioNascimentoIbge} />
+              <CiRow label="Telefone"           value={selectedPatient.phone} />
+              <CiRow label="E-mail"             value={selectedPatient.email} />
+              <CiRow label="Escolaridade"       value={selectedPatient.escolaridade} />
+              <CiRow label="Ocupação"           value={selectedPatient.occupation} />
+              <CiRow label="Situação trabalho"  value={selectedPatient.situacaoMercadoTrabalho} />
+              <CiRow label="Responsável"        value={selectedPatient.responsavelFamiliar} />
+              <CiRow label="Relação responsável" value={selectedPatient.responsible?.relationship} />
+              <CiRow label="Deficiências"       value={(selectedPatient.deficiencia || []).join(", ")} />
+              <CiRow label="Condições de saúde" value={(selectedPatient.condicoesSaude || []).join(", ")} />
+              <CiRow label="Situação de rua"    value={selectedPatient.situacaoRua == null ? "" : selectedPatient.situacaoRua ? "Sim" : "Não"} />
+              <div className="ci-view__group ci-view__group--tria">
+                <span className="ci-view__group-title">TRIA — Insegurança Alimentar</span>
+                <CiRow label="Alimentos acabaram antes de ter dinheiro para comprar mais?" value={boolStr(selectedPatient.triaAlimentosAcabaram)} />
+                <CiRow label="Consumiu apenas alguns alimentos porque o dinheiro acabou?"  value={boolStr(selectedPatient.triaConsomiuApenasAlgunsDosAlimentos)} />
+              </div>
+            </div>
+          ) : (
+            <form className="ci-form" onSubmit={handleSave} noValidate>
+              <div className="ci-form__section-title">Identificação</div>
+              <div className="ci-form__row">
+                <label className="ci-form__field">
+                  <span className="ci-form__label">CNS</span>
+                  <input className="acs-vis-input" value={form.cns} onChange={e => fld("cns", e.target.value)} maxLength={30} />
+                </label>
+                <label className="ci-form__field">
+                  <span className="ci-form__label">CPF</span>
+                  <input className="acs-vis-input" value={form.cpf} onChange={e => fld("cpf", e.target.value)} maxLength={20} />
+                </label>
+              </div>
+              <div className="ci-form__row">
+                <label className="ci-form__field ci-form__field--wide">
+                  <span className="ci-form__label">Nome *</span>
+                  <input className="acs-vis-input" value={form.name} onChange={e => fld("name", e.target.value)} maxLength={300} />
+                </label>
+              </div>
+              <div className="ci-form__row">
+                <label className="ci-form__field ci-form__field--wide">
+                  <span className="ci-form__label">Nome social</span>
+                  <input className="acs-vis-input" value={form.nomeSocial} onChange={e => fld("nomeSocial", e.target.value)} maxLength={150} />
+                </label>
+              </div>
+
+              <div className="ci-form__section-title">Dados demográficos</div>
+              <div className="ci-form__row">
+                <label className="ci-form__field">
+                  <span className="ci-form__label">Data de nascimento</span>
+                  <input type="date" className="acs-vis-input" value={form.birthDate} onChange={e => fld("birthDate", e.target.value)} />
+                </label>
+                <label className="ci-form__field">
+                  <span className="ci-form__label">Sexo</span>
+                  <select className="acs-vis-select" value={form.sexAtBirth} onChange={e => fld("sexAtBirth", e.target.value)}>
+                    {CI_SEXO_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                  </select>
+                </label>
+              </div>
+              <div className="ci-form__row">
+                <label className="ci-form__field">
+                  <span className="ci-form__label">Raça/Cor</span>
+                  <select className="acs-vis-select" value={form.racaCor} onChange={e => fld("racaCor", e.target.value)}>
+                    {CI_RACA_COR_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                  </select>
+                </label>
+                <label className="ci-form__field">
+                  <span className="ci-form__label">Etnia</span>
+                  <input className="acs-vis-input" value={form.etnia} onChange={e => fld("etnia", e.target.value)} maxLength={100} />
+                </label>
+              </div>
+              <div className="ci-form__row">
+                <label className="ci-form__field">
+                  <span className="ci-form__label">Nacionalidade</span>
+                  <select className="acs-vis-select" value={form.nacionalidade} onChange={e => fld("nacionalidade", e.target.value)}>
+                    {CI_NACIONALIDADE_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                  </select>
+                </label>
+                <label className="ci-form__field">
+                  <span className="ci-form__label">Município de nascimento (IBGE)</span>
+                  <input className="acs-vis-input" value={form.municipioNascimentoIbge} onChange={e => fld("municipioNascimentoIbge", e.target.value)} maxLength={7} placeholder="7 dígitos" />
+                </label>
+              </div>
+
+              <div className="ci-form__section-title">Contato</div>
+              <div className="ci-form__row">
+                <label className="ci-form__field">
+                  <span className="ci-form__label">Telefone</span>
+                  <input className="acs-vis-input" value={form.phone} onChange={e => fld("phone", e.target.value)} maxLength={30} />
+                </label>
+                <label className="ci-form__field">
+                  <span className="ci-form__label">E-mail</span>
+                  <input type="email" className="acs-vis-input" value={form.email} onChange={e => fld("email", e.target.value)} maxLength={200} />
+                </label>
+              </div>
+
+              <div className="ci-form__section-title">Socioeconômico</div>
+              <div className="ci-form__row">
+                <label className="ci-form__field">
+                  <span className="ci-form__label">Escolaridade</span>
+                  <select className="acs-vis-select" value={form.escolaridade} onChange={e => fld("escolaridade", e.target.value)}>
+                    {CI_ESCOLARIDADE_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                  </select>
+                </label>
+                <label className="ci-form__field">
+                  <span className="ci-form__label">Ocupação</span>
+                  <input className="acs-vis-input" value={form.occupation} onChange={e => fld("occupation", e.target.value)} maxLength={200} />
+                </label>
+              </div>
+              <div className="ci-form__row">
+                <label className="ci-form__field ci-form__field--wide">
+                  <span className="ci-form__label">Situação no mercado de trabalho</span>
+                  <select className="acs-vis-select" value={form.situacaoMercadoTrabalho} onChange={e => fld("situacaoMercadoTrabalho", e.target.value)}>
+                    {CI_SITUACAO_TRABALHO_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                  </select>
+                </label>
+              </div>
+
+              <div className="ci-form__section-title">Responsável familiar</div>
+              <div className="ci-form__row">
+                <label className="ci-form__field ci-form__field--wide">
+                  <span className="ci-form__label">Nome do responsável familiar</span>
+                  <input className="acs-vis-input" value={form.responsavelFamiliar} onChange={e => fld("responsavelFamiliar", e.target.value)} maxLength={300} />
+                </label>
+              </div>
+              <div className="ci-form__row">
+                <label className="ci-form__field">
+                  <span className="ci-form__label">CNS do responsável</span>
+                  <input className="acs-vis-input" value={form.cnsResponsavel} onChange={e => fld("cnsResponsavel", e.target.value)} maxLength={30} />
+                </label>
+                <label className="ci-form__field">
+                  <span className="ci-form__label">Relação com responsável</span>
+                  <select className="acs-vis-select" value={form.relacaoResponsavel} onChange={e => fld("relacaoResponsavel", e.target.value)}>
+                    {CI_RELACAO_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                  </select>
+                </label>
+              </div>
+
+              <div className="ci-form__section-title">Deficiências</div>
+              <div className="ci-form__checks">
+                {CI_DEFICIENCIA_OPTIONS.map(({ key, label }) => (
+                  <label key={key} className="acs-vis-check-label">
+                    <input
+                      type="checkbox"
+                      className="acs-vis-checkbox"
+                      checked={(form.deficiencia || []).includes(key)}
+                      onChange={() => toggleArr("deficiencia", key)}
+                    />
+                    <span>{label}</span>
+                  </label>
+                ))}
+              </div>
+
+              <div className="ci-form__section-title">Condições de saúde</div>
+              <div className="ci-form__checks">
+                {CI_CONDICOES_OPTIONS.map(({ key, label }) => (
+                  <label key={key} className="acs-vis-check-label">
+                    <input
+                      type="checkbox"
+                      className="acs-vis-checkbox"
+                      checked={(form.condicoesSaude || []).includes(key)}
+                      onChange={() => toggleArr("condicoesSaude", key)}
+                    />
+                    <span>{label}</span>
+                  </label>
+                ))}
+              </div>
+
+              <div className="ci-form__section-title">Situação de vulnerabilidade</div>
+              <div className="ci-form__row">
+                <fieldset className="ci-form__fieldset">
+                  <legend className="ci-form__label">Situação de rua</legend>
+                  <div className="ci-form__radios">
+                    {[["sim", true], ["nao", false], ["ni", null]].map(([id, val]) => (
+                      <label key={id} className="ci-form__radio-label">
+                        <input
+                          type="radio"
+                          name="situacaoRua"
+                          className="acs-vis-radio"
+                          checked={form.situacaoRua === val}
+                          onChange={() => fld("situacaoRua", val)}
+                        />
+                        <span>{val === true ? "Sim" : val === false ? "Não" : "Não informado"}</span>
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
+              </div>
+
+              <div className="ci-form__section-title">TRIA — Triagem de Insegurança Alimentar</div>
+              <div className="ci-form__tria">
+                <fieldset className="ci-form__fieldset">
+                  <legend className="ci-form__label">Nos últimos 3 meses, os alimentos acabaram antes de ter dinheiro para comprar mais?</legend>
+                  <div className="ci-form__radios">
+                    {[["sim", true], ["nao", false], ["ni", null]].map(([id, val]) => (
+                      <label key={id} className="ci-form__radio-label">
+                        <input type="radio" name="triaAlimentosAcabaram" className="acs-vis-radio"
+                          checked={form.triaAlimentosAcabaram === val}
+                          onChange={() => fld("triaAlimentosAcabaram", val)} />
+                        <span>{val === true ? "Sim" : val === false ? "Não" : "Não informado"}</span>
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
+                <fieldset className="ci-form__fieldset">
+                  <legend className="ci-form__label">Nos últimos 3 meses, precisou consumir apenas alguns alimentos porque o dinheiro acabou?</legend>
+                  <div className="ci-form__radios">
+                    {[["sim", true], ["nao", false], ["ni", null]].map(([id, val]) => (
+                      <label key={id} className="ci-form__radio-label">
+                        <input type="radio" name="triaConsomiu" className="acs-vis-radio"
+                          checked={form.triaConsomiuApenasAlgunsDosAlimentos === val}
+                          onChange={() => fld("triaConsomiuApenasAlgunsDosAlimentos", val)} />
+                        <span>{val === true ? "Sim" : val === false ? "Não" : "Não informado"}</span>
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
+              </div>
+
+              {saveError && <p className="ci-form__error" role="alert">{saveError}</p>}
+              {saveOk    && <p className="ci-form__ok"    role="status">Salvo com sucesso.</p>}
+
+              <div className="ci-form__actions">
+                <button type="button" className="ci-form__cancel-btn" onClick={() => { setEditing(false); setForm(emptyCiForm(selectedPatient)); setSaveError(""); }}>
+                  Cancelar
+                </button>
+                <button type="submit" className="ci-form__save-btn" disabled={saving}>
+                  {saving ? "Salvando…" : "Salvar Cadastro Individual"}
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CiRow({ label, value }) {
+  if (!value) return null;
+  return (
+    <div className="ci-view__row">
+      <span className="ci-view__label">{label}</span>
+      <span className="ci-view__value">{value}</span>
+    </div>
+  );
+}
+
+function boolStr(v) {
+  if (v === true)  return "Sim";
+  if (v === false) return "Não";
+  return "";
+}
+
 // ── ProductionSection — APS-01F ──────────────────────────────────────────────
 
 const PROD_PERIODS = [
@@ -1904,7 +2402,7 @@ function AcsTasksPage({ patients, users, user, token, onNavigatePatient }) {
       <div className="acs-body">
 
         <div className="acs-tabs" role="tablist" aria-label="Seções ACS">
-          {[["tasks", "Tarefas"], ["visitas", "Visitas"], ["groups", "Grupos Familiares"], ["busca", "Busca Ativa"], ["producao", "Produção"]].map(([val, lbl]) => (
+          {[["tasks", "Tarefas"], ["visitas", "Visitas"], ["groups", "Grupos Familiares"], ["ci", "Cadastro Individual"], ["busca", "Busca Ativa"], ["producao", "Produção"]].map(([val, lbl]) => (
             <button
               key={val}
               type="button"
@@ -2103,6 +2601,14 @@ function AcsTasksPage({ patients, users, user, token, onNavigatePatient }) {
               if (patient) setVisitPreSelect(patient);
               setActiveTab("visitas");
             }}
+          />
+        )}
+
+        {activeTab === "ci" && (
+          <CadastroIndividualSection
+            token={token}
+            user={user}
+            patients={patients}
           />
         )}
 
