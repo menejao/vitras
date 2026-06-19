@@ -597,14 +597,41 @@ const PrivacyRequestCreateSchema = z.object({
 
 // F5-01: Household entity — Ficha de Cadastro Domiciliar (e-SUS CDS Sprint 5A)
 // Separate entity from Patient; fields extracted from PATCH /patients payload for compat.
-// F5-02: Household enums — Seção 15.12–15.17, 15.25 do esus-data-model-v1.md
+// F5-02 / APS-01M: Household enums — Seção 15.12–15.17, 15.25 do esus-data-model-v1.md + formulário oficial e-SUS
 const TIPO_IMOVEL_VALUES = ["DOMICILIO", "COMERCIO", "TERRENO_BALDIO", "PONTO_ESTRATEGICO", "ESCOLA", "CRECHE", "ABRIGO", "INST_LONGA_PERMANENCIA", "UNIDADE_PRISIONAL", "DELEGACIA", "OUTRO"];
-const MATERIAL_PAREDES_VALUES = ["ALVENARIA_COM_REVESTIMENTO", "ALVENARIA_SEM_REVESTIMENTO", "TAIPA_COM_REVESTIMENTO", "TAIPA_SEM_REVESTIMENTO", "MADEIRA_APARELHADA", "MATERIAL_APROVEITADO", "OUTRO"];
-const ABASTECIMENTO_AGUA_VALUES = ["REDE_ENCANADA", "POCO_ARTESIANO", "CISTERNAS", "CARRO_PIPA", "OUTROS"];
-const TRATAMENTO_AGUA_VALUES = ["SEM_TRATAMENTO", "FILTRACAO", "FERVURA", "CLORACAO", "MINERAL", "OUTRO"];
-const ESGOTAMENTO_VALUES = ["REDE_COLETORA", "FOSSA_SEPTICA", "FOSSA_RUDIMENTAR", "VALA_CEU_ABERTO", "DIRETO_CORPO_AGUA", "OUTRO"];
-const DESTINO_LIXO_VALUES = ["COLETA_PUBLICA", "QUEIMADO", "ENTERRADO", "TERRENO_BALDIO", "CORPO_AGUA", "OUTROS"];
-const LOCALIZACAO_VALUES = ["URBANA", "RURAL"];
+const MATERIAL_PAREDES_VALUES = [
+  "ALVENARIA_COM_REVESTIMENTO", "ALVENARIA_SEM_REVESTIMENTO",
+  "TAIPA_COM_REVESTIMENTO", "TAIPA_SEM_REVESTIMENTO",
+  "MADEIRA_APARELHADA", "MATERIAL_APROVEITADO",
+  "CAULES_PALMEIRA", "SEM_PAREDE", "PALHA", "LONA", "MISTO",
+  "OUTRO"
+];
+const ABASTECIMENTO_AGUA_VALUES = [
+  "REDE_ENCANADA", "REDE_ENCANADA_SISTEMA_PUBLICO", "REDE_ENCANADA_SESAI",
+  "POCO_ARTESIANO", "POCO_NASCENTE_DOMICILIO",
+  "CISTERNAS", "CISTERNA_AGUA_CHUVA",
+  "PONTO_ABASTECIMENTO_COLETIVO",
+  "CARRO_PIPA",
+  "CAPTACAO_DIRETA_RIO", "CAPTACAO_POCO_COLETIVO",
+  "OUTROS", "OUTRO"
+];
+const TRATAMENTO_AGUA_VALUES = [
+  "SEM_TRATAMENTO", "FILTRACAO", "FILTRADA_FILTRO_BARRO",
+  "FERVURA", "CLORACAO", "CLORADA_HIPOCLORITO",
+  "MINERAL", "OUTRO"
+];
+const ESGOTAMENTO_VALUES = [
+  "REDE_COLETORA", "FOSSA_SEPTICA", "FOSSA_RUDIMENTAR",
+  "VALA_CEU_ABERTO", "CEU_ABERTO",
+  "DIRETO_CORPO_AGUA", "DIRETO_RIO_LAGO_MAR",
+  "OUTRO", "OUTRA_FORMA"
+];
+const DESTINO_LIXO_VALUES = ["COLETA_PUBLICA", "COLETADO", "QUEIMADO", "ENTERRADO", "CEU_ABERTO", "TERRENO_BALDIO", "CORPO_AGUA", "OUTROS", "OUTRO"];
+const LOCALIZACAO_VALUES = ["URBANA", "RURAL", "PERIURBANA"];
+// APS-01M: new enum sets
+const TIPO_ACESSO_VALUES = ["PAVIMENTO", "CHAO_BATIDO", "FLUVIAL", "OUTRO"];
+const ORIGEM_ENERGIA_VALUES = ["GERADOR_COMUNITARIO", "GERADOR_INDIVIDUAL", "FOTOVOLTAICA_INDIVIDUAL", "CONCESSIONARIA", "FOTOVOLTAICA_COMUNITARIA"];
+const CONDICAO_POSSE_TERRA_VALUES = ["PROPRIETARIO", "PARCEIRO_MEEIRO", "ASSENTADO", "POSSEIRO", "TERRA_INDIGENA_DEMARCADA", "ARRENDATARIO", "COMODATARIO", "BENEFICIARIO_BANCO_TERRA", "NAO_SE_APLICA", "TERRA_INDIGENA_NAO_DEMARCADA"];
 // C04A: LEDI APS 7.4.0 — condicaoMoradia.situacaoMoradiaPosseTerra (obrigatório para exportação CDS)
 // ACS Visit schemas
 const ACS_TURNO_VALUES = ["manha", "tarde", "noite"];
@@ -693,7 +720,7 @@ const AcsVisitUpdateSchema = z.object({
   observacoes:       z.string().trim().max(2000).optional().nullable()
 });
 
-const SITUACAO_MORADIA_VALUES = ["PROPRIO", "FINANCIADO", "ALUGADO", "ARRENDADO", "CEDIDO", "OCUPACAO", "SITUACAO_RUA", "OUTRO"];
+const SITUACAO_MORADIA_VALUES = ["PROPRIO", "FINANCIADO", "ALUGADO", "ARRENDADO", "CEDIDO", "OCUPACAO", "SITUACAO_RUA", "TEMPORARIA", "OUTRO"];
 // C04A: LEDI APS 7.4.0 — tipoEndereco (novo campo obrigatório v7.4.0: 1=logradouro, 2=sem endereço)
 const TIPO_ENDERECO_VALUES = ["LOGRADOURO", "SEM_ENDERECO"];
 
@@ -701,6 +728,19 @@ const TIPO_ENDERECO_VALUES = ["LOGRADOURO", "SEM_ENDERECO"];
 const TIPO_DOMICILIO_VALUES = ["CASA", "APARTAMENTO", "COMODO", "MALOCA", "IMPROVISADO", "OUTRO"];
 // APS-01G: Animais no domicílio
 const TIPOS_ANIMAIS_VALUES = ["cachorro", "gato", "passaro", "outros"];
+
+// APS-01M: sub-schema para família dentro do domicílio
+const FamiliaSchema = z.object({
+  responsavelNome: optionalShortString(300),
+  responsavelCpfCns: optionalShortString(30),
+  responsavelNascimento: optionalDateString(),
+  prontuarioFamiliar: optionalShortString(50),
+  rendaFamiliar: z.union([z.string().trim().max(30), z.number()]).nullable().optional(),
+  numMembros: z.number().int().min(0).max(99).optional().nullable(),
+  resideDesdeMes: z.number().int().min(1).max(12).optional().nullable(),
+  resideDesdeAno: z.number().int().min(1900).max(2100).optional().nullable(),
+  mudouSe: z.boolean().optional(),
+});
 
 const HouseholdCreateSchema = z.object({
   patientId: z.string().trim().min(1).max(100),
@@ -740,7 +780,42 @@ const HouseholdCreateSchema = z.object({
   foraArea: z.boolean().optional(),
   animaisNoDomicilio: z.boolean().optional(),
   tiposAnimais: z.array(z.enum(TIPOS_ANIMAIS_VALUES)).max(10).optional(),
-  quantidadeAnimais: z.number().int().min(0).max(999).optional().nullable()
+  quantidadeAnimais: z.number().int().min(0).max(999).optional().nullable(),
+  // APS-01M: campos adicionais formulário oficial e-SUS Cadastro Domiciliar e Territorial
+  termoRecusa: z.boolean().optional(),
+  dataCadastro: optionalDateString(),
+  microarea: optionalShortString(50),
+  // Fase 5 — profissional responsável (configuração de implantação)
+  profResponsavelNome: optionalShortString(300),
+  profResponsavelCns: optionalShortString(20),
+  profCbo: optionalShortString(10),
+  codigoCnes: optionalShortString(7),
+  codigoIne: optionalShortString(10),
+  // Fase 6 — endereço extras
+  pais: optionalShortString(50),
+  municipioNome: optionalShortString(100),
+  tipoLogradouro: optionalShortString(50),
+  complemento: optionalShortString(100),
+  semNumero: z.boolean().optional(),
+  distritosanitario: optionalShortString(100),
+  pontoReferencia: optionalShortString(200),
+  observacoesEndereco: optionalShortString(500),
+  desativarCadastro: z.boolean().optional(),
+  // Fase 7 — telefones
+  telResidencialDDD: optionalShortString(3),
+  telResidencial: optionalShortString(15),
+  telContatoDDD: optionalShortString(3),
+  telContato: optionalShortString(15),
+  // Fase 9 — área de produção rural
+  condicaoPosseUseTerra: z.enum(CONDICAO_POSSE_TERRA_VALUES).optional(),
+  // Fase 10 — tipo de acesso
+  tipoAcesso: z.enum(TIPO_ACESSO_VALUES).optional(),
+  // Fase 11 — origem da energia elétrica
+  origemEnergiaEletrica: z.enum(ORIGEM_ENERGIA_VALUES).optional(),
+  // Fase 17 — famílias
+  familias: z.array(FamiliaSchema).max(20).optional(),
+  // Fase 18 — instituição de permanência
+  instituicaoPermanencia: optionalShortString(500),
 });
 
 const HouseholdUpdateSchema = z.object({
@@ -775,7 +850,34 @@ const HouseholdUpdateSchema = z.object({
   foraArea: z.boolean().optional(),
   animaisNoDomicilio: z.boolean().optional(),
   tiposAnimais: z.array(z.enum(TIPOS_ANIMAIS_VALUES)).max(10).optional(),
-  quantidadeAnimais: z.number().int().min(0).max(999).optional().nullable()
+  quantidadeAnimais: z.number().int().min(0).max(999).optional().nullable(),
+  // APS-01M: campos adicionais formulário oficial e-SUS
+  termoRecusa: z.boolean().optional(),
+  dataCadastro: optionalDateString(),
+  microarea: optionalShortString(50),
+  profResponsavelNome: optionalShortString(300),
+  profResponsavelCns: optionalShortString(20),
+  profCbo: optionalShortString(10),
+  codigoCnes: optionalShortString(7),
+  codigoIne: optionalShortString(10),
+  pais: optionalShortString(50),
+  municipioNome: optionalShortString(100),
+  tipoLogradouro: optionalShortString(50),
+  complemento: optionalShortString(100),
+  semNumero: z.boolean().optional(),
+  distritosanitario: optionalShortString(100),
+  pontoReferencia: optionalShortString(200),
+  observacoesEndereco: optionalShortString(500),
+  desativarCadastro: z.boolean().optional(),
+  telResidencialDDD: optionalShortString(3),
+  telResidencial: optionalShortString(15),
+  telContatoDDD: optionalShortString(3),
+  telContato: optionalShortString(15),
+  condicaoPosseUseTerra: z.enum(CONDICAO_POSSE_TERRA_VALUES).optional(),
+  tipoAcesso: z.enum(TIPO_ACESSO_VALUES).optional(),
+  origemEnergiaEletrica: z.enum(ORIGEM_ENERGIA_VALUES).optional(),
+  familias: z.array(FamiliaSchema).max(20).optional(),
+  instituicaoPermanencia: optionalShortString(500),
 }).strict();
 
 // F4-04 / F4-06: Unit fields — CNES from deployment env (DEFAULT_UNIT_CNES), never hardcoded

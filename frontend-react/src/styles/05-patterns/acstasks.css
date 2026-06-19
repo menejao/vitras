@@ -2254,9 +2254,13 @@
   gap: .375rem;
 }
 
-/* modal sizing */
-.modal--ci .modal { max-width: 680px; max-height: 90vh; display: flex; flex-direction: column; }
-.modal--ci .modal__body { overflow-y: auto; flex: 1; }
+/* modal sizing — CI */
+.modal--ci .modal { max-width: 860px; width: 92vw; max-height: 90vh; display: flex; flex-direction: column; }
+.modal--ci .modal__body { overflow-y: auto; flex: 1; padding-bottom: 1rem; }
+
+/* modal sizing — CDT (Cadastro Domiciliar e Territorial) */
+.modal--cd .modal { max-width: 1100px; width: 94vw; max-height: 92vh; display: flex; flex-direction: column; }
+.modal--cd .modal__body { overflow-y: auto; flex: 1; padding-bottom: 1.5rem; }
 
 /* dropdown civil name */
 .agenda-pat-opt__civil { font-weight: 400; color: var(--text-secondary); }
@@ -2268,12 +2272,69 @@
   .ci-patient-card__actions { flex-direction: row; flex-wrap: wrap; width: 100%; }
   .ci-view__label        { flex: 0 0 120px; }
   .ci-form__checks       { grid-template-columns: 1fr 1fr; }
-  .modal--ci .modal      { max-height: 100vh; border-radius: 0; }
+  .modal--ci .modal      { max-height: 100vh; border-radius: 0; width: 100vw; }
+  .modal--cd .modal      { max-height: 100vh; border-radius: 0; width: 100vw; max-width: 100vw; }
 }
 
-/* ── Cadastro Domiciliar — APS-01J-D ─────────────────────────────────────── */
+/* ── Cadastro Domiciliar e Territorial — APS-01M ─────────────────────────── */
 
-/* Cadastro Domiciliar — APS-01L (now shares .ci-section / .ci-patient-card / modal--ci) */
+/* Accordions */
+.cd-form-accordion { display: flex; flex-direction: column; gap: 0; }
+
+.cd-acc {
+  border-bottom: 1px solid var(--border-soft, #e2e8f0);
+}
+.cd-acc:first-of-type { border-top: 1px solid var(--border-soft, #e2e8f0); margin-top: .25rem; }
+.cd-acc[open] > .cd-acc__body { animation: cd-acc-in 0.15s ease; }
+
+@keyframes cd-acc-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.cd-acc__header {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .75rem 0;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: .9375rem;
+  color: var(--text-primary);
+  user-select: none;
+  list-style: none;
+}
+.cd-acc__header::-webkit-details-marker { display: none; }
+.cd-acc__header::after {
+  content: "▸";
+  margin-left: auto;
+  font-size: .75rem;
+  color: var(--text-secondary);
+  transition: transform .15s;
+}
+details[open] > .cd-acc__header::after { transform: rotate(90deg); }
+
+.cd-acc__badge {
+  font-size: .6875rem;
+  font-weight: 500;
+  background: #fef3c7;
+  color: #92400e;
+  padding: .125rem .375rem;
+  border-radius: 4px;
+  letter-spacing: .02em;
+}
+
+.cd-acc__body { padding: .5rem 0 1rem; }
+.cd-acc__hint { font-size: .8125rem; color: var(--text-secondary); margin: 0 0 .75rem; }
+.cd-acc__inline-check { display: flex; align-items: flex-end; padding-bottom: .375rem; }
+
+.cd-familia-row { border: 1px solid var(--border-soft, #e2e8f0); border-radius: 8px; padding: 1rem; margin-bottom: .75rem; }
+.cd-view__recusa { font-size: .875rem; color: #92400e; background: #fef3c7; padding: .5rem .75rem; border-radius: 6px; margin-bottom: .5rem; }
+.cd-view__familias { margin-top: .75rem; border-top: 1px solid var(--border-soft, #e2e8f0); padding-top: .75rem; }
+.cd-view__group-title { font-weight: 600; font-size: .875rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: .04em; margin: 0 0 .5rem; }
+.cd-view__familia { border: 1px solid var(--border-soft, #e2e8f0); border-radius: 6px; padding: .5rem .75rem; margin-bottom: .5rem; }
+
+/* CDT shares these with APS-01L */
 
 .cd-loading { font-size: .875rem; color: var(--text-secondary); margin: .75rem 0 0; }
 
