@@ -1,7 +1,7 @@
-// C04A/C04B/C04C: CDS Export Service — Cadastro Individual + Cadastro Domiciliar + Atendimento Individual
+// C04A/C04B/C04C/C04D: CDS Export Service — CI + CDT + Atendimento Individual + Visita Domiciliar
 // Generates LEDI APS 7.4.0 compatible .esus files.
 import { v4 as uuidv4 } from "uuid";
-import { buildCadastroIndividual, buildCadastroDomiciliar, buildAtendimentoIndividual } from "./cds-structs.js";
+import { buildCadastroIndividual, buildCadastroDomiciliar, buildAtendimentoIndividual, buildVisitaDomiciliar } from "./cds-structs.js";
 import { buildEsusZip } from "./esus-packer.js";
 
 /**
@@ -86,6 +86,38 @@ export function exportCadastroDomiciliar(household, patient, professional, unit,
  * @param {object} team         — from app_state.teams; has ine
  * @returns {{ buffer: Buffer, filename: string, fichaUuid: string }}
  */
+/**
+ * Export an ACS visit as Ficha de Visita Domiciliar e Territorial .esus (ZIP+Thrift).
+ *
+ * @param {object} visit       — from readDb().acsVisits
+ * @param {object} patient     — from readDb().patients (owner of visit)
+ * @param {object} professional — ACS user; has cnsProfissional, cboCodigo
+ * @param {object} unit        — app_units row with cnes, municipalityId
+ * @param {object} team        — from app_state.teams with ine
+ * @returns {{ buffer: Buffer, filename: string, fichaUuid: string }}
+ */
+export function exportVisitaDomiciliar(visit, patient, professional, unit, team) {
+  const fichaUuid = uuidv4();
+
+  const { buffer } = buildVisitaDomiciliar({
+    visit,
+    patient,
+    professional,
+    unit,
+    team,
+    fichaUuid,
+  });
+
+  const zipBuffer = buildEsusZip([{
+    name: `${fichaUuid}.thrift`,
+    data: buffer,
+  }]);
+
+  const filename = `visita-domiciliar-${visit.id}-${Date.now()}.esus`;
+
+  return { buffer: zipBuffer, filename, fichaUuid };
+}
+
 export function exportAtendimentoIndividual(record, patient, professional, unit, team) {
   const fichaUuid = uuidv4();
 

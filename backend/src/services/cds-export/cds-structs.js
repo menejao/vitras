@@ -1,10 +1,11 @@
-// C04A/C04B/C04C: CDS struct serializers for LEDI APS 7.4.0
+// C04A/C04B/C04C/C04D: CDS struct serializers for LEDI APS 7.4.0
 // Field IDs match LEDI v7.4.0 spec (integracao.esusaps.bridge.ufsc.tech/v740/)
 // Official Thrift IDL: github.com/laboratoriobridge/esusaps-integracao
 import {
   BinaryWriter, T,
   writeStruct, writeI32Field, writeI64Field,
-  writeStringField, writeBoolField, writeI64ListField, writeStructListField
+  writeStringField, writeBoolField, writeI64ListField, writeStructListField,
+  writeDoubleField
 } from "./thrift-protocol.js";
 import {
   RACA_COR_MAP, SEXO_MAP, ESCOLARIDADE_MAP, DEFICIENCIA_MAP,
@@ -13,7 +14,9 @@ import {
   TRATAMENTO_AGUA_MAP, ESGOTAMENTO_MAP, DESTINO_LIXO_MAP,
   MATERIAL_PAREDES_MAP, MOTIVO_SAIDA_MAP, mapEnum, mapEnumList,
   TURNO_MAP, TURNO_DEFAULT, LOCAL_ATENDIMENTO_MAP, LOCAL_ATENDIMENTO_DEFAULT,
-  resolveTipoAtendimento, mapCiap2ToLedi
+  resolveTipoAtendimento, mapCiap2ToLedi,
+  DESFECHO_VISITA_MAP, MOTIVO_VISITA_MAP, BUSCA_ATIVA_MAP,
+  ACOMPANHAMENTO_MAP, CONTROLE_AMBIENTAL_MAP, MOMENTO_GLICEMIA_MAP
 } from "./enum-maps.js";
 
 // ──────────────────────────────────────────────
@@ -414,6 +417,115 @@ export function buildAtendimentoIndividual({ record, patient, professional, unit
   writeStructListField(w, 2, [{ record, patient, professional, unit, team }], writeAtendimentoIndividualChild);
 
   // 3: uuidFicha (required string)
+  writeStringField(w, 3, fichaUuid);
+
+  // 4: tpCdsOrigem = 3 (sistema terceiro)
+  writeI32Field(w, 4, 3);
+
+  w.writeFieldStop();
+
+  return { buffer: w.toBuffer(), uuid: fichaUuid };
+}
+
+// ──────────────────────────────────────────────
+// C04D: FichaVisitaDomiciliarTerritorialChildThrift
+// Source: github.com/laboratoriobridge/esusaps-integracao
+//   ficha_visita_domiciliar_territorial.thrift
+// Field IDs per LEDI APS 7.4.0:
+//   1=cns, 2=dataNascimento, 3=microarea, 4=sexo,
+//   5=desfecho, 6=stForaArea, 7=motivoVisita, 8=buscaAtivaBuscaAtiva,
+//   9=acompanhamentos, 10=localDeAtendimento, 11=turno, 12=tipoDeImovel,
+//   13=cpfCidadao, 14=peso, 15=altura, 16=imc, 17=paSistolica, 18=paDiastolica,
+//   19=glicemia, 20=tipoDeMedicaoGlicemia, 21=visitaCompartilhada, 22=controleAmbiental
+// ──────────────────────────────────────────────
+function writeVisitaChild(w, { visit, patient }) {
+  if (patient?.cns)       writeStringField(w, 1, patient.cns);
+  if (patient?.birthDate || patient?.dataNascimento) {
+    writeI64Field(w, 2, BigInt(new Date(patient.birthDate || patient.dataNascimento).getTime()));
+  }
+  if (visit.microarea)    writeStringField(w, 3, String(visit.microarea).substring(0, 2));
+
+  const sexo = mapEnum(SEXO_MAP, patient?.sex || patient?.sexAtBirth);
+  if (sexo != null)       writeI64Field(w, 4, sexo);
+
+  const desfecho = mapEnum(DESFECHO_VISITA_MAP, visit.desfecho);
+  writeI64Field(w, 5, desfecho ?? 1n); // default: REALIZADA
+
+  if (visit.foraArea)     writeBoolField(w, 6, true);
+
+  const motivos = mapEnumList(MOTIVO_VISITA_MAP, Array.isArray(visit.motivos) ? visit.motivos : []);
+  if (motivos.length > 0) writeI64ListField(w, 7, motivos);
+
+  const buscaAtiva = mapEnumList(BUSCA_ATIVA_MAP, Array.isArray(visit.buscaAtiva) ? visit.buscaAtiva : []);
+  if (buscaAtiva.length > 0) writeI64ListField(w, 8, buscaAtiva);
+
+  const acomp = mapEnumList(ACOMPANHAMENTO_MAP, Array.isArray(visit.acompanhamentos) ? visit.acompanhamentos : []);
+  if (acomp.length > 0)   writeI64ListField(w, 9, acomp);
+
+  const localAtend = LOCAL_ATENDIMENTO_MAP["DOMICILIO"]; // visita domiciliar = sempre domicílio
+  writeI64Field(w, 10, localAtend ?? 4n);
+
+  const turno = TURNO_MAP[String(visit.turno || "TARDE").toUpperCase()] ?? TURNO_DEFAULT;
+  writeI64Field(w, 11, turno);
+
+  const tipoImovel = mapEnum(TIPO_IMOVEL_MAP, visit.tipoImovel);
+  if (tipoImovel != null) writeI64Field(w, 12, tipoImovel);
+
+  if (patient?.cpf)       writeStringField(w, 13, patient.cpf);
+
+  if (visit.peso != null && visit.peso > 0) {
+    writeDoubleField(w, 14, visit.peso);
+    if (visit.altura != null && visit.altura > 0) {
+      writeDoubleField(w, 15, visit.altura);
+      // IMC = peso (kg) / altura (m)^2
+      const alturaM = visit.altura > 10 ? visit.altura / 100 : visit.altura;
+      const imc = visit.peso / (alturaM * alturaM);
+      writeDoubleField(w, 16, Math.round(imc * 100) / 100);
+    }
+  }
+
+  if (visit.paSistolica != null)   writeI32Field(w, 17, Number(visit.paSistolica));
+  if (visit.paDiastolica != null)  writeI32Field(w, 18, Number(visit.paDiastolica));
+  if (visit.glicemia != null)      writeI32Field(w, 19, Math.round(Number(visit.glicemia)));
+
+  if (visit.glicemia != null && visit.momentoGlicemia) {
+    const momento = mapEnum(MOMENTO_GLICEMIA_MAP, visit.momentoGlicemia);
+    if (momento != null) writeI64Field(w, 20, momento);
+  }
+
+  if (visit.visitaCompartilhada)   writeBoolField(w, 21, true);
+
+  const controle = mapEnumList(CONTROLE_AMBIENTAL_MAP, Array.isArray(visit.controleAmbiental) ? visit.controleAmbiental : []);
+  if (controle.length > 0) writeI64ListField(w, 22, controle);
+
+  w.writeFieldStop();
+}
+
+// ──────────────────────────────────────────────
+// C04D: FichaVisitaDomiciliarTerritorialMasterThrift (root)
+// Field IDs per LEDI APS 7.4.0:
+//   1=headerTransport, 2=atendimentos(list<child>), 3=uuidFicha, 4=tpCdsOrigem
+// ──────────────────────────────────────────────
+export function buildVisitaDomiciliar({ visit, patient, professional, unit, team, fichaUuid }) {
+  const w = new BinaryWriter();
+
+  const visitDate = visit.date ? new Date(visit.date).getTime() : Date.now();
+  const ibgeMunicipio = String(unit?.municipalityId || team?.municipalityId || "3534401").replace(/\D/g, "").substring(0, 7);
+
+  // 1: headerTransport (UnicaLotacaoHeaderThrift — single ACS professional)
+  writeStruct(w, 1, (inner) => writeUnicaLotacaoHeader(inner, {
+    profissionalCNS: professional.cnsProfissional || professional.cns || "",
+    cboCodigo_2002:  professional.cboCodigo || "",
+    cnes:            unit?.cnes || "",
+    ine:             team?.ine || undefined,
+    dataAtendimento: visitDate,
+    codigoIbgeMunicipio: ibgeMunicipio,
+  }));
+
+  // 2: atendimentos (list<FichaVisitaDomiciliarChildThrift>)
+  writeStructListField(w, 2, [{ visit, patient }], writeVisitaChild);
+
+  // 3: uuidFicha (required)
   writeStringField(w, 3, fichaUuid);
 
   // 4: tpCdsOrigem = 3 (sistema terceiro)

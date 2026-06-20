@@ -241,6 +241,96 @@ export function mapCiap2ToLedi(code) {
   return CIAP2_FORMAT.test(normalized) ? normalized : null;
 }
 
+// ──────────────────────────────────────────────────────────────────────────────
+// C04D: FichaVisitaDomiciliarTerritorial LEDI APS 7.4.0 enums
+// Source: integracao.esusaps.bridge.ufsc.tech/v740/
+// ──────────────────────────────────────────────────────────────────────────────
+
+// desfecho (FichaVisitaDomiciliarChildThrift field 5, i64)
+export const DESFECHO_VISITA_MAP = {
+  REALIZADA: 1n, realizada: 1n,
+  AUSENTE:   2n, ausente:   2n,
+  RECUSADA:  3n, recusada:  3n, RECUSA: 3n,
+};
+
+// motivoDeVisita (list<i64>) — LEDI APS 7.4.0 tabela MotivoVisita
+export const MOTIVO_VISITA_MAP = {
+  cadastro_atualizacao: 1n,
+  visita_periodica:     2n,
+  esus_rotina:          2n, // maps to Visita Periódica (closest equivalent)
+  busca_ativa:          3n,
+  acompanhamento:       4n,
+  controle_ambiental:   5n,
+  convite_atividade:    6n,
+};
+
+// buscaAtivaBuscaAtiva (list<i64>) — LEDI APS 7.4.0 tabela BuscaAtivaCondition
+export const BUSCA_ATIVA_MAP = {
+  ba_consulta:          1n,
+  ba_exame:             2n,
+  ba_vacina:            3n,
+  ba_bolsa_familia:     4n,
+  ba_gestante:          5n,
+  ba_puerpera:          6n,
+  ba_recem_nascido:     7n,
+  ba_crianca:           8n,
+  ba_tuberculose:       9n,
+  ba_hanseniase:        10n,
+  ba_hipertensao:       11n,
+  ba_diabetes:          12n,
+  ba_asma:              13n,
+  ba_dpoc:              14n,
+  ba_cancer:            15n,
+  ba_cardiovascular:    16n,
+  ba_renal:             17n,
+  ba_sofrimento_mental: 18n,
+  ba_acamada:           19n,
+  ba_domiciliada:       20n,
+  ba_alcool:            21n,
+  ba_outras_drogas:     22n,
+};
+
+// acompanhamentos (list<i64>) — LEDI APS 7.4.0 tabela AcompanhamentoCondition
+export const ACOMPANHAMENTO_MAP = {
+  ac_gestante:                1n,
+  ac_puerpera:                2n,
+  ac_recem_nascido:           3n,
+  ac_crianca:                 4n,
+  ac_desnutrida:              5n,
+  ac_reabilitacao:            6n,
+  ac_hipertensao:             7n,
+  ac_diabetes:                8n,
+  ac_asma:                    9n,
+  ac_dpoc:                    10n,
+  ac_cancer:                  11n,
+  ac_outras_doencas_cronicas: 12n,
+  ac_hanseniase:              13n,
+  ac_tuberculose:             14n,
+  ac_sintomaticos_resp:       15n,
+  ac_tabagista:               16n,
+  ac_acamada:                 17n,
+  ac_vulnerabilidade_social:  18n,
+  ac_sofrimento_mental:       19n,
+  ac_alcool:                  20n,
+  ac_outras_drogas:           21n,
+  ac_pessoa_idosa:            22n,
+};
+
+// controleAmbiental (list<i64>) — LEDI APS 7.4.0
+export const CONTROLE_AMBIENTAL_MAP = {
+  ca_acao_educativa: 1n,
+  ca_imovel_foco:    2n,
+  ca_acao_mecanica:  3n,
+  ca_trat_focal:     4n,
+};
+
+// tipoDeMedicaoGlicemia (i64) — LEDI APS 7.4.0
+export const MOMENTO_GLICEMIA_MAP = {
+  pre_prandial: 1n, PRE_PRANDIAL: 1n, jejum: 1n, JEJUM: 1n,
+  pos_prandial: 2n, POS_PRANDIAL: 2n,
+  aleatorio:    3n, ALEATORIO:    3n,
+};
+
 /** Safe lookup — returns null if key missing or empty string. */
 export function mapEnum(map, value) {
   if (!value) return null;

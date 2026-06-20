@@ -125,6 +125,21 @@ export function writeBoolField(w, fieldId, value) {
   w.writeBool(Boolean(value));
 }
 
+/** Write DOUBLE field — skips if null/undefined/NaN. */
+export function writeDoubleField(w, fieldId, value) {
+  if (value == null || isNaN(value)) return;
+  w.writeFieldBegin(T.DOUBLE, fieldId);
+  w.writeDouble(Number(value));
+}
+
+/** Write I32 list field — skips if null/empty. */
+export function writeI32ListField(w, fieldId, values) {
+  if (!Array.isArray(values) || values.length === 0) return;
+  w.writeFieldBegin(T.LIST, fieldId);
+  w.writeListBegin(T.I32, values.length);
+  for (const v of values) w.writeI32(Number(v));
+}
+
 /** Write List<I64> field — skips if null/empty. */
 export function writeI64ListField(w, fieldId, values) {
   if (!Array.isArray(values) || values.length === 0) return;

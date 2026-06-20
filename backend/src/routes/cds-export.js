@@ -7,7 +7,7 @@ import { hasCapability } from "../utils/helpers.js";
 import { readDb } from "../db.js";
 import { ensureDbShape } from "../utils/domain.js";
 import { addAuditLog } from "../services/audit.js";
-import { exportCadastroIndividual, exportCadastroDomiciliar, exportAtendimentoIndividual } from "../services/cds-export/index.js";
+import { exportCadastroIndividual, exportCadastroDomiciliar, exportAtendimentoIndividual, exportVisitaDomiciliar } from "../services/cds-export/index.js";
 
 const router = express.Router();
 
@@ -270,6 +270,79 @@ router.get("/export/cds/atendimento/:patientId/:recordId", requireAuth, async (r
     warnings: warnings.length > 0 ? warnings : undefined,
     outcome: "success",
     exportedBy: { id: req.user.id, name: req.user.name, role: req.user.role },
+  }).catch(() => {});
+
+  res.setHeader("Content-Type", "application/zip");
+  res.setHeader("Content-Disposition", `attachment; filename="${result.filename}"`);
+  res.setHeader("X-Ficha-UUID", result.fichaUuid);
+  if (warnings.length > 0) {
+    res.setHeader("X-CDS-Warnings", warnings.join("; "));
+  }
+
+  return res.send(result.buffer);
+});
+
+/**
+ * GET /export/cds/visita/:visitId
+ *
+ * Returns a .esus file for an ACS visit's Ficha de Visita Domiciliar e Territorial.
+ *
+ * Requires capability: cds.export
+ * Audit: cds.export.visita
+ */
+router.get("/export/cds/visita/:visitId", requireAuth, async (req, res) => {
+  if (!hasCapability(req.user, "cds.export")) {
+    return res.status(403).json({ error: "Sem permissão para exportar dados CDS." });
+  }
+
+  const visitId = String(req.params.visitId || "").trim();
+  if (!visitId) return res.status(400).json({ error: "visitId obrigatório" });
+
+  let db;
+  try {
+    db = await readDb();
+  } catch (err) {
+    return res.status(503).json({ error: "Banco de dados indisponível." });
+  }
+
+  ensureDbShape(db);
+
+  const visit = db.acsVisits?.find(v => v.id === visitId);
+  if (!visit) return res.status(404).json({ error: "Visita não encontrada." });
+
+  const patient = db.patients.find(p => p.id === visit.patientId) || null;
+
+  // Resolve ACS professional who performed the visit (not necessarily the requester)
+  const professional = db.users.find(u => u.id === visit.acsId) || db.users.find(u => u.id === req.user.id) || req.user;
+
+  const unit = db.units?.find(u => u.id === (professional.unitId || req.user.unitId)) || null;
+  const teams = Array.isArray(db.teams) ? db.teams : [];
+  const team = teams.find(t => t.id === (professional.teamId || req.user.teamId)) || null;
+
+  const warnings = [];
+  if (!(professional.cnsProfissional || professional.cns)) warnings.push("cnsProfissional ausente no ACS");
+  if (!professional.cboCodigo) warnings.push("cboCodigo ausente no ACS");
+  if (!unit?.cnes) warnings.push("cnes ausente na unidade");
+  if (!patient) warnings.push("paciente não encontrado — exportando sem dados do cidadão");
+  if (!visit.desfecho) warnings.push("desfecho ausente na visita");
+
+  let result;
+  try {
+    result = exportVisitaDomiciliar(visit, patient, professional, unit, team);
+  } catch (err) {
+    return res.status(500).json({ error: "Erro ao gerar arquivo CDS.", detail: err.message });
+  }
+
+  addAuditLog(db, buildCdsActor(req), "cds.export.visita", "acs_visit", visitId, {
+    visitId,
+    patientId: visit.patientId,
+    acsId: visit.acsId,
+    visitDate: visit.date,
+    desfecho: visit.desfecho,
+    fichaUuid: result.fichaUuid,
+    warnings: warnings.length > 0 ? warnings : undefined,
+    outcome: "success",
+    exportedBy: { id: req.user.id, name: req.user.name, role: req.user.role }
   }).catch(() => {});
 
   res.setHeader("Content-Type", "application/zip");
