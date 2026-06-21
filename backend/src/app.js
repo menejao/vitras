@@ -34,6 +34,7 @@ import cdsExportRouter from "./routes/cds-export.js";
 import acsVisitsRouter from "./routes/acs-visits.js";
 import activeSearchRouter from "./routes/active-search.js";
 import productionRouter from "./routes/production.js";
+import swaggerRouter from "./routes/swagger.js";
 
 const app = express();
 
@@ -51,6 +52,7 @@ app.use(requestMetricsMiddleware);
 app.use(globalRateLimit);
 
 app.use(healthRouter);
+app.use(swaggerRouter);
 app.use(authRouter);
 app.use(labPublicRouter);
 app.use(usersRouter);
