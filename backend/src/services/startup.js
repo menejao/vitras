@@ -7,7 +7,8 @@ import {
   PATIENT_LOOKUP_HASH_KEY,
   UPSTASH_URL,
   UPSTASH_TOKEN,
-  AUDIT_PRUNE_ENABLED
+  AUDIT_PRUNE_ENABLED,
+  AUTH_MAX_ATTEMPTS
 } from "../config.js";
 import { withDb } from "../db.js";
 import { ensureDbShape } from "../utils/domain.js";
@@ -132,6 +133,11 @@ function validateProductionConfig() {
   // F-01: Must be set independently from DATA_ENCRYPTION_KEY — silent fallback is disabled in production.
   if (!PATIENT_LOOKUP_HASH_KEY) {
     errors.push("PATIENT_LOOKUP_HASH_KEY não configurado — exigido para unicidade CPF/CNS em produção (chave separada de DATA_ENCRYPTION_KEY, mínimo 32 caracteres)");
+  }
+
+  // Auth brute force protection
+  if (AUTH_MAX_ATTEMPTS > 10) {
+    warnings.push(`AUTH_MAX_ATTEMPTS=${AUTH_MAX_ATTEMPTS} — valor permissivo para produção; recomendado ≤ 10 (setar env AUTH_MAX_ATTEMPTS=10)`);
   }
 
   // Redis/Upstash

@@ -59,11 +59,13 @@ if (DATABASE_URL_CLEAN && !_rdsCaBundle && !IS_DEV) {
   console.warn("[KI-03] RDS CA bundle not found — using system trust store with rejectUnauthorized:true");
 }
 
-// KI-03: Returns the SSL config object for pg.Pool — exported so startup checks and migrations use the same config
+// KI-03: Returns the SSL config object for pg.Pool — exported so startup checks and migrations use the same config.
+// When CA bundle is present: explicit cert pinning. When absent: system trust store with rejectUnauthorized:true.
+// Never use rejectUnauthorized:false in production — disables TLS cert validation.
 function getPoolSslConfig() {
   const bundle = loadRdsCaBundle();
   if (bundle) return { rejectUnauthorized: true, ca: bundle };
-  return { rejectUnauthorized: false };
+  return { rejectUnauthorized: true }; // system trust store — still validates cert
 }
 
 const pool = DATABASE_URL_CLEAN
@@ -71,7 +73,7 @@ const pool = DATABASE_URL_CLEAN
       connectionString: DATABASE_URL_CLEAN,
       ssl: _rdsCaBundle
         ? { rejectUnauthorized: true, ca: _rdsCaBundle }
-        : { rejectUnauthorized: false },
+        : { rejectUnauthorized: true }, // system trust store
       max: 10,
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 5000,
@@ -79,7 +81,7 @@ const pool = DATABASE_URL_CLEAN
   : null;
 
 if (pool) {
-  logInfo("db_pool_created", { event: "db_pool_created", message: "SSL enabled — rejectUnauthorized=false (RDS/Neon compatible)" });
+  logInfo("db_pool_created", { event: "db_pool_created", message: "SSL enabled — rejectUnauthorized=true (system trust store or CA bundle)" });
   pool.on("error", (err) => {
     logError("db_pool_idle_error", { event: "db_pool_idle_error", message: err.message, code: err.code });
   });

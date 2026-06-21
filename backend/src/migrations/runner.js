@@ -44,6 +44,10 @@ async function runMigrations() {
   const client = await pool.connect();
 
   try {
+    // Advisory lock prevents race when multiple instances start simultaneously.
+    // Lock key 7261747261 = "vitras" in ASCII digits — unique per application.
+    await client.query("SELECT pg_advisory_lock(7261747261)");
+
     await client.query(`
       CREATE TABLE IF NOT EXISTS schema_migrations (
         id TEXT PRIMARY KEY,
@@ -81,6 +85,7 @@ async function runMigrations() {
 
     logInfo("migration_all_applied", { event: "migration_all_applied" });
   } finally {
+    try { await client.query("SELECT pg_advisory_unlock(7261747261)"); } catch (_) {}
     client.release();
     await pool.end();
   }
