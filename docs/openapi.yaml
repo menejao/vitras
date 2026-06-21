@@ -1085,6 +1085,89 @@ paths:
         "200":
           description: Qualidade de dados da equipe
 
+  # ─── TASKS ────────────────────────────────────────────────────────────────
+
+  /tasks:
+    get:
+      summary: Listar tarefas (filtro por paciente ou responsável)
+      tags: [Tasks]
+      parameters:
+        - name: patientId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: assigneeId
+          in: query
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Lista de tarefas
+    post:
+      summary: Criar tarefa para um paciente
+      tags: [Tasks]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [patientId, assigneeId, title]
+              properties:
+                patientId: { type: string, format: uuid }
+                assigneeId: { type: string, format: uuid }
+                title: { type: string }
+                notes: { type: string }
+                status: { type: string, enum: [pending, done] }
+                dueDate: { type: string, format: date }
+      responses:
+        "201":
+          description: Tarefa criada
+
+  /tasks/{id}:
+    get:
+      summary: Buscar tarefa por ID
+      description: |
+        Team-scoped. ACS vê apenas tarefas atribuídas a si.
+        Retorna 404 se tarefa não existe, não pertence ao scope ou ACS não é o responsável.
+      tags: [Tasks]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Tarefa encontrada
+        "401":
+          description: Não autenticado
+        "404":
+          description: Tarefa não encontrada ou fora do scope
+    patch:
+      summary: Atualizar tarefa
+      tags: [Tasks]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status: { type: string, enum: [pending, done] }
+                notes: { type: string }
+      responses:
+        "200":
+          description: Tarefa atualizada
+        "403":
+          description: Sem permissão
+        "404":
+          description: Tarefa não encontrada
+
   # ─── HOUSEHOLDS ───────────────────────────────────────────────────────────
 
   /households:
