@@ -41,6 +41,27 @@ router.get("/tasks", async (req, res) => {
   return res.json(filtered);
 });
 
+router.get("/tasks/:id", async (req, res) => {
+  const { id } = req.params;
+  const db = await readDb();
+  ensureDbShape(db);
+
+  const task = db.tasks.find(t => t.id === id);
+  if (!task) return res.status(404).json({ error: "Tarefa não encontrada" });
+
+  const allowedPatientIds = new Set(getAllowedPatients(db, req.user, {}).map(p => p.id));
+  if (!allowedPatientIds.has(task.patientId)) {
+    return res.status(404).json({ error: "Tarefa não encontrada" });
+  }
+
+  // ACS vê apenas tarefas atribuídas a si
+  if (isAcs(req.user) && task.assigneeId !== req.user.id) {
+    return res.status(404).json({ error: "Tarefa não encontrada" });
+  }
+
+  return res.json(task);
+});
+
 router.post("/tasks", requireManagerOrDoctor, validate(TaskCreateSchema), async (req, res) => {
   const payload = req.body;
 
