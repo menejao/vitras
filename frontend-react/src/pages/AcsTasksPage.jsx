@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
-import { API_URL } from "../api";
+import { API_URL, listTasksByAssignee, updateTaskStatus } from "../api";
 import PageHeader from "../components/layout/PageHeader";
 import KPI from "../components/ui/KPI";
 import Modal from "../components/ui/Modal";
@@ -3339,25 +3339,23 @@ function AcsTasksPage({ patients, users, user, token, onNavigatePatient }) {
   const [visitPreSelect, setVisitPreSelect] = useState(null);
 
   useEffect(() => {
-    if (!token) return;
-    const myPatients = patients.filter(p => p.assignedAcsId === user?.id);
-    if (!myPatients.length) { setAllTasks([]); setLoading(false); return; }
+    if (!token || !user?.id) return;
     setLoading(true);
-    Promise.all(myPatients.map(p =>
-      fetch(`${API_URL}/patients/${p.id}/tasks`, { headers: { Authorization: `Bearer ${token}` } })
-        .then(r => r.ok ? r.json() : [])
-        .then(tasks => (Array.isArray(tasks) ? tasks : []).map(t => ({
+    listTasksByAssignee(token, user.id)
+      .then(tasks => {
+        if (!Array.isArray(tasks)) { setAllTasks([]); return; }
+        const patientMap = Object.fromEntries(patients.map(p => [p.id, p]));
+        const enriched = tasks.map(t => ({
           ...t,
-          patientId: p.id,
-          patientName: p.name,
-          patientBirth: p.birthDate,
-          patientCareCategory: p.careCategory,
-        })))
-        .catch(() => [])
-    ))
-      .then(results => { setAllTasks(results.flat()); setLoading(false); })
-      .catch(() => setLoading(false));
-  }, [token, patients, user?.id]);
+          patientName: patientMap[t.patientId]?.name || "",
+          patientBirth: patientMap[t.patientId]?.birthDate || "",
+          patientCareCategory: patientMap[t.patientId]?.careCategory || "",
+        }));
+        setAllTasks(enriched);
+      })
+      .catch(() => setAllTasks([]))
+      .finally(() => setLoading(false));
+  }, [token, user?.id, patients]);
 
   const { effectiveDateFrom, effectiveDateTo } = useMemo(() => {
     if (periodPreset === "custom") return { effectiveDateFrom: customFrom, effectiveDateTo: customTo };
@@ -3390,11 +3388,7 @@ function AcsTasksPage({ patients, users, user, token, onNavigatePatient }) {
 
   async function changeStatus(task, status) {
     try {
-      await fetch(`${API_URL}/patients/${task.patientId}/tasks/${task.id}`, {
-        method: "PATCH",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
-      });
+      await updateTaskStatus(token, task.id, status);
       setAllTasks(prev => prev.map(t => t.id === task.id ? { ...t, status } : t));
     } catch {}
   }

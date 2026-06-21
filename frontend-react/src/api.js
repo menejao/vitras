@@ -436,6 +436,10 @@ export async function listTasks(token, patientId) {
   return api(`/tasks?patientId=${encodeURIComponent(patientId)}`, { method: "GET", retryCount: 2 }, token);
 }
 
+export async function listTasksByAssignee(token, assigneeId) {
+  return api(`/tasks?assigneeId=${encodeURIComponent(assigneeId)}`, { method: "GET", retryCount: 2 }, token);
+}
+
 export async function createTask(token, payload) {
   return api("/tasks", { method: "POST", body: JSON.stringify(payload) }, token);
 }
