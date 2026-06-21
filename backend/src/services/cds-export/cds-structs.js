@@ -18,6 +18,7 @@ import {
   DESFECHO_VISITA_MAP, MOTIVO_VISITA_MAP, BUSCA_ATIVA_MAP,
   ACOMPANHAMENTO_MAP, CONTROLE_AMBIENTAL_MAP, MOMENTO_GLICEMIA_MAP
 } from "./enum-maps.js";
+import { MUNICIPALITY_ID as CONFIG_MUNICIPALITY_ID } from "../../config.js";
 
 // ──────────────────────────────────────────────
 // UnicaLotacaoHeaderTransport
@@ -184,7 +185,7 @@ export function buildCadastroIndividual({ patient, professional, unit, team, fic
 
   // 11: headerTransport (required)
   const dataAtendimento = Date.now();
-  const ibgeMunicipio = String(unit?.municipalityId || team?.municipalityId || "3534401").replace(/\D/g, "").substring(0, 7);
+  const ibgeMunicipio = String(unit?.municipalityId || team?.municipalityId || CONFIG_MUNICIPALITY_ID || "3534401").replace(/\D/g, "").substring(0, 7);
   writeStruct(w, 11, (inner) => writeUnicaLotacaoHeader(inner, {
     profissionalCNS: professional.cnsProfissional || professional.cns || "",
     cboCodigo_2002: professional.cboCodigo || "",
@@ -285,7 +286,7 @@ export function buildCadastroDomiciliar({ household, patient, professional, unit
 
   // 17: headerTransport (required)
   const dataAtendimento = Date.now();
-  const ibgeMunicipio = String(unit?.municipalityId || team?.municipalityId || "3534401").replace(/\D/g, "").substring(0, 7);
+  const ibgeMunicipio = String(unit?.municipalityId || team?.municipalityId || CONFIG_MUNICIPALITY_ID || "3534401").replace(/\D/g, "").substring(0, 7);
   writeStruct(w, 17, (inner) => writeUnicaLotacaoHeader(inner, {
     profissionalCNS: professional.cnsProfissional || professional.cns || "",
     cboCodigo_2002: professional.cboCodigo || "",
@@ -401,7 +402,7 @@ export function buildAtendimentoIndividual({ record, patient, professional, unit
   const w = new BinaryWriter();
 
   const recordDate = record.date ? new Date(record.date).getTime() : Date.now();
-  const ibgeMunicipio = String(unit?.municipalityId || team?.municipalityId || "3534401").replace(/\D/g, "").substring(0, 7);
+  const ibgeMunicipio = String(unit?.municipalityId || team?.municipalityId || CONFIG_MUNICIPALITY_ID || "3534401").replace(/\D/g, "").substring(0, 7);
 
   // 1: headerTransport (VariasLotacoesHeaderThrift)
   writeStruct(w, 1, (inner) => writeVariasLotacoesHeader(inner, {
@@ -510,7 +511,7 @@ export function buildVisitaDomiciliar({ visit, patient, professional, unit, team
   const w = new BinaryWriter();
 
   const visitDate = visit.date ? new Date(visit.date).getTime() : Date.now();
-  const ibgeMunicipio = String(unit?.municipalityId || team?.municipalityId || "3534401").replace(/\D/g, "").substring(0, 7);
+  const ibgeMunicipio = String(unit?.municipalityId || team?.municipalityId || CONFIG_MUNICIPALITY_ID || "3534401").replace(/\D/g, "").substring(0, 7);
 
   // 1: headerTransport (UnicaLotacaoHeaderThrift — single ACS professional)
   writeStruct(w, 1, (inner) => writeUnicaLotacaoHeader(inner, {
