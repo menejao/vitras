@@ -6,7 +6,7 @@ import crypto from "node:crypto";
 import { Pool } from "pg";
 import { canonicalRole, getRoleCapabilities } from "./utils/helpers.js";
 import { logInfo, logWarn, logError } from "./utils/logger.js";
-import { PATIENT_LOOKUP_HASH_KEY, DATA_ENCRYPTION_KEY, DATA_ENCRYPTION_KEY_REGISTRY, DATA_ENCRYPTION_ACTIVE_KID } from "./config.js";
+import { PATIENT_LOOKUP_HASH_KEY, DATA_ENCRYPTION_KEY, DATA_ENCRYPTION_KEY_REGISTRY, DATA_ENCRYPTION_ACTIVE_KID, MUNICIPALITY_ID as CONFIG_MUNICIPALITY_ID } from "./config.js";
 import { recordMetric } from "./services/metrics.js";
 import { normalizeUnitCnes } from "./utils/domain.js";
 
@@ -440,7 +440,7 @@ async function syncShadowTables(client, state) {
       unit?.createdAt || null,
       unit?.updatedAt || unit?.createdAt || null,
       JSON.stringify(unit || {}),
-      String(unit?.municipalityId || "3534401"),
+      String(unit?.municipalityId || CONFIG_MUNICIPALITY_ID || ""),
       normalizeUnitCnes(unit?.cnes) ?? ''
     ]);
     const unitColsFull = ["id","name","inactive","created_at","updated_at","payload","municipality_id","cnes"];

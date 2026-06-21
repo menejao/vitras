@@ -15,16 +15,12 @@ export const VACCINE_OPTIONS = [
   "Varicela","Influenza","COVID-19","Febre amarela","HPV",
 ];
 
-export const RECEPTION_USERS = [
-  { id:"rc1", name:"Ana (Administradora)", email:"ana@clinica.local",  role:"receptionist" },
-  { id:"rc2", name:"Recepcionista",        email:"recepcao@ubs.local", role:"receptionist" },
-];
+// Local user metadata for receptionist/pharmacy quick-select UX.
+// These are UI hints only — actual auth always goes through /auth/login.
+// Entries should be configured per deployment via admin UI (future sprint).
+export const RECEPTION_USERS = [];
 
-export const PHARMA_USERS = [
-  { id: "ph1", name: "Ana (Administradora)", email: "ana@clinica.local",  role: "pharmacist"    },
-  { id: "ph2", name: "Farmacêutico(a)",      email: "farmacia@ubs.local", role: "pharmacist"    },
-  { id: "ph3", name: "Téc. de Farmácia",     email: "tecfarma@ubs.local", role: "pharmacy_tech" },
-];
+export const PHARMA_USERS = [];
 
 export const TRIAGE_VITALS_KEY = "vitras_triage_vitals_v1";
 
