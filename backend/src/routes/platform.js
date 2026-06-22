@@ -14,26 +14,98 @@ router.use(requireAuth, requireSupportAdmin);
 
 // ── Units ──────────────────────────────────────────────────────────────────
 
+function buildUnitStats(unitId, db) {
+  const users    = db.users    || [];
+  const teams    = db.teams    || [];
+  const patients = db.patients || [];
+  const gestorCount = users.filter((u) => (u.unitId || "") === unitId && canonicalRole(u.role) === "gestor" && !u.inactive).length;
+  const userCount   = users.filter((u) => (u.unitId || "") === unitId && !u.inactive).length;
+  const teamCount   = teams.filter((t) => (t.unitId || "") === unitId).length;
+  const patientCount = patients.filter((p) => (p.unitId || "") === unitId).length;
+  return { gestorCount, userCount, teamCount, patientCount };
+}
+
+function enrichUnit(u, db) {
+  const stats = buildUnitStats(u.id, db);
+  return {
+    id:               u.id,
+    name:             u.name             || "",
+    cnes:             u.cnes             || "",
+    municipalityName: u.municipalityName || "",
+    uf:               u.uf               || "",
+    municipalityId:   u.municipalityId   || "",
+    contactEmail:     u.contactEmail     || "",
+    phone:            u.phone            || "",
+    status:           u.status           || "onboarding",
+    createdAt:        u.createdAt        || "",
+    updatedAt:        u.updatedAt        || "",
+    ...stats
+  };
+}
+
+router.get("/platform/summary", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.read")) {
+    return res.status(403).json({ error: "Sem permissão" });
+  }
+  const db = await readDb();
+  ensureDbShape(db);
+  const units = db.units || [];
+  const users = db.users || [];
+  const totalUnits     = units.length;
+  const onboarding     = units.filter((u) => (u.status || "onboarding") === "onboarding").length;
+  const active         = units.filter((u) => u.status === "active").length;
+  const inactive       = units.filter((u) => u.status === "inactive").length;
+  const totalGestors   = users.filter((u) => canonicalRole(u.role) === "gestor" && !u.inactive).length;
+  const totalUsers     = users.filter((u) => !u.inactive).length;
+  const totalTeams     = (db.teams || []).length;
+  return res.json({ totalUnits, onboarding, active, inactive, totalGestors, totalUsers, totalTeams });
+});
+
 router.get("/platform/units", async (req, res) => {
   if (!hasCapability(req.user, "platform.unit.read")) {
     return res.status(403).json({ error: "Sem permissão" });
   }
   const db = await readDb();
   ensureDbShape(db);
-  const units = (db.units || []).map((u) => ({
-    id: u.id,
-    name: u.name || "",
-    cnes: u.cnes || "",
-    municipalityName: u.municipalityName || "",
-    uf: u.uf || "",
-    municipalityId: u.municipalityId || "",
-    contactEmail: u.contactEmail || "",
-    phone: u.phone || "",
-    status: u.status || "onboarding",
-    createdAt: u.createdAt || "",
-    updatedAt: u.updatedAt || ""
-  }));
-  return res.json(units);
+
+  const search  = String(req.query.search  || "").trim().toLowerCase();
+  const uf      = String(req.query.uf      || "").trim().toUpperCase();
+  const status  = String(req.query.status  || "").trim();
+  const sortBy  = ["name","cnes","status","createdAt","municipalityName"].includes(req.query.sortBy) ? req.query.sortBy : "name";
+  const sortDir = req.query.sortDir === "desc" ? -1 : 1;
+  const page    = Math.max(1, parseInt(req.query.page  || "1",  10) || 1);
+  const limit   = Math.min(100, Math.max(1, parseInt(req.query.limit || "25", 10) || 25));
+
+  let units = (db.units || []).map((u) => enrichUnit(u, db));
+
+  if (search) {
+    units = units.filter((u) =>
+      u.name.toLowerCase().includes(search) ||
+      u.cnes.includes(search) ||
+      u.municipalityName.toLowerCase().includes(search) ||
+      // search by gestor name/email
+      (db.users || []).some((usr) =>
+        (usr.unitId || "") === u.id &&
+        canonicalRole(usr.role) === "gestor" &&
+        (String(usr.name || "").toLowerCase().includes(search) || String(usr.email || "").toLowerCase().includes(search))
+      )
+    );
+  }
+  if (uf)     units = units.filter((u) => u.uf.toUpperCase() === uf);
+  if (status) units = units.filter((u) => u.status === status);
+
+  units.sort((a, b) => {
+    const av = String(a[sortBy] || "").toLowerCase();
+    const bv = String(b[sortBy] || "").toLowerCase();
+    return av < bv ? -sortDir : av > bv ? sortDir : 0;
+  });
+
+  const total = units.length;
+  const pages = Math.ceil(total / limit) || 1;
+  const start = (page - 1) * limit;
+  const paged = units.slice(start, start + limit);
+
+  return res.json({ units: paged, total, page, limit, pages });
 });
 
 router.get("/platform/units/:unitId", async (req, res) => {
@@ -44,7 +116,20 @@ router.get("/platform/units/:unitId", async (req, res) => {
   ensureDbShape(db);
   const unit = (db.units || []).find((u) => u.id === req.params.unitId);
   if (!unit) return res.status(404).json({ error: "UBS não encontrada" });
-  return res.json(unit);
+
+  // Return enriched unit with operational stats
+  const enriched = enrichUnit(unit, db);
+
+  // Also return gestor list for this unit (without password)
+  const gestors = (db.users || [])
+    .filter((u) => (u.unitId || "") === unit.id && canonicalRole(u.role) === "gestor" && !u.inactive)
+    .map((u) => ({ id: u.id, name: u.name, email: u.email, forcePasswordChange: u.forcePasswordChange }));
+
+  const teams = (db.teams || [])
+    .filter((t) => (t.unitId || "") === unit.id)
+    .map((t) => ({ id: t.id, name: t.name, ine: t.ine, tipoEquipe: t.tipoEquipe }));
+
+  return res.json({ ...enriched, gestors, teams });
 });
 
 router.post("/platform/units", async (req, res) => {
