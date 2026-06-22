@@ -11,8 +11,23 @@ const UF_OPTIONS = [
   "AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG",
   "PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO"
 ];
-const STATUS_OPTIONS = ["onboarding","active","inactive"];
-const STATUS_LABELS  = { onboarding: "Em implantação", active: "Operacional", inactive: "Inativa" };
+const STATUS_OPTIONS = ["draft","onboarding","homologation","active","suspended"];
+const STATUS_LABELS  = {
+  draft:        "Rascunho",
+  onboarding:   "Em implantação",
+  homologation: "Homologação",
+  active:       "Operacional",
+  suspended:    "Suspensa"
+};
+
+// State machine: maps current status → allowed next states + button labels
+const STATUS_TRANSITIONS = {
+  draft:        [{ to: "onboarding",   label: "Iniciar Implantação" }],
+  onboarding:   [{ to: "homologation", label: "Iniciar Homologação" }],
+  homologation: [{ to: "active",       label: "Ativar UBS" }, { to: "onboarding", label: "Voltar a Implantação" }],
+  active:       [{ to: "suspended",    label: "Suspender" }],
+  suspended:    [{ to: "active",       label: "Reativar" }]
+};
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -32,11 +47,13 @@ function fmtDate(iso) {
 
 function StatusBadge({ status }) {
   const palette = {
-    active:     { bg: "#d1fae5", color: "#065f46" },
-    onboarding: { bg: "#fef3c7", color: "#92400e" },
-    inactive:   { bg: "#fee2e2", color: "#991b1b" }
+    draft:        { bg: "#f3f4f6", color: "#374151" },
+    onboarding:   { bg: "#fef3c7", color: "#92400e" },
+    homologation: { bg: "#dbeafe", color: "#1d4ed8" },
+    active:       { bg: "#d1fae5", color: "#065f46" },
+    suspended:    { bg: "#fee2e2", color: "#991b1b" }
   };
-  const p = palette[status] || palette.onboarding;
+  const p = palette[status] || palette.draft;
   return (
     <span style={{ padding: "0.15rem 0.5rem", borderRadius: "999px", fontSize: "0.72rem", fontWeight: 700, background: p.bg, color: p.color, whiteSpace: "nowrap" }}>
       {STATUS_LABELS[status] || status}
@@ -306,7 +323,7 @@ function UnitTable({ token, onSelect, onNew }) {
 function UnitForm({ token, onDone, onBack }) {
   const [form, setForm] = useState({
     name: "", cnes: "", municipalityName: "", uf: "",
-    municipalityId: "", contactEmail: "", phone: "", status: "onboarding"
+    municipalityId: "", address: "", contactEmail: "", phone: "", status: "draft"
   });
   const [busy, setBusy]   = useState(false);
   const [error, setError] = useState("");
@@ -332,12 +349,13 @@ function UnitForm({ token, onDone, onBack }) {
   }
 
   const fields = [
-    { label: "Nome da UBS *",          key: "name",             placeholder: "UBS Francisca Lima de Lira" },
-    { label: "CNES (7 dígitos) *",     key: "cnes",             placeholder: "1234567" },
-    { label: "Município *",            key: "municipalityName", placeholder: "Recife" },
-    { label: "Código IBGE (7 dígitos)", key: "municipalityId",  placeholder: "2611606" },
-    { label: "E-mail institucional",   key: "contactEmail",     placeholder: "ubs@municipio.gov.br" },
-    { label: "Telefone",               key: "phone",            placeholder: "(81) 3000-0000" },
+    { label: "Nome da UBS *",           key: "name",             placeholder: "UBS Francisca Lima de Lira" },
+    { label: "CNES (7 dígitos) *",      key: "cnes",             placeholder: "1234567" },
+    { label: "Município *",             key: "municipalityName", placeholder: "Recife" },
+    { label: "Código IBGE (7 dígitos)", key: "municipalityId",   placeholder: "2611606" },
+    { label: "Endereço",                key: "address",          placeholder: "Rua das Flores, 123 — Centro" },
+    { label: "E-mail institucional",    key: "contactEmail",     placeholder: "ubs@municipio.gov.br" },
+    { label: "Telefone",                key: "phone",            placeholder: "(81) 3000-0000" },
   ];
 
   return (
@@ -424,6 +442,21 @@ function UnitDetail({ token, unitId, onBack }) {
   const [busy, setBusy]     = useState(false);
   const [formError, setFormError] = useState("");
   const [tempPwd, setTempPwd]     = useState("");
+
+  const [transitioning, setTransitioning] = useState(false);
+
+  async function handleTransition(toStatus) {
+    if (!window.confirm(`Confirmar transição de status: ${STATUS_LABELS[unit?.status]} → ${STATUS_LABELS[toStatus]}?`)) return;
+    setTransitioning(true);
+    try {
+      await apiFetch(`/platform/units/${unitId}`, token, { method: "PATCH", body: JSON.stringify({ status: toStatus }) });
+      await loadUnit();
+    } catch (err) {
+      setFormError(err.message);
+    } finally {
+      setTransitioning(false);
+    }
+  }
 
   const loadUnit = useCallback(() => {
     setLoading(true);
@@ -545,10 +578,41 @@ function UnitDetail({ token, unitId, onBack }) {
               <div style={{ fontSize: "0.72rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--color-text-secondary,#6b7280)", marginBottom: "0.6rem" }}>Implantação</div>
               <div style={{ fontSize: "0.875rem", display: "grid", gap: "0.3rem" }}>
                 <div><strong>Cadastro:</strong> {fmtDate(unit.createdAt)}</div>
+                {unit.activatedAt && <div><strong>Ativação:</strong> {fmtDate(unit.activatedAt)}</div>}
+                {unit.suspendedAt && <div><strong>Suspensão:</strong> {fmtDate(unit.suspendedAt)}</div>}
                 <div><strong>Atualização:</strong> {fmtDate(unit.updatedAt)}</div>
+                {unit.createdByName && <div style={{ color: "var(--color-text-secondary,#6b7280)" }}>Responsável: {unit.createdByName}</div>}
               </div>
             </div>
           </div>
+
+          {/* Status transition panel */}
+          {(STATUS_TRANSITIONS[unit.status] || []).length > 0 && (
+            <div style={{ background: "var(--color-surface,#fff)", border: "1px solid var(--color-border,#e5e7eb)", borderRadius: "8px", padding: "0.875rem 1rem", marginBottom: "1rem" }}>
+              <div style={{ fontSize: "0.72rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--color-text-secondary,#6b7280)", marginBottom: "0.6rem" }}>Ciclo de Vida</div>
+              <div style={{ fontSize: "0.85rem", color: "var(--color-text-secondary,#6b7280)", marginBottom: "0.5rem" }}>
+                Status atual: <strong style={{ color: "inherit" }}>{STATUS_LABELS[unit.status] || unit.status}</strong>
+              </div>
+              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                {(STATUS_TRANSITIONS[unit.status] || []).map(({ to, label }) => (
+                  <button
+                    key={to}
+                    type="button"
+                    disabled={transitioning}
+                    onClick={() => handleTransition(to)}
+                    style={{
+                      padding: "0.35rem 0.85rem", borderRadius: "6px", fontSize: "0.82rem", fontWeight: 600,
+                      cursor: transitioning ? "default" : "pointer", opacity: transitioning ? 0.6 : 1,
+                      background: to === "active" ? "#10b981" : to === "suspended" ? "#ef4444" : "#3b82f6",
+                      color: "#fff", border: "none"
+                    }}
+                  >
+                    {transitioning ? "Aguarde..." : label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Gestors list */}
           {gestors.length > 0 && (

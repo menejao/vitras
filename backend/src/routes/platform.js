@@ -12,6 +12,25 @@ const router = express.Router();
 // All /platform routes require support_admin
 router.use(requireAuth, requireSupportAdmin);
 
+// ── Unit lifecycle ─────────────────────────────────────────────────────────
+const VALID_STATUSES = ["draft", "onboarding", "homologation", "active", "suspended"];
+
+// Allowed transitions: draft→onboarding, onboarding→homologation, homologation→active,
+// active→suspended, suspended→active, and support_admin may also go back one step.
+// Map: from → allowed next states
+const STATUS_TRANSITIONS = {
+  draft:        ["onboarding"],
+  onboarding:   ["homologation", "draft"],
+  homologation: ["active", "onboarding"],
+  active:       ["suspended"],
+  suspended:    ["active"]
+};
+
+function isValidTransition(from, to) {
+  if (from === to) return false;
+  return (STATUS_TRANSITIONS[from] || []).includes(to);
+}
+
 // ── Units ──────────────────────────────────────────────────────────────────
 
 function buildUnitStats(unitId, db) {
@@ -27,6 +46,7 @@ function buildUnitStats(unitId, db) {
 
 function enrichUnit(u, db) {
   const stats = buildUnitStats(u.id, db);
+  const creator = u.createdBy ? (db.users || []).find((usr) => usr.id === u.createdBy) : null;
   return {
     id:               u.id,
     name:             u.name             || "",
@@ -34,11 +54,16 @@ function enrichUnit(u, db) {
     municipalityName: u.municipalityName || "",
     uf:               u.uf               || "",
     municipalityId:   u.municipalityId   || "",
+    address:          u.address          || "",
     contactEmail:     u.contactEmail     || "",
     phone:            u.phone            || "",
-    status:           u.status           || "onboarding",
+    status:           VALID_STATUSES.includes(u.status) ? u.status : "draft",
     createdAt:        u.createdAt        || "",
     updatedAt:        u.updatedAt        || "",
+    createdBy:        u.createdBy        || "",
+    createdByName:    creator ? (creator.name || creator.email || "") : "system",
+    activatedAt:      u.activatedAt      || "",
+    suspendedAt:      u.suspendedAt      || "",
     ...stats
   };
 }
@@ -142,14 +167,13 @@ router.post("/platform/units", async (req, res) => {
   const municipalityName = String(payload.municipalityName || "").trim();
   const uf               = String(payload.uf || "").trim().toUpperCase();
   const municipalityId   = String(payload.municipalityId || "").trim();
+  const address          = String(payload.address || "").trim();
   const contactEmail     = String(payload.contactEmail || "").trim().toLowerCase();
   const phone            = String(payload.phone || "").trim();
-  const status           = ["onboarding", "active", "inactive"].includes(payload.status)
-    ? payload.status
-    : "onboarding";
+  const status           = VALID_STATUSES.includes(payload.status) ? payload.status : "draft";
 
-  if (!name || !cnes || !municipalityName || !uf || !municipalityId) {
-    return res.status(400).json({ error: "name, cnes, municipalityName, uf, municipalityId são obrigatórios" });
+  if (!name || !cnes || !municipalityName || !uf) {
+    return res.status(400).json({ error: "name, cnes, municipalityName e uf são obrigatórios" });
   }
   if (!/^\d{7}$/.test(municipalityId)) {
     return res.status(400).json({ error: "municipalityId deve ter exatamente 7 dígitos (código IBGE)" });
@@ -175,12 +199,15 @@ router.post("/platform/units", async (req, res) => {
       municipalityName,
       uf,
       municipalityId,
+      address,
       contactEmail,
       phone,
       status,
       createdBy: req.user.id,
       createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date().toISOString(),
+      activatedAt: null,
+      suspendedAt: null
     };
     db.units.push(unit);
 
@@ -213,18 +240,32 @@ router.patch("/platform/units/:unitId", async (req, res) => {
     if (idx < 0) return { error: { status: 404, message: "UBS não encontrada" } };
 
     const current = db.units[idx];
-    const next = { ...current, updatedAt: new Date().toISOString() };
+    const nowIso = new Date().toISOString();
+    const next = { ...current, updatedAt: nowIso };
 
     if (payload.name !== undefined)         next.name = String(payload.name || "").trim();
+    if (payload.address !== undefined)      next.address = String(payload.address || "").trim();
     if (payload.contactEmail !== undefined) next.contactEmail = String(payload.contactEmail || "").trim().toLowerCase();
     if (payload.phone !== undefined)        next.phone = String(payload.phone || "").trim();
-    if (payload.status !== undefined && ["onboarding", "active", "inactive"].includes(payload.status)) {
-      next.status = payload.status;
+
+    if (payload.status !== undefined) {
+      const requestedStatus = String(payload.status || "").trim();
+      if (!VALID_STATUSES.includes(requestedStatus)) {
+        return { error: { status: 400, message: `Status inválido. Valores aceitos: ${VALID_STATUSES.join(", ")}` } };
+      }
+      if (!isValidTransition(current.status || "draft", requestedStatus)) {
+        return { error: { status: 422, message: `Transição inválida: ${current.status || "draft"} → ${requestedStatus}` } };
+      }
+      next.status = requestedStatus;
+      if (requestedStatus === "active" && !next.activatedAt) next.activatedAt = nowIso;
+      if (requestedStatus === "suspended") next.suspendedAt = nowIso;
     }
 
     db.units[idx] = next;
     addAuditLog(db, req.user, "PLATFORM_UNIT_UPDATED", "platform_unit", unitId, {
       changedFields: Object.keys(payload),
+      previousStatus: current.status,
+      newStatus: next.status,
       outcome: "success"
     });
     return { unit: next };
@@ -346,11 +387,21 @@ router.post("/platform/units/:unitId/initial-manager", async (req, res) => {
     };
     db.users.push(user);
 
+    // Auto-transition: draft → onboarding when first gestor is created
+    const unitIdx = db.units.findIndex((u) => u.id === unitId);
+    if (unitIdx >= 0) {
+      const unitCurrent = db.units[unitIdx];
+      if ((unitCurrent.status || "draft") === "draft") {
+        db.units[unitIdx] = { ...unitCurrent, status: "onboarding", updatedAt: nowIso };
+      }
+    }
+
     // Audit — NEVER log tempPassword
     addAuditLog(db, req.user, "PLATFORM_INITIAL_MANAGER_CREATED", "platform_user", user.id, {
       unitId,
       email,
       role: "gestor",
+      autoTransitionedUnit: (db.units[unitIdx]?.status === "onboarding") ? unitId : null,
       outcome: "success"
       // tempPassword deliberately excluded
     });
