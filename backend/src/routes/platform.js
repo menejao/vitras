@@ -31,6 +31,57 @@ function isValidTransition(from, to) {
   return (STATUS_TRANSITIONS[from] || []).includes(to);
 }
 
+// ── National homologation criteria ─────────────────────────────────────────
+// These criteria are uniform across all UBS — no municipal exceptions.
+
+function checkOnboardingCriteria(unit, db) {
+  // Criteria to advance from onboarding → homologation
+  const users    = db.users    || [];
+  const teams    = db.teams    || [];
+  const unitId   = unit.id;
+
+  const gestors = users.filter((u) => (u.unitId || "") === unitId && canonicalRole(u.role) === "gestor" && !u.inactive);
+  const activeUsers = users.filter((u) => (u.unitId || "") === unitId && !u.inactive);
+  const unitTeams = teams.filter((t) => (t.unitId || "") === unitId);
+
+  // Gestor must have completed first-access (forcePasswordChange cleared)
+  const gestorCompletedFirstAccess = gestors.some((g) => g.forcePasswordChange === false);
+
+  const criteria = [
+    { id: "gestor_exists",              label: "Gestor inicial criado",                    pass: gestors.length > 0 },
+    { id: "gestor_first_access",        label: "Gestor realizou primeiro acesso",           pass: gestorCompletedFirstAccess },
+    { id: "team_exists",                label: "Pelo menos uma equipe cadastrada",          pass: unitTeams.length > 0 },
+    { id: "user_exists",                label: "Pelo menos um usuário ativo",               pass: activeUsers.length > 0 },
+    { id: "institutional_data",         label: "Dados institucionais preenchidos (CNES, nome, município, UF)", pass: !!(unit.cnes && unit.name && unit.municipalityName && unit.uf) },
+  ];
+
+  const blocked = criteria.filter((c) => !c.pass);
+  return { criteria, blocked, ok: blocked.length === 0 };
+}
+
+function checkHomologationCriteria(unit, db) {
+  // Criteria to advance from homologation → active
+  // Must satisfy all onboarding criteria PLUS explicit homologation approval
+  const base = checkOnboardingCriteria(unit, db);
+
+  const homologChecklist = unit.homologationChecklist || {};
+  const checklistItems = [
+    { id: "auth_working",         label: "Autenticação funcionando",            pass: !!homologChecklist.auth_working },
+    { id: "rbac_working",         label: "RBAC funcionando por perfil",         pass: !!homologChecklist.rbac_working },
+    { id: "team_configured",      label: "Equipe configurada e ativa",          pass: !!homologChecklist.team_configured },
+    { id: "user_created",         label: "Usuário operacional criado",          pass: !!homologChecklist.user_created },
+    { id: "patient_cadastro",     label: "Cadastro de cidadão funcionando",     pass: !!homologChecklist.patient_cadastro },
+    { id: "household_cadastro",   label: "Cadastro domiciliar funcionando",     pass: !!homologChecklist.household_cadastro },
+    { id: "individual_cadastro",  label: "Cadastro individual funcionando",     pass: !!homologChecklist.individual_cadastro },
+    { id: "audit_working",        label: "Trilha de auditoria funcionando",     pass: !!homologChecklist.audit_working },
+    { id: "approval_recorded",    label: "Aprovação técnica registrada",        pass: !!(unit.homologationApprovedBy && unit.homologationApprovedAt) },
+  ];
+
+  const allCriteria = [...base.criteria, ...checklistItems];
+  const blocked = allCriteria.filter((c) => !c.pass);
+  return { criteria: allCriteria, blocked, ok: blocked.length === 0 };
+}
+
 // ── Units ──────────────────────────────────────────────────────────────────
 
 function buildUnitStats(unitId, db) {
@@ -157,6 +208,77 @@ router.get("/platform/units/:unitId", async (req, res) => {
   return res.json({ ...enriched, gestors, teams });
 });
 
+router.get("/platform/units/:unitId/checklist", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.read")) {
+    return res.status(403).json({ error: "Sem permissão" });
+  }
+  const db = await readDb();
+  ensureDbShape(db);
+  const unit = (db.units || []).find((u) => u.id === req.params.unitId);
+  if (!unit) return res.status(404).json({ error: "UBS não encontrada" });
+
+  const status = unit.status || "draft";
+  if (status === "onboarding") {
+    const result = checkOnboardingCriteria(unit, db);
+    return res.json({ transition: "onboarding → homologation", ...result });
+  }
+  if (status === "homologation") {
+    const result = checkHomologationCriteria(unit, db);
+    return res.json({ transition: "homologation → active", ...result });
+  }
+  return res.json({ transition: null, criteria: [], blocked: [], ok: true });
+});
+
+// PATCH homologation checklist items (support_admin marks items as done)
+router.patch("/platform/units/:unitId/homologation-checklist", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.update")) {
+    return res.status(403).json({ error: "Sem permissão" });
+  }
+  const { unitId } = req.params;
+  const payload = req.body || {};
+
+  const VALID_ITEMS = ["auth_working","rbac_working","team_configured","user_created","patient_cadastro","household_cadastro","individual_cadastro","audit_working"];
+
+  const result = await withDb((db) => {
+    ensureDbShape(db);
+    const idx = (db.units || []).findIndex((u) => u.id === unitId);
+    if (idx < 0) return { error: { status: 404, message: "UBS não encontrada" } };
+    const unit = db.units[idx];
+    if (unit.status !== "homologation") {
+      return { error: { status: 422, message: "Checklist de homologação só pode ser preenchido no estado homologation" } };
+    }
+
+    const checklist = { ...(unit.homologationChecklist || {}) };
+    for (const item of VALID_ITEMS) {
+      if (item in payload) checklist[item] = !!payload[item];
+    }
+
+    // Record approver if all items checked
+    const nowIso = new Date().toISOString();
+    const allChecked = VALID_ITEMS.every((k) => !!checklist[k]);
+    const updated = {
+      ...unit,
+      homologationChecklist: checklist,
+      updatedAt: nowIso,
+      ...(allChecked && !unit.homologationApprovedBy
+        ? { homologationApprovedBy: req.user.id, homologationApprovedAt: nowIso }
+        : {})
+    };
+    db.units[idx] = updated;
+
+    addAuditLog(db, req.user, "PLATFORM_HOMOLOGATION_CHECKLIST_UPDATED", "platform_unit", unitId, {
+      updatedItems: Object.keys(payload).filter((k) => VALID_ITEMS.includes(k)),
+      allChecked,
+      outcome: "success"
+    });
+
+    return { checklist, allChecked, homologationApprovedBy: updated.homologationApprovedBy, homologationApprovedAt: updated.homologationApprovedAt };
+  });
+
+  if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
+  return res.json(result);
+});
+
 router.post("/platform/units", async (req, res) => {
   if (!hasCapability(req.user, "platform.unit.create")) {
     return res.status(403).json({ error: "Sem permissão" });
@@ -256,6 +378,21 @@ router.patch("/platform/units/:unitId", async (req, res) => {
       if (!isValidTransition(current.status || "draft", requestedStatus)) {
         return { error: { status: 422, message: `Transição inválida: ${current.status || "draft"} → ${requestedStatus}` } };
       }
+
+      // National homologation gate — enforce criteria before advancing
+      if (requestedStatus === "homologation" && (current.status || "draft") === "onboarding") {
+        const check = checkOnboardingCriteria(current, db);
+        if (!check.ok) {
+          return { error: { status: 422, message: "Critérios de homologação não cumpridos", blocked: check.blocked } };
+        }
+      }
+      if (requestedStatus === "active" && current.status === "homologation") {
+        const check = checkHomologationCriteria(current, db);
+        if (!check.ok) {
+          return { error: { status: 422, message: "Critérios de ativação não cumpridos", blocked: check.blocked } };
+        }
+      }
+
       next.status = requestedStatus;
       if (requestedStatus === "active" && !next.activatedAt) next.activatedAt = nowIso;
       if (requestedStatus === "suspended") next.suspendedAt = nowIso;
@@ -271,7 +408,10 @@ router.patch("/platform/units/:unitId", async (req, res) => {
     return { unit: next };
   });
 
-  if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
+  if (result?.error) {
+    const { status, message, blocked } = result.error;
+    return res.status(status).json({ error: message, ...(blocked ? { blocked } : {}) });
+  }
   return res.json(result.unit);
 });
 

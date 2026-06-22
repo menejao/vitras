@@ -444,17 +444,49 @@ function UnitDetail({ token, unitId, onBack }) {
   const [tempPwd, setTempPwd]     = useState("");
 
   const [transitioning, setTransitioning] = useState(false);
+  const [checklist, setChecklist] = useState(null);
+
+  async function loadChecklist(unitId) {
+    try {
+      const data = await apiFetch(`/platform/units/${unitId}/checklist`, token);
+      setChecklist(data);
+    } catch {
+      setChecklist(null);
+    }
+  }
 
   async function handleTransition(toStatus) {
-    if (!window.confirm(`Confirmar transição de status: ${STATUS_LABELS[unit?.status]} → ${STATUS_LABELS[toStatus]}?`)) return;
+    if (!window.confirm(`Confirmar transição: ${STATUS_LABELS[unit?.status]} → ${STATUS_LABELS[toStatus]}?`)) return;
     setTransitioning(true);
+    setFormError("");
     try {
       await apiFetch(`/platform/units/${unitId}`, token, { method: "PATCH", body: JSON.stringify({ status: toStatus }) });
       await loadUnit();
     } catch (err) {
-      setFormError(err.message);
+      // Show blocked criteria if present
+      let msg = err.message;
+      try {
+        const parsed = JSON.parse(err.message);
+        if (parsed.blocked?.length) {
+          msg = `Critérios pendentes:\n• ${parsed.blocked.map((b) => b.label).join("\n• ")}`;
+        }
+      } catch { /* not JSON */ }
+      setFormError(msg);
     } finally {
       setTransitioning(false);
+    }
+  }
+
+  async function handleChecklistItem(itemId, value) {
+    try {
+      const data = await apiFetch(`/platform/units/${unitId}/homologation-checklist`, token, {
+        method: "PATCH",
+        body: JSON.stringify({ [itemId]: value })
+      });
+      setChecklist((prev) => prev ? { ...prev, criteria: prev.criteria.map((c) => c.id === itemId ? { ...c, pass: value } : c), ok: data.allChecked } : prev);
+      if (data.allChecked) await loadUnit();
+    } catch (err) {
+      setFormError(err.message);
     }
   }
 
@@ -467,6 +499,7 @@ function UnitDetail({ token, unitId, onBack }) {
   }, [unitId, token]);
 
   useEffect(() => { loadUnit(); }, [loadUnit]);
+  useEffect(() => { if (unitId && token) loadChecklist(unitId); }, [unitId, token]); // eslint-disable-line
 
   function setTF(key) { return (e) => setTeamForm((f) => ({ ...f, [key]: e.target.value })); }
   function setMF(key) { return (e) => setManagerForm((f) => ({ ...f, [key]: e.target.value })); }
@@ -590,26 +623,65 @@ function UnitDetail({ token, unitId, onBack }) {
           {(STATUS_TRANSITIONS[unit.status] || []).length > 0 && (
             <div style={{ background: "var(--color-surface,#fff)", border: "1px solid var(--color-border,#e5e7eb)", borderRadius: "8px", padding: "0.875rem 1rem", marginBottom: "1rem" }}>
               <div style={{ fontSize: "0.72rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--color-text-secondary,#6b7280)", marginBottom: "0.6rem" }}>Ciclo de Vida</div>
-              <div style={{ fontSize: "0.85rem", color: "var(--color-text-secondary,#6b7280)", marginBottom: "0.5rem" }}>
+              <div style={{ fontSize: "0.85rem", color: "var(--color-text-secondary,#6b7280)", marginBottom: "0.75rem" }}>
                 Status atual: <strong style={{ color: "inherit" }}>{STATUS_LABELS[unit.status] || unit.status}</strong>
               </div>
+
+              {/* Checklist — show criteria blocking the next forward transition */}
+              {checklist && checklist.criteria && checklist.criteria.length > 0 && (
+                <div style={{ marginBottom: "0.75rem", fontSize: "0.82rem" }}>
+                  <div style={{ fontWeight: 600, marginBottom: "0.4rem", color: "var(--color-text,#111)" }}>
+                    Critérios para avançar para {STATUS_LABELS[(STATUS_TRANSITIONS[unit.status] || [])[0]?.to] || "próximo estado"}:
+                  </div>
+                  {checklist.criteria.map((c) => (
+                    c.id.startsWith("auth_") || c.id.startsWith("rbac_") || c.id.startsWith("team_configured") || c.id.startsWith("user_created") || c.id.startsWith("patient_") || c.id.startsWith("household_") || c.id.startsWith("individual_") || c.id.startsWith("audit_") ? (
+                      // Homologation checklist items — interactive
+                      <label key={c.id} style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: "0.2rem 0", cursor: "pointer" }}>
+                        <input
+                          type="checkbox"
+                          checked={!!c.pass}
+                          onChange={(e) => handleChecklistItem(c.id, e.target.checked)}
+                          style={{ width: "14px", height: "14px", flexShrink: 0 }}
+                        />
+                        <span style={{ color: c.pass ? "#065f46" : "#374151" }}>{c.label}</span>
+                        {c.pass && <span style={{ color: "#10b981", fontWeight: 700 }}>✓</span>}
+                      </label>
+                    ) : (
+                      // Auto-derived criteria — read-only
+                      <div key={c.id} style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: "0.2rem 0" }}>
+                        <span style={{ width: "14px", height: "14px", borderRadius: "50%", flexShrink: 0, display: "inline-block", background: c.pass ? "#10b981" : "#e5e7eb" }} />
+                        <span style={{ color: c.pass ? "#065f46" : (c.pass === false ? "#991b1b" : "#374151") }}>{c.label}</span>
+                        {c.pass && <span style={{ color: "#10b981", fontWeight: 700 }}>✓</span>}
+                        {!c.pass && <span style={{ color: "#ef4444", fontSize: "0.75rem" }}>pendente</span>}
+                      </div>
+                    )
+                  ))}
+                </div>
+              )}
+
               <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-                {(STATUS_TRANSITIONS[unit.status] || []).map(({ to, label }) => (
-                  <button
-                    key={to}
-                    type="button"
-                    disabled={transitioning}
-                    onClick={() => handleTransition(to)}
-                    style={{
-                      padding: "0.35rem 0.85rem", borderRadius: "6px", fontSize: "0.82rem", fontWeight: 600,
-                      cursor: transitioning ? "default" : "pointer", opacity: transitioning ? 0.6 : 1,
-                      background: to === "active" ? "#10b981" : to === "suspended" ? "#ef4444" : "#3b82f6",
-                      color: "#fff", border: "none"
-                    }}
-                  >
-                    {transitioning ? "Aguarde..." : label}
-                  </button>
-                ))}
+                {(STATUS_TRANSITIONS[unit.status] || []).map(({ to, label }) => {
+                  const isForward = ["onboarding","homologation","active"].includes(to);
+                  const blocked = isForward && checklist && !checklist.ok;
+                  return (
+                    <button
+                      key={to}
+                      type="button"
+                      disabled={transitioning || blocked}
+                      onClick={() => handleTransition(to)}
+                      title={blocked ? `Critérios pendentes: ${(checklist?.criteria || []).filter((c) => !c.pass).map((c) => c.label).join(", ")}` : undefined}
+                      style={{
+                        padding: "0.35rem 0.85rem", borderRadius: "6px", fontSize: "0.82rem", fontWeight: 600,
+                        cursor: (transitioning || blocked) ? "default" : "pointer",
+                        opacity: (transitioning || blocked) ? 0.45 : 1,
+                        background: to === "active" ? "#10b981" : to === "suspended" ? "#ef4444" : "#3b82f6",
+                        color: "#fff", border: "none"
+                      }}
+                    >
+                      {transitioning ? "Aguarde..." : label}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}
