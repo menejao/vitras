@@ -1,6 +1,6 @@
 # VITRAS APS — Roadmap
 
-**Atualizado:** 2026-06-18  
+**Atualizado:** 2026-06-22  
 **Gate obrigatório:** GOV-01 (ver `docs/governanca/06-gov-01-product-scope-governance.md`)
 
 ---
@@ -31,6 +31,7 @@ O resultado do gate determina a faixa:
 | APS-01E | Busca Ativa Inteligente (score 0–100, 8 regras) | PASS |
 | APS-01F | Produção ACS Automática (4 APIs, dashboards) | PASS |
 | GOV-01 | Product Scope Governance Gate | ATIVO |
+| INTEGRATION-GOV-01A | Governança Nacional de Ingestão de Dados | ATIVO |
 
 ---
 
@@ -67,7 +68,7 @@ Os itens abaixo **não entram** antes do piloto sem novo parecer GOV-01:
 - App nativo mobile (PWA já cobre campo)
 - Relatórios PDF complexos
 - Dashboards epidemiológicos avançados
-- Integrações com sistemas externos além de e-SUS/CDS
+- Integrações com sistemas externos além de e-SUS/CDS (processo definido em `docs/governanca/07-integration-gov-01.md`)
 - Gamificação / indicadores de performance individual
 - Módulo de gestão de medicamentos ACS
 - Agenda para ACS (ACS não tem agenda clínica)
