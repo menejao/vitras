@@ -72,4 +72,24 @@ function requireCapabilities(capabilities = [], errorMessage = "Sem permissão p
   };
 }
 
-export { requireAuth, requireManager, requireManagerOrDoctor, requireRoles, requireCapabilities };
+function requireSupportAdmin(req, res, next) {
+  if (canonicalRole(req.user?.role) !== "support_admin") {
+    return res.status(403).json({ error: "Acesso restrito ao Console Nacional" });
+  }
+  return next();
+}
+
+// IAM-01: block support_admin from any non-platform route (defense-in-depth).
+// support_admin capabilities already deny clinical access, but this provides an
+// explicit 403 so the error is unambiguous.
+function blockSupportAdminFromClinical(req, res, next) {
+  if (canonicalRole(req.user?.role) !== "support_admin") return next();
+  const allowedPrefixes = ["/platform", "/auth/", "/health", "/readyz", "/api-docs", "/me"];
+  const path = req.path || req.originalUrl || "";
+  if (allowedPrefixes.some((prefix) => path.startsWith(prefix))) return next();
+  return res.status(403).json({
+    error: "Conta de suporte nacional não tem acesso a dados clínicos ou operacionais da UBS"
+  });
+}
+
+export { requireAuth, requireManager, requireManagerOrDoctor, requireRoles, requireCapabilities, requireSupportAdmin, blockSupportAdminFromClinical };

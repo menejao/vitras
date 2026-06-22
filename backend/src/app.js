@@ -4,7 +4,7 @@ import { setupHelmet, setupCors, securityHeadersMiddleware, contentTypeMiddlewar
 import { requestLoggingMiddleware } from "./middlewares/logging.js";
 import { requestMetricsMiddleware } from "./middlewares/metrics.js";
 import { globalRateLimit } from "./middlewares/rate-limits.js";
-import { requireAuth } from "./middlewares/auth.js";
+import { requireAuth, blockSupportAdminFromClinical } from "./middlewares/auth.js";
 import { requireCsrfForCookieAuth } from "./middlewares/csrf.js";
 import { globalErrorHandler } from "./middlewares/errors.js";
 
@@ -35,6 +35,7 @@ import acsVisitsRouter from "./routes/acs-visits.js";
 import activeSearchRouter from "./routes/active-search.js";
 import productionRouter from "./routes/production.js";
 import swaggerRouter from "./routes/swagger.js";
+import platformRouter from "./routes/platform.js";
 
 const app = express();
 
@@ -61,7 +62,9 @@ app.use(usersRouter);
 // added without an inline requireAuth call is still protected by the global
 // middleware. Admin routes retain their own inline requireAuth calls for
 // defense-in-depth.
+app.use(platformRouter);
 app.use(requireAuth);
+app.use(blockSupportAdminFromClinical);  // IAM-01
 app.use(requireCsrfForCookieAuth);
 app.use((req, res, next) => {
   res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, private");
