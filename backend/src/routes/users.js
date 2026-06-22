@@ -10,7 +10,7 @@ import {
   councilTypeForRole, getClientIp, isAnaAdminUser, hasCapability
 } from "../utils/helpers.js";
 import { validateCouncilData, verifyCouncilExternally } from "../utils/council.js";
-import { hashPassword } from "../services/crypto.js";
+import { hashPassword, generateTempPassword } from "../services/crypto.js";
 import { addAuditLog } from "../services/audit.js";
 import { getTeamUserUsage } from "../utils/metrics.js";
 import { requireAuth } from "../middlewares/auth.js";
@@ -235,23 +235,41 @@ router.get("/users/activity-log", requireAuth, async (req, res) => {
   });
 });
 
-router.post("/users", requireAuth, requireManager, async (req, res) => {
+router.post("/users", requireAuth, async (req, res) => {
+  const callerRole = canonicalRole(req.user?.role);
+  const isGestor = callerRole === "gestor";
+  const isManager = callerRole === "nurse_manager" || hasCapability(req.user, "team.manage");
+
+  if (!isGestor && !isManager) {
+    return res.status(403).json({ error: "Somente gestor ou enfermeira podem cadastrar usuários" });
+  }
+
   const payload = req.body || {};
-  const name = String(payload.name || "").trim();
+  const name  = String(payload.name || "").trim();
   const email = String(payload.email || "").trim().toLowerCase();
-  const password = String(payload.password || "");
-  const role = canonicalRole(payload.role);
+  const role  = canonicalRole(payload.role);
 
-  if (!name || !email || !password || !role) {
-    return res.status(400).json({ error: "name, email, password e role são obrigatórios" });
+  if (!name || !email || !role) {
+    return res.status(400).json({ error: "name, email e role são obrigatórios" });
   }
 
-  if (!["acs", "doctor"].includes(role)) {
-    return res.status(400).json({ error: "A enfermeira pode cadastrar apenas ACS ou Medico(a)" });
-  }
+  // Roles nurse_manager can create
+  const managerAllowedRoles = ["acs", "doctor"];
+  // Roles gestor can create (all local, no platform/admin roles)
+  const gestorAllowedRoles = [
+    "acs", "doctor", "nurse_manager", "nursing_tech", "dentist",
+    "pharmacist", "pharmacy_tech", "receptionist", "coordinator"
+  ];
+  const forbiddenRoles = ["support_admin", "break_glass_admin", "developer_readonly", "security_auditor", "qa_operator", "support_operator"];
 
-  if (!isStrongPassword(password)) {
-    return res.status(400).json({ error: "Senha fraca: mínimo de 8 caracteres, 1 letra maiúscula, 1 número e 1 caractere especial" });
+  if (forbiddenRoles.includes(role)) {
+    return res.status(400).json({ error: "Perfil não pode ser criado por este operador" });
+  }
+  if (!isGestor && !managerAllowedRoles.includes(role)) {
+    return res.status(400).json({ error: "A enfermeira pode cadastrar apenas ACS ou Médico(a)" });
+  }
+  if (isGestor && !gestorAllowedRoles.includes(role)) {
+    return res.status(400).json({ error: "Perfil não disponível para criação pelo gestor" });
   }
 
   const councilType = councilTypeForRole(role);
@@ -260,20 +278,21 @@ router.post("/users", requireAuth, requireManager, async (req, res) => {
     return res.status(400).json({ error: councilValidation.message });
   }
 
-  const externalCheck = await verifyCouncilExternally({
-    role,
-    councilType,
-    councilNumber: councilValidation.councilNumber || "",
-    councilUf: councilValidation.councilUf || "",
-    name,
-    email
-  });
+  const externalCheck = roleNeedsCouncil(role)
+    ? await verifyCouncilExternally({
+        role, councilType,
+        councilNumber: councilValidation.councilNumber || "",
+        councilUf: councilValidation.councilUf || "",
+        name, email
+      })
+    : { checked: false, valid: true, provider: "not-required", status: "skipped" };
 
   if (!externalCheck.valid) {
-    return res.status(400).json({
-      error: externalCheck.error || "Conselho não validado no provedor externo"
-    });
+    return res.status(400).json({ error: externalCheck.error || "Conselho não validado no provedor externo" });
   }
+
+  // Generate temp password for new user
+  const tempPassword = generateTempPassword();
 
   const result = await withDb((db) => {
     ensureDbShape(db);
@@ -288,24 +307,32 @@ router.post("/users", requireAuth, requireManager, async (req, res) => {
         && String(u.councilNumber || "") === councilValidation.councilNumber
         && String(u.councilUf || "").toUpperCase() === councilValidation.councilUf;
     });
+    if (duplicatedCouncil) return { error: `${councilType} já cadastrado para outro usuário` };
 
-    if (duplicatedCouncil) {
-      return { error: `${councilType} já cadastrado para outro usuário` };
+    // Gestor can only create users for their own unit
+    if (isGestor && payload.unitId && payload.unitId !== (req.user.unitId || "")) {
+      return { error: "Gestor não pode criar usuário em outra UBS" };
     }
+
+    const targetTeamId = isGestor
+      ? (String(payload.teamId || "").trim() || "")
+      : req.user.teamId;
+    const targetUnitId = req.user.unitId || "";
 
     const userMunicipalityId = String(req.user.municipalityId || MUNICIPALITY_ID || "").trim();
     if (!userMunicipalityId) {
       return { error: "Município não configurado neste deployment (MUNICIPALITY_ID ausente)", status: 500 };
     }
 
+    const nowIso = new Date().toISOString();
     const user = {
       id: uuidv4(),
       name,
       role,
       email,
-      password: hashPassword(password),
-      teamId: req.user.teamId,
-      unitId: req.user.unitId || "",
+      password: hashPassword(tempPassword),
+      teamId: targetTeamId,
+      unitId: targetUnitId,
       municipalityId: userMunicipalityId,
       councilType,
       councilNumber: councilValidation.councilNumber || "",
@@ -314,26 +341,43 @@ router.post("/users", requireAuth, requireManager, async (req, res) => {
         checked: externalCheck.checked,
         provider: externalCheck.provider,
         status: externalCheck.status,
-        verifiedAt: new Date().toISOString()
+        verifiedAt: nowIso
       },
       twoFactorEnabled: false,
       twoFactorSecret: "",
       twoFactorPendingSecret: "",
       twoFactorPendingCreatedAt: "",
-      createdAt: new Date().toISOString()
+      forcePasswordChange: true,
+      passwordUpdatedAt: null,
+      temporaryPasswordIssuedAt: nowIso,
+      createdBySupport: false,
+      createdByUserId: req.user.id,
+      lastPasswordResetAt: null,
+      passwordResetBy: null,
+      createdAt: nowIso,
+      updatedAt: nowIso
     };
 
     db.users.push(user);
-    addAuditLog(db, req.user, "user.created_by_manager", "user", user.id, {
+    addAuditLog(db, req.user, "LOCAL_USER_CREATED", "user", user.id, {
       role: user.role,
       teamId: user.teamId,
-      after: buildUserAuditSnapshot(user)
+      unitId: user.unitId,
+      createdBy: req.user.id,
+      outcome: "success"
+      // tempPassword deliberately excluded
     });
     return { user, db };
   });
 
-  if (result.error) return res.status(409).json({ error: result.error });
-  return res.status(201).json(sanitizeUser(result.user, result.db));
+  if (result.error) return res.status(result.error === "E-mail já cadastrado" ? 409 : (result.status || 400)).json({ error: result.error });
+
+  const safeUser = sanitizeUser(result.user, result.db);
+  const { password: _pw, ...userWithoutPassword } = safeUser;
+  return res.status(201).json({
+    ...userWithoutPassword,
+    temporaryPassword: tempPassword  // shown once — caller must record
+  });
 });
 
 router.get("/users/:id/usage", requireAuth, requireManager, async (req, res) => {
@@ -491,6 +535,76 @@ router.delete("/users/:id", requireAuth, requireManager, async (req, res) => {
 
   if (result.error) return res.status(result.error.status).json({ error: result.error.message, details: result.error.details || {} });
   return res.json({ ok: true });
+});
+
+router.post("/users/:id/reset-password", requireAuth, async (req, res) => {
+  const callerRole = canonicalRole(req.user?.role);
+  const isGestor = callerRole === "gestor";
+  const isManager = callerRole === "nurse_manager" || hasCapability(req.user, "team.manage");
+
+  if (!isGestor && !isManager) {
+    return res.status(403).json({ error: "Somente gestor ou enfermeira podem resetar senhas" });
+  }
+
+  const targetId = String(req.params.id || "").trim();
+  if (targetId === req.user.id) {
+    return res.status(400).json({ error: "Use o perfil para alterar sua própria senha" });
+  }
+
+  const tempPassword = generateTempPassword();
+  const nowIso = new Date().toISOString();
+
+  const result = await withDb((db) => {
+    ensureDbShape(db);
+
+    const idx = db.users.findIndex((u) => {
+      if (u.id !== targetId) return false;
+      // Gestor: must be same unit
+      if (isGestor) return (u.unitId || "") === (req.user.unitId || "");
+      // Nurse_manager: must be same team
+      return (u.teamId || "") === (req.user.teamId || "");
+    });
+
+    if (idx < 0) return { error: { status: 404, message: "Usuário não encontrado na sua unidade" } };
+
+    const target = db.users[idx];
+
+    // Prevent resetting support_admin or break_glass_admin passwords
+    if (["support_admin", "break_glass_admin"].includes(canonicalRole(target.role))) {
+      return { error: { status: 403, message: "Não é permitido resetar senha deste perfil" } };
+    }
+
+    // Revoke all active sessions
+    db.refreshTokens = (db.refreshTokens || []).map((t) =>
+      t.userId === targetId && !t.revokedAt ? { ...t, revokedAt: nowIso } : t
+    );
+
+    db.users[idx] = {
+      ...target,
+      password: hashPassword(tempPassword),
+      forcePasswordChange: true,
+      temporaryPasswordIssuedAt: nowIso,
+      lastPasswordResetAt: nowIso,
+      passwordResetBy: req.user.id,
+      updatedAt: nowIso
+    };
+
+    addAuditLog(db, req.user, "USER_PASSWORD_RESET", "user", targetId, {
+      resetBy: req.user.id,
+      unitId: req.user.unitId || "",
+      teamId: req.user.teamId || "",
+      outcome: "success"
+      // tempPassword deliberately excluded
+    });
+
+    return { ok: true };
+  });
+
+  if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
+  return res.json({
+    temporaryPassword: tempPassword,
+    message: "Senha resetada. Comunique ao usuário — será exigida troca no próximo login."
+  });
 });
 
 export default router;
