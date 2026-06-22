@@ -617,5 +617,90 @@ router.post("/auth/access-requests/:id/reject", requireAuth, requireAccessReques
   return res.json(result.requestItem);
 });
 
+// IAM-01: Forced first-login password change.
+// Requires valid JWT. Auth routes are mounted before global requireAuth in app.js,
+// so requireAuth is applied inline here.
+router.post("/auth/change-password-required", requireAuth, async (req, res) => {
+  const { currentPassword, newPassword } = req.body || {};
+
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ error: "currentPassword e newPassword são obrigatórios" });
+  }
+
+  if (!isStrongPassword(newPassword)) {
+    return res.status(400).json({
+      error: "Senha fraca: mínimo de 8 caracteres, 1 letra maiúscula, 1 número e 1 caractere especial"
+    });
+  }
+
+  const result = await withDb((db) => {
+    ensureDbShape(db);
+    const idx = db.users.findIndex((u) => u.id === req.user.id);
+    if (idx < 0) return { error: { status: 404, message: "Usuário não encontrado" } };
+
+    const user = db.users[idx];
+
+    if (!verifyPassword(currentPassword, user.password)) {
+      addAuditLog(db, req.user, "auth.change_password_required_failed", "auth", user.id, {
+        outcome: "wrong_current_password"
+      });
+      return { error: { status: 401, message: "Senha atual incorreta" } };
+    }
+
+    if (verifyPassword(newPassword, user.password)) {
+      return { error: { status: 400, message: "Nova senha não pode ser igual à senha temporária" } };
+    }
+
+    const nameParts = String(user.name || "").toLowerCase().split(/\s+/).filter((p) => p.length > 3);
+    const emailLocal = String(user.email || "").split("@")[0].toLowerCase();
+    const newPwLower = newPassword.toLowerCase();
+    if (nameParts.some((part) => newPwLower.includes(part))) {
+      return { error: { status: 400, message: "Senha não pode conter partes do nome" } };
+    }
+    if (emailLocal && newPwLower.includes(emailLocal)) {
+      return { error: { status: 400, message: "Senha não pode conter o e-mail" } };
+    }
+
+    const nowIso = new Date().toISOString();
+    db.users[idx] = {
+      ...user,
+      password: hashPassword(newPassword),
+      forcePasswordChange: false,
+      passwordUpdatedAt: nowIso,
+      temporaryPasswordIssuedAt: null,
+      updatedAt: nowIso
+    };
+
+    // Invalidate all existing refresh tokens for this user
+    db.refreshTokens = (db.refreshTokens || []).map((t) => {
+      if (t.userId === user.id && !t.revokedAt) {
+        return { ...t, revokedAt: nowIso };
+      }
+      return t;
+    });
+
+    addAuditLog(db, req.user, "auth.change_password_required_success", "auth", user.id, {
+      outcome: "success"
+    });
+
+    return { userId: user.id };
+  });
+
+  if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
+
+  // Issue new session (old tokens were revoked above)
+  const latestDb = await readDb();
+  ensureDbShape(latestDb);
+  const latestUser = latestDb.users.find((u) => u.id === req.user.id);
+  if (!latestUser) return res.status(500).json({ error: "Erro ao recarregar usuário" });
+
+  const refresh = await withDb((db2) => {
+    ensureDbShape(db2);
+    return createRefreshToken(latestUser.id, getClientIp(req), db2);
+  });
+
+  return res.json(issueSession(res, latestUser, latestDb, {}, refresh.raw, refresh.sessionId));
+});
+
 export default router;
 

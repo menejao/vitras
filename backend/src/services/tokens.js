@@ -21,7 +21,8 @@ function createToken(user, db, options = {}) {
       municipalityId: sessionUser.municipalityId,
       capabilities: sessionUser.capabilities,
       impersonation: sessionUser.impersonation,
-      breakGlass: sessionUser.breakGlass
+      breakGlass: sessionUser.breakGlass,
+      forcePasswordChange: Boolean(user.forcePasswordChange)
     },
     JWT_SECRET,
     {
