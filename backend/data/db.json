@@ -60,7 +60,31 @@
       "updatedAt": "2026-06-22T12:26:42.545Z"
     }
   ],
-  "users": [],
+  "users": [
+    {
+      "id": "beb297a9-0b8a-44ad-8c8e-7dd14305d6ee",
+      "name": "João Pedro",
+      "email": "joaoomenegucci@gmail.com",
+      "role": "support_admin",
+      "password": "s1$99f3877d26d4c666e4697ed82be5136c$e93dc2d321d9a1fd05c5fa7c767bdae0dd3dcc62d09c2c30a41d1169ed27732e96975fa58f6f880e69ec441f2f6499461f01741719fdc93702dfc637d887e35d",
+      "unitId": "",
+      "teamId": "",
+      "municipalityId": "",
+      "forcePasswordChange": true,
+      "passwordUpdatedAt": null,
+      "temporaryPasswordIssuedAt": "2026-06-22T13:49:53.997Z",
+      "createdBySupport": true,
+      "createdByUserId": "system-bootstrap",
+      "lastPasswordResetAt": null,
+      "passwordResetBy": null,
+      "twoFactorEnabled": false,
+      "twoFactorSecret": "",
+      "twoFactorPendingSecret": "",
+      "twoFactorPendingCreatedAt": "",
+      "createdAt": "2026-06-22T13:49:53.997Z",
+      "updatedAt": "2026-06-22T13:49:53.997Z"
+    }
+  ],
   "patients": [],
   "queueEntries": [],
   "agendaEntries": [],
@@ -74,7 +98,28 @@
   "appointments": [],
   "tasks": [],
   "messages": [],
-  "auditLogs": [],
+  "auditLogs": [
+    {
+      "id": "507774aa-4da8-48d9-99fb-5684c9bc8859",
+      "action": "SUPPORT_ADMIN_BOOTSTRAPPED",
+      "entity": "user",
+      "entityId": "beb297a9-0b8a-44ad-8c8e-7dd14305d6ee",
+      "category": "iam",
+      "severity": "high",
+      "userId": "system-bootstrap",
+      "userName": "system",
+      "userRole": "system",
+      "teamId": "",
+      "unitId": "",
+      "details": {
+        "email": "joaoomenegucci@gmail.com",
+        "name": "João Pedro",
+        "method": "bootstrap-cli",
+        "outcome": "success"
+      },
+      "createdAt": "2026-06-22T13:49:53.997Z"
+    }
+  ],
   "clinicalRecords": [],
   "protocolTemplates": [
     {
