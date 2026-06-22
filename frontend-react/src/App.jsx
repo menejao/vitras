@@ -27,6 +27,8 @@ import { listNotifications } from "./api";
 import ReceptionistApp from "./pages/ReceptionistApp";
 import AuthScreen from "./pages/AuthScreen";
 import ActivateAccountPage from "./pages/ActivateAccountPage";
+import ChangePasswordRequiredPage from "./pages/ChangePasswordRequiredPage";
+import PlatformConsolePage from "./pages/PlatformConsolePage";
 import AppErrorBoundary from "./components/feedback/AppErrorBoundary";
 import OfflineBanner from "./components/feedback/OfflineBanner";
 import ComplianceBadge from "./components/feedback/ComplianceBadge";
@@ -207,6 +209,24 @@ function AppInner() {
         busy={busy}
       />
     );
+  }
+
+  // IAM-01: forced password change gate — must happen before ANY other route
+  if (isAuthenticated && user?.forcePasswordChange) {
+    return (
+      <ChangePasswordRequiredPage
+        token={token}
+        onSuccess={(data) => {
+          applySessionFromPayload(data);
+        }}
+        onLogout={logout}
+      />
+    );
+  }
+
+  // IAM-01: support_admin → Console Nacional only
+  if (isAuthenticated && String(user?.role || "") === "support_admin") {
+    return <PlatformConsolePage token={token} onLogout={logout} user={user} />;
   }
 
   // Recepcionista → app dedicado de recepção
