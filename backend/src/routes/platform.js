@@ -10,7 +10,7 @@ import { addAuditLog } from "../services/audit.js";
 const router = express.Router();
 
 // All /platform routes require support_admin
-router.use("/platform", requireAuth, requireSupportAdmin);
+router.use(requireAuth, requireSupportAdmin);
 
 // ── Units ──────────────────────────────────────────────────────────────────
 
