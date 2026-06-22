@@ -35,6 +35,7 @@ O resultado do gate determina a faixa:
 | HOMOLOG-01 | Critérios Nacionais de Homologação de UBS | ATIVO |
 | ARCH-DOC-01 | Registro de Regras de Negócio e Dicionário Nacional de Dados | ATIVO |
 | ARCH-DOC-02 | Documentação Funcional por Página (escopo, campos, regras, navegação) | ATIVO |
+| ARCH-DOC-03 | Inventário Funcional Completo do Produto (100% cobertura, 46 superfícies) | ATIVO |
 
 ---
 

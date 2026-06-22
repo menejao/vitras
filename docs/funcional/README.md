@@ -25,30 +25,22 @@ docs/funcional/
 
 ## Índice de páginas
 
-| Página | Arquivo | Perfis | Status |
-|---|---|---|---|
-| Login / Autenticação | [pages/login.md](pages/login.md) | Todos | Documentado |
-| Troca Obrigatória de Senha | [pages/change-password-required.md](pages/change-password-required.md) | Todos | Documentado |
-| Console Nacional | [pages/console-nacional.md](pages/console-nacional.md) | `support_admin` | Documentado |
-| Detalhe da UBS | [pages/detalhe-ubs.md](pages/detalhe-ubs.md) | `support_admin` | Documentado |
-| Checklist de Homologação | [pages/checklist-homologacao.md](pages/checklist-homologacao.md) | `support_admin` | Documentado |
+Ver [catálogo completo](catalogo-paginas.md) — 27 páginas + 6 modais documentados (ARCH-DOC-03, 100% de cobertura).
 
-### Backlog de documentação (páginas não documentadas)
+**Catálogos e mapas:**
+- [Catálogo de Rotas](catalogo-rotas.md) — 48 superfícies funcionais mapeadas
+- [Catálogo de Páginas](catalogo-paginas.md) — 33 documentos de página/modal
+- [Mapa de Navegação](mapa-navegacao.md) — fluxos de entrada, tabs, modais
+- [Relatório de Cobertura](relatorio-cobertura.md) — 100% cobertura ARCH-DOC-03
 
-| Página | Arquivo | Prioridade |
-|---|---|---|
-| Dashboard | pages/dashboard.md | Alta |
-| Lista de Pacientes | pages/lista-pacientes.md | Alta |
-| Detalhe do Paciente | pages/detalhe-paciente.md | Alta |
-| ACS Workspace (Tarefas) | pages/acs-workspace.md | Alta |
-| Grupos Familiares | pages/grupos-familiares.md | Alta |
-| Visitas Domiciliares | pages/visitas-domiciliares.md | Alta |
-| Gestor — Painel | pages/gestor-painel.md | Média |
-| Equipes | pages/equipes.md | Média |
-| Agenda | pages/agenda.md | Média |
-| Prontuário | pages/prontuario.md | Média |
-| Farmácia | pages/farmacia.md | Baixa |
-| Relatórios | pages/relatorios.md | Baixa |
+**Páginas documentadas:**
+- [Login](pages/login.md) | [Troca de Senha](pages/change-password-required.md) | [Console Nacional](pages/console-nacional.md) | [Detalhe UBS](pages/detalhe-ubs.md) | [Checklist Homologação](pages/checklist-homologacao.md)
+- [Dashboard](pages/dashboard.md) | [Lista de Pacientes](pages/lista-pacientes.md) | [Workspace ACS](pages/acs-workspace.md) | [Prontuário](pages/prontuario.md) | [Painel Gestor](pages/gestor.md)
+- [Equipe](pages/equipe.md) | [Agenda](pages/agenda.md) | [Fila](pages/fila.md) | [Triagem](pages/triagem.md) | [Encaminhamentos](pages/encaminhamentos.md)
+- [Exames](pages/exames.md) | [Vacinas](pages/vacinas.md) | [Farmácia](pages/farmacia.md) | [Insumos](pages/insumos.md) | [Relatórios](pages/relatorios.md)
+- [Protocolos](pages/protocolos.md) | [Diagnóstico](pages/diagnostico.md) | [Solicitações Acesso](pages/solicitacoes-acesso.md) | [Auditoria](pages/auditoria.md) | [IA](pages/ia.md)
+- [App Recepção](pages/app-recepcao.md) | [Ativar Conta (deprecated)](pages/ativar-conta.md)
+- Modais: [Paciente](pages/modal-paciente.md) | [Usuário](pages/modal-usuario.md) | [Perfil](pages/modal-perfil.md) | [Acesso Seguro](pages/modal-acesso-seguro.md) | [Template](pages/modal-template.md) | [Sessão Expirada](pages/modal-sessao-expirada.md)
 
 ---
 
