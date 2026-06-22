@@ -239,6 +239,17 @@ const ROLE_CAPABILITIES = {
     "acs.visit.create",
     "acs.visit.read",
     "acs.visit.update"
+  ],
+  support_admin: [
+    "platform.unit.create",
+    "platform.unit.read",
+    "platform.unit.update",
+    "platform.unit.deactivate",
+    "platform.team.create",
+    "platform.initial_manager.create",
+    "platform.password.reset",
+    "platform.audit.read",
+    "platform.health.read"
   ]
 };
 
@@ -354,6 +365,10 @@ function canAccessScopedPatients(user) {
 
 function isAnaAdminUser(user) {
   return hasCapability(user, "users.activity_log.read");
+}
+
+function isSupportAdmin(user) {
+  return canonicalRole(user?.role) === "support_admin";
 }
 
 /* ── Validators ── */
@@ -634,6 +649,7 @@ export {
   canAccessAllPatients,
   canAccessScopedPatients,
   isAnaAdminUser,
+  isSupportAdmin,
   isStrongPassword,
   isValidEmail,
   isSequentialDigits,

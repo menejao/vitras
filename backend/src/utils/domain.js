@@ -162,6 +162,17 @@ function ensureDbShape(db) {
   ensureArray(db, "units");
   ensureArray(db, "teams");
   ensureArray(db, "users");
+  // IAM-01: ensure new identity fields on all existing users
+  db.users = db.users.map((u) => ({
+    forcePasswordChange: false,
+    passwordUpdatedAt: u.createdAt || null,
+    temporaryPasswordIssuedAt: null,
+    createdBySupport: false,
+    createdByUserId: null,
+    lastPasswordResetAt: null,
+    passwordResetBy: null,
+    ...u  // existing fields override defaults (preserves already-set values)
+  }));
   ensureArray(db, "patients");
   ensureArray(db, "queueEntries");
   ensureArray(db, "agendaEntries");
