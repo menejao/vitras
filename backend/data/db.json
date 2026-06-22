@@ -1,0 +1,252 @@
+{
+  "teams": [
+    {
+      "id": "team-default",
+      "name": "Equipe Enfermeira Ana",
+      "managerUserId": "u1",
+      "createdAt": "2026-05-20T19:25:09.511Z",
+      "unitId": "test-unit",
+      "updatedAt": "2026-06-22T12:26:42.546Z"
+    },
+    {
+      "id": "team-rosa",
+      "name": "Equipe Rosa",
+      "managerUserId": "",
+      "createdAt": "2026-05-20T19:25:09.511Z",
+      "unitId": "test-unit",
+      "updatedAt": "2026-06-22T12:26:42.546Z"
+    },
+    {
+      "id": "team-azul",
+      "name": "Equipe Azul",
+      "managerUserId": "",
+      "createdAt": "2026-05-20T19:25:09.511Z",
+      "unitId": "test-unit",
+      "updatedAt": "2026-06-22T12:26:42.546Z"
+    },
+    {
+      "id": "team-cinza",
+      "name": "Equipe Cinza",
+      "managerUserId": "",
+      "createdAt": "2026-05-20T19:25:09.511Z",
+      "unitId": "test-unit",
+      "updatedAt": "2026-06-22T12:26:42.546Z"
+    },
+    {
+      "id": "team-marrom",
+      "name": "Equipe Marrom",
+      "managerUserId": "",
+      "createdAt": "2026-05-20T19:25:09.511Z",
+      "unitId": "test-unit",
+      "updatedAt": "2026-06-22T12:26:42.546Z"
+    },
+    {
+      "id": "team-amarela",
+      "name": "Equipe Amarela",
+      "managerUserId": "",
+      "createdAt": "2026-05-20T19:25:09.511Z",
+      "unitId": "test-unit",
+      "updatedAt": "2026-06-22T12:26:42.546Z"
+    },
+    {
+      "id": "test-team",
+      "name": "Equipe Teste VITRAS",
+      "unitId": "test-unit",
+      "ine": "0000000000",
+      "tipoEquipe": "ESF",
+      "status": "active",
+      "managerUserId": "",
+      "createdAt": "2026-06-22T12:26:42.545Z",
+      "updatedAt": "2026-06-22T12:26:42.545Z"
+    }
+  ],
+  "users": [],
+  "patients": [],
+  "queueEntries": [],
+  "agendaEntries": [],
+  "referrals": [],
+  "pharmacyStock": [],
+  "pharmacyLogs": [],
+  "suppliesStock": [],
+  "suppliesLogs": [],
+  "suppliesContinuous": [],
+  "exams": [],
+  "appointments": [],
+  "tasks": [],
+  "messages": [],
+  "auditLogs": [],
+  "clinicalRecords": [],
+  "protocolTemplates": [
+    {
+      "category": "general",
+      "label": "Geral",
+      "targets": {
+        "visits": 2,
+        "consultations": 2,
+        "vaccines": 1
+      },
+      "deadlines": {
+        "visits": 0,
+        "consultations": 0,
+        "vaccines": 0
+      },
+      "vaccines": [
+        "Influenza"
+      ],
+      "authority": "Ministério da Saúde",
+      "reference": "https://bvsms.saude.gov.br/bvs/publicacoes/politica_nacional_atencao_basica_2017.pdf",
+      "version": "PNAB-2017"
+    },
+    {
+      "category": "pregnant",
+      "label": "Gestante",
+      "targets": {
+        "visits": 3,
+        "consultations": 7,
+        "vaccines": 4
+      },
+      "deadlines": {
+        "visits": 0,
+        "consultations": 0,
+        "vaccines": 0
+      },
+      "vaccines": [
+        "dTpa",
+        "Influenza",
+        "COVID-19",
+        "Hepatite B"
+      ],
+      "authority": "Ministério da Saúde",
+      "reference": "https://bvsms.saude.gov.br/bvs/saudelegis/gm/2011/prt1459_24_06_2011.html",
+      "version": "Rede Cegonha"
+    },
+    {
+      "category": "puerperal",
+      "label": "Puérpera",
+      "targets": {
+        "visits": 1,
+        "consultations": 1,
+        "vaccines": 0
+      },
+      "deadlines": {
+        "visits": 0,
+        "consultations": 0,
+        "vaccines": 0
+      },
+      "vaccines": [],
+      "authority": "Ministério da Saúde",
+      "reference": "https://bvsms.saude.gov.br/bvs/saudelegis/gm/2011/prt1459_24_06_2011.html",
+      "version": "Rede Cegonha"
+    },
+    {
+      "category": "child_followup",
+      "label": "Puericultura",
+      "targets": {
+        "visits": 2,
+        "consultations": 10,
+        "vaccines": 0
+      },
+      "deadlines": {
+        "visits": 0,
+        "consultations": 0,
+        "vaccines": 0
+      },
+      "vaccines": [
+        "BCG",
+        "Hepatite B",
+        "Penta",
+        "VIP",
+        "Pneumo 10",
+        "Rotavírus",
+        "Meningocócica",
+        "Influenza",
+        "COVID",
+        "Febre amarela",
+        "ACWY",
+        "Tríplice viral",
+        "DTP",
+        "Varicela",
+        "Hepatite A"
+      ],
+      "authority": "Ministério da Saúde",
+      "reference": "https://www.gov.br/saude/pt-br/vacinacao/calendario",
+      "version": "Calendário PNI"
+    },
+    {
+      "category": "elderly",
+      "label": "Pessoa Idosa",
+      "targets": {
+        "visits": 2,
+        "consultations": 1,
+        "vaccines": 1
+      },
+      "deadlines": {
+        "visits": 0,
+        "consultations": 0,
+        "vaccines": 0
+      },
+      "vaccines": [
+        "Influenza"
+      ],
+      "authority": "Ministério da Saúde",
+      "reference": "https://www.gov.br/saude/pt-br/assuntos/saude-de-a-a-z/s/saude-da-pessoa-idosa",
+      "version": "Cuidado da Pessoa Idosa"
+    },
+    {
+      "category": "chronic",
+      "label": "Condição Crônica",
+      "targets": {
+        "visits": 3,
+        "consultations": 3,
+        "vaccines": 2
+      },
+      "deadlines": {
+        "visits": 0,
+        "consultations": 0,
+        "vaccines": 0
+      },
+      "vaccines": [
+        "Influenza",
+        "COVID-19"
+      ],
+      "authority": "Ministério da Saúde",
+      "reference": "https://bvsms.saude.gov.br/bvs/publicacoes/plano_acoes_estrategicas_enfrentamento_dc_nt_2021_2030.pdf",
+      "version": "DCNT 2021-2030"
+    }
+  ],
+  "protocolTemplateVersions": [],
+  "privacyRequests": [],
+  "accessRequests": [],
+  "registerVerifications": [],
+  "loginChallenges": [],
+  "refreshTokens": [],
+  "units": [
+    {
+      "id": "unit-default",
+      "name": "Unidade Padrão",
+      "createdAt": "2026-05-26T00:06:49.810Z",
+      "cnes": null
+    },
+    {
+      "id": "test-unit",
+      "name": "UBS Teste VITRAS",
+      "cnes": "0000000",
+      "municipalityId": "3534401",
+      "municipalityName": "Ambiente de Teste",
+      "uf": "SP",
+      "status": "test",
+      "contactEmail": null,
+      "phone": null,
+      "createdBy": "system",
+      "createdAt": "2026-06-22T12:26:42.544Z",
+      "updatedAt": "2026-06-22T12:26:42.545Z"
+    }
+  ],
+  "auditLogChainAnchors": [],
+  "auditPruneExports": [],
+  "notifications": [],
+  "familyGroups": [],
+  "labIntegrations": [],
+  "households": [],
+  "acsVisits": []
+}
