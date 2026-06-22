@@ -34,6 +34,7 @@ O resultado do gate determina a faixa:
 | INTEGRATION-GOV-01A | Governança Nacional de Ingestão de Dados | ATIVO |
 | HOMOLOG-01 | Critérios Nacionais de Homologação de UBS | ATIVO |
 | ARCH-DOC-01 | Registro de Regras de Negócio e Dicionário Nacional de Dados | ATIVO |
+| ARCH-DOC-02 | Documentação Funcional por Página (escopo, campos, regras, navegação) | ATIVO |
 
 ---
 
