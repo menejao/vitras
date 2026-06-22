@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { API_URL } from "../api";
+import { api } from "../api";
 import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
 import Input from "../components/ui/Input";
@@ -10,18 +10,15 @@ async function submitPasswordChange({ currentPassword, newPassword, newPasswordC
   if (newPassword !== newPasswordConfirm) {
     throw new Error("As senhas não coincidem.");
   }
-  const res = await fetch(`${API_URL}/auth/change-password-required`, {
+  // Use api() so it correctly handles both bearer and cookie auth modes.
+  // Raw fetch with `Authorization: Bearer ${token}` breaks when token is the
+  // cookie-session sentinel ("__cookie_session__") — api() skips the Bearer
+  // header for sentinels and adds the X-CSRF-Token header automatically.
+  return api("/auth/change-password-required", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {})
-    },
     credentials: "include",
     body: JSON.stringify({ currentPassword, newPassword })
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data?.error || "Erro ao alterar senha.");
-  return data;
+  }, token);
 }
 
 export default function ChangePasswordRequiredPage({ token, onSuccess, onLogout }) {
