@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { API_URL } from "../api";
+import { api } from "../api";
 import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
 import Input from "../components/ui/Input";
@@ -13,19 +13,11 @@ const UF_OPTIONS = [
 
 const STATUS_OPTIONS = ["onboarding", "active", "inactive"];
 
-async function apiFetch(path, token, options = {}) {
-  const res = await fetch(`${API_URL}${path}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-      ...(options.headers || {})
-    },
-    credentials: "include"
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data?.error || `Erro ${res.status}`);
-  return data;
+// Wraps api() with the token so call sites keep the same signature.
+// api() handles both bearer and cookie-session sentinel correctly.
+function apiFetch(path, token, options = {}) {
+  const { body, ...rest } = options;
+  return api(path, { ...rest, body, credentials: "include" }, token);
 }
 
 function StatusBadge({ status }) {
