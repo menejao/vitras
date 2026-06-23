@@ -60,7 +60,7 @@ router.post("/import/jobs", requireAuth, requireImportAccess, async (req, res) =
     return res.status(400).json({ error: "unitId obrigatório" });
   }
 
-  const job = createImportJob({
+  const job = await createImportJob({
     unitId: targetUnitId,
     teamId: targetTeamId,
     sourceProfileId,
@@ -83,15 +83,15 @@ router.post("/import/jobs", requireAuth, requireImportAccess, async (req, res) =
 
 // ── GET /import/jobs — list Import Jobs ───────────────────────────────────
 
-router.get("/import/jobs", requireAuth, requireImportAccess, (req, res) => {
-  const jobs = listImportJobs();
+router.get("/import/jobs", requireAuth, requireImportAccess, async (req, res) => {
+  const jobs = await listImportJobs();
   return res.json(jobs);
 });
 
 // ── GET /import/jobs/:id — get Import Job ────────────────────────────────
 
-router.get("/import/jobs/:id", requireAuth, requireImportAccess, (req, res) => {
-  const job = getImportJob(req.params.id);
+router.get("/import/jobs/:id", requireAuth, requireImportAccess, async (req, res) => {
+  const job = await getImportJob(req.params.id);
   if (!job) return res.status(404).json({ error: "Import Job não encontrado" });
   return res.json(job);
 });
@@ -99,7 +99,7 @@ router.get("/import/jobs/:id", requireAuth, requireImportAccess, (req, res) => {
 // ── POST /import/jobs/:id/run — advance pipeline ─────────────────────────
 
 router.post("/import/jobs/:id/run", requireAuth, requireImportAccess, async (req, res) => {
-  const job = getImportJob(req.params.id);
+  const job = await getImportJob(req.params.id);
   if (!job) return res.status(404).json({ error: "Import Job não encontrado" });
 
   if (!["received", "mapping"].includes(job.status)) {
@@ -145,15 +145,15 @@ router.post("/import/jobs/:id/run", requireAuth, requireImportAccess, async (req
 
 // ── GET /import/staging/:jobId/records — get staging records ─────────────
 
-router.get("/import/staging/:jobId/records", requireAuth, requireImportAccess, (req, res) => {
-  const job = getImportJob(req.params.jobId);
+router.get("/import/staging/:jobId/records", requireAuth, requireImportAccess, async (req, res) => {
+  const job = await getImportJob(req.params.jobId);
   if (!job) return res.status(404).json({ error: "Import Job não encontrado" });
 
   if (!["homologating", "staging"].includes(job.status)) {
     return res.status(409).json({ error: "Staging disponível apenas para jobs em homologating ou staging" });
   }
 
-  const staged = getStagedRecords(req.params.jobId);
+  const staged = await getStagedRecords(req.params.jobId);
   if (!staged) return res.status(404).json({ error: "Staging não encontrado para este Import Job" });
 
   const page = Math.max(1, parseInt(req.query.page) || 1);
@@ -181,11 +181,11 @@ router.get("/import/staging/:jobId/records", requireAuth, requireImportAccess, (
 
 // ── GET /import/staging/:jobId/stats — staging summary ───────────────────
 
-router.get("/import/staging/:jobId/stats", requireAuth, requireImportAccess, (req, res) => {
-  const job = getImportJob(req.params.jobId);
+router.get("/import/staging/:jobId/stats", requireAuth, requireImportAccess, async (req, res) => {
+  const job = await getImportJob(req.params.jobId);
   if (!job) return res.status(404).json({ error: "Import Job não encontrado" });
 
-  const staged = getStagedRecords(req.params.jobId);
+  const staged = await getStagedRecords(req.params.jobId);
 
   return res.json({
     job,
@@ -219,7 +219,7 @@ router.post("/import/jobs/:id/homologate", requireAuth, requireImportAccess, asy
 
   let result;
   try {
-    result = submitHomologation(req.params.id, decision, justification, req.user.id);
+    result = await submitHomologation(req.params.id, decision, justification, req.user.id);
   } catch (e) {
     return res.status(400).json({ error: e.message });
   }
@@ -239,7 +239,7 @@ router.post("/import/jobs/:id/homologate", requireAuth, requireImportAccess, asy
 // ── POST /import/jobs/:id/commit — execute commit ────────────────────────
 
 router.post("/import/jobs/:id/commit", requireAuth, requireImportAccess, async (req, res) => {
-  const job = getImportJob(req.params.id);
+  const job = await getImportJob(req.params.id);
   if (!job) return res.status(404).json({ error: "Import Job não encontrado" });
 
   if (job.homologationResult !== "GO") {

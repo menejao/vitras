@@ -4,20 +4,30 @@
  * Manages the full lifecycle of an Import Job:
  * received → profiling → mapping → validating → selecting → staging → homologating → committed | discarded | failed
  *
- * In-memory mode (file driver / test): staging stored in importJobsStore
- * PostgreSQL mode: staging stored in app_import_staging table
+ * Driver: file/test → in-memory Maps; postgres → app_import_* tables via db.js
  */
 
 import crypto from "node:crypto";
 import { applyMapping } from "./mapping-engine.js";
 import { runValidation } from "./validation-engine.js";
 import { applySelection } from "./population-selection.js";
+import {
+  isPostgresMode,
+  pgImportJobCreate,
+  pgImportJobGet,
+  pgImportJobList,
+  pgImportJobUpdate,
+  pgImportStagingSave,
+  pgImportStagingGet,
+  pgImportStagingClear,
+  pgImportRawSave,
+} from "../db.js";
 
 // ── In-memory store (file driver / test mode) ─────────────────────────────
 
 const importJobsStore = new Map();
 const importStagingStore = new Map(); // jobId → { patients, events }
-const importRawStore = new Map();     // jobId → raw payload
+const importRawStore = new Map();     // jobId → { hash, receivedAt }
 
 // ── Source Profile Registry ───────────────────────────────────────────────
 
@@ -49,8 +59,9 @@ export function getSourceProfile(profileId) {
 
 // ── Job CRUD ──────────────────────────────────────────────────────────────
 
-export function createImportJob({ unitId, teamId, sourceProfileId, lgpdConsentRecordId, createdBy, localFilters }) {
+export async function createImportJob({ unitId, teamId, sourceProfileId, lgpdConsentRecordId, createdBy, localFilters }) {
   const id = crypto.randomUUID();
+  const now = new Date().toISOString();
   const job = {
     id,
     unitId,
@@ -60,8 +71,8 @@ export function createImportJob({ unitId, teamId, sourceProfileId, lgpdConsentRe
     status: "received",
     lgpdConsentRecordId: lgpdConsentRecordId || "consent-required",
     createdBy,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    createdAt: now,
+    updatedAt: now,
     localFilters: localFilters || {},
     stats: {
       totalRaw: 0,
@@ -80,21 +91,37 @@ export function createImportJob({ unitId, teamId, sourceProfileId, lgpdConsentRe
     commitAt: null,
     auditHash: null,
   };
-  importJobsStore.set(id, job);
+
+  if (isPostgresMode()) {
+    await pgImportJobCreate(job);
+  } else {
+    importJobsStore.set(id, job);
+  }
+
   return job;
 }
 
-export function getImportJob(id) {
+export async function getImportJob(id) {
+  if (isPostgresMode()) {
+    return pgImportJobGet(id);
+  }
   return importJobsStore.get(id) || null;
 }
 
-export function listImportJobs() {
+export async function listImportJobs() {
+  if (isPostgresMode()) {
+    return pgImportJobList();
+  }
   return Array.from(importJobsStore.values()).sort(
     (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
   );
 }
 
-function updateJob(id, updates) {
+async function updateJob(id, updates) {
+  if (isPostgresMode()) {
+    await pgImportJobUpdate(id, updates);
+    return pgImportJobGet(id);
+  }
   const job = importJobsStore.get(id);
   if (!job) return null;
   const updated = { ...job, ...updates, updatedAt: new Date().toISOString() };
@@ -104,28 +131,33 @@ function updateJob(id, updates) {
 
 // ── Stage 1: Profiling ────────────────────────────────────────────────────
 
-export function runProfiling(jobId, rawPayload) {
-  const job = importJobsStore.get(jobId);
+export async function runProfiling(jobId, rawPayload) {
+  const job = await getImportJob(jobId);
   if (!job) throw new Error(`Import Job ${jobId} não encontrado`);
 
-  // Store raw (immutable)
+  // Store raw hash (immutable integrity proof; payload not persisted — LGPD minimização)
   const rawHash = crypto.createHash("sha256").update(JSON.stringify(rawPayload)).digest("hex");
-  importRawStore.set(jobId, { payload: rawPayload, hash: rawHash, receivedAt: new Date().toISOString() });
+  const receivedAt = new Date().toISOString();
+
+  if (isPostgresMode()) {
+    await pgImportRawSave(jobId, rawHash, receivedAt);
+  } else {
+    importRawStore.set(jobId, { hash: rawHash, receivedAt });
+  }
 
   const profile = SOURCE_PROFILES[job.sourceProfileId];
   if (!profile) {
-    updateJob(jobId, { status: "failed", errors: [{ stage: "profiling", reason: `Source Profile ${job.sourceProfileId} não encontrado` }] });
+    await updateJob(jobId, { status: "failed", errors: [{ stage: "profiling", reason: `Source Profile ${job.sourceProfileId} não encontrado` }] });
     return { ok: false, reason: "Source Profile não encontrado" };
   }
   if (profile.status === "deprecated") {
-    updateJob(jobId, { status: "failed", errors: [{ stage: "profiling", reason: "Source Profile deprecado" }] });
+    await updateJob(jobId, { status: "failed", errors: [{ stage: "profiling", reason: "Source Profile deprecado" }] });
     return { ok: false, reason: "Source Profile deprecado" };
   }
 
   const totalRaw = Array.isArray(rawPayload.pacientes) ? rawPayload.pacientes.length : 0;
-  updateJob(jobId, {
+  await updateJob(jobId, {
     status: "mapping",
-    "stats.totalRaw": totalRaw,
     stats: { ...job.stats, totalRaw, profiled: totalRaw },
   });
 
@@ -134,8 +166,8 @@ export function runProfiling(jobId, rawPayload) {
 
 // ── Stage 2: Mapping ──────────────────────────────────────────────────────
 
-export function runMapping(jobId, rawPayload, context) {
-  const job = importJobsStore.get(jobId);
+export async function runMapping(jobId, rawPayload, context) {
+  const job = await getImportJob(jobId);
   if (!job) throw new Error(`Import Job ${jobId} não encontrado`);
 
   const mappingResult = applyMapping(rawPayload, {
@@ -148,7 +180,7 @@ export function runMapping(jobId, rawPayload, context) {
   });
 
   const { stats } = mappingResult;
-  updateJob(jobId, {
+  await updateJob(jobId, {
     status: "validating",
     stats: {
       ...job.stats,
@@ -167,14 +199,14 @@ export function runMapping(jobId, rawPayload, context) {
 
 // ── Stage 3: Validation ───────────────────────────────────────────────────
 
-export function runValidationStage(jobId, mappingResult, existingProductionIds) {
-  const job = importJobsStore.get(jobId);
+export async function runValidationStage(jobId, mappingResult, existingProductionIds) {
+  const job = await getImportJob(jobId);
   if (!job) throw new Error(`Import Job ${jobId} não encontrado`);
 
   const validationResult = runValidation(mappingResult, existingProductionIds);
 
   if (validationResult.shouldFail) {
-    updateJob(jobId, {
+    await updateJob(jobId, {
       status: "failed",
       errors: [
         ...job.errors,
@@ -184,7 +216,7 @@ export function runValidationStage(jobId, mappingResult, existingProductionIds) 
     return { ok: false, validationResult };
   }
 
-  updateJob(jobId, {
+  await updateJob(jobId, {
     status: "selecting",
     stats: {
       ...job.stats,
@@ -198,13 +230,13 @@ export function runValidationStage(jobId, mappingResult, existingProductionIds) 
 
 // ── Stage 4: Population Selection ────────────────────────────────────────
 
-export function runSelectionStage(jobId, validationResult) {
-  const job = importJobsStore.get(jobId);
+export async function runSelectionStage(jobId, validationResult) {
+  const job = await getImportJob(jobId);
   if (!job) throw new Error(`Import Job ${jobId} não encontrado`);
 
   const selectionResult = applySelection(validationResult, null, job.localFilters, new Date());
 
-  updateJob(jobId, {
+  await updateJob(jobId, {
     status: "staging",
     stats: {
       ...job.stats,
@@ -218,10 +250,11 @@ export function runSelectionStage(jobId, validationResult) {
 
 // ── Stage 5: Staging ──────────────────────────────────────────────────────
 
-export function stageRecords(jobId, selectionResult) {
-  const job = importJobsStore.get(jobId);
+export async function stageRecords(jobId, selectionResult) {
+  const job = await getImportJob(jobId);
   if (!job) throw new Error(`Import Job ${jobId} não encontrado`);
 
+  const now = new Date().toISOString();
   const staged = {
     patients: selectionResult.selected.map((p) => ({
       importJobId: jobId,
@@ -232,7 +265,7 @@ export function stageRecords(jobId, selectionResult) {
       mergeCandidate: p.mergeCandidate || false,
       mergeTargetId: null,
       incompleteProfile: p.incompleteProfile || false,
-      createdAt: new Date().toISOString(),
+      createdAt: now,
     })),
     events: selectionResult.events.map((e) => ({
       importJobId: jobId,
@@ -242,13 +275,17 @@ export function stageRecords(jobId, selectionResult) {
       patientSourceId: e.patientSourceId,
       validationStatus: "valid",
       mergeCandidate: false,
-      createdAt: new Date().toISOString(),
+      createdAt: now,
     })),
   };
 
-  importStagingStore.set(jobId, staged);
+  if (isPostgresMode()) {
+    await pgImportStagingSave(jobId, staged);
+  } else {
+    importStagingStore.set(jobId, staged);
+  }
 
-  updateJob(jobId, {
+  await updateJob(jobId, {
     status: "homologating",
     stats: {
       ...job.stats,
@@ -259,14 +296,17 @@ export function stageRecords(jobId, selectionResult) {
   return staged;
 }
 
-export function getStagedRecords(jobId) {
+export async function getStagedRecords(jobId) {
+  if (isPostgresMode()) {
+    return pgImportStagingGet(jobId);
+  }
   return importStagingStore.get(jobId) || null;
 }
 
 // ── Stage 6: Homologation ─────────────────────────────────────────────────
 
-export function submitHomologation(jobId, decision, justification, homologatedBy) {
-  const job = importJobsStore.get(jobId);
+export async function submitHomologation(jobId, decision, justification, homologatedBy) {
+  const job = await getImportJob(jobId);
   if (!job) throw new Error(`Import Job ${jobId} não encontrado`);
   if (job.status !== "homologating") {
     throw new Error(`Import Job ${jobId} não está em homologating (status atual: ${job.status})`);
@@ -283,9 +323,12 @@ export function submitHomologation(jobId, decision, justification, homologatedBy
   const now = new Date().toISOString();
 
   if (decision === "NO_GO") {
-    // Clear staging
-    importStagingStore.delete(jobId);
-    updateJob(jobId, {
+    if (isPostgresMode()) {
+      await pgImportStagingClear(jobId);
+    } else {
+      importStagingStore.delete(jobId);
+    }
+    await updateJob(jobId, {
       status: "discarded",
       homologationResult: "NO_GO",
       homologatedBy,
@@ -294,11 +337,10 @@ export function submitHomologation(jobId, decision, justification, homologatedBy
     return { ok: true, decision: "NO_GO" };
   }
 
-  updateJob(jobId, {
+  await updateJob(jobId, {
     homologationResult: "GO",
     homologatedBy,
     homologatedAt: now,
-    // status remains 'homologating' until commit
   });
 
   return { ok: true, decision: "GO" };
@@ -307,7 +349,7 @@ export function submitHomologation(jobId, decision, justification, homologatedBy
 // ── Stage 7: Commit ───────────────────────────────────────────────────────
 
 export async function executeCommit(jobId, withDbFn, addAuditLogFn, buildAuditActor) {
-  const job = importJobsStore.get(jobId);
+  const job = await getImportJob(jobId);
   if (!job) throw new Error(`Import Job ${jobId} não encontrado`);
 
   if (job.homologationResult !== "GO") {
@@ -319,7 +361,10 @@ export async function executeCommit(jobId, withDbFn, addAuditLogFn, buildAuditAc
     return { ok: true, idempotent: true };
   }
 
-  const staged = importStagingStore.get(jobId);
+  const staged = isPostgresMode()
+    ? await pgImportStagingGet(jobId)
+    : importStagingStore.get(jobId) || null;
+
   if (!staged) throw new Error(`Staging para ${jobId} não encontrado`);
 
   const now = new Date().toISOString();
@@ -336,19 +381,16 @@ export async function executeCommit(jobId, withDbFn, addAuditLogFn, buildAuditAc
       );
 
       if (existingIdx >= 0 && sp.mergeCandidate) {
-        // Merge: update existing record with newer data where production record is older
         const existing = db.patients[existingIdx];
         db.patients[existingIdx] = {
           ...existing,
           ...canonical,
-          id: existing.id, // preserve production ID
+          id: existing.id,
           importJobId: jobId,
           sourceSystem: canonical.sourceSystem,
           updatedAt: now,
         };
       } else if (existingIdx < 0) {
-        // New record
-        const { v4: uuidv4 } = { v4: () => crypto.randomUUID() };
         db.patients.push({
           ...canonical,
           id: crypto.randomUUID(),
@@ -359,12 +401,10 @@ export async function executeCommit(jobId, withDbFn, addAuditLogFn, buildAuditAc
       }
     }
 
-    // Commit clinical events (visits)
     for (const se of staged.events) {
       const canonical = se.canonicalData;
       if (canonical.type !== "visit") continue;
 
-      // Find the production patientId from sourceId
       const stagedPat = staged.patients.find((sp) => sp.sourceId === se.patientSourceId);
       if (!stagedPat) continue;
 
@@ -375,7 +415,6 @@ export async function executeCommit(jobId, withDbFn, addAuditLogFn, buildAuditAc
       );
       if (!prodPat) continue;
 
-      // Idempotency: skip if same sourceId+importJobId already exists
       const alreadyExists = (db.acsVisits || []).some(
         (v) => v.sourceId === canonical.sourceId && v.importJobId === jobId
       );
@@ -405,15 +444,18 @@ export async function executeCommit(jobId, withDbFn, addAuditLogFn, buildAuditAc
     .update(`${jobId}:${now}:committed:${staged.patients.length}`)
     .digest("hex");
 
-  updateJob(jobId, {
+  await updateJob(jobId, {
     status: "committed",
     commitAt: now,
     auditHash,
     stats: { ...job.stats, committed },
   });
 
-  // Clear staging after commit
-  importStagingStore.delete(jobId);
+  if (isPostgresMode()) {
+    await pgImportStagingClear(jobId);
+  } else {
+    importStagingStore.delete(jobId);
+  }
 
   return { ok: true, committed, auditHash };
 }
@@ -421,25 +463,25 @@ export async function executeCommit(jobId, withDbFn, addAuditLogFn, buildAuditAc
 // ── Full pipeline run (for testing and API) ───────────────────────────────
 
 export async function runFullPipeline(jobId, rawPayload, context, withDbFn, addAuditLogFn) {
-  const job = importJobsStore.get(jobId);
+  const job = await getImportJob(jobId);
   if (!job) throw new Error(`Import Job ${jobId} não encontrado`);
 
   // Stage 1: Profiling
-  const profilingResult = runProfiling(jobId, rawPayload);
+  const profilingResult = await runProfiling(jobId, rawPayload);
   if (!profilingResult.ok) return { ok: false, stage: "profiling", reason: profilingResult.reason };
 
   // Stage 2: Mapping
-  const mappingResult = runMapping(jobId, rawPayload, context);
+  const mappingResult = await runMapping(jobId, rawPayload, context);
 
   // Stage 3: Validation
-  const validationStageResult = runValidationStage(jobId, mappingResult, context.existingProductionIds || null);
+  const validationStageResult = await runValidationStage(jobId, mappingResult, context.existingProductionIds || null);
   if (!validationStageResult.ok) return { ok: false, stage: "validation", validationResult: validationStageResult.validationResult };
 
   // Stage 4: Population Selection
-  const selectionResult = runSelectionStage(jobId, validationStageResult.validationResult);
+  const selectionResult = await runSelectionStage(jobId, validationStageResult.validationResult);
 
   // Stage 5: Staging
-  const staged = stageRecords(jobId, selectionResult);
+  const staged = await stageRecords(jobId, selectionResult);
 
   return {
     ok: true,
@@ -448,6 +490,6 @@ export async function runFullPipeline(jobId, rawPayload, context, withDbFn, addA
     validationResult: validationStageResult.validationResult,
     selectionResult,
     staged,
-    job: importJobsStore.get(jobId),
+    job: await getImportJob(jobId),
   };
 }

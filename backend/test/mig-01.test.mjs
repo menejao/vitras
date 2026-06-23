@@ -394,7 +394,7 @@ describe("FASE 6 — Import Job + Pipeline E2E", () => {
 
     const payload = buildPecPayload(patients);
 
-    const job = createImportJob({
+    const job = await createImportJob({
       unitId: "unit-test-01",
       teamId: "team-test-01",
       sourceProfileId: "sp-pec-aps-v01",
@@ -426,21 +426,21 @@ describe("FASE 6 — Import Job + Pipeline E2E", () => {
     assert.ok(pipelineResult.ok, `Pipeline deve ser OK — resultado: ${JSON.stringify(pipelineResult.ok)}`);
   });
 
-  it("Job chega a status homologating", () => {
-    const job = getImportJob(jobId);
+  it("Job chega a status homologating", async () => {
+    const job = await getImportJob(jobId);
     assert.equal(job.status, "homologating");
   });
 
-  it("Staging contém pacientes válidos mapeados", () => {
-    const staged = getStagedRecords(jobId);
+  it("Staging contém pacientes válidos mapeados", async () => {
+    const staged = await getStagedRecords(jobId);
     assert.ok(staged, "Staged records deve existir");
     assert.ok(staged.patients.length > 0, "Pelo menos 1 paciente staged");
     assert.ok(staged.patients.length <= 50, "Inválidos não passaram para staging");
   });
 
-  it("SIM-7: Staging stats corretos — pacientes inválidos excluídos", () => {
-    const staged = getStagedRecords(jobId);
-    const job = getImportJob(jobId);
+  it("SIM-7: Staging stats corretos — pacientes inválidos excluídos", async () => {
+    const staged = await getStagedRecords(jobId);
+    const job = await getImportJob(jobId);
     // 10 pacientes sem nome foram rejeitados no mapping
     assert.equal(job.stats.mapped, 50, "50 válidos mapeados");
     assert.ok(job.stats.rejected >= 10, "≥10 inválidos rejeitados");
@@ -459,7 +459,7 @@ describe("FASE 7 — Homologação GO / NO_GO", () => {
       const patients = [generatePatient(label === "go" ? 2000 : 3000)];
       const payload = buildPecPayload(patients);
 
-      const job = createImportJob({
+      const job = await createImportJob({
         unitId: "unit-test-01",
         teamId: "team-test-01",
         sourceProfileId: "sp-pec-aps-v01",
@@ -482,8 +482,8 @@ describe("FASE 7 — Homologação GO / NO_GO", () => {
     }
   });
 
-  it("SIM-8: Homologação GO registra decisão corretamente", () => {
-    const result = submitHomologation(
+  it("SIM-8: Homologação GO registra decisão corretamente", async () => {
+    const result = await submitHomologation(
       jobIdGo,
       "GO",
       "Dataset sintético validado — todos os critérios cumpridos",
@@ -492,14 +492,14 @@ describe("FASE 7 — Homologação GO / NO_GO", () => {
     assert.ok(result.ok);
     assert.equal(result.decision, "GO");
 
-    const job = getImportJob(jobIdGo);
+    const job = await getImportJob(jobIdGo);
     assert.equal(job.homologationResult, "GO");
     assert.equal(job.homologatedBy, "gestor-test");
     assert.ok(job.homologatedAt);
   });
 
-  it("SIM-9: Homologação NO_GO descarta staging e muda status para discarded", () => {
-    const result = submitHomologation(
+  it("SIM-9: Homologação NO_GO descarta staging e muda status para discarded", async () => {
+    const result = await submitHomologation(
       jobIdNoGo,
       "NO_GO",
       "Dados incompletos — requer revisão manual antes do import",
@@ -508,33 +508,27 @@ describe("FASE 7 — Homologação GO / NO_GO", () => {
     assert.ok(result.ok);
     assert.equal(result.decision, "NO_GO");
 
-    const job = getImportJob(jobIdNoGo);
+    const job = await getImportJob(jobIdNoGo);
     assert.equal(job.status, "discarded");
     assert.equal(job.homologationResult, "NO_GO");
 
-    const staged = getStagedRecords(jobIdNoGo);
+    const staged = await getStagedRecords(jobIdNoGo);
     assert.equal(staged, null, "Staging deve ser limpo após NO_GO");
   });
 
-  it("Justificativa < 10 chars rejeitada", () => {
-    // Need a fresh job in homologating status
-    const job = createImportJob({
+  it("Justificativa < 10 chars rejeitada", async () => {
+    const payload = buildPecPayload([generatePatient(9999)]);
+    const job = await createImportJob({
       unitId: "u", teamId: "t", sourceProfileId: "sp-pec-aps-v01",
       lgpdConsentRecordId: "c", createdBy: "u", localFilters: {},
     });
-    // Manually set to homologating by running pipeline
-    (async () => {
-      const payload = buildPecPayload([generatePatient(9999)]);
-      await runFullPipeline(job.id, payload,
-        { teamId: "t", unitId: "u", municipalityId: "3550308", defaultAcsUserId: "a",
-          existingProductionIds: { byCpf: new Map(), byCns: new Map() } },
-        withDb, null
-      );
-    })();
-
-    // Test the validation
-    assert.throws(
-      () => submitHomologation(job.id, "GO", "curto"),
+    await runFullPipeline(job.id, payload,
+      { teamId: "t", unitId: "u", municipalityId: "3550308", defaultAcsUserId: "a",
+        existingProductionIds: { byCpf: new Map(), byCns: new Map() } },
+      withDb, null
+    );
+    await assert.rejects(
+      async () => submitHomologation(job.id, "GO", "curto"),
       /Justificativa/
     );
   });
@@ -556,7 +550,7 @@ describe("FASE 8 — Commit Simulado (Atômico)", () => {
     }
     const payload = buildPecPayload(patients);
 
-    const job = createImportJob({
+    const job = await createImportJob({
       unitId: "unit-commit-test",
       teamId: "team-commit-test",
       sourceProfileId: "sp-pec-aps-v01",
@@ -576,7 +570,7 @@ describe("FASE 8 — Commit Simulado (Atômico)", () => {
       null
     );
 
-    submitHomologation(jobIdCommit, "GO", "Dataset de commit test validado — GO confirmado", "gestor-test");
+    await submitHomologation(jobIdCommit, "GO", "Dataset de commit test validado — GO confirmado", "gestor-test");
 
     commitResult = await executeCommit(jobIdCommit, withDb, null, null);
   });
@@ -587,8 +581,8 @@ describe("FASE 8 — Commit Simulado (Atômico)", () => {
     assert.match(commitResult.auditHash, /^[a-f0-9]{64}$/);
   });
 
-  it("Job status muda para committed após commit", () => {
-    const job = getImportJob(jobIdCommit);
+  it("Job status muda para committed após commit", async () => {
+    const job = await getImportJob(jobIdCommit);
     assert.equal(job.status, "committed");
     assert.ok(job.commitAt);
   });
@@ -599,8 +593,8 @@ describe("FASE 8 — Commit Simulado (Atômico)", () => {
     assert.ok(result2.idempotent);
   });
 
-  it("Staging limpo após commit", () => {
-    const staged = getStagedRecords(jobIdCommit);
+  it("Staging limpo após commit", async () => {
+    const staged = await getStagedRecords(jobIdCommit);
     assert.equal(staged, null, "Staging deve ser removido após commit bem-sucedido");
   });
 });
@@ -671,8 +665,8 @@ describe("FASE 9 — Validação de Escala (50K pacientes sintéticos)", () => {
 // ── FASE 10/11/12: Auditoria e Decisão Executiva ─────────────────────────
 
 describe("FASE 10-12 — Auditoria, Rastreabilidade e Decisão Executiva", () => {
-  it("SIM-12: Job committed tem auditHash SHA-256 registrado", () => {
-    const jobs = listImportJobs();
+  it("SIM-12: Job committed tem auditHash SHA-256 registrado", async () => {
+    const jobs = await listImportJobs();
     const committed = jobs.filter((j) => j.status === "committed");
 
     assert.ok(committed.length > 0, "Deve existir pelo menos 1 job committed");
@@ -685,12 +679,12 @@ describe("FASE 10-12 — Auditoria, Rastreabilidade e Decisão Executiva", () =>
     }
   });
 
-  it("Job discarded não tem staging residual", () => {
-    const jobs = listImportJobs();
+  it("Job discarded não tem staging residual", async () => {
+    const jobs = await listImportJobs();
     const discarded = jobs.filter((j) => j.status === "discarded");
 
     for (const job of discarded) {
-      const staged = getStagedRecords(job.id);
+      const staged = await getStagedRecords(job.id);
       assert.equal(staged, null, `Job discarded ${job.id} não deve ter staging residual`);
     }
   });
@@ -700,7 +694,7 @@ describe("FASE 10-12 — Auditoria, Rastreabilidade e Decisão Executiva", () =>
     patient.cpf = undefined;
     const payload = buildPecPayload([patient]);
 
-    const job = createImportJob({
+    const job = await createImportJob({
       unitId: "unit-lifecycle",
       teamId: "team-lifecycle",
       sourceProfileId: "sp-pec-aps-v01",
@@ -709,7 +703,7 @@ describe("FASE 10-12 — Auditoria, Rastreabilidade e Decisão Executiva", () =>
       localFilters: {},
     });
 
-    assert.equal(getImportJob(job.id).status, "received");
+    assert.equal((await getImportJob(job.id)).status, "received");
 
     await runFullPipeline(
       job.id, payload,
@@ -719,13 +713,13 @@ describe("FASE 10-12 — Auditoria, Rastreabilidade e Decisão Executiva", () =>
       withDb, null
     );
 
-    assert.equal(getImportJob(job.id).status, "homologating");
+    assert.equal((await getImportJob(job.id)).status, "homologating");
 
-    submitHomologation(job.id, "GO", "Lifecycle test — GO confirmado após revisão", "gestor-lifecycle");
-    assert.equal(getImportJob(job.id).homologationResult, "GO");
+    await submitHomologation(job.id, "GO", "Lifecycle test — GO confirmado após revisão", "gestor-lifecycle");
+    assert.equal((await getImportJob(job.id)).homologationResult, "GO");
 
     const commit = await executeCommit(job.id, withDb, null, null);
     assert.ok(commit.ok);
-    assert.equal(getImportJob(job.id).status, "committed");
+    assert.equal((await getImportJob(job.id)).status, "committed");
   });
 });

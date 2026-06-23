@@ -340,6 +340,263 @@ async function ensurePostgresState(client) {
     `,
     [JSON.stringify(buildDefaultState())]
   );
+
+  // M-01: Import Job persistence tables
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS app_import_jobs (
+      id                     TEXT        PRIMARY KEY,
+      unit_id                TEXT        NOT NULL,
+      team_id                TEXT        NOT NULL,
+      source_profile_id      TEXT        NOT NULL,
+      source_system          TEXT        NOT NULL,
+      status                 TEXT        NOT NULL DEFAULT 'received',
+      lgpd_consent_record_id TEXT,
+      created_by             TEXT,
+      created_at             TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at             TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      local_filters          JSONB       NOT NULL DEFAULT '{}',
+      stats                  JSONB       NOT NULL DEFAULT '{}',
+      errors                 JSONB       NOT NULL DEFAULT '[]',
+      homologation_result    TEXT,
+      homologated_by         TEXT,
+      homologated_at         TIMESTAMPTZ,
+      commit_at              TIMESTAMPTZ,
+      audit_hash             TEXT
+    )
+  `);
+
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS app_import_raw (
+      job_id      TEXT        PRIMARY KEY REFERENCES app_import_jobs(id) ON DELETE CASCADE,
+      raw_hash    TEXT        NOT NULL,
+      received_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS app_import_staging (
+      id                 BIGSERIAL   PRIMARY KEY,
+      job_id             TEXT        NOT NULL REFERENCES app_import_jobs(id) ON DELETE CASCADE,
+      entity_type        TEXT        NOT NULL,
+      source_id          TEXT        NOT NULL,
+      patient_source_id  TEXT,
+      canonical_data     JSONB       NOT NULL,
+      validation_status  TEXT        NOT NULL,
+      merge_candidate    BOOLEAN     NOT NULL DEFAULT FALSE,
+      merge_target_id    TEXT,
+      incomplete_profile BOOLEAN     NOT NULL DEFAULT FALSE,
+      created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+
+  await client.query(`
+    CREATE INDEX IF NOT EXISTS idx_import_staging_job_id
+      ON app_import_staging(job_id)
+  `);
+
+  await client.query(`
+    CREATE INDEX IF NOT EXISTS idx_import_staging_job_entity
+      ON app_import_staging(job_id, entity_type)
+  `);
+
+  // M-01 Recovery: non-terminal jobs on boot → failed (staging lost in memory)
+  await client.query(`
+    UPDATE app_import_jobs
+    SET
+      status     = 'failed',
+      updated_at = NOW(),
+      errors     = errors || '[{"stage":"recovery","reason":"server restart — re-submit required"}]'::jsonb
+    WHERE status NOT IN ('committed', 'discarded', 'failed')
+  `);
+}
+
+// ── M-01: Import Job Postgres persistence functions ───────────────────────
+
+const _IMPORT_STAGING_BATCH = 500;
+
+function _importJobRowToJs(row) {
+  const toIso = (v) => (v instanceof Date ? v.toISOString() : v || null);
+  return {
+    id: row.id,
+    unitId: row.unit_id,
+    teamId: row.team_id,
+    sourceProfileId: row.source_profile_id,
+    sourceSystem: row.source_system,
+    status: row.status,
+    lgpdConsentRecordId: row.lgpd_consent_record_id || null,
+    createdBy: row.created_by || null,
+    createdAt: toIso(row.created_at),
+    updatedAt: toIso(row.updated_at),
+    localFilters: row.local_filters || {},
+    stats: row.stats || {},
+    errors: row.errors || [],
+    homologationResult: row.homologation_result || null,
+    homologatedBy: row.homologated_by || null,
+    homologatedAt: toIso(row.homologated_at),
+    commitAt: toIso(row.commit_at),
+    auditHash: row.audit_hash || null,
+  };
+}
+
+async function pgImportJobCreate(job) {
+  await pool.query(
+    `INSERT INTO app_import_jobs
+       (id, unit_id, team_id, source_profile_id, source_system, status,
+        lgpd_consent_record_id, created_by, created_at, updated_at,
+        local_filters, stats, errors)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+    [
+      job.id, job.unitId, job.teamId, job.sourceProfileId, job.sourceSystem,
+      job.status, job.lgpdConsentRecordId || null, job.createdBy || null,
+      job.createdAt, job.updatedAt,
+      JSON.stringify(job.localFilters || {}),
+      JSON.stringify(job.stats || {}),
+      JSON.stringify(job.errors || []),
+    ]
+  );
+}
+
+async function pgImportJobGet(id) {
+  const result = await pool.query(
+    "SELECT * FROM app_import_jobs WHERE id = $1",
+    [id]
+  );
+  return result.rows.length ? _importJobRowToJs(result.rows[0]) : null;
+}
+
+async function pgImportJobList() {
+  const result = await pool.query(
+    "SELECT * FROM app_import_jobs ORDER BY created_at DESC"
+  );
+  return result.rows.map(_importJobRowToJs);
+}
+
+async function pgImportJobUpdate(id, updates) {
+  const fieldMap = {
+    status: "status",
+    homologationResult: "homologation_result",
+    homologatedBy: "homologated_by",
+    homologatedAt: "homologated_at",
+    commitAt: "commit_at",
+    auditHash: "audit_hash",
+    stats: "stats",
+    errors: "errors",
+  };
+
+  const setClauses = [];
+  const values = [];
+  let paramIdx = 1;
+
+  for (const [jsKey, colName] of Object.entries(fieldMap)) {
+    if (!(jsKey in updates)) continue;
+    const val = updates[jsKey];
+    setClauses.push(`${colName} = $${paramIdx++}`);
+    values.push((jsKey === "stats" || jsKey === "errors") ? JSON.stringify(val) : (val ?? null));
+  }
+
+  if (!setClauses.length) return;
+
+  setClauses.push(`updated_at = $${paramIdx++}`);
+  values.push(new Date().toISOString());
+  values.push(id);
+
+  await pool.query(
+    `UPDATE app_import_jobs SET ${setClauses.join(", ")} WHERE id = $${paramIdx}`,
+    values
+  );
+}
+
+async function pgImportStagingSave(jobId, staged) {
+  await pool.query("DELETE FROM app_import_staging WHERE job_id = $1", [jobId]);
+
+  const all = [
+    ...staged.patients.map((p) => ({
+      entityType: "patient",
+      sourceId: p.sourceId,
+      patientSourceId: null,
+      canonicalData: p.canonicalData,
+      validationStatus: p.validationStatus,
+      mergeCandidate: p.mergeCandidate || false,
+      mergeTargetId: p.mergeTargetId || null,
+      incompleteProfile: p.incompleteProfile || false,
+    })),
+    ...staged.events.map((e) => ({
+      entityType: "clinical_event",
+      sourceId: e.sourceId,
+      patientSourceId: e.patientSourceId || null,
+      canonicalData: e.canonicalData,
+      validationStatus: e.validationStatus,
+      mergeCandidate: false,
+      mergeTargetId: null,
+      incompleteProfile: false,
+    })),
+  ];
+
+  for (let i = 0; i < all.length; i += _IMPORT_STAGING_BATCH) {
+    const chunk = all.slice(i, i + _IMPORT_STAGING_BATCH);
+    const placeholders = chunk.map((_, idx) => {
+      const b = idx * 9;
+      return `($${b+1},$${b+2},$${b+3},$${b+4},$${b+5},$${b+6},$${b+7},$${b+8},$${b+9})`;
+    }).join(",");
+    const values = chunk.flatMap((r) => [
+      jobId, r.entityType, r.sourceId, r.patientSourceId,
+      JSON.stringify(r.canonicalData), r.validationStatus,
+      r.mergeCandidate, r.mergeTargetId, r.incompleteProfile,
+    ]);
+    await pool.query(
+      `INSERT INTO app_import_staging
+         (job_id, entity_type, source_id, patient_source_id, canonical_data,
+          validation_status, merge_candidate, merge_target_id, incomplete_profile)
+       VALUES ${placeholders}`,
+      values
+    );
+  }
+}
+
+async function pgImportStagingGet(jobId) {
+  const result = await pool.query(
+    "SELECT * FROM app_import_staging WHERE job_id = $1 ORDER BY id",
+    [jobId]
+  );
+  if (!result.rows.length) return null;
+
+  const toIso = (v) => (v instanceof Date ? v.toISOString() : v || null);
+  const patients = [];
+  const events = [];
+
+  for (const row of result.rows) {
+    const base = {
+      importJobId: row.job_id,
+      entityType: row.entity_type,
+      sourceId: row.source_id,
+      canonicalData: row.canonical_data,
+      validationStatus: row.validation_status,
+      mergeCandidate: row.merge_candidate,
+      mergeTargetId: row.merge_target_id || null,
+      incompleteProfile: row.incomplete_profile || false,
+      createdAt: toIso(row.created_at),
+    };
+    if (row.entity_type === "patient") {
+      patients.push(base);
+    } else {
+      events.push({ ...base, patientSourceId: row.patient_source_id || null });
+    }
+  }
+
+  return { patients, events };
+}
+
+async function pgImportStagingClear(jobId) {
+  await pool.query("DELETE FROM app_import_staging WHERE job_id = $1", [jobId]);
+}
+
+async function pgImportRawSave(jobId, rawHash, receivedAt) {
+  await pool.query(
+    `INSERT INTO app_import_raw (job_id, raw_hash, received_at)
+     VALUES ($1,$2,$3)
+     ON CONFLICT (job_id) DO UPDATE SET raw_hash = $2, received_at = $3`,
+    [jobId, rawHash, receivedAt]
+  );
 }
 
 function buildPermissionMap() {
@@ -1500,5 +1757,14 @@ export {
   listRolePermissionsSnapshot,
   checkDbHealth,
   closeDbPool,
+  // M-01: Import Job Postgres persistence
+  pgImportJobCreate,
+  pgImportJobGet,
+  pgImportJobList,
+  pgImportJobUpdate,
+  pgImportStagingSave,
+  pgImportStagingGet,
+  pgImportStagingClear,
+  pgImportRawSave,
   _testExports
 };

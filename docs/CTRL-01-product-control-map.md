@@ -172,8 +172,8 @@
 | UI-HOMO-01 | Import Homologation Center | **PASS** | GO/NO GO, four-eyes, Commit Gate, Risk Assessment; MIG-01 preparado conceitualmente |
 | MIG-GATE-01 | First Migration Readiness Gate | **PASS** | Roadmap definitivo: TECH-SCALE-01A → TECH-SCALE-01B → MIG-01; sem outros bloqueadores. REM-01 e REM-02 agora PASS — MIG-01 é próxima iniciativa autorizada |
 | PILOT-REAL-01 | First Real UBS Migration Readiness Gate | **FAIL** | 6/7 NÃO; rollback definido (único SIM); UBS piloto, LGPD, tabelas referência, treinamento — todos pendentes; MIG-02 bloqueado |
-| AUDIT-01 | Full Product Readiness Audit | **PASS — CONDITIONAL READY** | 0 críticos; 1 HIGH (M-01: import sem Postgres); 4 MEDIUM; 10 LOW; 3 condições antes de GA |
-| M-01 | Import Pipeline Persistence (Audit Remediation) | **OPEN** | 2 sub-itens HIGH (tabelas ausentes); design completo em M-01-audit-remediation.md; 18 critérios de aceite; fix ~210 linhas |
+| AUDIT-01 | Full Product Readiness Audit | **PASS — CONDITIONAL READY** | 0 críticos; HIGH M-01 → RESOLVED; 4 MEDIUM (B-01 CSRF e P-01 load-more pendentes); 10 LOW |
+| M-01-IMPL-01 | Import Pipeline Persistence — Implementação | **PASS** | 34/34 MIG-01 PASS; 3 tabelas SQL + 8 funções pg; recovery protocol; GOV-03 10/10 SIM; doc: `backend/docs/M-01-IMPLEMENTATION-01.md` |
 | MIG-02 | Source Profile Registry | **BLOQUEADO** | Bloqueado até PILOT-REAL-01 PASS |
 | ARCH-STORAGE-01 | Partição app_state por unitId + read replica | **PLANNED** | Após > 3 UBS em operação |
 | ARCH-STORAGE-02 | Shadow tables como fonte autoritativa | **PLANNED** | Após ARCH-STORAGE-01 |
