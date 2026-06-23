@@ -167,7 +167,7 @@
 | STG-01 | Import Staging | **PLANNED** | Após VAL-01 |
 | MIG-01 | Bulk Import API | **PLANNED** | Após STG-01 |
 | MAP-01 | Mapping Engine | **PLANNED** | Após ARCH-INT-01 |
-| MAP-PEC-01 | PEC APS Mapping Engine | **PLANNED** | Modelo: imediato (SP-PEC-01 PASS); commit: após TECH-SCALE-01A |
+| MAP-PEC-01 | PEC APS Mapping Engine | **PASS** | 13 fases; UI-STG-01 e UI-HOMO-01 autorizados; commit bloqueado até TECH-SCALE-01A |
 | MIG-02 | Source Profile Registry | **PLANNED** | Após MIG-01 |
 | ARCH-STORAGE-01 | Partição app_state por unitId + read replica | **PLANNED** | Após > 3 UBS em operação |
 | ARCH-STORAGE-02 | Shadow tables como fonte autoritativa | **PLANNED** | Após ARCH-STORAGE-01 |
