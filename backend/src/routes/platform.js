@@ -9,8 +9,11 @@ import { addAuditLog } from "../services/audit.js";
 
 const router = express.Router();
 
-// All /platform routes require support_admin
-router.use(requireAuth, requireSupportAdmin);
+// All /platform routes require support_admin.
+// The path prefix "/platform" is mandatory: without it, router.use() would intercept
+// every request (including /bootstrap, /patients, etc.) because this router is mounted
+// at "/" in app.js BEFORE the global requireAuth middleware.
+router.use("/platform", requireAuth, requireSupportAdmin);
 
 // ── Unit lifecycle ─────────────────────────────────────────────────────────
 const VALID_STATUSES = ["draft", "onboarding", "homologation", "active", "suspended"];

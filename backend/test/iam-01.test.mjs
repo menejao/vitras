@@ -219,7 +219,7 @@ describe("IAM-01: RBAC isolation, provisioning, password lifecycle, audit safety
     it("GET /platform/units with support_admin token returns 200", async () => {
       const { status, json } = await get("/platform/units", saToken);
       assert.equal(status, 200, `Expected 200, got ${status}: ${JSON.stringify(json)}`);
-      assert.ok(Array.isArray(json), "Expected array response");
+      assert.ok(Array.isArray(json.units), "Expected paginated { units: [] } response");
     });
 
     it("GET /platform/units with gestor token returns 403", async () => {
