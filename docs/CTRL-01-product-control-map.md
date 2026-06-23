@@ -165,7 +165,7 @@
 | TECH-SCALE-01C | getAllowedPatients via shadow table SQL (REM-03) | **PLANNED** | Após piloto real |
 | VAL-01 | Validation Engine | **PLANNED** | Após ARCH-INT-01 |
 | STG-01 | Import Staging | **PLANNED** | Após VAL-01 |
-| MIG-01 | Bulk Import API | **PLANNED** | Após STG-01 |
+| MIG-01 | First End-to-End Simulated Migration | **PASS** | 34/34 testes PASS; 50K pacientes em 852ms; sp-pec-aps-v01; 12 SIM/NÃO todos SIM; commit atômico com auditHash; O(N²) eliminado; deploy pendente |
 | MAP-01 | Mapping Engine | **PLANNED** | Após ARCH-INT-01 |
 | MAP-PEC-01 | PEC APS Mapping Engine | **PASS** | 13 fases; UI-STG-01 e UI-HOMO-01 autorizados; commit bloqueado até TECH-SCALE-01A |
 | UI-STG-01 | Import Staging Workbench | **PASS** | 9 fases; RBAC definido; UI-HOMO-01 autorizado; implementação bloqueada até TECH-SCALE-01A |

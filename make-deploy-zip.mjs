@@ -9,7 +9,7 @@ const { ZipArchive } = require("./backend/node_modules/archiver/index.js");
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const backendDir = join(__dirname, "backend");
-const output = createWriteStream(join(__dirname, "deploy-tech-scale-01b.zip"));
+const output = createWriteStream(join(__dirname, "deploy-mig-01.zip"));
 const archive = new ZipArchive({ zlib: { level: 9 } });
 
 const SKIP_DIRS = new Set(["node_modules", ".git", "test", ".nyc_output"]);

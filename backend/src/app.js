@@ -36,6 +36,7 @@ import activeSearchRouter from "./routes/active-search.js";
 import productionRouter from "./routes/production.js";
 import swaggerRouter from "./routes/swagger.js";
 import platformRouter from "./routes/platform.js";
+import importRouter from "./routes/import.js";
 
 const app = express();
 
@@ -64,6 +65,7 @@ app.use(usersRouter);
 // defense-in-depth.
 app.use(platformRouter);
 app.use(requireAuth);
+app.use(importRouter);  // MIG-01: before blockSupportAdminFromClinical — import is support_admin territory
 app.use(blockSupportAdminFromClinical);  // IAM-01
 app.use(requireCsrfForCookieAuth);
 app.use((req, res, next) => {
