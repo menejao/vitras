@@ -159,7 +159,7 @@
 | ID | Título | Status | Prerequisito |
 |---|---|---|---|
 | TECH-SCALE-01A | Shadow sync incremental (REM-01) | **PASS** | snapshotStateIndex+computeIncrementalDiff+syncShadowTablesIncremental; 66 testes PASS; deploy vitras-drill-sa-3 OK |
-| TECH-SCALE-01B | Bootstrap paginado + startup + pool + monitoring (REM-02–06) | **PLANNED** | Após TECH-SCALE-01A |
+| TECH-SCALE-01B | Bootstrap paginado server-side (REM-02) | **PASS** | GET /bootstrap max 500 pacientes; paginationMeta; tasks por escopo completo; 10/10 testes PASS; deploy vitras-drill-sa-3 OK; MIG-01 autorizado |
 | ARCH-INT-01 | National Import and Interoperability Architecture | **PASS** | Modelo: PASS; API de ingestão: bloqueada até TECH-SCALE-01A |
 | SP-PEC-01 | PEC APS Certified Source Profile | **PASS** | — |
 | TECH-SCALE-01C | getAllowedPatients via shadow table SQL (REM-03) | **PLANNED** | Após piloto real |
@@ -170,7 +170,7 @@
 | MAP-PEC-01 | PEC APS Mapping Engine | **PASS** | 13 fases; UI-STG-01 e UI-HOMO-01 autorizados; commit bloqueado até TECH-SCALE-01A |
 | UI-STG-01 | Import Staging Workbench | **PASS** | 9 fases; RBAC definido; UI-HOMO-01 autorizado; implementação bloqueada até TECH-SCALE-01A |
 | UI-HOMO-01 | Import Homologation Center | **PASS** | GO/NO GO, four-eyes, Commit Gate, Risk Assessment; MIG-01 preparado conceitualmente |
-| MIG-GATE-01 | First Migration Readiness Gate | **PASS** | Roadmap definitivo: TECH-SCALE-01A → TECH-SCALE-01B → MIG-01; sem outros bloqueadores |
+| MIG-GATE-01 | First Migration Readiness Gate | **PASS** | Roadmap definitivo: TECH-SCALE-01A → TECH-SCALE-01B → MIG-01; sem outros bloqueadores. REM-01 e REM-02 agora PASS — MIG-01 é próxima iniciativa autorizada |
 | MIG-02 | Source Profile Registry | **PLANNED** | Após MIG-01 |
 | ARCH-STORAGE-01 | Partição app_state por unitId + read replica | **PLANNED** | Após > 3 UBS em operação |
 | ARCH-STORAGE-02 | Shadow tables como fonte autoritativa | **PLANNED** | Após ARCH-STORAGE-01 |
