@@ -171,7 +171,8 @@
 | UI-STG-01 | Import Staging Workbench | **PASS** | 9 fases; RBAC definido; UI-HOMO-01 autorizado; implementação bloqueada até TECH-SCALE-01A |
 | UI-HOMO-01 | Import Homologation Center | **PASS** | GO/NO GO, four-eyes, Commit Gate, Risk Assessment; MIG-01 preparado conceitualmente |
 | MIG-GATE-01 | First Migration Readiness Gate | **PASS** | Roadmap definitivo: TECH-SCALE-01A → TECH-SCALE-01B → MIG-01; sem outros bloqueadores. REM-01 e REM-02 agora PASS — MIG-01 é próxima iniciativa autorizada |
-| MIG-02 | Source Profile Registry | **PLANNED** | Após MIG-01 |
+| PILOT-REAL-01 | First Real UBS Migration Readiness Gate | **FAIL** | 6/7 NÃO; rollback definido (único SIM); UBS piloto, LGPD, tabelas referência, treinamento — todos pendentes; MIG-02 bloqueado |
+| MIG-02 | Source Profile Registry | **BLOQUEADO** | Bloqueado até PILOT-REAL-01 PASS |
 | ARCH-STORAGE-01 | Partição app_state por unitId + read replica | **PLANNED** | Após > 3 UBS em operação |
 | ARCH-STORAGE-02 | Shadow tables como fonte autoritativa | **PLANNED** | Após ARCH-STORAGE-01 |
 
