@@ -139,6 +139,7 @@
 | DOC-GOV-01 | Baseline Institucional v1.0 | **PASS** |
 | CTRL-01 | Product Control Map | **ATIVO** |
 | MR-01 | Migration Readiness Assessment | **PASS** |
+| SCALE-01 | National Scale and Capacity Readiness Assessment | **PASS** |
 
 ### Incidentes e Bugs
 
@@ -156,8 +157,7 @@
 
 | ID | Título | Status | Prerequisito |
 |---|---|---|---|
-| SCALE-01 | Storage Scalability Assessment | **PLANNED** | Antes de UBS com > 5K pacientes |
-| ARCH-INT-01 | Canonical Import Model | **PLANNED** | Após SCALE-01 |
+| ARCH-INT-01 | Canonical Import Model | **PLANNED** | Após SCALE-01 (PASS) |
 | VAL-01 | Validation Engine | **PLANNED** | Após ARCH-INT-01 |
 | STG-01 | Import Staging | **PLANNED** | Após VAL-01 |
 | MIG-01 | Bulk Import API | **PLANNED** | Após STG-01 |
