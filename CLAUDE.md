@@ -78,11 +78,25 @@ Regressão APS-01C a APS-01F deve passar antes de qualquer commit.
 Sprints entregues:
 
 - APS-01A a APS-01F: PASS
+- PRR-01A (CDS Export): PASS
+- SEC-01, AUD-01, SEC-API-01A–D: PASS
+- ARCH-01, TECH-DEBT-01: PASS
+- IAM-01 (A–E): PASS
+- CONSOLE-01: PASS
+- IMPLANT-01/01A: PASS
+- HOMOLOG-01: PASS
+- INTEGRATION-GOV-01A: PASS
+- ARCH-DOC-03: PASS
+- DOC-GOV-01 (Baseline v1.0): PASS
+- BUG-CLINIC-01: DONE
 - GOV-01: ATIVO
+- CTRL-01: ATIVO
 
-Próximo candidato: APS-02A — aguardando GOV-01.
+Próxima frente: Piloto Real UBS #1 — pré-requisitos pendentes (PEC real, treinamento, LGPD, smoke dados reais).
 
-Ver: `docs/roadmap/README.md`
+APS-02A: NO GO — aguarda piloto real + GOV-01 completo.
+
+Ver: `docs/CTRL-01-product-control-map.md` (ponto único de verdade)
 
 ---
 
