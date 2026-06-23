@@ -4,6 +4,7 @@ import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
 import Alert from "../components/ui/Alert";
 import { BrandLockup } from "../components/brand/BrandLockup";
+import ImportConsole from "../components/import/ImportConsole";
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
@@ -775,9 +776,10 @@ function UnitDetail({ token, unitId, onBack }) {
 // ── Main Console ───────────────────────────────────────────────────────────
 
 export default function PlatformConsolePage({ token, user, onLogout }) {
+  const [tab, setTab]                 = useState("units");
   const [view, setView]               = useState("list");
   const [selectedUnitId, setSelectedUnitId] = useState(null);
-  const [listKey, setListKey]         = useState(0); // bump to force table reload after new unit
+  const [listKey, setListKey]         = useState(0);
 
   function goToDetail(unit) {
     setSelectedUnitId(unit.id);
@@ -793,6 +795,14 @@ export default function PlatformConsolePage({ token, user, onLogout }) {
     setListKey((k) => k + 1);
     setView("list");
   }
+
+  const navTabStyle = (active) => ({
+    padding: "0.5rem 1rem", background: "none", border: "none", cursor: "pointer",
+    fontSize: "0.875rem", fontWeight: active ? 700 : 400,
+    color: active ? "var(--color-primary,#2563eb)" : "var(--color-text-secondary,#6b7280)",
+    borderBottom: active ? "2px solid var(--color-primary,#2563eb)" : "2px solid transparent",
+    marginBottom: "-1px", whiteSpace: "nowrap",
+  });
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "var(--color-bg,#f9fafb)" }}>
@@ -818,24 +828,54 @@ export default function PlatformConsolePage({ token, user, onLogout }) {
         </div>
       </header>
 
+      {/* Tab navigation */}
+      <div style={{
+        borderBottom: "1px solid var(--color-border,#e5e7eb)",
+        background: "var(--color-surface,#fff)",
+        padding: "0 1.25rem",
+        display: "flex", gap: "0.1rem",
+      }}>
+        <button
+          type="button"
+          onClick={() => { setTab("units"); setView("list"); setSelectedUnitId(null); }}
+          style={navTabStyle(tab === "units")}
+        >
+          Unidades de Saúde
+        </button>
+        <button
+          type="button"
+          onClick={() => setTab("migrations")}
+          style={navTabStyle(tab === "migrations")}
+        >
+          Migrações
+        </button>
+      </div>
+
       {/* Main */}
       <main style={{ flex: 1, padding: "1.5rem 1.25rem", maxWidth: 1100, margin: "0 auto", width: "100%", boxSizing: "border-box" }}>
-        {view === "list" && (
+        {tab === "units" && (
           <>
-            <NationalSummary token={token} key={listKey} />
-            <UnitTable
-              key={listKey}
-              token={token}
-              onSelect={goToDetail}
-              onNew={() => setView("new-unit")}
-            />
+            {view === "list" && (
+              <>
+                <NationalSummary token={token} key={listKey} />
+                <UnitTable
+                  key={listKey}
+                  token={token}
+                  onSelect={goToDetail}
+                  onNew={() => setView("new-unit")}
+                />
+              </>
+            )}
+            {view === "new-unit" && (
+              <UnitForm token={token} onDone={afterNewUnit} onBack={goToList} />
+            )}
+            {view === "unit-detail" && selectedUnitId && (
+              <UnitDetail token={token} unitId={selectedUnitId} onBack={goToList} />
+            )}
           </>
         )}
-        {view === "new-unit" && (
-          <UnitForm token={token} onDone={afterNewUnit} onBack={goToList} />
-        )}
-        {view === "unit-detail" && selectedUnitId && (
-          <UnitDetail token={token} unitId={selectedUnitId} onBack={goToList} />
+        {tab === "migrations" && (
+          <ImportConsole token={token} />
         )}
       </main>
     </div>
