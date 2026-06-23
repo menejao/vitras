@@ -160,7 +160,7 @@
 |---|---|---|---|
 | TECH-SCALE-01A | Shadow sync incremental (REM-01) | **PLANNED** | Imediata — pré ARCH-INT-01 |
 | TECH-SCALE-01B | Bootstrap paginado + startup + pool + monitoring (REM-02–06) | **PLANNED** | Após TECH-SCALE-01A |
-| ARCH-INT-01 | Canonical Import Model | **PLANNED** | Modelo: imediato; API de ingestão: após TECH-SCALE-01A |
+| ARCH-INT-01 | National Import and Interoperability Architecture | **PASS** | Modelo: PASS; API de ingestão: bloqueada até TECH-SCALE-01A |
 | TECH-SCALE-01C | getAllowedPatients via shadow table SQL (REM-03) | **PLANNED** | Após piloto real |
 | VAL-01 | Validation Engine | **PLANNED** | Após ARCH-INT-01 |
 | STG-01 | Import Staging | **PLANNED** | Após VAL-01 |
