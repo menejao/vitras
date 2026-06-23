@@ -762,6 +762,307 @@ async function syncShadowTables(client, state) {
   }
 }
 
+// REM-01: Lightweight snapshot of entity index (id → timestamp) taken BEFORE the mutator runs.
+// Used by computeIncrementalDiff to determine which entities changed without a deep clone.
+function snapshotStateIndex(db) {
+  const COLLECTIONS = ["patients", "users", "units", "households", "appointments", "refreshTokens", "auditLogs"];
+  const idx = {};
+  for (const col of COLLECTIONS) {
+    const map = new Map();
+    for (const entity of (db[col] || [])) {
+      if (entity?.id) map.set(entity.id, entity.updatedAt || entity.createdAt || "");
+    }
+    idx[col] = map;
+  }
+  return idx;
+}
+
+// REM-01: Computes which entities were added, changed, or deleted between snapshot and post-mutator state.
+// Returns diff: { [col]: { upsert: Entity[], del: string[] } }
+// auditLogs are append-only: only new log entries appear in upsert, del is always empty.
+function computeIncrementalDiff(snapshot, db) {
+  const diff = {};
+  const MUTABLE_COLLECTIONS = ["patients", "users", "units", "households", "appointments", "refreshTokens"];
+
+  for (const col of MUTABLE_COLLECTIONS) {
+    const prevMap = snapshot[col] || new Map();
+    const nextArr = db[col] || [];
+    const upsert = [];
+    const del = [];
+
+    const nextIds = new Set();
+    for (const entity of nextArr) {
+      if (!entity?.id) continue;
+      nextIds.add(entity.id);
+      const prevTs = prevMap.get(entity.id);
+      const nextTs = entity.updatedAt || entity.createdAt || "";
+      // Always upsert if: new entity, timestamp changed, or entity has no timestamp (legacy data)
+      if (prevTs === undefined || prevTs !== nextTs || !nextTs) {
+        upsert.push(entity);
+      }
+    }
+
+    for (const [id] of prevMap) {
+      if (!nextIds.has(id)) del.push(id);
+    }
+
+    diff[col] = { upsert, del };
+  }
+
+  // auditLogs: append-only — only insert entries that didn't exist before
+  const prevAuditIds = snapshot.auditLogs || new Map();
+  diff.auditLogs = {
+    upsert: (db.auditLogs || []).filter(l => l?.id && !prevAuditIds.has(l.id)),
+    del: []
+  };
+
+  return diff;
+}
+
+// REM-01: Incremental shadow sync — only touches entities that changed.
+// Used by _withDbPostgresAttempt (ongoing writes). Full rebuild syncShadowTables used only by initialize().
+// Pattern per mutable table: DELETE WHERE id = ANY(touched_ids) then INSERT touched entities.
+// app_role_permissions is always rebuilt (static ~20 rows). app_audit_logs is append-only.
+async function syncShadowTablesIncremental(client, db, diff) {
+  let savepointActive = false;
+  try {
+    await client.query("SAVEPOINT sync_shadow_inc");
+    savepointActive = true;
+  } catch { /* not in transaction — proceed without savepoint */ }
+
+  try {
+    // ── users ────────────────────────────────────────────────────────────────
+    const { upsert: upsertUsers, del: delUsers } = diff.users || { upsert: [], del: [] };
+    const touchedUserIds = [...upsertUsers.map(u => u.id), ...delUsers];
+    if (touchedUserIds.length) {
+      await client.query("DELETE FROM app_users WHERE id = ANY($1::text[])", [touchedUserIds]);
+      if (upsertUsers.length) {
+        const userRows = upsertUsers.map((user) => [
+          String(user?.id || ""), String(user?.teamId || ""), String(user?.unitId || ""),
+          String(user?.role || ""), String(user?.email || ""), String(user?.name || ""),
+          Boolean(user?.inactive), Boolean(user?.twoFactorEnabled),
+          user?.createdAt || null, user?.updatedAt || user?.createdAt || null,
+          JSON.stringify(user || {}), String(user?.municipalityId || "")
+        ]);
+        const colsFull = ["id","team_id","unit_id","role","email","name","inactive","two_factor_enabled","created_at","updated_at","payload","municipality_id"];
+        const colsBase = ["id","team_id","unit_id","role","email","name","inactive","two_factor_enabled","created_at","updated_at","payload"];
+        try {
+          const b = batchInsert(colsFull, userRows);
+          if (b) await client.query(`INSERT INTO app_users (${colsFull.join(",")}) VALUES ${b.text}`, b.values);
+        } catch {
+          const rows = userRows.map(r => r.slice(0, colsBase.length));
+          const b = batchInsert(colsBase, rows);
+          if (b) await client.query(`INSERT INTO app_users (${colsBase.join(",")}) VALUES ${b.text}`, b.values);
+        }
+      }
+    }
+
+    // ── units ────────────────────────────────────────────────────────────────
+    try {
+      const { upsert: upsertUnits, del: delUnits } = diff.units || { upsert: [], del: [] };
+      const touchedUnitIds = [...upsertUnits.map(u => u.id), ...delUnits];
+      if (touchedUnitIds.length) {
+        await client.query("DELETE FROM app_units WHERE id = ANY($1::text[])", [touchedUnitIds]);
+        if (upsertUnits.length) {
+          const unitRows = upsertUnits.map((unit) => [
+            String(unit?.id || ""), String(unit?.name || ""), Boolean(unit?.inactive || false),
+            unit?.createdAt || null, unit?.updatedAt || unit?.createdAt || null,
+            JSON.stringify(unit || {}), String(unit?.municipalityId || CONFIG_MUNICIPALITY_ID || ""),
+            normalizeUnitCnes(unit?.cnes) ?? ""
+          ]);
+          const colsFull = ["id","name","inactive","created_at","updated_at","payload","municipality_id","cnes"];
+          const colsNoCnes = ["id","name","inactive","created_at","updated_at","payload","municipality_id"];
+          const colsBase = ["id","name","inactive","created_at","updated_at","payload"];
+          try {
+            const b = batchInsert(colsFull, unitRows);
+            if (b) await client.query(`INSERT INTO app_units (${colsFull.join(",")}) VALUES ${b.text}`, b.values);
+          } catch {
+            try {
+              const rows = unitRows.map(r => r.slice(0, colsNoCnes.length));
+              const b = batchInsert(colsNoCnes, rows);
+              if (b) await client.query(`INSERT INTO app_units (${colsNoCnes.join(",")}) VALUES ${b.text}`, b.values);
+            } catch {
+              const rows = unitRows.map(r => r.slice(0, colsBase.length));
+              const b = batchInsert(colsBase, rows);
+              if (b) await client.query(`INSERT INTO app_units (${colsBase.join(",")}) VALUES ${b.text}`, b.values);
+            }
+          }
+        }
+      }
+    } catch { /* table may not exist — safe to skip */ }
+
+    // ── households ───────────────────────────────────────────────────────────
+    try {
+      const { upsert: upsertHH, del: delHH } = diff.households || { upsert: [], del: [] };
+      const touchedHHIds = [...upsertHH.map(h => h.id), ...delHH];
+      if (touchedHHIds.length) {
+        await client.query("DELETE FROM app_households WHERE id = ANY($1::text[])", [touchedHHIds]);
+        if (upsertHH.length) {
+          const hhRows = upsertHH.map((h) => [
+            String(h?.id || ""), String(h?.patientId || ""), String(h?.teamId || ""),
+            String(h?.familyCode || ""), String(h?.housingType || ""), String(h?.waterSupply || ""),
+            String(h?.sewage || ""), String(h?.garbage || ""), String(h?.electricity || ""),
+            String(h?.homeVisitFreq || ""), JSON.stringify(h || {}),
+            h?.createdAt || null, h?.updatedAt || null
+          ]);
+          const cols = ["id","patient_id","team_id","family_code","housing_type","water_supply","sewage","garbage","electricity","home_visit_freq","payload","created_at","updated_at"];
+          const b = batchInsert(cols, hhRows);
+          if (b) await client.query(`INSERT INTO app_households (${cols.join(",")}) VALUES ${b.text}`, b.values);
+        }
+      }
+    } catch { /* table may not exist — safe to skip */ }
+
+    // ── refreshTokens ────────────────────────────────────────────────────────
+    const { upsert: upsertTokens, del: delTokens } = diff.refreshTokens || { upsert: [], del: [] };
+    const touchedTokenIds = [...upsertTokens.map(t => t.id), ...delTokens];
+    if (touchedTokenIds.length) {
+      await client.query("DELETE FROM app_refresh_tokens WHERE id = ANY($1::text[])", [touchedTokenIds]);
+      if (upsertTokens.length) {
+        const tokenRows = upsertTokens.map((token) => [
+          String(token?.id || ""), String(token?.userId || ""), String(token?.tokenHash || ""),
+          String(token?.sessionContext?.scopeTeamId || ""), token?.revokedAt || null,
+          token?.expiresAt || null, token?.createdAt || null, JSON.stringify(token || {})
+        ]);
+        const cols = ["id","user_id","token_hash","scope_team_id","revoked_at","expires_at","created_at","payload"];
+        const b = batchInsert(cols, tokenRows);
+        if (b) await client.query(`INSERT INTO app_refresh_tokens (${cols.join(",")}) VALUES ${b.text}`, b.values);
+      }
+    }
+
+    // ── patients ─────────────────────────────────────────────────────────────
+    const { upsert: upsertPatients, del: delPatients } = diff.patients || { upsert: [], del: [] };
+    const touchedPatientIds = [...upsertPatients.map(p => p.id), ...delPatients];
+    if (touchedPatientIds.length) {
+      await client.query("DELETE FROM app_patients WHERE id = ANY($1::text[])", [touchedPatientIds]);
+      if (upsertPatients.length) {
+        const patientRows = upsertPatients.map((patient) => {
+          const cpfHash = computeLookupHash(patient?.cpf, PATIENT_LOOKUP_HASH_KEY);
+          const cnsHash = computeLookupHash(patient?.cns, PATIENT_LOOKUP_HASH_KEY);
+          return [
+            String(patient?.id || ""), String(patient?.teamId || ""), String(patient?.assignedAcsId || ""),
+            String(patient?.careCategory || ""), Boolean(patient?.inactive), Boolean(patient?.incompleteProfile),
+            String(patient?.name || ""), String(patient?.microArea || ""),
+            patient?.createdAt || null, patient?.updatedAt || patient?.createdAt || null,
+            JSON.stringify(patient || {}), cpfHash || null, cnsHash || null,
+            String(patient?.unitId || ""), String(patient?.municipalityId || ""),
+            patient?.situacaoRua === true ? true : patient?.situacaoRua === false ? false : null,
+            patient?.nis ? String(patient.nis) : null
+          ];
+        });
+        const colsFull          = ["id","team_id","assigned_acs_id","care_category","inactive","incomplete_profile","name","micro_area","created_at","updated_at","payload","cpf_hash","cns_hash","unit_id","municipality_id","situacao_rua","nis"];
+        const colsNoNis         = ["id","team_id","assigned_acs_id","care_category","inactive","incomplete_profile","name","micro_area","created_at","updated_at","payload","cpf_hash","cns_hash","unit_id","municipality_id","situacao_rua"];
+        const colsNoSituacaoRua = ["id","team_id","assigned_acs_id","care_category","inactive","incomplete_profile","name","micro_area","created_at","updated_at","payload","cpf_hash","cns_hash","unit_id","municipality_id"];
+        const colsNoMunicipality= ["id","team_id","assigned_acs_id","care_category","inactive","incomplete_profile","name","micro_area","created_at","updated_at","payload","cpf_hash","cns_hash","unit_id"];
+        const colsNoUnitId      = ["id","team_id","assigned_acs_id","care_category","inactive","incomplete_profile","name","micro_area","created_at","updated_at","payload","cpf_hash","cns_hash"];
+        const colsBase          = ["id","team_id","assigned_acs_id","care_category","inactive","incomplete_profile","name","micro_area","created_at","updated_at","payload"];
+        try {
+          const b = batchInsert(colsFull, patientRows);
+          if (b) await client.query(`INSERT INTO app_patients (${colsFull.join(",")}) VALUES ${b.text}`, b.values);
+        } catch {
+          try {
+            const rows = patientRows.map(r => r.slice(0, colsNoNis.length));
+            const b = batchInsert(colsNoNis, rows);
+            if (b) await client.query(`INSERT INTO app_patients (${colsNoNis.join(",")}) VALUES ${b.text}`, b.values);
+          } catch {
+            try {
+              const rows = patientRows.map(r => r.slice(0, colsNoSituacaoRua.length));
+              const b = batchInsert(colsNoSituacaoRua, rows);
+              if (b) await client.query(`INSERT INTO app_patients (${colsNoSituacaoRua.join(",")}) VALUES ${b.text}`, b.values);
+            } catch {
+              try {
+                const rows = patientRows.map(r => r.slice(0, colsNoMunicipality.length));
+                const b = batchInsert(colsNoMunicipality, rows);
+                if (b) await client.query(`INSERT INTO app_patients (${colsNoMunicipality.join(",")}) VALUES ${b.text}`, b.values);
+              } catch {
+                try {
+                  const rows = patientRows.map(r => r.slice(0, colsNoUnitId.length));
+                  const b = batchInsert(colsNoUnitId, rows);
+                  if (b) await client.query(`INSERT INTO app_patients (${colsNoUnitId.join(",")}) VALUES ${b.text}`, b.values);
+                } catch {
+                  const rows = patientRows.map(r => r.slice(0, colsBase.length));
+                  const b = batchInsert(colsBase, rows);
+                  if (b) await client.query(`INSERT INTO app_patients (${colsBase.join(",")}) VALUES ${b.text}`, b.values);
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // ── appointments ─────────────────────────────────────────────────────────
+    const { upsert: upsertAppts, del: delAppts } = diff.appointments || { upsert: [], del: [] };
+    const touchedApptIds = [...upsertAppts.map(a => a.id), ...delAppts];
+    if (touchedApptIds.length) {
+      await client.query("DELETE FROM app_appointments WHERE id = ANY($1::text[])", [touchedApptIds]);
+      if (upsertAppts.length) {
+        const apptRows = upsertAppts.map((appt) => [
+          String(appt?.id || ""), String(appt?.patientId || ""), String(appt?.createdBy || ""),
+          String(appt?.demandType || ""), String(appt?.title || appt?.summary || ""),
+          String(appt?.date || ""), appt?.createdAt || null, JSON.stringify(appt || {}),
+          String(appt?.executingTeamId || ""), String(appt?.executingUnitId || "")
+        ]);
+        const colsFull = ["id","patient_id","created_by","demand_type","title","date","created_at","payload","executing_team_id","executing_unit_id"];
+        const colsBase = ["id","patient_id","created_by","demand_type","title","date","created_at","payload"];
+        try {
+          const b = batchInsert(colsFull, apptRows);
+          if (b) await client.query(`INSERT INTO app_appointments (${colsFull.join(",")}) VALUES ${b.text}`, b.values);
+        } catch {
+          const rows = apptRows.map(r => r.slice(0, colsBase.length));
+          const b = batchInsert(colsBase, rows);
+          if (b) await client.query(`INSERT INTO app_appointments (${colsBase.join(",")}) VALUES ${b.text}`, b.values);
+        }
+      }
+    }
+
+    // ── auditLogs (append-only) ───────────────────────────────────────────────
+    const { upsert: newAuditLogs } = diff.auditLogs || { upsert: [] };
+    if (newAuditLogs.length) {
+      const auditRows = newAuditLogs.map((log) => [
+        String(log?.id || ""), String(log?.action || ""), String(log?.category || ""),
+        String(log?.severity || ""), String(log?.entity || ""), String(log?.entityId || ""),
+        String(log?.teamId || ""), String(log?.userId || ""), String(log?.outcome || ""),
+        log?.createdAt || null, JSON.stringify(log || {}), String(log?.municipalityId || "")
+      ]);
+      const colsFull = ["id","action","category","severity","entity","entity_id","team_id","user_id","outcome","created_at","payload","municipality_id"];
+      const colsBase = ["id","action","category","severity","entity","entity_id","team_id","user_id","outcome","created_at","payload"];
+      try {
+        const b = batchInsert(colsFull, auditRows);
+        if (b) await client.query(`INSERT INTO app_audit_logs (${colsFull.join(",")}) VALUES ${b.text}`, b.values);
+      } catch {
+        const rows = auditRows.map(r => r.slice(0, colsBase.length));
+        const b = batchInsert(colsBase, rows);
+        if (b) await client.query(`INSERT INTO app_audit_logs (${colsBase.join(",")}) VALUES ${b.text}`, b.values);
+      }
+    }
+
+    // ── role_permissions (always rebuild — static, ~20 rows) ─────────────────
+    await client.query("DELETE FROM app_role_permissions");
+    const roleCapabilities = buildPermissionMap();
+    const permRows = [];
+    for (const [role, capabilities] of Object.entries(roleCapabilities)) {
+      for (const capability of capabilities) permRows.push([role, capability]);
+    }
+    const permBatch = batchInsert(["role","capability"], permRows);
+    if (permBatch) await client.query(`INSERT INTO app_role_permissions (role,capability) VALUES ${permBatch.text}`, permBatch.values);
+
+    if (savepointActive) {
+      await client.query("RELEASE SAVEPOINT sync_shadow_inc");
+      savepointActive = false;
+    }
+  } catch (syncErr) {
+    logWarn("sync_shadow_inc_failed_non_fatal", {
+      event: "sync_shadow_inc_failed_non_fatal",
+      error: syncErr.message,
+      code: syncErr.code
+    });
+    if (savepointActive) {
+      try { await client.query("ROLLBACK TO SAVEPOINT sync_shadow_inc"); } catch {}
+      try { await client.query("RELEASE SAVEPOINT sync_shadow_inc"); } catch {}
+    }
+  }
+}
+
 function parseShadowPayload(row) {
   return row?.payload && typeof row.payload === "object" ? row.payload : null;
 }
@@ -884,13 +1185,18 @@ async function _withDbPostgresAttempt(mutator, attempt) {
     const result = await client.query("SELECT data FROM app_state WHERE id = 1 FOR UPDATE");
     const db = deserializeStateFromStorage(result.rows[0]?.data || {});
 
+    // REM-01: snapshot entity index BEFORE mutator so we can compute a diff after
+    const _shadowSnapshot = snapshotStateIndex(db);
+
     const mutatorResult = await mutator(db);
 
     await client.query(
       "UPDATE app_state SET data = $1::jsonb, updated_at = NOW() WHERE id = 1",
       [JSON.stringify(serializeStateForStorage(db))]
     );
-    await syncShadowTables(client, db);
+    // REM-01: incremental sync — only touch entities that changed
+    const _shadowDiff = computeIncrementalDiff(_shadowSnapshot, db);
+    await syncShadowTablesIncremental(client, db, _shadowDiff);
 
     await client.query("COMMIT");
     _dbCache = db;
