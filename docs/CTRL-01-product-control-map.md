@@ -158,7 +158,7 @@
 
 | ID | Título | Status | Prerequisito |
 |---|---|---|---|
-| TECH-SCALE-01A | Shadow sync incremental (REM-01) | **PLANNED** | Imediata — pré ARCH-INT-01 |
+| TECH-SCALE-01A | Shadow sync incremental (REM-01) | **PASS** | snapshotStateIndex+computeIncrementalDiff+syncShadowTablesIncremental; 66 testes PASS; deploy vitras-drill-sa-3 OK |
 | TECH-SCALE-01B | Bootstrap paginado + startup + pool + monitoring (REM-02–06) | **PLANNED** | Após TECH-SCALE-01A |
 | ARCH-INT-01 | National Import and Interoperability Architecture | **PASS** | Modelo: PASS; API de ingestão: bloqueada até TECH-SCALE-01A |
 | SP-PEC-01 | PEC APS Certified Source Profile | **PASS** | — |
