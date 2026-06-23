@@ -161,11 +161,13 @@
 | TECH-SCALE-01A | Shadow sync incremental (REM-01) | **PLANNED** | Imediata — pré ARCH-INT-01 |
 | TECH-SCALE-01B | Bootstrap paginado + startup + pool + monitoring (REM-02–06) | **PLANNED** | Após TECH-SCALE-01A |
 | ARCH-INT-01 | National Import and Interoperability Architecture | **PASS** | Modelo: PASS; API de ingestão: bloqueada até TECH-SCALE-01A |
+| SP-PEC-01 | PEC APS Certified Source Profile | **PASS** | — |
 | TECH-SCALE-01C | getAllowedPatients via shadow table SQL (REM-03) | **PLANNED** | Após piloto real |
 | VAL-01 | Validation Engine | **PLANNED** | Após ARCH-INT-01 |
 | STG-01 | Import Staging | **PLANNED** | Após VAL-01 |
 | MIG-01 | Bulk Import API | **PLANNED** | Após STG-01 |
 | MAP-01 | Mapping Engine | **PLANNED** | Após ARCH-INT-01 |
+| MAP-PEC-01 | PEC APS Mapping Engine | **PLANNED** | Modelo: imediato (SP-PEC-01 PASS); commit: após TECH-SCALE-01A |
 | MIG-02 | Source Profile Registry | **PLANNED** | Após MIG-01 |
 | ARCH-STORAGE-01 | Partição app_state por unitId + read replica | **PLANNED** | Após > 3 UBS em operação |
 | ARCH-STORAGE-02 | Shadow tables como fonte autoritativa | **PLANNED** | Após ARCH-STORAGE-01 |
