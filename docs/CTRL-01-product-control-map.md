@@ -140,6 +140,7 @@
 | CTRL-01 | Product Control Map | **ATIVO** |
 | MR-01 | Migration Readiness Assessment | **PASS** |
 | SCALE-01 | National Scale and Capacity Readiness Assessment | **PASS** |
+| TECH-SCALE-01 | Critical Scale Remediation Program | **PASS** |
 
 ### Incidentes e Bugs
 
@@ -157,12 +158,17 @@
 
 | ID | Título | Status | Prerequisito |
 |---|---|---|---|
-| ARCH-INT-01 | Canonical Import Model | **PLANNED** | Após SCALE-01 (PASS) |
+| TECH-SCALE-01A | Shadow sync incremental (REM-01) | **PLANNED** | Imediata — pré ARCH-INT-01 |
+| TECH-SCALE-01B | Bootstrap paginado + startup + pool + monitoring (REM-02–06) | **PLANNED** | Após TECH-SCALE-01A |
+| ARCH-INT-01 | Canonical Import Model | **PLANNED** | Modelo: imediato; API de ingestão: após TECH-SCALE-01A |
+| TECH-SCALE-01C | getAllowedPatients via shadow table SQL (REM-03) | **PLANNED** | Após piloto real |
 | VAL-01 | Validation Engine | **PLANNED** | Após ARCH-INT-01 |
 | STG-01 | Import Staging | **PLANNED** | Após VAL-01 |
 | MIG-01 | Bulk Import API | **PLANNED** | Após STG-01 |
 | MAP-01 | Mapping Engine | **PLANNED** | Após ARCH-INT-01 |
 | MIG-02 | Source Profile Registry | **PLANNED** | Após MIG-01 |
+| ARCH-STORAGE-01 | Partição app_state por unitId + read replica | **PLANNED** | Após > 3 UBS em operação |
+| ARCH-STORAGE-02 | Shadow tables como fonte autoritativa | **PLANNED** | Após ARCH-STORAGE-01 |
 
 > Todas as iniciativas acima estão BLOQUEADAS até conclusão do Piloto Real UBS #1 e GOV-01 aprovado.
 
