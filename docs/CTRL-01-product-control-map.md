@@ -138,12 +138,33 @@
 | GOV-01 | Product Scope Governance Gate | **ATIVO** |
 | DOC-GOV-01 | Baseline Institucional v1.0 | **PASS** |
 | CTRL-01 | Product Control Map | **ATIVO** |
+| MR-01 | Migration Readiness Assessment | **PASS** |
 
 ### Incidentes e Bugs
 
 | ID | Título | Status | Commit ref |
 |---|---|---|---|
 | BUG-CLINIC-01 | Platform access leak — dashboard zerado para usuários clínicos | **DONE** | `fa1606c` |
+
+### Avaliações e Arquitetura
+
+| ID | Título | Status | Commit ref |
+|---|---|---|---|
+| MR-01 | Migration Readiness Assessment | **PASS** | `docs/MR-01-migration-readiness-assessment.md` |
+
+### Iniciativas Futuras (PLANNED — bloqueadas até piloto real)
+
+| ID | Título | Status | Prerequisito |
+|---|---|---|---|
+| SCALE-01 | Storage Scalability Assessment | **PLANNED** | Antes de UBS com > 5K pacientes |
+| ARCH-INT-01 | Canonical Import Model | **PLANNED** | Após SCALE-01 |
+| VAL-01 | Validation Engine | **PLANNED** | Após ARCH-INT-01 |
+| STG-01 | Import Staging | **PLANNED** | Após VAL-01 |
+| MIG-01 | Bulk Import API | **PLANNED** | Após STG-01 |
+| MAP-01 | Mapping Engine | **PLANNED** | Após ARCH-INT-01 |
+| MIG-02 | Source Profile Registry | **PLANNED** | Após MIG-01 |
+
+> Todas as iniciativas acima estão BLOQUEADAS até conclusão do Piloto Real UBS #1 e GOV-01 aprovado.
 
 ### Roadmap (não autorizado)
 
