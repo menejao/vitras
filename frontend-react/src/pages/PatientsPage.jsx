@@ -21,7 +21,7 @@ function sortByName(list) {
 
 export default function PatientsPage(props) {
   const {
-    patients, users, templates, protocolByPatient,
+    patients, patientsPaginationMeta, users, templates, protocolByPatient,
     query, setQuery, categoryFilter, setCategoryFilter,
     acsFilter, setAcsFilter, conditionFilter, setConditionFilter,
     selectedPatientId, setSelectedPatientId,
@@ -214,6 +214,9 @@ export default function PatientsPage(props) {
 
             <span className="patients-toolbar__meta">
               {sorted.length} paciente{sorted.length !== 1 ? "s" : ""}
+              {patientsPaginationMeta && patientsPaginationMeta.hasNextPage && (
+                <span className="patients-toolbar__meta-total"> de {patientsPaginationMeta.total}</span>
+              )}
             </span>
           </div>
 

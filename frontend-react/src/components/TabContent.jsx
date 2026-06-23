@@ -27,7 +27,7 @@ const PatientsPage       = lazy(() => import("../pages/PatientsPage"));
 export function TabContent({
   tab, error, setError, busy,
   user, token,
-  patients, setPatients, users, allUsers, templates, protocolByPatient,
+  patients, setPatients, patientsPaginationMeta, users, allUsers, templates, protocolByPatient,
   publicTeams, demandMonthly, lastLoadAt, apiHealth,
   appointments, tasks, messages, history,
   patientDataLoading,
@@ -101,7 +101,7 @@ export function TabContent({
 
       {tab === "patients" && (
         <PatientsPage
-          patients={patients} users={usersResolved} templates={templates} protocolByPatient={protocolByPatient}
+          patients={patients} patientsPaginationMeta={patientsPaginationMeta} users={usersResolved} templates={templates} protocolByPatient={protocolByPatient}
           query={query} setQuery={setQuery} categoryFilter={categoryFilter} setCategoryFilter={setCategoryFilter}
           acsFilter={acsFilter} setAcsFilter={setAcsFilter} conditionFilter={conditionFilter} setConditionFilter={setConditionFilter}
           selectedPatientId={selectedPatientId} setSelectedPatientId={setSelectedPatientId}

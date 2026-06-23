@@ -67,6 +67,7 @@ function AppInner() {
   useEffect(() => { writeLS(UI_STATE_KEY, { tab, patientTab, sidebarCollapsed }); }, [tab, patientTab, sidebarCollapsed]);
   const {
     patients, setPatients,
+    patientsPaginationMeta,
     users, templates, protocolByPatient, allUsers, publicTeams,
     demandMonthly, setDemandMonthly,
     lastLoadAt,
@@ -283,7 +284,7 @@ function AppInner() {
         <TabContent
           tab={tab} error={error} setError={setError} busy={busy}
           user={user} token={token}
-          patients={patients} setPatients={setPatients} users={users} allUsers={allUsers} templates={templates} protocolByPatient={protocolByPatient}
+          patients={patients} setPatients={setPatients} patientsPaginationMeta={patientsPaginationMeta} users={users} allUsers={allUsers} templates={templates} protocolByPatient={protocolByPatient}
           publicTeams={publicTeams} demandMonthly={demandMonthly} lastLoadAt={lastLoadAt} apiHealth={apiHealth}
           appointments={appointments} tasks={tasks} messages={messages} history={history}
           patientDataLoading={patientDataLoading}

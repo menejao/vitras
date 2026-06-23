@@ -80,18 +80,32 @@ router.get("/admin/backup/export", requireAuth, requireSensitiveAdmin, async (re
   });
 });
 
+const BOOTSTRAP_PAGE_LIMIT = 500;
+
 router.get("/bootstrap", requireAuth, async (req, res) => {
   const db = await readDb();
   ensureDbShape(db);
 
+  const page = Math.max(1, parseInt(req.query.page) || 1);
+  const limit = Math.min(Math.max(1, parseInt(req.query.limit) || BOOTSTRAP_PAGE_LIMIT), BOOTSTRAP_PAGE_LIMIT);
+  const offset = (page - 1) * limit;
+
   const canReadAllUsers = hasCapability(req.user, "users.read.all");
-  const patients = getAllowedPatients(db, req.user, {});
+
+  // REM-02: load full allowed-patient list once for RBAC-correct task filtering, then paginate for response
+  const allAllowedPatients = getAllowedPatients(db, req.user, {});
+  const total = allAllowedPatients.length;
+  const paginatedPatients = allAllowedPatients.slice(offset, offset + limit);
+
   const users = db.users
     .filter((u) => canReadAllUsers || u.teamId === req.user.teamId)
     .map((u) => sanitizeUser(u, db));
   const protocolTemplates = Object.values(getProtocolTemplateMap(db, req.user.teamId));
-  const teamPatientIds = new Set(patients.map((p) => p.id));
-  const tasks = db.tasks.filter((t) => teamPatientIds.has(t.patientId));
+
+  // Tasks filtered by full allowed-patient scope (not just current page) for correctness
+  const allAllowedPatientIds = new Set(allAllowedPatients.map((p) => p.id));
+  const tasks = db.tasks.filter((t) => allAllowedPatientIds.has(t.patientId));
+
   const demandMonthly = (isManager(req.user) || isDoctor(req.user))
     ? buildMonthlyDemandMetric(db, req.user.teamId)
     : null;
@@ -103,9 +117,12 @@ router.get("/bootstrap", requireAuth, async (req, res) => {
     addAuditLog(auditDb, buildAdminAuditActor(req), "admin.bootstrap_read", "bootstrap", req.user.id, {
       outcome: "success",
       teamId: req.user.teamId || "",
-      patientCount: patients.length,
+      patientCount: total,
+      patientPageCount: paginatedPatients.length,
       userCount: users.length,
-      taskCount: tasks.length
+      taskCount: tasks.length,
+      page,
+      limit
     });
   });
 
@@ -120,7 +137,14 @@ router.get("/bootstrap", requireAuth, async (req, res) => {
         breakGlass: req.user.breakGlass?.active ? req.user.breakGlass : null
       }
     ),
-    patients: patients.map(maskSensitivePatientFields),
+    patients: paginatedPatients.map(maskSensitivePatientFields),
+    paginationMeta: {
+      total,
+      page,
+      limit,
+      hasNextPage: offset + limit < total,
+      totalPages: Math.ceil(total / limit) || 1
+    },
     users,
     tasks,
     protocolTemplates,

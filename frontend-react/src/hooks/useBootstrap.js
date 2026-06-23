@@ -24,6 +24,7 @@ export function useBootstrap(token, {
   const [publicTeams, setPublicTeams] = useState([]);
   const [demandMonthly, setDemandMonthly] = useState(null);
   const [lastLoadAt, setLastLoadAt] = useState(null);
+  const [patientsPaginationMeta, setPatientsPaginationMeta] = useState(null);
   const [appointments, setAppointments] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [messages, setMessages] = useState([]);
@@ -35,6 +36,7 @@ export function useBootstrap(token, {
     setPatients([]); setUsers([]); setTemplates([]);
     setProtocolByPatient({}); setAllUsers([]);
     setDemandMonthly(null); setLastLoadAt(null);
+    setPatientsPaginationMeta(null);
     setAppointments([]); setTasks([]); setMessages([]);
     setHistory([]); setPatientProtocolSummary(null);
   }
@@ -51,6 +53,7 @@ export function useBootstrap(token, {
       const us = Array.isArray(boot?.users) ? boot.users : await listUsers(token);
       const tpls = Array.isArray(boot?.protocolTemplates) ? boot.protocolTemplates : await listProtocolTemplates(token);
       setPatients(pts); setUsers(us); setTemplates(tpls);
+      if (boot?.paginationMeta) setPatientsPaginationMeta(boot.paginationMeta);
       if (boot?.demandMonthly) {
         setDemandMonthly(boot.demandMonthly);
       }
@@ -120,6 +123,7 @@ export function useBootstrap(token, {
 
   return {
     patients, setPatients,
+    patientsPaginationMeta,
     users, templates, protocolByPatient, allUsers, publicTeams,
     demandMonthly, setDemandMonthly,
     lastLoadAt,
