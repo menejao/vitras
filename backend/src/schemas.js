@@ -44,11 +44,8 @@ const optionalCnesField = () => z.preprocess(
 );
 
 const LoginSchema = z.object({
-  identifier: z.string().min(1).max(255).optional(),
-  email: z.string().min(1).max(255).optional(),
+  identifier: z.string().min(9).max(9).regex(/^\d{9}$/, "ID VITRAS deve ter exatamente 9 dígitos numéricos"),
   password: z.string().min(1).max(1024)
-}).refine(data => data.identifier || data.email, {
-  message: "identifier ou email é obrigatório"
 });
 
 const RegisterSchema = z.object({

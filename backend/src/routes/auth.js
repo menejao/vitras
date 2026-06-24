@@ -1,6 +1,6 @@
 ﻿import express from "express";
 import { v4 as uuidv4 } from "uuid";
-import { readDb, withDb, findUserByEmail, findUserById, findRefreshTokenByHash } from "../db.js";
+import { readDb, withDb, findUserById, findRefreshTokenByHash } from "../db.js";
 import {
   TWOFA_CHALLENGE_TTL_MS,
   TWOFA_MAX_ATTEMPTS,
@@ -304,35 +304,13 @@ router.post("/auth/register/confirm", authRateLimit, async (_req, res) => {
 });
 
 router.post("/auth/login", authRateLimit, validate(LoginSchema), async (req, res) => {
-  const { email, identifier, password } = req.body || {};
-  const loginIdentifier = String(identifier || email || "").trim().toLowerCase();
+  const { identifier, password } = req.body || {};
+  const loginIdentifier = String(identifier || "").trim();
   const inputPassword = String(password || "");
   let db = await readDb();
   ensureDbShape(db);
 
-  const isVitrasIdFormat = /^\d{9}$/.test(loginIdentifier);
-
-  let user = null;
-  if (isVitrasIdFormat) {
-    user = db.users.find(u => String(u.vitrasId || "") === loginIdentifier && verifyPassword(inputPassword, u.password));
-  }
-  if (!user) {
-    user = await findUserByEmail(loginIdentifier);
-    if (user && !verifyPassword(inputPassword, user.password)) user = null;
-  }
-  if (!user) {
-    user = db.users.find(
-      (item) => String(item.email || "").toLowerCase() === loginIdentifier && verifyPassword(inputPassword, item.password)
-    );
-  }
-
-  if (!user) {
-    const recovered = await ensureDemoManagerIfNeeded(loginIdentifier, password);
-    if (recovered?.user) {
-      user = recovered.user;
-      db = recovered.db;
-    }
-  }
+  let user = db.users.find(u => String(u.vitrasId || "") === loginIdentifier && verifyPassword(inputPassword, u.password));
   if (!user) {
     trackLoginAttempt(false);
     recordMetric("auth_failure", 1, { reason: "invalid_credentials" });

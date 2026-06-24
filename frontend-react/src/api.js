@@ -174,10 +174,10 @@ export async function api(path, options = {}, token = "") {
   throw new Error("Erro na API");
 }
 
-export async function login(email, password) {
+export async function login(identifier, password) {
   return api("/auth/login", {
     method: "POST",
-    body: JSON.stringify({ email, password })
+    body: JSON.stringify({ identifier, password })
   });
 }
 
