@@ -618,4 +618,31 @@ router.post("/platform/units/:unitId/initial-manager/:userId/reset-password", as
   });
 });
 
+// ACCESS-HOTFIX-02: temporary endpoint — assign vitrasId to all users missing one.
+// support_admin only. Remove after use.
+router.post("/platform/admin/assign-vitras-ids", async (req, res) => {
+  const result = await withDb((db) => {
+    ensureDbShape(db);
+    const users = Array.isArray(db.users) ? db.users : [];
+    const report = [];
+    let migrated = 0;
+    for (const u of users) {
+      if (u.vitrasId && /^\d{9}$/.test(u.vitrasId)) {
+        report.push({ name: u.name, role: u.role, vitrasId: u.vitrasId, status: "skip" });
+        continue;
+      }
+      const vid = generateVitrasId(users);
+      existing.add(vid);
+      u.vitrasId = vid;
+      u.updatedAt = new Date().toISOString();
+      migrated++;
+      report.push({ name: u.name, role: u.role, vitrasId: vid, status: "migrated" });
+    }
+    addAuditLog(db, { id: req.user.id, name: req.user.name, role: req.user.role, teamId: "", unitId: "" },
+      "ADMIN_ASSIGN_VITRAS_IDS", "user", "", { migrated, outcome: "success" });
+    return { migrated, users: report };
+  });
+  return res.json(result);
+});
+
 export default router;
