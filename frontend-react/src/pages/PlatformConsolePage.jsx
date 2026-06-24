@@ -99,6 +99,93 @@ function BackButton({ onClick, label = "← Voltar" }) {
   );
 }
 
+// ── Temp Password Modal (FASE 1-3) ────────────────────────────────────────
+
+function TempPasswordModal({ password, onClose }) {
+  const [copied, setCopied] = useState(false);
+  const [confirmed, setConfirmed] = useState(false);
+
+  async function handleCopy() {
+    try {
+      await navigator.clipboard.writeText(password);
+    } catch {
+      // fallback: do nothing — user reads manually
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 3000);
+  }
+
+  return (
+    <div style={{
+      position: "fixed", inset: 0, zIndex: 9999,
+      background: "rgba(0,0,0,0.55)", display: "flex",
+      alignItems: "center", justifyContent: "center", padding: "1rem",
+    }}>
+      <div style={{
+        background: "#fff", borderRadius: "12px", padding: "1.5rem",
+        width: "100%", maxWidth: 440,
+        boxShadow: "0 20px 60px rgba(0,0,0,0.25)",
+      }}>
+        <h3 style={{ fontWeight: 700, fontSize: "1rem", margin: "0 0 1rem" }}>
+          Senha Temporária — Exibição Única
+        </h3>
+
+        <div style={{ background: "#fef3c7", border: "1px solid #fbbf24", borderRadius: "8px", padding: "0.875rem 1rem", marginBottom: "1rem" }}>
+          <div style={{ fontSize: "0.78rem", fontWeight: 700, color: "#92400e", marginBottom: "0.5rem" }}>
+            Esta senha será exibida uma única vez. Anote ou copie agora.
+          </div>
+          <code style={{
+            display: "block", fontSize: "1.15rem", letterSpacing: "0.12em",
+            fontFamily: "monospace", fontWeight: 700, color: "#1f2937",
+            padding: "0.5rem 0", wordBreak: "break-all",
+          }}>
+            {password}
+          </code>
+        </div>
+
+        <button
+          type="button"
+          onClick={handleCopy}
+          style={{
+            width: "100%", padding: "0.6rem", borderRadius: "6px", cursor: "pointer",
+            background: copied ? "#d1fae5" : "#2563eb",
+            color: copied ? "#065f46" : "#fff",
+            border: "none", fontWeight: 700, fontSize: "0.875rem",
+            marginBottom: "1rem", transition: "background 0.15s",
+          }}
+        >
+          {copied ? "✓ Senha copiada com sucesso!" : "Copiar Senha"}
+        </button>
+
+        <label style={{ display: "flex", alignItems: "flex-start", gap: "0.5rem", cursor: "pointer", marginBottom: "1rem" }}>
+          <input
+            type="checkbox"
+            checked={confirmed}
+            onChange={(e) => setConfirmed(e.target.checked)}
+            style={{ width: 16, height: 16, marginTop: "0.15rem", flexShrink: 0, accentColor: "#2563eb" }}
+          />
+          <span style={{ fontSize: "0.875rem" }}>Confirmo que anotei ou copiei esta senha.</span>
+        </label>
+
+        <button
+          type="button"
+          disabled={!confirmed}
+          onClick={onClose}
+          style={{
+            width: "100%", padding: "0.55rem", borderRadius: "6px",
+            background: confirmed ? "#374151" : "#e5e7eb",
+            color: confirmed ? "#fff" : "#9ca3af",
+            border: "none", fontWeight: 600, fontSize: "0.875rem",
+            cursor: confirmed ? "pointer" : "default",
+          }}
+        >
+          Fechar
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ── National Summary ───────────────────────────────────────────────────────
 
 function NationalSummary({ token }) {
@@ -545,19 +632,8 @@ function UnitDetail({ token, unitId, onBack }) {
         <StatusBadge status={unit.status} />
       </div>
 
-      {/* Temp password */}
       {tempPwd && (
-        <Alert type="warning" style={{ marginBottom: "1rem" }}>
-          <div style={{ fontWeight: 700, marginBottom: "0.5rem" }}>Senha temporária do gestor — exibida uma única vez</div>
-          <code style={{ display: "block", fontSize: "1.1rem", letterSpacing: "0.1em", padding: "0.5rem", background: "rgba(0,0,0,0.05)", borderRadius: "4px", marginBottom: "0.5rem", wordBreak: "break-all" }}>
-            {tempPwd}
-          </code>
-          <small>Comunique esta senha ao gestor agora. Após sair desta tela, não será possível recuperá-la.</small>
-          <br />
-          <button type="button" onClick={() => setTempPwd("")} style={{ marginTop: "0.5rem", fontSize: "0.8rem", background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}>
-            Confirmo que anotei — ocultar senha
-          </button>
-        </Alert>
+        <TempPasswordModal password={tempPwd} onClose={() => setTempPwd("")} />
       )}
 
       {formError && <Alert type="error" style={{ marginBottom: "1rem" }}>{formError}</Alert>}

@@ -14,8 +14,68 @@ import Alert from "../ui/Alert";
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
-const SOURCE_PROFILES = [
-  { value: "sp-pec-aps-v01", label: "e-SUS PEC APS (v4.2)" },
+// Source Profile Registry — FASE 5
+// certified: true → available for Import Job creation
+// certified: false → "Pendente de homologação" — shown but disabled
+const SOURCE_PROFILES_REGISTRY = [
+  {
+    id: "sp-pec-aps-v01",
+    label: "e-SUS PEC APS",
+    version: "v4.2",
+    certified: true,
+    certifiedAt: "2026-06-23",
+  },
+  {
+    id: "sp-csv-generic-v01",
+    label: "CSV Genérico",
+    version: null,
+    certified: false,
+  },
+  {
+    id: "sp-legacy-v01",
+    label: "Outro Sistema Legado",
+    version: null,
+    certified: false,
+  },
+  {
+    id: "sp-api-external-v01",
+    label: "API Externa",
+    version: null,
+    certified: false,
+  },
+  {
+    id: "sp-postgres-dump-v01",
+    label: "Dump PostgreSQL",
+    version: null,
+    certified: false,
+  },
+];
+
+// LGPD Consent Registry — FASE 6
+// Managed here until a backend /platform/lgpd-records endpoint is built.
+// status "Válido": selectable. "Expirado" / "Revogado": not selectable.
+const LGPD_REGISTRY = [
+  {
+    id: "LGPD-2026-UBS-001",
+    tipo: "Autorização de Migração de Dados",
+    responsavel: "Secretaria Municipal de Saúde",
+    validade: "2026-12-31",
+    status: "Válido",
+  },
+  {
+    id: "LGPD-2026-PILOTO-001",
+    tipo: "Base Legal — Execução de Políticas Públicas",
+    responsavel: "Coordenação APS",
+    validade: "2026-09-30",
+    status: "Válido",
+  },
+  {
+    id: "LGPD-2025-HIST-001",
+    tipo: "Autorização Histórica",
+    responsavel: "Gestor Anterior",
+    validade: "2025-12-31",
+    status: "Expirado",
+  },
 ];
 
 const JOB_STATUS_LABELS = {
@@ -230,11 +290,16 @@ function ImportJobList({ token, onSelect, onNew, refreshKey }) {
 
 // ── FASE 3: Nova Migração ──────────────────────────────────────────────────
 
+const validLgpdRecords = LGPD_REGISTRY.filter((r) => {
+  if (r.status !== "Válido") return false;
+  try { return new Date(r.validade) >= new Date(); } catch { return false; }
+});
+
 function NewImportJobForm({ token, onDone, onBack }) {
   const [units, setUnits] = useState([]);
   const [form, setForm]   = useState({
     unitId: "", teamId: "", sourceProfileId: "sp-pec-aps-v01",
-    lgpdConsentRecordId: "", notes: "",
+    lgpdRecordId: "", notes: "",
   });
   const [busy, setBusy]   = useState(false);
   const [error, setError] = useState("");
@@ -247,12 +312,19 @@ function NewImportJobForm({ token, onDone, onBack }) {
 
   function set(key) { return (e) => setForm((f) => ({ ...f, [key]: e.target.value })); }
 
+  const selectedProfile = SOURCE_PROFILES_REGISTRY.find((p) => p.id === form.sourceProfileId);
+  const selectedLgpd    = validLgpdRecords.find((r) => r.id === form.lgpdRecordId);
+  const hasValidLgpd    = validLgpdRecords.length > 0;
+
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
     if (!form.unitId) { setError("UBS destino é obrigatória."); return; }
-    if (!form.sourceProfileId) { setError("Sistema de origem é obrigatório."); return; }
-    if (!form.lgpdConsentRecordId.trim()) { setError("ID do registro de consentimento LGPD é obrigatório."); return; }
+    if (!form.sourceProfileId || !selectedProfile?.certified) {
+      setError("Sistema de origem deve ser certificado."); return;
+    }
+    if (!form.lgpdRecordId) { setError("Registro LGPD é obrigatório."); return; }
+    if (!selectedLgpd) { setError("Registro LGPD inválido ou expirado."); return; }
     setBusy(true);
     try {
       const job = await apiFetch("/import/jobs", token, {
@@ -261,7 +333,7 @@ function NewImportJobForm({ token, onDone, onBack }) {
           unitId: form.unitId,
           teamId: form.teamId || undefined,
           sourceProfileId: form.sourceProfileId,
-          lgpdConsentRecordId: form.lgpdConsentRecordId,
+          lgpdConsentRecordId: form.lgpdRecordId,
           localFilters: form.notes ? { notes: form.notes } : {},
         }),
       });
@@ -279,6 +351,9 @@ function NewImportJobForm({ token, onDone, onBack }) {
     background: "var(--color-surface,#fff)", boxSizing: "border-box",
   };
 
+  const certifiedProfiles  = SOURCE_PROFILES_REGISTRY.filter((p) => p.certified);
+  const pendingProfiles     = SOURCE_PROFILES_REGISTRY.filter((p) => !p.certified);
+
   return (
     <form onSubmit={handleSubmit}>
       <div style={{ display: "flex", alignItems: "center", marginBottom: "1.5rem", gap: "0.5rem" }}>
@@ -288,6 +363,7 @@ function NewImportJobForm({ token, onDone, onBack }) {
 
       {error && <Alert type="error" style={{ marginBottom: "1rem" }}>{error}</Alert>}
 
+      {/* UBS destino */}
       <div style={{ marginBottom: "0.875rem" }}>
         <label style={{ fontSize: "0.875rem", fontWeight: 500, display: "block", marginBottom: "0.25rem" }}>
           UBS Destino *
@@ -302,32 +378,79 @@ function NewImportJobForm({ token, onDone, onBack }) {
         </select>
       </div>
 
+      {/* Sistema de origem — FASE 5 */}
       <div style={{ marginBottom: "0.875rem" }}>
         <label style={{ fontSize: "0.875rem", fontWeight: 500, display: "block", marginBottom: "0.25rem" }}>
           Sistema de Origem *
         </label>
         <select value={form.sourceProfileId} onChange={set("sourceProfileId")} style={selectStyle}>
-          {SOURCE_PROFILES.map((p) => (
-            <option key={p.value} value={p.value}>{p.label}</option>
-          ))}
+          <optgroup label="Certificadas">
+            {certifiedProfiles.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.label} {p.version ? p.version : ""}
+              </option>
+            ))}
+          </optgroup>
+          <optgroup label="Pendentes de homologação">
+            {pendingProfiles.map((p) => (
+              <option key={p.id} value={p.id} disabled>
+                {p.label} — Pendente de homologação
+              </option>
+            ))}
+          </optgroup>
         </select>
+        {selectedProfile && !selectedProfile.certified && (
+          <div style={{ fontSize: "0.75rem", color: "#b45309", marginTop: "0.25rem", fontWeight: 600 }}>
+            Este sistema não possui Source Profile certificado. Selecione um sistema certificado para continuar.
+          </div>
+        )}
+        {selectedProfile?.certified && (
+          <div style={{ fontSize: "0.75rem", color: "#065f46", marginTop: "0.25rem" }}>
+            Certificado em {selectedProfile.certifiedAt}
+          </div>
+        )}
       </div>
 
-      <div style={{ marginBottom: "0.875rem" }}>
+      {/* Registro LGPD — FASE 6-7 */}
+      <div style={{ marginBottom: "1rem" }}>
         <label style={{ fontSize: "0.875rem", fontWeight: 500, display: "block", marginBottom: "0.25rem" }}>
-          ID do Registro de Consentimento LGPD *
+          Registro de Consentimento LGPD *
         </label>
-        <Input
-          value={form.lgpdConsentRecordId}
-          onChange={set("lgpdConsentRecordId")}
-          placeholder="Ex: LGPD-2026-UBS-001"
-          style={{ width: "100%", boxSizing: "border-box" }}
-        />
-        <small style={{ color: "var(--color-text-secondary,#6b7280)", fontSize: "0.75rem" }}>
-          Identificador do documento de base legal LGPD que autoriza esta importação.
-        </small>
+
+        {!hasValidLgpd ? (
+          <div style={{ background: "#fee2e2", border: "1px solid #fca5a5", borderRadius: "6px", padding: "0.75rem", fontSize: "0.82rem", color: "#991b1b" }}>
+            <strong>Nenhum registro LGPD válido cadastrado.</strong> Import Jobs não podem ser criados sem base legal LGPD.
+            Entre em contato com o responsável jurídico para cadastrar um registro válido.
+          </div>
+        ) : (
+          <>
+            <select value={form.lgpdRecordId} onChange={set("lgpdRecordId")} style={selectStyle}>
+              <option value="">Selecionar registro LGPD...</option>
+              {validLgpdRecords.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.id} — {r.tipo}
+                </option>
+              ))}
+            </select>
+
+            {selectedLgpd && (
+              <div style={{ marginTop: "0.5rem", background: "#f0fdf4", border: "1px solid #86efac", borderRadius: "6px", padding: "0.6rem 0.75rem", fontSize: "0.82rem" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.2rem" }}>
+                  <div><strong>Responsável:</strong> {selectedLgpd.responsavel}</div>
+                  <div><strong>Tipo:</strong> {selectedLgpd.tipo}</div>
+                  <div><strong>Validade:</strong> {new Date(selectedLgpd.validade).toLocaleDateString("pt-BR")}</div>
+                  <div>
+                    <strong>Status:</strong>{" "}
+                    <span style={{ color: "#065f46", fontWeight: 700 }}>{selectedLgpd.status}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
+        )}
       </div>
 
+      {/* Team ID */}
       <div style={{ marginBottom: "0.875rem" }}>
         <label style={{ fontSize: "0.875rem", fontWeight: 500, display: "block", marginBottom: "0.25rem" }}>
           Team ID (opcional)
@@ -340,6 +463,7 @@ function NewImportJobForm({ token, onDone, onBack }) {
         />
       </div>
 
+      {/* Observações */}
       <div style={{ marginBottom: "1.25rem" }}>
         <label style={{ fontSize: "0.875rem", fontWeight: 500, display: "block", marginBottom: "0.25rem" }}>
           Observações
@@ -357,9 +481,16 @@ function NewImportJobForm({ token, onDone, onBack }) {
         />
       </div>
 
-      <Button type="submit" disabled={busy}>
+      <Button type="submit" disabled={busy || !hasValidLgpd || !selectedProfile?.certified}>
         {busy ? "Criando Import Job..." : "Criar Import Job"}
       </Button>
+
+      {(!hasValidLgpd || !selectedProfile?.certified) && !busy && (
+        <div style={{ fontSize: "0.75rem", color: "var(--color-text-secondary,#6b7280)", marginTop: "0.5rem" }}>
+          {!hasValidLgpd && "Bloqueado: sem registro LGPD válido. "}
+          {selectedProfile && !selectedProfile.certified && "Bloqueado: sistema de origem não certificado."}
+        </div>
+      )}
     </form>
   );
 }
