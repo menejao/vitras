@@ -9,8 +9,8 @@ import { getCircuitBreakerState } from "../middlewares/rate-limits.js";
 const router = express.Router();
 
 // Registered migrations count (must stay in sync with migrations/index.js)
-// 001-015 + 018-026 = 24 (016 and 017 were intentionally retired before deploy)
-const REGISTERED_MIGRATION_COUNT = 24;
+// 001-015 + 018-030 = 30 (016/017 retired; 030 = ACCESS-MIGRATION-01 vitrasId)
+const REGISTERED_MIGRATION_COUNT = 30;
 
 // Track last known auditChain state (updated by integrity endpoint calls)
 let _lastAuditChainStatus = "unknown";

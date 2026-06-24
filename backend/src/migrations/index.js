@@ -25,6 +25,7 @@ import * as m026 from "./026_add_nis_to_patients.js";
 import * as m027 from "./027_add_iam_fields_to_users.js";
 import * as m028 from "./028_reconcile_test_tenant.js";
 import * as m029 from "./029_seed_test_unit_in_app_state.js";
+import * as m030 from "./030_add_vitras_ids.js";
 
 // Add new migrations here in order - never remove or reorder existing entries
-export const migrations = [m001, m002, m003, m004, m005, m006, m007, m008, m009, m010, m011, m012, m013, m014, m015, m018, m019, m020, m021, m022, m023, m024, m025, m026, m027, m028, m029];
+export const migrations = [m001, m002, m003, m004, m005, m006, m007, m008, m009, m010, m011, m012, m013, m014, m015, m018, m019, m020, m021, m022, m023, m024, m025, m026, m027, m028, m029, m030];
