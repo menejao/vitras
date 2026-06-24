@@ -50,6 +50,13 @@ function maskEmail(email) {
   return `${maskedLocal}@${maskedDomain}`;
 }
 
+function maskIdentifier(id) {
+  if (/^\d{9}$/.test(id)) return `ID-${id.slice(0, 3)}***${id.slice(-2)}`;
+  if (!id.includes("@")) return "***";
+  const [iLocal, iDomain] = id.split("@");
+  return `${iLocal[0]}***@${iDomain[0]}***`;
+}
+
 function buildAuditActorFromRequest(req, identity = {}) {
   return {
     id: String(identity.id || ""),
@@ -297,23 +304,30 @@ router.post("/auth/register/confirm", authRateLimit, async (_req, res) => {
 });
 
 router.post("/auth/login", authRateLimit, validate(LoginSchema), async (req, res) => {
-  const { email, password } = req.body || {};
+  const { email, identifier, password } = req.body || {};
+  const loginIdentifier = String(identifier || email || "").trim().toLowerCase();
+  const inputPassword = String(password || "");
   let db = await readDb();
   ensureDbShape(db);
-  const normalizedEmail = String(email || "").trim().toLowerCase();
-  const inputPassword = String(password || "");
-  let user = await findUserByEmail(normalizedEmail);
-  if (user && !verifyPassword(inputPassword, user.password)) {
-    user = null;
+
+  const isVitrasIdFormat = /^\d{9}$/.test(loginIdentifier);
+
+  let user = null;
+  if (isVitrasIdFormat) {
+    user = db.users.find(u => String(u.vitrasId || "") === loginIdentifier && verifyPassword(inputPassword, u.password));
+  }
+  if (!user) {
+    user = await findUserByEmail(loginIdentifier);
+    if (user && !verifyPassword(inputPassword, user.password)) user = null;
   }
   if (!user) {
     user = db.users.find(
-      (item) => String(item.email || "").toLowerCase() === normalizedEmail && verifyPassword(inputPassword, item.password)
+      (item) => String(item.email || "").toLowerCase() === loginIdentifier && verifyPassword(inputPassword, item.password)
     );
   }
 
   if (!user) {
-    const recovered = await ensureDemoManagerIfNeeded(email, password);
+    const recovered = await ensureDemoManagerIfNeeded(loginIdentifier, password);
     if (recovered?.user) {
       user = recovered.user;
       db = recovered.db;
@@ -326,14 +340,19 @@ router.post("/auth/login", authRateLimit, validate(LoginSchema), async (req, res
       ensureDbShape(auditDb);
       addAuditLog(
         auditDb,
-        buildAuditActorFromRequest(req, { email: maskEmail(normalizedEmail), name: maskEmail(normalizedEmail) }),
+        buildAuditActorFromRequest(req, { email: maskIdentifier(loginIdentifier), name: maskIdentifier(loginIdentifier) }),
         "auth.login_failed",
         "auth",
-        normalizedEmail || "anonymous",
-        { outcome: "denied", emailMasked: maskEmail(normalizedEmail) }
+        loginIdentifier || "anonymous",
+        { outcome: "denied", identifierMasked: maskIdentifier(loginIdentifier) }
       );
     });
     return res.status(401).json({ error: "Credenciais inválidas" });
+  }
+
+  if (user.inactive) {
+    trackLoginAttempt(false);
+    return res.status(403).json({ error: "Conta desativada. Contate o gestor da UBS." });
   }
 
   if (!isHashedPassword(user.password)) {

@@ -98,6 +98,7 @@ const ROLE_CAPABILITIES = {
     "pharmacy.read",
     "supplies.read",
     "users.read.all",
+    "users.manage.all",
     "audit.read",
     "access_requests.read",
     "backup.export",
@@ -239,6 +240,111 @@ const ROLE_CAPABILITIES = {
     "acs.visit.create",
     "acs.visit.read",
     "acs.visit.update"
+  ],
+  oral_health_aux: [
+    "dashboard.read",
+    "patients.read.all",
+    "records.read",
+    "records.write",
+    "exams.read",
+    "referrals.read",
+    "users.read.scoped"
+  ],
+  oral_health_tech: [
+    "dashboard.read",
+    "patients.read.all",
+    "records.read",
+    "records.write",
+    "exams.read",
+    "exams.write",
+    "referrals.read",
+    "referrals.write",
+    "users.read.scoped"
+  ],
+  psychologist: [
+    "dashboard.read",
+    "patients.read.all",
+    "records.read",
+    "records.write",
+    "referrals.read",
+    "referrals.write",
+    "tasks.read",
+    "tasks.write",
+    "users.read.scoped"
+  ],
+  physical_therapist: [
+    "dashboard.read",
+    "patients.read.all",
+    "records.read",
+    "records.write",
+    "referrals.read",
+    "referrals.write",
+    "tasks.read",
+    "tasks.write",
+    "users.read.scoped"
+  ],
+  social_worker: [
+    "dashboard.read",
+    "patients.read.all",
+    "records.read",
+    "records.write",
+    "referrals.read",
+    "referrals.write",
+    "tasks.read",
+    "tasks.write",
+    "users.read.scoped"
+  ],
+  nutritionist: [
+    "dashboard.read",
+    "patients.read.all",
+    "records.read",
+    "records.write",
+    "referrals.read",
+    "referrals.write",
+    "tasks.read",
+    "tasks.write",
+    "users.read.scoped"
+  ],
+  physical_educator: [
+    "dashboard.read",
+    "patients.read.all",
+    "records.read",
+    "records.write",
+    "tasks.read",
+    "tasks.write",
+    "users.read.scoped"
+  ],
+  local_admin: [
+    "dashboard.read",
+    "patients.read.all",
+    "agenda.read",
+    "referrals.read",
+    "reports.read",
+    "diagnostics.read",
+    "pharmacy.read",
+    "supplies.read",
+    "users.read.all",
+    "users.manage.scoped",
+    "audit.read",
+    "metrics.internal.read"
+  ],
+  aps_coordinator: [
+    "dashboard.read",
+    "patients.read.all",
+    "agenda.read",
+    "referrals.read",
+    "referrals.write",
+    "records.read",
+    "exams.read",
+    "reports.read",
+    "diagnostics.read",
+    "pharmacy.read",
+    "supplies.read",
+    "users.read.all",
+    "audit.read",
+    "metrics.internal.read",
+    "cds.export",
+    "acs.visit.read"
   ],
   support_admin: [
     "platform.unit.create",
@@ -630,6 +736,26 @@ const VALID_UF = new Set([
   "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"
 ]);
 
+const APS_CARGO_CATALOG = [
+  { id: "receptionist",       label: "Recepcionista",                   teamRequired: false },
+  { id: "acs",                label: "Agente Comunitário de Saúde",      teamRequired: true  },
+  { id: "nursing_tech",       label: "Técnico de Enfermagem",            teamRequired: true  },
+  { id: "nurse_manager",      label: "Enfermeiro(a)",                    teamRequired: true  },
+  { id: "doctor",             label: "Médico(a)",                        teamRequired: true  },
+  { id: "dentist",            label: "Dentista",                         teamRequired: true  },
+  { id: "oral_health_aux",    label: "Auxiliar de Saúde Bucal",          teamRequired: true  },
+  { id: "oral_health_tech",   label: "Técnico de Saúde Bucal",           teamRequired: true  },
+  { id: "pharmacist",         label: "Farmacêutico(a)",                  teamRequired: false },
+  { id: "psychologist",       label: "Psicólogo(a)",                     teamRequired: false },
+  { id: "physical_therapist", label: "Fisioterapeuta",                   teamRequired: false },
+  { id: "social_worker",      label: "Assistente Social",                teamRequired: false },
+  { id: "nutritionist",       label: "Nutricionista",                    teamRequired: false },
+  { id: "physical_educator",  label: "Educador(a) Físico(a)",            teamRequired: false },
+  { id: "gestor",             label: "Gestor(a) UBS",                    teamRequired: false },
+  { id: "local_admin",        label: "Administrador(a) Local",           teamRequired: false },
+  { id: "aps_coordinator",    label: "Coordenador(a) APS",               teamRequired: false },
+];
+
 export {
   canonicalRole,
   normalizeDemandType,
@@ -681,5 +807,6 @@ export {
   ALLOWED_SELF_REGISTER_ROLES,
   PRIVACY_REQUEST_TYPES,
   PRIVACY_REQUEST_STATUS,
-  VALID_UF
+  VALID_UF,
+  APS_CARGO_CATALOG
 };

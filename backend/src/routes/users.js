@@ -10,6 +10,7 @@ import {
   councilTypeForRole, getClientIp, isAnaAdminUser, hasCapability
 } from "../utils/helpers.js";
 import { validateCouncilData, verifyCouncilExternally } from "../utils/council.js";
+import { generateVitrasId } from "../utils/vitras-id.js";
 import { hashPassword, generateTempPassword } from "../services/crypto.js";
 import { addAuditLog } from "../services/audit.js";
 import { getTeamUserUsage } from "../utils/metrics.js";
@@ -249,8 +250,8 @@ router.post("/users", requireAuth, async (req, res) => {
   const email = String(payload.email || "").trim().toLowerCase();
   const role  = canonicalRole(payload.role);
 
-  if (!name || !email || !role) {
-    return res.status(400).json({ error: "name, email e role são obrigatórios" });
+  if (!name || !role) {
+    return res.status(400).json({ error: "name e role são obrigatórios" });
   }
 
   // Roles nurse_manager can create
@@ -258,7 +259,9 @@ router.post("/users", requireAuth, async (req, res) => {
   // Roles gestor can create (all local, no platform/admin roles)
   const gestorAllowedRoles = [
     "acs", "doctor", "nurse_manager", "nursing_tech", "dentist",
-    "pharmacist", "pharmacy_tech", "receptionist", "coordinator"
+    "pharmacist", "pharmacy_tech", "receptionist", "coordinator",
+    "oral_health_aux", "oral_health_tech", "psychologist", "physical_therapist",
+    "social_worker", "nutritionist", "physical_educator", "local_admin", "aps_coordinator"
   ];
   const forbiddenRoles = ["support_admin", "break_glass_admin", "developer_readonly", "security_auditor", "qa_operator", "support_operator"];
 
@@ -296,9 +299,7 @@ router.post("/users", requireAuth, async (req, res) => {
 
   const result = await withDb((db) => {
     ensureDbShape(db);
-    if (db.users.some((u) => String(u.email).toLowerCase() === email)) {
-      return { error: "E-mail já cadastrado" };
-    }
+    // sem validação de email — email não é mais obrigatório
 
     const duplicatedCouncil = roleNeedsCouncil(role) && db.users.some((u) => {
       const uRole = canonicalRole(u.role);
@@ -327,9 +328,11 @@ router.post("/users", requireAuth, async (req, res) => {
     const nowIso = new Date().toISOString();
     const user = {
       id: uuidv4(),
+      vitrasId: generateVitrasId(db.users),
       name,
       role,
-      email,
+      cargo: String(payload.cargo || role),
+      email: email || "",
       password: hashPassword(tempPassword),
       teamId: targetTeamId,
       unitId: targetUnitId,
@@ -370,7 +373,7 @@ router.post("/users", requireAuth, async (req, res) => {
     return { user, db };
   });
 
-  if (result.error) return res.status(result.error === "E-mail já cadastrado" ? 409 : (result.status || 400)).json({ error: result.error });
+  if (result.error) return res.status(result.status || 400).json({ error: result.error });
 
   const safeUser = sanitizeUser(result.user, result.db);
   const { password: _pw, ...userWithoutPassword } = safeUser;
@@ -535,6 +538,47 @@ router.delete("/users/:id", requireAuth, requireManager, async (req, res) => {
 
   if (result.error) return res.status(result.error.status).json({ error: result.error.message, details: result.error.details || {} });
   return res.json({ ok: true });
+});
+
+router.post("/users/:id/deactivate", requireAuth, async (req, res) => {
+  const callerRole = canonicalRole(req.user?.role);
+  const isGestorCaller = callerRole === "gestor";
+  const isManagerCaller = callerRole === "nurse_manager" || hasCapability(req.user, "team.manage");
+  if (!isGestorCaller && !isManagerCaller) {
+    return res.status(403).json({ error: "Sem permissão para desativar usuários" });
+  }
+
+  const targetId = String(req.params.id || "").trim();
+  const result = await withDb((db) => {
+    ensureDbShape(db);
+    const idx = db.users.findIndex(u => u.id === targetId);
+    if (idx < 0) return { error: { status: 404, message: "Usuário não encontrado" } };
+
+    const target = db.users[idx];
+    if (isGestorCaller && target.unitId !== req.user.unitId) {
+      return { error: { status: 403, message: "Gestor só pode desativar usuários da própria UBS" } };
+    }
+    if (target.id === req.user.id) {
+      return { error: { status: 400, message: "Não é possível desativar sua própria conta" } };
+    }
+    const forbidden = ["support_admin", "break_glass_admin", "developer_readonly", "security_auditor"];
+    if (forbidden.includes(canonicalRole(target.role))) {
+      return { error: { status: 403, message: "Perfil não pode ser desativado por este operador" } };
+    }
+
+    const nowIso = new Date().toISOString();
+    db.users[idx] = { ...target, inactive: true, updatedAt: nowIso };
+    addAuditLog(db, req.user, "user.deactivated", "user", target.id, {
+      targetRole: canonicalRole(target.role),
+      targetUnitId: target.unitId,
+      outcome: "success"
+    });
+    return { user: db.users[idx] };
+  });
+
+  if (result?.error) return res.status(result.error.status || 400).json({ error: result.error.message });
+  const { password: _pw, ...safe } = result.user;
+  return res.json(safe);
 });
 
 router.post("/users/:id/reset-password", requireAuth, async (req, res) => {

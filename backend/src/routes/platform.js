@@ -5,6 +5,7 @@ import { requireAuth, requireSupportAdmin } from "../middlewares/auth.js";
 import { ensureDbShape } from "../utils/domain.js";
 import { canonicalRole, hasCapability, isValidEmail } from "../utils/helpers.js";
 import { hashPassword, generateTempPassword } from "../services/crypto.js";
+import { generateVitrasId } from "../utils/vitras-id.js";
 import { addAuditLog } from "../services/audit.js";
 
 const router = express.Router();
@@ -478,10 +479,10 @@ router.post("/platform/units/:unitId/initial-manager", async (req, res) => {
   const cbo   = String(payload.cbo || "").trim();
   const phone = String(payload.phone || "").trim();
 
-  if (!name || !email) {
-    return res.status(400).json({ error: "name e email são obrigatórios" });
+  if (!name) {
+    return res.status(400).json({ error: "name é obrigatório" });
   }
-  if (!isValidEmail(email)) {
+  if (email && !isValidEmail(email)) {
     return res.status(400).json({ error: "E-mail inválido" });
   }
 
@@ -496,16 +497,18 @@ router.post("/platform/units/:unitId/initial-manager", async (req, res) => {
 
   const result = await withDb((db) => {
     ensureDbShape(db);
-    if (db.users.some((u) => String(u.email || "").toLowerCase() === email)) {
+    if (email && db.users.some((u) => String(u.email || "").toLowerCase() === email)) {
       return { error: "E-mail já cadastrado" };
     }
 
     const nowIso = new Date().toISOString();
     const user = {
       id: uuidv4(),
+      vitrasId: generateVitrasId(db.users),
       name,
       role: "gestor",
-      email,
+      cargo: "gestor",
+      email: email || "",
       password: hashPassword(tempPassword),  // stored hashed — plaintext never persisted
       cpf,
       cns,
@@ -549,7 +552,7 @@ router.post("/platform/units/:unitId/initial-manager", async (req, res) => {
       // tempPassword deliberately excluded
     });
 
-    return { userId: user.id };
+    return { userId: user.id, vitrasId: user.vitrasId };
   });
 
   if (result?.error) return res.status(409).json({ error: result.error });
@@ -557,6 +560,7 @@ router.post("/platform/units/:unitId/initial-manager", async (req, res) => {
   // Temp password returned ONCE in response — caller must record it
   return res.status(201).json({
     userId: result.userId,
+    vitrasId: result.vitrasId,
     email,
     temporaryPassword: tempPassword,
     message: "Gestor inicial criado. Comunique a senha temporária ao gestor — será exigida troca no primeiro acesso."
