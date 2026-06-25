@@ -275,18 +275,26 @@ export function protocolChip(summary) {
   const doneTotal   = Number(completed.visits || 0) + Number(completed.consultations || 0) + Number(completed.vaccines || 0);
   const targetTotal = Number(targets.visits || 0) + Number(targets.consultations || 0) + Number(targets.vaccines || 0);
 
-  const allAlerts = deriveProtocolAlerts(summary);
+  // Count directly from backend specialAlerts — single source of truth, no client-side derivation
+  const specAlerts = Array.isArray(summary.specialAlerts) ? summary.specialAlerts : [];
   let criticalCount = 0, nearCount = 0;
+  for (const a of specAlerts) {
+    const sev = normalizeSeverity(a?.severity);
+    if (sev === "high" || sev === "lost") criticalCount += 1;
+    else if (sev === "medium") nearCount += 1;
+  }
 
-  for (const a of allAlerts) {
-    const sev      = normalizeSeverity(a?.severity);
-    const overdue  = Number.isFinite(Number(a?.overdueDays)) ? Number(a.overdueDays) : 0;
-    const daysLeft = Number.isFinite(Number(a?.daysLeft)) ? Number(a.daysLeft) : null;
-    // Critical: prazo vencido, prazo ≤ 7 dias, ou severidade alta com janela crítica real
-    if (overdue >= 1 || (daysLeft !== null && daysLeft <= 7) || (sev === "high" && overdue >= 0)) {
-      criticalCount += 1;
-    } else if (sev === "medium" || (daysLeft !== null && daysLeft <= 30)) {
-      nearCount += 1;
+  // Also count overdue schedule items (visits/consultations) as critical
+  const schedule = summary.schedule || {};
+  for (const key of ["visits", "consultations", "vaccines"]) {
+    const s = schedule[key];
+    if (!s || Number(s.pending || 0) <= 0) continue;
+    const overdue = Number(s.overdueDays || 0);
+    if (overdue >= 1) criticalCount += 1;
+    else {
+      const daysLeft = typeof s.daysLeft === "number" ? s.daysLeft : null;
+      if (daysLeft !== null && daysLeft <= 7) criticalCount += 1;
+      else if (daysLeft !== null && daysLeft <= 30) nearCount += 1;
     }
   }
 

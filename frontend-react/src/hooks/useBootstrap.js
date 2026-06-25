@@ -80,7 +80,7 @@ export function useBootstrap(token, {
     // Reset secondary data immediately so stale data from previous patient doesn't show
     setHistory([]); setAppointments([]); setTasks([]); setMessages([]);
 
-    // Use cached protocol summary if available — workspace opens instantly
+    // Use cached protocol summary if available — workspace opens instantly, no roundtrip
     const cached = protocolByPatient[patientId];
     if (cached) {
       setPatientProtocolSummary(cached);
@@ -91,7 +91,10 @@ export function useBootstrap(token, {
         const summary = await getPatientProtocolSummary(token, patientId);
         setPatientProtocolSummary(summary || null);
       } catch (e) {
-        if (!(await handleApiError(e))) setError(e.message || "Falha ao carregar dados do paciente");
+        // Do NOT propagate patient-specific errors to the global banner —
+        // a 404 here means a stale or transitional state, not a user-visible failure.
+        // The workspace degrades gracefully (null summary = "Sem dados").
+        await handleApiError(e);
       } finally {
         setPatientDataLoading(false);
       }

@@ -66,13 +66,6 @@ function DeclaracaoDoc({ patient, user }) {
           para fins de atendimento de saúde no âmbito do Sistema Único de Saúde (SUS).
         </p>
 
-        <p className="doc-text">
-          Profissional responsável:{" "}
-          <strong>{user?.name || "—"}</strong>
-          {council ? ` · ${council}` : ""}
-          {user?.role ? ` · ${roleLabel(user.role)}` : ""}
-        </p>
-
         <p className="doc-text">Por ser verdade, firmo a presente declaração.</p>
       </div>
 
@@ -114,13 +107,6 @@ function AtestadoDoc({ patient, user, days, cid, diagnostico }) {
             {diagnostico && <><strong>Diagnóstico:</strong> {diagnostico}</>}
           </p>
         )}
-
-        <p className="doc-text">
-          Profissional responsável:{" "}
-          <strong>{user?.name || "—"}</strong>
-          {council ? ` · ${council}` : ""}
-          {user?.role ? ` · ${roleLabel(user.role)}` : ""}
-        </p>
 
         <p className="doc-text">Por ser verdade, firmo o presente atestado.</p>
       </div>
