@@ -2208,6 +2208,7 @@
   background-position: right 8px center;
 }
 
+/* chr-date-input kept for legacy; replaced by AppDatePicker in filter bar */
 .chr-date-input {
   height: 32px;
   padding: 0 var(--s-2);
@@ -2217,6 +2218,18 @@
   color: var(--text-muted);
   font: 400 var(--t-sm) var(--font-sans);
   min-width: 120px;
+}
+
+/* AppDatePicker inside filter bar — compact, label hidden */
+.chr-date-picker { position: relative; }
+.chr-date-picker.dp-wrap,
+.chr-date-picker .dp-wrap { margin: 0; }
+.chr-date-picker .field__label { display: none; }
+.chr-date-picker.dp-wrap { min-width: 150px; }
+.chr-date-picker .dp__trigger {
+  height: 32px !important;
+  font: 400 var(--t-sm) var(--font-sans) !important;
+  padding: 0 var(--s-2) !important;
 }
 
 .chr-inactive-toggle {

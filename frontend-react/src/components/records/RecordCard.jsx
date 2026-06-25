@@ -1,5 +1,64 @@
 import { useState } from "react";
 
+// Tradução de chaves de metadata do backend para português
+const META_KEY_LABELS = {
+  demandType:       "Tipo de demanda",
+  turno:            "Turno",
+  tipoVisita:       "Tipo de visita",
+  motivosVisita:    "Motivos da visita",
+  desfecho:         "Desfecho",
+  peso:             "Peso (kg)",
+  altura:           "Altura (cm)",
+  specialty:        "Especialidade",
+  consultKind:      "Tipo de consulta",
+  cidPrincipal:     "CID-10 principal",
+  cidSecundarios:   "CID-10 secundários",
+  ciapPrincipal:    "CIAP-2 principal",
+  conduct:          "Conduta",
+  nextStep:         "Próximo passo",
+  origin:           "Origem",
+  priority:         "Prioridade",
+};
+
+// Tradução de valores enum do backend para português
+const META_VALUE_LABELS = {
+  // demandType
+  scheduled:        "Programada",
+  spontaneous:      "Espontânea",
+  retroativo:       "Retroativo",
+  // turno
+  manha:            "Manhã",
+  tarde:            "Tarde",
+  noite:            "Noite",
+  // tipoVisita
+  periodica:        "Periódica",
+  busca_ativa:      "Busca ativa",
+  acompanhamento:   "Acompanhamento",
+  // desfecho / outcomes
+  visita_realizada: "Visita realizada",
+  ausente:          "Ausente",
+  recusou:          "Recusou atendimento",
+  // consultKind
+  individual:       "Individual",
+  coletiva:         "Coletiva",
+  domiciliar:       "Domiciliar",
+  // priority
+  low:              "Baixa",
+  medium:           "Média",
+  high:             "Alta",
+  urgent:           "Urgente",
+};
+
+function translateMetaKey(k) {
+  return META_KEY_LABELS[k] || k;
+}
+
+function translateMetaValue(v) {
+  if (Array.isArray(v)) return v.map(item => META_VALUE_LABELS[String(item)] || String(item)).join(", ");
+  const str = String(v);
+  return META_VALUE_LABELS[str] || str;
+}
+
 const TYPE_LABELS = {
   appointment:       "Atendimento",
   consultation:      "Consulta",
@@ -113,8 +172,8 @@ export default function RecordCard({ record, fmtDate, onInactivate, canInactivat
                 <dl className="chr-detail-meta">
                   {Object.entries(record.metadata).filter(([, v]) => v).map(([k, v]) => (
                     <div key={k} className="chr-detail-meta__row">
-                      <dt>{k}</dt>
-                      <dd>{String(v)}</dd>
+                      <dt>{translateMetaKey(k)}</dt>
+                      <dd>{translateMetaValue(v)}</dd>
                     </div>
                   ))}
                 </dl>

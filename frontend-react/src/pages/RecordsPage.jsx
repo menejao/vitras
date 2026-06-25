@@ -3,6 +3,7 @@ import { inactivateRecord, getPatientHistory, verifyChartAccess } from "../api";
 
 import PageHeader from "../components/layout/PageHeader";
 import Alert from "../components/ui/Alert";
+import AppDatePicker from "../components/ui/AppDatePicker";
 import Avatar from "../components/ui/Avatar";
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
@@ -488,21 +489,19 @@ export default function RecordsPage({
               <option value="note">Anotação</option>
               <option value="atestado">Atestado / Documento</option>
             </select>
-            <input
-              className="chr-date-input"
-              type="date"
+            <AppDatePicker
+              placeholder="De (DD/MM/AAAA)"
               value={dateFrom}
               onChange={(e) => setDateFrom(e.target.value)}
               aria-label="Data inicial"
-              title="Data inicial"
+              className="chr-date-picker"
             />
-            <input
-              className="chr-date-input"
-              type="date"
+            <AppDatePicker
+              placeholder="Até (DD/MM/AAAA)"
               value={dateTo}
               onChange={(e) => setDateTo(e.target.value)}
               aria-label="Data final"
-              title="Data final"
+              className="chr-date-picker"
             />
             <label className="chr-inactive-toggle">
               <input
