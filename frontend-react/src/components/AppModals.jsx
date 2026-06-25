@@ -15,7 +15,7 @@ export function AppModals({
   // patient modal
   showModal, setShowModal, editingPatient, form, setForm,
   users, catOpts, lookupCepAndFillAddress, patientModalMode,
-  submitPatient, error, busy, token,
+  submitPatient, error, busy,
   // user modal
   showUserModal, setShowUserModal, editingUser, userForm, setUserForm, submitUser,
   // template modal
@@ -52,7 +52,6 @@ export function AppModals({
         readOnly={patientModalMode === "view"}
         onClose={() => setShowModal(false)}
         onSubmit={submitPatient}
-        token={token}
       />
 
       <UserModal

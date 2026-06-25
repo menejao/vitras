@@ -318,7 +318,7 @@ function AppInner() {
       <AppModals
         showModal={showModal} setShowModal={setShowModal} editingPatient={editingPatient} form={form} setForm={setForm}
         users={users} catOpts={catOpts} lookupCepAndFillAddress={lookupCepAndFillAddress} patientModalMode={patientModalMode}
-        submitPatient={submitPatient} error={error} busy={busy} token={token}
+        submitPatient={submitPatient} error={error} busy={busy}
         showUserModal={showUserModal} setShowUserModal={setShowUserModal} editingUser={editingUser} userForm={userForm} setUserForm={setUserForm} submitUser={submitUser}
         showTemplateModal={showTemplateModal} setShowTemplateModal={setShowTemplateModal} editingTemplate={editingTemplate} templateForm={templateForm} setTemplateForm={setTemplateForm} submitTemplate={submitTemplate}
         showProfileModal={showProfileModal} setShowProfileModal={setShowProfileModal} profileForm={profileForm} setProfileForm={setProfileForm}

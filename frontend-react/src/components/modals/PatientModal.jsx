@@ -6,8 +6,6 @@ import Modal from "../ui/Modal";
 import AppSelect from "../ui/AppSelect";
 import AppDatePicker from "../ui/AppDatePicker";
 import Textarea from "../ui/Textarea";
-import { maskCpf } from "../../utils/formatting";
-import { cpfReveal } from "../../api";
 
 const TABS = [
   { id: "identity", label: "Identificação" },
@@ -95,20 +93,8 @@ export default function PatientModal({
   readOnly = false,
   onClose,
   onSubmit,
-  token,
 }) {
   const [activeTab, setActiveTab] = useState("identity");
-  const [cpfRevealed, setCpfRevealed] = useState(false);
-
-  async function handleRevealCpf() {
-    if (cpfRevealed) { setCpfRevealed(false); return; }
-    try {
-      if (editingPatient?.id && token) {
-        await cpfReveal(token, editingPatient.id);
-      }
-      setCpfRevealed(true);
-    } catch { setCpfRevealed(true); } // reveal even if audit fails (access already verified)
-  }
 
   if (!open) return null;
 
@@ -262,21 +248,12 @@ export default function PatientModal({
                 <Input value={form.birthState} maxLength={2} onChange={updUpper("birthState")} {...lockProps(readOnly)} />
               </Field>
               <Field label="CPF">
-                <div style={{ display: "flex", gap: "var(--s-2)", alignItems: "center" }}>
-                  <Input
-                    value={editingPatient ? (cpfRevealed ? form.cpf : maskCpf(form.cpf)) : form.cpf}
-                    onChange={editingPatient && !cpfRevealed ? undefined : (readOnly ? undefined : (e) => setForm((s) => ({ ...s, cpf: formatCpf(e.target.value) })))}
-                    placeholder="000.000.000-00"
-                    readOnly={editingPatient ? (!cpfRevealed || readOnly) : readOnly}
-                    disabled={readOnly && !editingPatient}
-                    style={{ flex: 1 }}
-                  />
-                  {editingPatient && (
-                    <Button type="button" variant="ghost" size="sm" onClick={handleRevealCpf}>
-                      {cpfRevealed ? "Ocultar" : "Revelar"}
-                    </Button>
-                  )}
-                </div>
+                <Input
+                  value={form.cpf}
+                  onChange={readOnly ? undefined : (e) => setForm((s) => ({ ...s, cpf: formatCpf(e.target.value) }))}
+                  placeholder="000.000.000-00"
+                  {...lockProps(readOnly)}
+                />
               </Field>
               <Field label="CNS">
                 <Input value={form.cns} onChange={readOnly ? undefined : (e) => setForm((s) => ({ ...s, cns: formatCns(e.target.value) }))} placeholder="000 0000 0000 0000" {...lockProps(readOnly)} />

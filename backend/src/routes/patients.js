@@ -382,7 +382,7 @@ router.get("/patients/:id", sensitiveDataRateLimit, async (req, res) => {
   return res.json(
     filterNis(
       filterGestorSpecialCategory(
-        filterCnsResponsavel(maskSensitivePatientFields(patient), req.user),
+        filterCnsResponsavel(patient, req.user),
         req.user
       ),
       req.user
@@ -916,27 +916,6 @@ router.delete("/patients/:id", requireManagerOrDoctor, validate(CriticalActionRe
     return res.status(status).json({ error: result.error });
   }
   return res.json(result);
-});
-
-router.post("/patients/:id/cpf-reveal", async (req, res) => {
-  const id = String(req.params.id || "").trim();
-  if (!id) return res.status(400).json({ error: "id obrigatório" });
-  const db = await readDb();
-  ensureDbShape(db);
-  const patient = db.patients.find((p) => p.id === id);
-  if (!patient) return res.status(404).json({ error: "Paciente não encontrado" });
-  const role = canonicalRole(req.user?.role);
-  if (role !== "break_glass_admin" && patient.teamId !== req.user.teamId) {
-    return res.status(403).json({ error: "Sem permissão para acessar este paciente" });
-  }
-  await withDb((auditDb) => {
-    ensureDbShape(auditDb);
-    addAuditLog(auditDb, req.user, "patient.cpf_revealed", "patient", id, {
-      outcome: "success",
-      context: "patient_modal",
-    });
-  });
-  return res.json({ ok: true });
 });
 
 router.get("/patients/:id/appointments", async (req, res) => {
