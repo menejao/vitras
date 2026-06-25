@@ -28,7 +28,7 @@ export function TabContent({
   tab, error, setError, busy,
   user, token,
   patients, setPatients, patientsPaginationMeta, users, allUsers, templates, protocolByPatient,
-  publicTeams, demandMonthly, lastLoadAt, apiHealth,
+  publicTeams, demandMonthly, teamDemand, unitName, lastLoadAt, apiHealth,
   appointments, tasks, messages, history,
   patientDataLoading,
   selectedPatientId, setSelectedPatientId, selectedPatient,
@@ -71,7 +71,7 @@ export function TabContent({
         </div>
       )}
 
-      {tab === "dashboard" && <Dashboard patients={patients} users={users} allUsers={allUsers || []} templates={templates} protocolByPatient={protocolByPatient} demandMonthly={demandMonthly} currentUser={user} agenda={agendaEntries} pharmacyStock={pharmacyStock} onNavigate={navigatePatient} setTab={setTab}/>}
+      {tab === "dashboard" && <Dashboard patients={patients} users={users} allUsers={allUsers || []} templates={templates} protocolByPatient={protocolByPatient} demandMonthly={demandMonthly} teamDemand={teamDemand} unitName={unitName} currentUser={user} agenda={agendaEntries} pharmacyStock={pharmacyStock} onNavigate={navigatePatient} setTab={setTab}/>}
 
       {tab === "queue" && <QueuePage patients={patients} users={users} user={user} token={token} agenda={agendaEntries} onNewPatient={p => setPatients(prev => [...prev, p])}/>}
       {tab === "triage" && <TriagePage patients={patients} users={users} user={user} token={token}/>}

@@ -7,8 +7,8 @@ import {
   DEFAULT_CARE_PROTOCOLS, DEMO_POPULATE_SIZE_COMPLETE, DEMO_POPULATE_SIZE_INCOMPLETE,
   validateUnitBootstrap, normalizeUnitCnes
 } from "../utils/domain.js";
-import { canonicalRole, isManager, isDoctor, hasCapability, getClientIp } from "../utils/helpers.js";
-import { buildMonthlyDemandMetric, buildDataQualityMetric } from "../utils/metrics.js";
+import { canonicalRole, isManager, isDoctor, isGestor, hasCapability, getClientIp } from "../utils/helpers.js";
+import { buildMonthlyDemandMetric, buildDataQualityMetric, buildTeamDemandByProfessional } from "../utils/metrics.js";
 import { getAllowedPatients, maskSensitivePatientFields } from "../utils/patients.js";
 import {
   buildSeedPatient, buildSeedClinicalRecords, buildSeedAppointments,
@@ -112,6 +112,10 @@ router.get("/bootstrap", requireAuth, async (req, res) => {
   const dataQuality = (isManager(req.user) || isDoctor(req.user))
     ? buildDataQualityMetric(db, req.user.teamId)
     : null;
+  const teamDemand = (isGestor(req.user) || canonicalRole(req.user?.role) === "local_admin")
+    ? buildTeamDemandByProfessional(db, req.user.teamId)
+    : null;
+  const unitName = (db.units || []).find((u) => u.id === req.user.unitId)?.name || "";
   await withDb((auditDb) => {
     ensureDbShape(auditDb);
     addAuditLog(auditDb, buildAdminAuditActor(req), "admin.bootstrap_read", "bootstrap", req.user.id, {
@@ -149,7 +153,9 @@ router.get("/bootstrap", requireAuth, async (req, res) => {
     tasks,
     protocolTemplates,
     demandMonthly,
-    dataQuality
+    dataQuality,
+    teamDemand,
+    unitName
   });
 });
 

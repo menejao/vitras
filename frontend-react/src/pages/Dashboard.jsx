@@ -9,7 +9,7 @@ import PageHeader from "../components/layout/PageHeader";
 import { buildProactiveAlerts, protocolChip, catLabel } from "../utils/clinical";
 import { roleLabel } from "../utils/roles";
 
-function Dashboard({ patients, users, allUsers, templates, protocolByPatient, demandMonthly, currentUser, onNavigate, agenda = [], pharmacyStock = [] }) {
+function Dashboard({ patients, users, allUsers, templates, protocolByPatient, demandMonthly, teamDemand, unitName, currentUser, onNavigate, agenda = [], pharmacyStock = [] }) {
   const assigned = patients.filter((p) => String(p.assignedAcsId || "").trim()).length;
   const unassigned = Math.max(patients.length - assigned, 0);
   const acsCount = users.filter((u) => u.role === "acs").length;
@@ -38,12 +38,15 @@ function Dashboard({ patients, users, allUsers, templates, protocolByPatient, de
     agenda,
   ).slice(0, 6);
 
+  const heroTitle = unitName || currentUser?.teamName || "Unidade de saúde";
+  const heroEyebrow = unitName ? "Painel da unidade" : "Vitras APS";
+
   return (
     <PageLayout className="dashboard dashboard--vitras">
       <PageHeader
-        eyebrow="Vitras"
-        title="Visão operacional da unidade"
-        subtitle="Plataforma integrada para gestão da saúde pública. Monitore pacientes, equipe, protocolos e alertas clínicos com densidade institucional."
+        eyebrow={heroEyebrow}
+        title={heroTitle}
+        subtitle="Indicadores assistenciais, equipes, pacientes e protocolos da unidade."
         variant="workspace"
         actions={(
           <div className="dashboard__header-actions">
@@ -96,6 +99,35 @@ function Dashboard({ patients, users, allUsers, templates, protocolByPatient, de
         </Card>
       ) : null}
 
+
+      {(currentUser?.role === "gestor" || currentUser?.role === "local_admin") && Array.isArray(teamDemand) && teamDemand.length > 0 ? (
+        <Card className="card--operational card--noPad">
+          <div className="card__header">
+            <span className="card__title">Demanda programada — equipe</span>
+            <Badge tone="muted">{teamDemand.length} profissional{teamDemand.length !== 1 ? "is" : ""}</Badge>
+          </div>
+          <div className="card__body">
+            <ul className="stack-list">
+              {teamDemand.map((prof) => {
+                const tone = prof.status === "in_range" ? "success" : prof.status === "out_of_range" ? "danger" : "muted";
+                const statusLabel = prof.status === "in_range" ? "Na meta" : prof.status === "out_of_range" ? "Fora da meta" : "Sem dados";
+                return (
+                  <li key={prof.userId}>
+                    <div>
+                      <p><strong>{prof.name}</strong></p>
+                      <p className="muted small">{roleLabel(prof.role)} · {prof.scheduled} prog. · {prof.spontaneous} esp.</p>
+                    </div>
+                    <div className="dashboard__demand-team-right">
+                      <strong className="dashboard__demand-team-pct">{prof.total > 0 ? `${prof.ratioScheduled.toFixed(0)}%` : "—"}</strong>
+                      <Badge tone={tone}>{statusLabel}</Badge>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </Card>
+      ) : null}
 
       {alerts.length ? (
         <section className="dashboard__alerts">

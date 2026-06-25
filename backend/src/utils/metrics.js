@@ -183,9 +183,50 @@ function validateClinicalRecordPayload({ user, patient, type, title, date, detai
   return { ok: true };
 }
 
+function buildTeamDemandByProfessional(db, teamId, monthText = "") {
+  const period = parseMonthPeriod(monthText);
+  if (!period) return [];
+
+  const teamPatientIds = new Set(db.patients.filter((p) => p.teamId === teamId).map((p) => p.id));
+  const inMonth = db.appointments.filter((a) => {
+    if (!teamPatientIds.has(a.patientId)) return false;
+    const d = new Date(a.date || a.createdAt || "");
+    if (Number.isNaN(d.getTime())) return false;
+    return d >= period.start && d < period.end;
+  });
+
+  const clinicalRoles = new Set(["doctor", "nurse_manager", "dentist", "nursing_tech"]);
+  const professionals = (db.users || []).filter(
+    (u) => u.teamId === teamId && clinicalRoles.has(u.role)
+  );
+
+  const min = 50;
+  const max = 70;
+
+  return professionals.map((prof) => {
+    const profAppts = inMonth.filter((a) => a.createdBy === prof.id);
+    const scheduled = profAppts.filter((a) => normalizeDemandType(a.demandType) === "scheduled").length;
+    const spontaneous = profAppts.filter((a) => normalizeDemandType(a.demandType) === "spontaneous").length;
+    const total = scheduled + spontaneous;
+    const ratioScheduled = total > 0 ? Number(((scheduled / total) * 100).toFixed(2)) : 0;
+    const outOfRange = total > 0 && (ratioScheduled < min || ratioScheduled > max);
+    return {
+      userId: prof.id,
+      name: prof.name,
+      role: prof.role,
+      scheduled,
+      spontaneous,
+      total,
+      ratioScheduled,
+      status: total === 0 ? "no_data" : (outOfRange ? "out_of_range" : "in_range"),
+    };
+  });
+}
+
 export {
   parseMonthPeriod,
   buildMonthlyDemandMetric,
+  buildTeamDemandByProfessional,
   buildDataQualityMetric,
   buildAiPatientContext,
   buildAiTeamContexts,

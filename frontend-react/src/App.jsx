@@ -69,7 +69,7 @@ function AppInner() {
     patients, setPatients,
     patientsPaginationMeta,
     users, templates, protocolByPatient, allUsers, publicTeams,
-    demandMonthly, setDemandMonthly,
+    demandMonthly, setDemandMonthly, teamDemand, unitName,
     lastLoadAt,
     appointments, tasks, messages, history, patientProtocolSummary,
     patientDataLoading,
@@ -285,7 +285,7 @@ function AppInner() {
           tab={tab} error={error} setError={setError} busy={busy}
           user={user} token={token}
           patients={patients} setPatients={setPatients} patientsPaginationMeta={patientsPaginationMeta} users={users} allUsers={allUsers} templates={templates} protocolByPatient={protocolByPatient}
-          publicTeams={publicTeams} demandMonthly={demandMonthly} lastLoadAt={lastLoadAt} apiHealth={apiHealth}
+          publicTeams={publicTeams} demandMonthly={demandMonthly} teamDemand={teamDemand} unitName={unitName} lastLoadAt={lastLoadAt} apiHealth={apiHealth}
           appointments={appointments} tasks={tasks} messages={messages} history={history}
           patientDataLoading={patientDataLoading}
           selectedPatientId={selectedPatientId} setSelectedPatientId={setSelectedPatientId} selectedPatient={selectedPatient}

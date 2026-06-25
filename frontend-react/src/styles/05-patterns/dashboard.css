@@ -301,6 +301,20 @@
   gap: var(--s-3);
 }
 
+.dashboard__demand-team-right {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex-shrink: 0;
+}
+
+.dashboard__demand-team-pct {
+  font: 700 var(--t-sm) var(--font-mono);
+  color: var(--text);
+  min-width: 3ch;
+  text-align: right;
+}
+
 .dashboard__empty-copy {
   font-size: var(--t-sm);
 }

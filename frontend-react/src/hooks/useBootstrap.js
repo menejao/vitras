@@ -23,6 +23,8 @@ export function useBootstrap(token, {
   const [allUsers, setAllUsers] = useState([]);
   const [publicTeams, setPublicTeams] = useState([]);
   const [demandMonthly, setDemandMonthly] = useState(null);
+  const [teamDemand, setTeamDemand] = useState(null);
+  const [unitName, setUnitName] = useState("");
   const [lastLoadAt, setLastLoadAt] = useState(null);
   const [patientsPaginationMeta, setPatientsPaginationMeta] = useState(null);
   const [appointments, setAppointments] = useState([]);
@@ -35,7 +37,7 @@ export function useBootstrap(token, {
   function reset() {
     setPatients([]); setUsers([]); setTemplates([]);
     setProtocolByPatient({}); setAllUsers([]);
-    setDemandMonthly(null); setLastLoadAt(null);
+    setDemandMonthly(null); setTeamDemand(null); setUnitName(""); setLastLoadAt(null);
     setPatientsPaginationMeta(null);
     setAppointments([]); setTasks([]); setMessages([]);
     setHistory([]); setPatientProtocolSummary(null);
@@ -57,6 +59,8 @@ export function useBootstrap(token, {
       if (boot?.demandMonthly) {
         setDemandMonthly(boot.demandMonthly);
       }
+      if (Array.isArray(boot?.teamDemand)) setTeamDemand(boot.teamDemand);
+      if (boot?.unitName) setUnitName(boot.unitName);
       setAllUsers(us.map(u => u.id === boot?.user?.id ? { ...u, online: true } : u));
       if (pts.length) {
         const sums = await getProtocolSummaries(token, pts.map(p => p.id).filter(Boolean));
@@ -126,6 +130,7 @@ export function useBootstrap(token, {
     patientsPaginationMeta,
     users, templates, protocolByPatient, allUsers, publicTeams,
     demandMonthly, setDemandMonthly,
+    teamDemand, unitName,
     lastLoadAt,
     appointments, tasks, messages, history, patientProtocolSummary,
     patientDataLoading,
