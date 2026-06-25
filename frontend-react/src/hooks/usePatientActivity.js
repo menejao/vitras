@@ -21,7 +21,7 @@ export function usePatientActivity({
 }) {
   const [recordForm, setRecordForm] = useState({
     type: "consultation", title: "Consulta médica", date: "", details: "",
-    consultKind: "medica", consultDoctor: "", consultSpecialty: "",
+    consultKind: "medica",
   });
   const [recordVaccines, setRecordVaccines] = useState([]);
   const [appointmentForm, setAppointmentForm] = useState({ date: "", demandType: "scheduled", summary: "", conduct: "", nextStep: "" });
@@ -72,7 +72,7 @@ export function usePatientActivity({
           await createAppointment(token, selectedPatientId, {
             date: recordForm.date, demandType: recordForm.demandType || "scheduled", summary: title,
             conduct: recordForm.conduct || "", nextStep: recordForm.nextStep || "",
-            doctorName: recordForm.consultDoctor || "", specialty: recordForm.consultSpecialty || "", consultKind: recordForm.consultKind || "medica",
+            doctorName: user?.name || "", specialty: "", consultKind: recordForm.consultKind || "medica",
           }).catch(() => {});
         }
       }
@@ -91,7 +91,7 @@ export function usePatientActivity({
       setRecordForm({
         type: isAcs(user) ? "visit" : "consultation",
         title: isAcs(user) ? "Visita ACS" : user?.role === "doctor" ? "Consulta médica" : user?.role === "dentist" ? "Consulta odontológica" : "Consulta de enfermagem",
-        date: "", details: "", conduct: "", nextStep: "", demandType: "scheduled", consultKind: "medica", consultDoctor: "", consultSpecialty: "",
+        date: "", details: "", conduct: "", nextStep: "", demandType: "scheduled", consultKind: "medica",
       });
       setRecordVaccines([]);
       await loadSelectedPatientData(selectedPatientId);

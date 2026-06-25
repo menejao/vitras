@@ -427,7 +427,7 @@ function FollowupTab({ patient, users, recordForm, setRecordForm, recordVaccines
           const defaultTitle = t === "consultation"
             ? (userObj?.role === "doctor" ? "Consulta médica" : userObj?.role === "dentist" ? "Consulta odontológica" : "Consulta de enfermagem")
             : "";
-          setRecordForm(s => ({ ...s, type: t, title: defaultTitle, consultKind: "medica", consultDoctor: "", consultSpecialty: "" }));
+          setRecordForm(s => ({ ...s, type: t, title: defaultTitle, consultKind: "medica" }));
           setRecordVaccines([]);
         }}>
           <option value="consultation">Consulta</option>
@@ -441,48 +441,39 @@ function FollowupTab({ patient, users, recordForm, setRecordForm, recordVaccines
 
       {!acsMode && recordForm.type === "consultation" && (
         <>
-          <Select className="field--span-2" label="Tipo de consulta" value={recordForm.consultKind || "medica"} onChange={e => {
+          <Select className="field--span-2" label="Tipo de atendimento / área profissional" value={recordForm.consultKind || "medica"} onChange={e => {
             const k = e.target.value;
-            const titleMap = { medica: "Consulta médica", enfermagem: "Consulta de enfermagem", dentista: "Consulta odontológica" };
-            setRecordForm(s => ({ ...s, consultKind: k, title: titleMap[k] || "Consulta médica", consultDoctor: "", consultSpecialty: "" }));
+            const titleMap = {
+              medica: "Consulta médica",
+              enfermagem: "Consulta de enfermagem",
+              dentista: "Consulta odontológica",
+              psicologia: "Atendimento de psicologia",
+              fisioterapia: "Atendimento de fisioterapia",
+              nutricao: "Atendimento de nutrição",
+              servico_social: "Atendimento de serviço social",
+              terapia_ocupacional: "Atendimento de terapia ocupacional",
+              educacao_fisica: "Atendimento de educação física",
+              farmacia: "Atendimento farmacêutico",
+              outros: "Atendimento multiprofissional",
+            };
+            setRecordForm(s => ({ ...s, consultKind: k, title: titleMap[k] || "Consulta" }));
           }}>
-            <option value="medica">Consulta médica</option>
-            <option value="enfermagem">Consulta de enfermagem</option>
-            <option value="dentista">Consulta odontológica (Dentista)</option>
+            <option value="medica">Medicina</option>
+            <option value="enfermagem">Enfermagem</option>
+            <option value="dentista">Odontologia</option>
+            <option value="psicologia">Psicologia</option>
+            <option value="fisioterapia">Fisioterapia</option>
+            <option value="nutricao">Nutrição</option>
+            <option value="servico_social">Serviço Social</option>
+            <option value="terapia_ocupacional">Terapia Ocupacional</option>
+            <option value="educacao_fisica">Educação Física</option>
+            <option value="farmacia">Farmácia</option>
+            <option value="outros">Outros (multiprofissional)</option>
           </Select>
 
-          {(recordForm.consultKind === "medica" || !recordForm.consultKind) && (
-            <>
-              <Select label="Médico(a) responsável" value={recordForm.consultDoctor || ""} onChange={e => setRecordForm(s => ({ ...s, consultDoctor: e.target.value }))}>
-                <option value="">— Selecionar —</option>
-                {(users || []).filter(u => u.role === "doctor").map(u => (
-                  <option key={u.id} value={u.name}>{u.name}{u.teamName ? ` (${u.teamName})` : ""}</option>
-                ))}
-                {!(users || []).some(u => u.role === "doctor") && (
-                  <>
-                    <option value="Dr. Carlos Mendes">Dr. Carlos Mendes</option>
-                    <option value="Dra. Fernanda Costa">Dra. Fernanda Costa</option>
-                  </>
-                )}
-              </Select>
-              <Select label="Especialidade" value={recordForm.consultSpecialty || ""} onChange={e => setRecordForm(s => ({ ...s, consultSpecialty: e.target.value }))}>
-                <option value="">— Selecionar —</option>
-                <option value="Ginecologia">Ginecologia</option>
-                <option value="Médico da família">Médico da família</option>
-                <option value="Médico geral">Médico geral</option>
-                <option value="Pediatria">Pediatria</option>
-              </Select>
-            </>
-          )}
-
-          {recordForm.consultKind === "enfermagem" && (
-            <Select className="field--span-2" label="Profissional de enfermagem" value={recordForm.consultDoctor || ""} onChange={e => setRecordForm(s => ({ ...s, consultDoctor: e.target.value }))}>
-              <option value="">— Selecionar —</option>
-              {(users || []).filter(u => ["nurse_manager", "nursing_tech"].includes(u.role)).map(u => (
-                <option key={u.id} value={u.name}>{u.name} — {u.role === "nurse_manager" ? "Enfermeira" : "Téc. Enfermagem"}{u.teamName ? ` (${u.teamName})` : ""}</option>
-              ))}
-            </Select>
-          )}
+          <div className="field--span-2" style={{ fontSize: ".75rem", color: "var(--text-muted)", padding: "2px 0" }}>
+            Executado por: <strong>{userObj?.name || "—"}</strong>
+          </div>
         </>
       )}
 
@@ -1534,13 +1525,9 @@ function emptyHouseholdForm() {
   };
 }
 
-function HouseholdTab({ patient, token, canWriteRecords }) {
+function HouseholdTab({ patient, token }) {
   const [loading, setLoading] = useState(true);
   const [household, setHousehold] = useState(null);
-  const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState(emptyHouseholdForm());
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
 
   useEffect(() => {
     if (!patient?.id || !token) { setLoading(false); return; }
@@ -1554,192 +1541,15 @@ function HouseholdTab({ patient, token, canWriteRecords }) {
       .catch(() => setLoading(false));
   }, [patient?.id, token]);
 
-  function startCreate() {
-    setForm(emptyHouseholdForm());
-    setEditing(true);
-    setError("");
-  }
-
-  function startEdit() {
-    if (!household) return;
-    setForm({
-      tipoImovel: household.tipoImovel || household.housingType || "",
-      tipoDomicilio: household.tipoDomicilio || "",
-      numMoradores: household.numMoradores !== undefined ? String(household.numMoradores) : "",
-      numComodos: household.numComodos !== undefined ? String(household.numComodos) : "",
-      localizacao: household.localizacao || "",
-      abastecimentoAgua: household.abastecimentoAgua || "",
-      tratamentoAgua: household.tratamentoAgua || "",
-      esgotamento: household.esgotamento || "",
-      destinacaoLixo: household.destinacaoLixo || "",
-      energiaEletrica: household.energiaEletrica !== undefined ? String(household.energiaEletrica) : "",
-      familyCode: household.familyCode || "",
-      homeVisitFreq: household.homeVisitFreq || "",
-      situacaoMoradiaPosseTerra: household.situacaoMoradiaPosseTerra || "",
-      tipoEndereco: household.tipoEndereco || "",
-      foraArea: household.foraArea === true,
-      animaisNoDomicilio: household.animaisNoDomicilio === true,
-      tiposAnimais: Array.isArray(household.tiposAnimais) ? household.tiposAnimais : [],
-      quantidadeAnimais: household.quantidadeAnimais !== undefined && household.quantidadeAnimais !== null ? String(household.quantidadeAnimais) : ""
-    });
-    setEditing(true);
-    setError("");
-  }
-
-  function upd(field) { return (e) => setForm(f => ({ ...f, [field]: e.target.value })); }
-
-  async function handleSave() {
-    setSaving(true); setError("");
-    try {
-      const payload = {
-        tipoImovel: form.tipoImovel || undefined,
-        numMoradores: form.numMoradores !== "" ? Number(form.numMoradores) : undefined,
-        numComodos: form.numComodos !== "" ? Number(form.numComodos) : undefined,
-        localizacao: form.localizacao || undefined,
-        abastecimentoAgua: form.abastecimentoAgua || undefined,
-        tratamentoAgua: form.tratamentoAgua || undefined,
-        esgotamento: form.esgotamento || undefined,
-        destinacaoLixo: form.destinacaoLixo || undefined,
-        energiaEletrica: form.energiaEletrica !== "" ? form.energiaEletrica === "true" : undefined,
-        familyCode: form.familyCode || undefined,
-        homeVisitFreq: form.homeVisitFreq || undefined,
-        situacaoMoradiaPosseTerra: form.situacaoMoradiaPosseTerra || undefined,
-        tipoEndereco: form.tipoEndereco || undefined,
-        tipoDomicilio: form.tipoDomicilio || undefined,
-        foraArea: form.foraArea === true ? true : undefined,
-        animaisNoDomicilio: form.animaisNoDomicilio,
-        tiposAnimais: form.animaisNoDomicilio ? (form.tiposAnimais.length ? form.tiposAnimais : undefined) : undefined,
-        quantidadeAnimais: form.animaisNoDomicilio && form.quantidadeAnimais !== "" ? Number(form.quantidadeAnimais) : undefined
-      };
-      let updated;
-      if (household) {
-        updated = await patchHousehold(household.id, { ...payload, updatedAt: household.updatedAt }, token);
-      } else {
-        updated = await createHousehold({ ...payload, patientId: patient.id }, token);
-      }
-      setHousehold(updated);
-      setEditing(false);
-    } catch (err) {
-      if (err?.status === 409) {
-        setError("Este registro foi alterado por outro usuário. Atualize os dados antes de salvar novamente.");
-      } else {
-        setError(err?.message || "Erro ao salvar domicílio.");
-      }
-    } finally {
-      setSaving(false);
-    }
-  }
-
   if (loading) {
     return <div className="skeleton-stack"><div className="skeleton-block" style={{ height: "8rem", borderRadius: "var(--r-md)" }} /></div>;
-  }
-
-  if (editing) {
-    return (
-      <div className="household-form">
-        <div className="field-grid">
-          <Select label="Tipo de imóvel" value={form.tipoImovel} onChange={upd("tipoImovel")}>
-            <option value="">Não informado</option>
-            {Object.entries(TIPO_IMOVEL_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-          </Select>
-          <Select label="Tipo de domicílio" value={form.tipoDomicilio} onChange={upd("tipoDomicilio")}>
-            <option value="">Não informado</option>
-            <option value="CASA">Casa</option>
-            <option value="APARTAMENTO">Apartamento</option>
-            <option value="COMODO">Cômodo</option>
-            <option value="MALOCA">Maloca</option>
-            <option value="IMPROVISADO">Improvisado</option>
-            <option value="OUTRO">Outro</option>
-          </Select>
-          <Select label="Localização" value={form.localizacao} onChange={upd("localizacao")}>
-            <option value="">Não informado</option>
-            <option value="URBANA">Urbana</option>
-            <option value="RURAL">Rural</option>
-          </Select>
-          <Input label="Código familiar" value={form.familyCode} onChange={upd("familyCode")} placeholder="Ex: 001" />
-          <Input label="Nº de moradores" type="number" min="0" value={form.numMoradores} onChange={upd("numMoradores")} placeholder="0" />
-          <Input label="Nº de cômodos" type="number" min="0" value={form.numComodos} onChange={upd("numComodos")} placeholder="0" />
-          <Select label="Abastecimento de água" value={form.abastecimentoAgua} onChange={upd("abastecimentoAgua")}>
-            <option value="">Não informado</option>
-            {Object.entries(ABAST_AGUA_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-          </Select>
-          <Select label="Tratamento da água" value={form.tratamentoAgua} onChange={upd("tratamentoAgua")}>
-            <option value="">Não informado</option>
-            {Object.entries(TRATAMENTO_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-          </Select>
-          <Select label="Esgotamento sanitário" value={form.esgotamento} onChange={upd("esgotamento")}>
-            <option value="">Não informado</option>
-            {Object.entries(ESGOTAMENTO_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-          </Select>
-          <Select label="Destino do lixo" value={form.destinacaoLixo} onChange={upd("destinacaoLixo")}>
-            <option value="">Não informado</option>
-            {Object.entries(DESTINO_LIXO_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-          </Select>
-          <Select label="Energia elétrica" value={form.energiaEletrica} onChange={upd("energiaEletrica")}>
-            <option value="">Não informado</option>
-            <option value="true">Sim</option>
-            <option value="false">Não</option>
-          </Select>
-          <Input label="Freq. visita domiciliar" value={form.homeVisitFreq} onChange={upd("homeVisitFreq")} placeholder="Ex: Mensal" />
-          <Select label="Situação de moradia / posse" value={form.situacaoMoradiaPosseTerra} onChange={upd("situacaoMoradiaPosseTerra")}>
-            <option value="">Não informado</option>
-            {Object.entries(SITUACAO_MORADIA_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-          </Select>
-          <Select label="Tipo de endereço" value={form.tipoEndereco} onChange={upd("tipoEndereco")}>
-            <option value="">Não informado</option>
-            {Object.entries(TIPO_ENDERECO_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-          </Select>
-        </div>
-        <div className="household-form__checks">
-          <label className="household-check-label">
-            <input type="checkbox" checked={form.foraArea}
-              onChange={e => setForm(f => ({ ...f, foraArea: e.target.checked }))} />
-            <span>Fora da área de cobertura</span>
-          </label>
-          <label className="household-check-label">
-            <input type="checkbox" checked={form.animaisNoDomicilio}
-              onChange={e => setForm(f => ({ ...f, animaisNoDomicilio: e.target.checked, tiposAnimais: e.target.checked ? f.tiposAnimais : [] }))} />
-            <span>Animais no domicílio</span>
-          </label>
-        </div>
-        {form.animaisNoDomicilio && (
-          <div className="household-form__animais">
-            <p className="household-form__animais-label">Quais animais:</p>
-            <div className="household-form__animais-checks">
-              {[["cachorro","Cachorro"],["gato","Gato"],["passaro","Pássaro"],["outros","Outros"]].map(([v, l]) => (
-                <label key={v} className="household-check-label">
-                  <input type="checkbox"
-                    checked={form.tiposAnimais.includes(v)}
-                    onChange={e => setForm(f => ({
-                      ...f,
-                      tiposAnimais: e.target.checked
-                        ? [...f.tiposAnimais, v]
-                        : f.tiposAnimais.filter(a => a !== v)
-                    }))} />
-                  <span>{l}</span>
-                </label>
-              ))}
-            </div>
-            <Input label="Quantidade" type="number" min="0" max="999" value={form.quantidadeAnimais}
-              onChange={e => setForm(f => ({ ...f, quantidadeAnimais: e.target.value }))} placeholder="0" />
-          </div>
-        )}
-        {error ? <Alert tone="error">{error}</Alert> : null}
-        <div className="household-form__actions">
-          <Button variant="ghost" size="sm" onClick={() => setEditing(false)} disabled={saving}>Cancelar</Button>
-          <Button variant="primary" size="sm" onClick={handleSave} disabled={saving}>{saving ? "Salvando…" : "Salvar"}</Button>
-        </div>
-      </div>
-    );
   }
 
   if (!household) {
     return (
       <div className="household-empty">
-        <p className="household-empty__text">Cadastro domiciliar não informado.</p>
-        {canWriteRecords ? (
-          <Button variant="secondary" size="sm" onClick={startCreate}>Cadastrar domicílio</Button>
-        ) : null}
+        <p className="household-empty__text">Nenhum cadastro domiciliar vinculado a este paciente.</p>
+        <p className="household-empty__hint">O cadastro domiciliar é preenchido pelo ACS na área de Visitas Domiciliares.</p>
       </div>
     );
   }
@@ -1771,11 +1581,6 @@ function HouseholdTab({ patient, token, canWriteRecords }) {
             disabled />
         )}
       </div>
-      {canWriteRecords ? (
-        <div className="household-view__actions">
-          <Button variant="secondary" size="sm" onClick={startEdit}>Editar</Button>
-        </div>
-      ) : null}
     </div>
   );
 }
@@ -1977,7 +1782,6 @@ export default function PatientDetailPanel({
           <HouseholdTab
             patient={patient}
             token={token}
-            canWriteRecords={canWriteRecords}
           />
         )}
       </div>

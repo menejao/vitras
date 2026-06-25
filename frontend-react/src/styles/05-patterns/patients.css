@@ -2537,6 +2537,27 @@
 }
 
 
+/* Household empty state */
+.household-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--s-10) var(--s-6);
+  text-align: center;
+  gap: var(--s-2);
+}
+.household-empty__text {
+  font: 500 var(--t-sm) var(--font-sans);
+  color: var(--text-muted);
+}
+.household-empty__hint {
+  font: 400 var(--t-xs) var(--font-sans);
+  color: var(--text-dim);
+  max-width: 32ch;
+  line-height: var(--lh-relaxed);
+}
+
 /* APS-01G — household new fields */
 .household-form__checks {
   display: flex;

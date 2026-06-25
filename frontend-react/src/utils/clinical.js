@@ -211,10 +211,7 @@ export function normalizeSeverity(value) {
   return "low";
 }
 
-export function alertWeight(alert) {
-  const title = String(alert?.title || "").toLowerCase();
-  const match = title.match(/(\d+)\s+pendente/);
-  if (match) return Math.max(1, Number(match[1] || 1));
+export function alertWeight(_alert) {
   return 1;
 }
 
@@ -285,11 +282,11 @@ export function protocolChip(summary) {
     const sev      = normalizeSeverity(a?.severity);
     const overdue  = Number.isFinite(Number(a?.overdueDays)) ? Number(a.overdueDays) : 0;
     const daysLeft = Number.isFinite(Number(a?.daysLeft)) ? Number(a.daysLeft) : null;
-    const weight   = alertWeight(a);
-    if (overdue >= 1 || (daysLeft !== null && daysLeft <= 2) || sev === "high") {
-      criticalCount += weight;
-    } else if (sev === "medium") {
-      nearCount += weight;
+    // Critical: prazo vencido, prazo ≤ 7 dias, ou severidade alta com janela crítica real
+    if (overdue >= 1 || (daysLeft !== null && daysLeft <= 7) || (sev === "high" && overdue >= 0)) {
+      criticalCount += 1;
+    } else if (sev === "medium" || (daysLeft !== null && daysLeft <= 30)) {
+      nearCount += 1;
     }
   }
 

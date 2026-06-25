@@ -78,24 +78,28 @@ export function useBootstrap(token, {
 
   async function loadSelectedPatientData(patientId) {
     setPatientDataLoading(true);
+    // Reset secondary data immediately so stale data from previous patient doesn't show
+    setHistory([]); setAppointments([]); setTasks([]); setMessages([]);
     try {
-      const [summary, hist, appts, taskItems, msgItems] = await Promise.all([
-        getPatientProtocolSummary(token, patientId),
-        getPatientHistory(token, patientId),
-        listAppointments(token, patientId),
-        listTasks(token, patientId),
-        listMessages(token, patientId),
-      ]);
+      const summary = await getPatientProtocolSummary(token, patientId);
       setPatientProtocolSummary(summary || null);
-      setHistory(Array.isArray(hist) ? hist : []);
-      setAppointments(Array.isArray(appts) ? appts : []);
-      setTasks(Array.isArray(taskItems) ? taskItems : []);
-      setMessages(Array.isArray(msgItems) ? msgItems : []);
     } catch (e) {
       if (!(await handleApiError(e))) setError(e.message || "Falha ao carregar dados do paciente");
     } finally {
       setPatientDataLoading(false);
     }
+    // Secondary data loads in background — does not block workspace open
+    Promise.all([
+      getPatientHistory(token, patientId),
+      listAppointments(token, patientId),
+      listTasks(token, patientId),
+      listMessages(token, patientId),
+    ]).then(([hist, appts, taskItems, msgItems]) => {
+      setHistory(Array.isArray(hist) ? hist : []);
+      setAppointments(Array.isArray(appts) ? appts : []);
+      setTasks(Array.isArray(taskItems) ? taskItems : []);
+      setMessages(Array.isArray(msgItems) ? msgItems : []);
+    }).catch(() => {});
   }
 
   useEffect(() => { if (token) loadAll(); }, [token]);
