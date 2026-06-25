@@ -31,7 +31,13 @@ export const NAV_ICON = {
   acs_tasks: <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M3 3h10v10H3z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/><path d="M5.5 8l2 2 3-3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>,
   access_requests: <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><circle cx="6" cy="5" r="2.5" stroke="currentColor" strokeWidth="1.4"/><path d="M1 13c0-2.761 2.239-5 5-5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><path d="M10 8h5M12.5 5.5v5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>,
   audit_log: <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="12" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.4"/><path d="M5 5.5h6M5 8h6M5 10.5h4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>,
-  equipe: <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><circle cx="5.5" cy="5" r="2.5" stroke="currentColor" strokeWidth="1.4"/><path d="M1 14c0-2.761 2.239-5 4.5-5S10 11.239 10 14" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><circle cx="12" cy="5" r="2" stroke="currentColor" strokeWidth="1.3"/><path d="M10.5 14c0-2 .9-3.5 2.5-3.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
+  equipe: <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><circle cx="5.5" cy="5" r="2.5" stroke="currentColor" strokeWidth="1.4"/><path d="M1 14c0-2.761 2.239-5 4.5-5S10 11.239 10 14" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><circle cx="12" cy="5" r="2" stroke="currentColor" strokeWidth="1.3"/><path d="M10.5 14c0-2 .9-3.5 2.5-3.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>,
+  nutricao: <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M8 2c0 3-2 6-2 9h4c0-3-2-6-2-9z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/><path d="M5 11h6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>,
+  psicologia: <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="7" r="4" stroke="currentColor" strokeWidth="1.3"/><path d="M8 3v4l2 2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/><path d="M5 13c0-1 1.3-2 3-2s3 1 3 2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>,
+  fisioterapia: <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M4 12l2-4 2 2 2-4 2 4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/><circle cx="8" cy="4" r="1.5" stroke="currentColor" strokeWidth="1.2"/></svg>,
+  servico_social: <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><circle cx="6" cy="5" r="2" stroke="currentColor" strokeWidth="1.3"/><circle cx="11" cy="5" r="2" stroke="currentColor" strokeWidth="1.3"/><path d="M2 13c0-2 1.8-3.5 4-3.5h4c2.2 0 4 1.5 4 3.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>,
+  terapia_ocupacional: <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="6" r="3" stroke="currentColor" strokeWidth="1.3"/><path d="M5 11h6M6 13h4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>,
+  fonoaudiologia: <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M5 9c0 2.8 1.3 4 3 4s3-1.2 3-4V5c0-1.7-1.3-3-3-3S5 3.3 5 5v4z" stroke="currentColor" strokeWidth="1.3"/><path d="M3 9c0 3.3 2.2 5 5 5s5-1.7 5-5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/><path d="M8 14v2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>,
 };
 
 export function buildNavItems(user, canManageUser) {
@@ -70,6 +76,17 @@ export function buildNavItems(user, canManageUser) {
   if (canAccessChart(user) || admin) items.push({ id: "chart", label: "Prontuário", section: "" });
   if (!isPharmacist(user) || admin) items.push({ id: "referrals", label: "Encaminhamentos", section: "" });
   if (role === "acs" || admin) items.push({ id: "acs_tasks", label: "ACS", section: "" });
+
+  // Especialidades multiprofissionais — visíveis para clínicos e admin; ocultas de ACS, recepção, farmácia
+  const canSeeSpecialties = admin || (!isReceptionist(user) && !isPharmacist(user) && role !== "acs");
+  if (canSeeSpecialties) {
+    items.push({ id: "nutricao", label: "Nutrição", section: "Especialidades" });
+    items.push({ id: "psicologia", label: "Psicologia", section: "" });
+    items.push({ id: "fisioterapia", label: "Fisioterapia", section: "" });
+    items.push({ id: "servico_social", label: "Serviço Social", section: "" });
+    items.push({ id: "terapia_ocupacional", label: "Terapia Ocupacional", section: "" });
+    items.push({ id: "fonoaudiologia", label: "Fonoaudiologia", section: "" });
+  }
 
   if (!isPharmacist(user) || admin) items.push({ id: "vaccines", label: "Vacinas", section: "Preventivo" });
   if (canReadPharmacy) items.push({ id: "pharmacy", label: "Farmácia", section: "" });

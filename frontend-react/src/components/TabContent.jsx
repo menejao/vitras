@@ -23,6 +23,12 @@ const VaccinesPage       = lazy(() => import("../pages/VaccinesPage"));
 const ExamsPage          = lazy(() => import("../pages/ExamsPage"));
 const AgendaPage         = lazy(() => import("../pages/AgendaPage"));
 const PatientsPage       = lazy(() => import("../pages/PatientsPage"));
+const NutricaoPage       = lazy(() => import("../pages/NutricaoPage"));
+const PsicologiaPage     = lazy(() => import("../pages/PsicologiaPage"));
+const FisioterapiaPage   = lazy(() => import("../pages/FisioterapiaPage"));
+const ServicoSocialPage  = lazy(() => import("../pages/ServicoSocialPage"));
+const TerapiaOcupacionalPage = lazy(() => import("../pages/TerapiaOcupacionalPage"));
+const FonoaudiologiaPage = lazy(() => import("../pages/FonoaudiologiaPage"));
 
 export function TabContent({
   tab, error, setError, busy,
@@ -161,6 +167,13 @@ export function TabContent({
           onPriorities={loadAiPriorities} onQuality={loadAiQuality} onReport={loadAiReport}
           onAsk={submitAiQuestion} busy={busy} error={error} setError={setError}/>
       )}
+
+      {tab === "nutricao" && <NutricaoPage patients={patients} user={user} token={token} />}
+      {tab === "psicologia" && <PsicologiaPage patients={patients} user={user} token={token} />}
+      {tab === "fisioterapia" && <FisioterapiaPage patients={patients} user={user} token={token} />}
+      {tab === "servico_social" && <ServicoSocialPage patients={patients} user={user} token={token} />}
+      {tab === "terapia_ocupacional" && <TerapiaOcupacionalPage patients={patients} user={user} token={token} />}
+      {tab === "fonoaudiologia" && <FonoaudiologiaPage patients={patients} user={user} token={token} />}
     </section>
     </Suspense>
   );

@@ -243,7 +243,12 @@ const HIST_TYPE_COLORS = {
   evolution:     ["#0891b2", "#ecfeff", "#a5f3fc"],
 };
 const HIST_INTERNAL_TYPES = new Set(["task", "message"]);
-const HIST_FILTER_TYPES = ["all","consultation","visit","vaccine","procedure","exam","exam_request","prescription","referral","note","task","message"];
+const HIST_FILTER_TYPES = ["all","consultation","visit","vaccine","procedure","exam","exam_request","prescription","referral","note"];
+const HIST_FILTER_LABELS = {
+  all: "Todos", consultation: "Clínica", visit: "ACS", vaccine: "Vacinas",
+  procedure: "Proc.", exam: "Exames", exam_request: "Pedidos", prescription: "Prescrição",
+  referral: "Encam.", note: "Notas",
+};
 
 function HistoricoTab({ history, appointments, tasks, messages, canManageUser, onDeleteAppointment, loading }) {
   if (loading) {
@@ -262,7 +267,7 @@ function HistoricoTab({ history, appointments, tasks, messages, canManageUser, o
     );
   }
   const [filter, setFilter] = useState("all");
-  const [showInternal, setShowInternal] = useState(true);
+  const [visibleCount, setVisibleCount] = useState(20);
 
   const allEvents = [
     ...(Array.isArray(history) ? history.map(h => ({
@@ -303,7 +308,7 @@ function HistoricoTab({ history, appointments, tasks, messages, canManageUser, o
       e.source !== "appointment" ||
       !arr.some(r => r.source === "record" && r.date === e.date && (r.title || "").toLowerCase().includes((e.title || "").toLowerCase().slice(0, 10)))
     )
-    .filter(e => showInternal ? true : !e.internalOnly)
+    .filter(e => !e.internalOnly)
     .filter(e => filter === "all" || e.type === filter)
     .sort((a, b) => {
       const da = (a.date || "") + (a.time || "") + (a.createdAt || "");
@@ -311,47 +316,32 @@ function HistoricoTab({ history, appointments, tasks, messages, canManageUser, o
       return db.localeCompare(da);
     });
 
+  const visibleEvents = allEvents.slice(0, visibleCount);
+  const hasMore = allEvents.length > visibleCount;
+
   return (
     <>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: ".75rem", flexWrap: "wrap", gap: ".5rem" }}>
-        <div style={{ fontSize: ".72rem", color: "var(--text-3)" }}>
-          {allEvents.length} {filter === "all" ? "eventos" : "registros"} · {allEvents.filter(e => !e.internalOnly).length} clínicos
-        </div>
-        <label style={{ display: "flex", alignItems: "center", gap: ".35rem", fontSize: ".72rem", color: "var(--text-3)", cursor: "pointer", userSelect: "none" }}>
-          <Checkbox checked={showInternal} onChange={e => setShowInternal(e.target.checked)} />
-          Mostrar registros internos (tarefas e mensagens)
-        </label>
-      </div>
-
-      <div style={{ display: "flex", alignItems: "center", gap: ".35rem", marginBottom: ".75rem", padding: ".5rem .65rem", background: "var(--surface-2)", borderRadius: "var(--r-md)", border: "1px solid var(--border)", flexWrap: "wrap" }}>
-        <span style={{ display: "flex", alignItems: "center", gap: ".3rem", fontSize: ".68rem", color: "var(--text-3)" }}>
-          <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--teal-500)", display: "inline-block" }} />
-          Clínico — entra no prontuário legal
-        </span>
-        <span style={{ display: "flex", alignItems: "center", gap: ".3rem", fontSize: ".68rem", color: "var(--text-3)" }}>
-          <span style={{ width: 8, height: 8, borderRadius: 2, background: "#d97706", display: "inline-block" }} />
-          Interno — só visível aqui
-        </span>
-      </div>
-
-      <div style={{ display: "flex", gap: ".3rem", flexWrap: "wrap", marginBottom: "1rem" }}>
+      <div style={{ display: "flex", gap: ".25rem", flexWrap: "wrap", marginBottom: ".75rem" }}>
         {HIST_FILTER_TYPES.map(f => (
-          <Button key={f} type="button" onClick={() => setFilter(f)} variant={filter === f ? "primary" : "secondary"} size="sm"
+          <Button key={f} type="button" onClick={() => { setFilter(f); setVisibleCount(20); }} variant={filter === f ? "primary" : "secondary"} size="sm"
             style={{
-              fontSize: ".71rem", padding: ".2rem .55rem", borderRadius: 999, cursor: "pointer",
+              fontSize: ".69rem", padding: ".18rem .45rem", borderRadius: 999, cursor: "pointer",
               fontWeight: filter === f ? 700 : 400,
               background: filter === f ? "var(--teal-600)" : "var(--surface-2)",
               color: filter === f ? "#fff" : "var(--text-2)",
               border: `1px solid ${filter === f ? "var(--teal-500)" : "var(--border)"}`,
             }}>
-            {f === "all" ? "Todos" : HIST_TYPE_LABELS[f] || f}
+            {HIST_FILTER_LABELS[f] || f}
           </Button>
         ))}
+        <span style={{ fontSize: ".69rem", color: "var(--text-3)", alignSelf: "center", marginLeft: "auto" }}>
+          {allEvents.length} registro{allEvents.length !== 1 ? "s" : ""}
+        </span>
       </div>
 
       {!allEvents.length ? (
         <p style={{ fontSize: ".84rem", color: "var(--text-3)" }}>Nenhum registro encontrado.</p>
-      ) : allEvents.map(ev => {
+      ) : visibleEvents.map(ev => {
         const [color, bg, border] = HIST_TYPE_COLORS[ev.type] || ["var(--text-3)", "var(--surface-2)", "var(--border)"];
         const label = HIST_TYPE_LABELS[ev.type] || ev.type;
         const isInternal = ev.internalOnly;
@@ -400,6 +390,13 @@ function HistoricoTab({ history, appointments, tasks, messages, canManageUser, o
           </div>
         );
       })}
+      {hasMore && (
+        <div style={{ textAlign: "center", marginTop: ".5rem" }}>
+          <Button type="button" variant="secondary" size="sm" onClick={() => setVisibleCount(c => c + 20)}>
+            Carregar mais ({allEvents.length - visibleCount} restantes)
+          </Button>
+        </div>
+      )}
     </>
   );
 }
@@ -441,39 +438,19 @@ function FollowupTab({ patient, users, recordForm, setRecordForm, recordVaccines
 
       {!acsMode && recordForm.type === "consultation" && (
         <>
-          <Select className="field--span-2" label="Tipo de atendimento / área profissional" value={recordForm.consultKind || "medica"} onChange={e => {
+          <Select className="field--span-2" label="Área clínica" value={recordForm.consultKind || "medica"} onChange={e => {
             const k = e.target.value;
             const titleMap = {
               medica: "Consulta médica",
               enfermagem: "Consulta de enfermagem",
               dentista: "Consulta odontológica",
-              psicologia: "Atendimento de psicologia",
-              fisioterapia: "Atendimento de fisioterapia",
-              nutricao: "Atendimento de nutrição",
-              servico_social: "Atendimento de serviço social",
-              terapia_ocupacional: "Atendimento de terapia ocupacional",
-              educacao_fisica: "Atendimento de educação física",
-              farmacia: "Atendimento farmacêutico",
-              outros: "Atendimento multiprofissional",
             };
             setRecordForm(s => ({ ...s, consultKind: k, title: titleMap[k] || "Consulta" }));
           }}>
             <option value="medica">Medicina</option>
             <option value="enfermagem">Enfermagem</option>
             <option value="dentista">Odontologia</option>
-            <option value="psicologia">Psicologia</option>
-            <option value="fisioterapia">Fisioterapia</option>
-            <option value="nutricao">Nutrição</option>
-            <option value="servico_social">Serviço Social</option>
-            <option value="terapia_ocupacional">Terapia Ocupacional</option>
-            <option value="educacao_fisica">Educação Física</option>
-            <option value="farmacia">Farmácia</option>
-            <option value="outros">Outros (multiprofissional)</option>
           </Select>
-
-          <div className="field--span-2" style={{ fontSize: ".75rem", color: "var(--text-muted)", padding: "2px 0" }}>
-            Executado por: <strong>{userObj?.name || "—"}</strong>
-          </div>
         </>
       )}
 
