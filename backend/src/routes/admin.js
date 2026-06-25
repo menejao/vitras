@@ -7,7 +7,7 @@ import {
   DEFAULT_CARE_PROTOCOLS, DEMO_POPULATE_SIZE_COMPLETE, DEMO_POPULATE_SIZE_INCOMPLETE,
   validateUnitBootstrap, normalizeUnitCnes
 } from "../utils/domain.js";
-import { canonicalRole, isManager, isDoctor, isGestor, hasCapability, getClientIp } from "../utils/helpers.js";
+import { canonicalRole, isManager, isDoctor, isGestor, hasCapability, getClientIp, isPlatformRole } from "../utils/helpers.js";
 import { buildMonthlyDemandMetric, buildDataQualityMetric, buildTeamDemandByProfessional } from "../utils/metrics.js";
 import { getAllowedPatients, maskSensitivePatientFields } from "../utils/patients.js";
 import {
@@ -98,7 +98,7 @@ router.get("/bootstrap", requireAuth, async (req, res) => {
   const paginatedPatients = allAllowedPatients.slice(offset, offset + limit);
 
   const users = db.users
-    .filter((u) => canReadAllUsers || u.teamId === req.user.teamId)
+    .filter((u) => !isPlatformRole(u) && (canReadAllUsers || u.teamId === req.user.teamId))
     .map((u) => sanitizeUser(u, db));
   const protocolTemplates = Object.values(getProtocolTemplateMap(db, req.user.teamId));
 
@@ -112,7 +112,8 @@ router.get("/bootstrap", requireAuth, async (req, res) => {
   const dataQuality = (isManager(req.user) || isDoctor(req.user))
     ? buildDataQualityMetric(db, req.user.teamId)
     : null;
-  const teamDemand = (isGestor(req.user) || canonicalRole(req.user?.role) === "local_admin")
+  const isBga = canonicalRole(req.user?.role) === "break_glass_admin";
+  const teamDemand = (isGestor(req.user) || canonicalRole(req.user?.role) === "local_admin" || isBga)
     ? buildTeamDemandByProfessional(db, req.user.teamId)
     : null;
   const unitName = (db.units || []).find((u) => u.id === req.user.unitId)?.name || "";

@@ -38,8 +38,8 @@ function Dashboard({ patients, users, allUsers, templates, protocolByPatient, de
     agenda,
   ).slice(0, 6);
 
-  const heroTitle = unitName || currentUser?.teamName || "Unidade de saúde";
-  const heroEyebrow = unitName ? "Painel da unidade" : "Vitras APS";
+  const heroEyebrow = unitName || "Vitras APS";
+  const heroTitle = currentUser?.teamName || "Painel operacional";
 
   return (
     <PageLayout className="dashboard dashboard--vitras">
@@ -100,7 +100,7 @@ function Dashboard({ patients, users, allUsers, templates, protocolByPatient, de
       ) : null}
 
 
-      {(currentUser?.role === "gestor" || currentUser?.role === "local_admin") && Array.isArray(teamDemand) && teamDemand.length > 0 ? (
+      {(currentUser?.role === "gestor" || currentUser?.role === "local_admin" || currentUser?.role === "break_glass_admin") && Array.isArray(teamDemand) && teamDemand.length > 0 ? (
         <Card className="card--operational card--noPad">
           <div className="card__header">
             <span className="card__title">Demanda programada — equipe</span>
