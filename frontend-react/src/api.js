@@ -460,6 +460,10 @@ export async function createRecord(token, patientId, payload) {
   return api(`/patients/${patientId}/records`, { method: "POST", body: JSON.stringify(payload) }, token);
 }
 
+export async function cpfReveal(token, patientId) {
+  return api(`/patients/${patientId}/cpf-reveal`, { method: "POST", body: JSON.stringify({}) }, token);
+}
+
 export async function fetchPrescriptions(token) {
   return api("/records/prescriptions", { method: "GET" }, token);
 }

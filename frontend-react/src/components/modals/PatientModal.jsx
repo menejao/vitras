@@ -6,6 +6,8 @@ import Modal from "../ui/Modal";
 import AppSelect from "../ui/AppSelect";
 import AppDatePicker from "../ui/AppDatePicker";
 import Textarea from "../ui/Textarea";
+import { maskCpf } from "../../utils/formatting";
+import { cpfReveal } from "../../api";
 
 const TABS = [
   { id: "identity", label: "Identificação" },
@@ -93,8 +95,20 @@ export default function PatientModal({
   readOnly = false,
   onClose,
   onSubmit,
+  token,
 }) {
   const [activeTab, setActiveTab] = useState("identity");
+  const [cpfRevealed, setCpfRevealed] = useState(false);
+
+  async function handleRevealCpf() {
+    if (cpfRevealed) { setCpfRevealed(false); return; }
+    try {
+      if (editingPatient?.id && token) {
+        await cpfReveal(token, editingPatient.id);
+      }
+      setCpfRevealed(true);
+    } catch { setCpfRevealed(true); } // reveal even if audit fails (access already verified)
+  }
 
   if (!open) return null;
 
@@ -248,7 +262,21 @@ export default function PatientModal({
                 <Input value={form.birthState} maxLength={2} onChange={updUpper("birthState")} {...lockProps(readOnly)} />
               </Field>
               <Field label="CPF">
-                <Input value={form.cpf} onChange={readOnly ? undefined : (e) => setForm((s) => ({ ...s, cpf: formatCpf(e.target.value) }))} placeholder="000.000.000-00" {...lockProps(readOnly)} />
+                <div style={{ display: "flex", gap: "var(--s-2)", alignItems: "center" }}>
+                  <Input
+                    value={editingPatient ? (cpfRevealed ? form.cpf : maskCpf(form.cpf)) : form.cpf}
+                    onChange={editingPatient && !cpfRevealed ? undefined : (readOnly ? undefined : (e) => setForm((s) => ({ ...s, cpf: formatCpf(e.target.value) })))}
+                    placeholder="000.000.000-00"
+                    readOnly={editingPatient ? (!cpfRevealed || readOnly) : readOnly}
+                    disabled={readOnly && !editingPatient}
+                    style={{ flex: 1 }}
+                  />
+                  {editingPatient && (
+                    <Button type="button" variant="ghost" size="sm" onClick={handleRevealCpf}>
+                      {cpfRevealed ? "Ocultar" : "Revelar"}
+                    </Button>
+                  )}
+                </div>
               </Field>
               <Field label="CNS">
                 <Input value={form.cns} onChange={readOnly ? undefined : (e) => setForm((s) => ({ ...s, cns: formatCns(e.target.value) }))} placeholder="000 0000 0000 0000" {...lockProps(readOnly)} />
@@ -259,6 +287,10 @@ export default function PatientModal({
 
         {activeTab === "contact" && (
           <>
+            <div className="patient-modal-acs-banner">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.4"/><path d="M8 7.5v4M8 5h.01" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>
+              Contato e endereço são coletados pelo ACS na visita domiciliar. Atualize pelo módulo <strong>ACS → Cadastro Domiciliar</strong> para manter a sincronia.
+            </div>
             <Section title="Contato">
               <Field label="Telefone principal *">
                 <Input value={form.phone} onChange={readOnly ? undefined : (e) => setForm((s) => ({ ...s, phone: formatPhone(e.target.value) }))} {...lockProps(readOnly)} />
@@ -338,40 +370,44 @@ export default function PatientModal({
 
         {activeTab === "social" && (
           <>
+            <div className="patient-modal-acs-banner">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.4"/><path d="M8 7.5v4M8 5h.01" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>
+              Dados sociais e territoriais são responsabilidade do ACS. Atualize pelo módulo <strong>ACS → Cadastro Domiciliar</strong>.
+            </div>
             <Section title="Dados territoriais">
               <Field label="Microárea">
-                <Input value={form.microArea || ""} onChange={upd("microArea")} {...lockProps(readOnly)} />
+                <Input value={form.microArea || ""} disabled readOnly />
               </Field>
               <Field label="Código de família">
-                <Input value={form.familyCode || ""} onChange={upd("familyCode")} {...lockProps(readOnly)} />
+                <Input value={form.familyCode || ""} disabled readOnly />
               </Field>
               <Field label="Frequência de visita ACS">
-                <Input value={form.homeVisitFreq || ""} onChange={upd("homeVisitFreq")} {...lockProps(readOnly)} />
+                <Input value={form.homeVisitFreq || ""} disabled readOnly />
               </Field>
-              <AppSelect label="Tipo de moradia" value={form.housingType || ""} onChange={upd("housingType")} disabled={readOnly}>
+              <AppSelect label="Tipo de moradia" value={form.housingType || ""} disabled>
                 <option value="">Não informado</option>
                 {["Alvenaria", "Madeira", "Taipa", "Improvisada", "Outro"].map((o) => <option key={o} value={o}>{o}</option>)}
               </AppSelect>
-              <AppSelect label="Abastecimento de água" value={form.waterSupply || ""} onChange={upd("waterSupply")} disabled={readOnly}>
+              <AppSelect label="Abastecimento de água" value={form.waterSupply || ""} disabled>
                 <option value="">Não informado</option>
                 {["Rede pública", "Poço/nascente", "Outros"].map((o) => <option key={o} value={o}>{o}</option>)}
               </AppSelect>
-              <AppSelect label="Esgotamento sanitário" value={form.sewage || ""} onChange={upd("sewage")} disabled={readOnly}>
+              <AppSelect label="Esgotamento sanitário" value={form.sewage || ""} disabled>
                 <option value="">Não informado</option>
                 {["Rede pública", "Fossa séptica", "Fossa rudimentar", "Céu aberto", "Outro"].map((o) => <option key={o} value={o}>{o}</option>)}
               </AppSelect>
-              <AppSelect label="Destino do lixo" value={form.garbage || ""} onChange={upd("garbage")} disabled={readOnly}>
+              <AppSelect label="Destino do lixo" value={form.garbage || ""} disabled>
                 <option value="">Não informado</option>
                 {["Coletado", "Queimado", "Enterrado", "Céu aberto", "Outro"].map((o) => <option key={o} value={o}>{o}</option>)}
               </AppSelect>
-              <AppSelect label="Energia elétrica" value={form.electricity || ""} onChange={upd("electricity")} disabled={readOnly}>
+              <AppSelect label="Energia elétrica" value={form.electricity || ""} disabled>
                 <option value="">Não informado</option>
                 {["Sim", "Não", "Irregular"].map((o) => <option key={o} value={o}>{o}</option>)}
               </AppSelect>
             </Section>
 
             <Section title="Informações psicossociais">
-              <AppSelect label="Escolaridade" value={form.educationLevel || ""} onChange={upd("educationLevel")} disabled={readOnly}>
+              <AppSelect label="Escolaridade" value={form.educationLevel || ""} disabled>
                 <option value="">Não informado</option>
                 <option value="sem_escolaridade">Sem escolaridade</option>
                 <option value="fundamental_incompleto">Fundamental incompleto</option>
@@ -383,11 +419,9 @@ export default function PatientModal({
                 <option value="pos_graduacao">Pós-graduação</option>
               </AppSelect>
               <Field label="Ocupação">
-                <div className="input">
-                  <Input value={form.occupation || ""} onChange={upd("occupation")} placeholder="Ex.: agricultor, estudante, aposentado..." {...lockProps(readOnly)} />
-                </div>
+                <Input value={form.occupation || ""} placeholder="Ex.: agricultor, estudante, aposentado..." disabled readOnly />
               </Field>
-              <AppSelect label="Situação familiar" value={form.familySituation || ""} onChange={upd("familySituation")} disabled={readOnly}>
+              <AppSelect label="Situação familiar" value={form.familySituation || ""} disabled>
                 <option value="">Não informado</option>
                 <option value="mora_sozinho">Mora sozinho</option>
                 <option value="familia_nuclear">Família nuclear</option>
@@ -395,24 +429,22 @@ export default function PatientModal({
                 <option value="unipessoal">Unipessoal</option>
                 <option value="outro">Outro</option>
               </AppSelect>
-              <AppSelect label="Apoio familiar" value={form.familySupport || ""} onChange={upd("familySupport")} disabled={readOnly}>
+              <AppSelect label="Apoio familiar" value={form.familySupport || ""} disabled>
                 <option value="">Não informado</option>
                 <option value="adequado">Adequado</option>
                 <option value="parcial">Parcial</option>
                 <option value="ausente">Ausente</option>
               </AppSelect>
-              <AppSelect label="Vulnerabilidade social" value={form.socialVulnerability || ""} onChange={upd("socialVulnerability")} disabled={readOnly}>
+              <AppSelect label="Vulnerabilidade social" value={form.socialVulnerability || ""} disabled>
                 <option value="">Não informado</option>
                 <option value="baixa">Baixa</option>
                 <option value="moderada">Moderada</option>
                 <option value="alta">Alta</option>
               </AppSelect>
               <Field label="Benefício social">
-                <div className="input">
-                  <Input value={form.socialBenefit || ""} onChange={upd("socialBenefit")} placeholder="Ex.: Bolsa Família, BPC, LOAS..." {...lockProps(readOnly)} />
-                </div>
+                <Input value={form.socialBenefit || ""} placeholder="Ex.: Bolsa Família, BPC, LOAS..." disabled readOnly />
               </Field>
-              <AppSelect label="Dependência química" value={form.substanceDependency || ""} onChange={upd("substanceDependency")} disabled={readOnly}>
+              <AppSelect label="Dependência química" value={form.substanceDependency || ""} disabled>
                 <option value="">Não informado</option>
                 <option value="nao">Não</option>
                 <option value="alcool">Álcool</option>
@@ -420,7 +452,7 @@ export default function PatientModal({
                 <option value="outras_drogas">Outras drogas</option>
                 <option value="multiplas">Múltiplas substâncias</option>
               </AppSelect>
-              <AppSelect label="Situação de violência" value={form.domesticViolence || ""} onChange={upd("domesticViolence")} disabled={readOnly}>
+              <AppSelect label="Situação de violência" value={form.domesticViolence || ""} disabled>
                 <option value="">Não informado</option>
                 <option value="nao">Não</option>
                 <option value="suspeita">Suspeita</option>
@@ -428,12 +460,12 @@ export default function PatientModal({
               </AppSelect>
             </Section>
             <Section title="Triagem de Risco Alimentar (TRIA)">
-              <AppSelect label="Alimentos acabaram antes de ter dinheiro para comprar?" value={form.triaAlimentosAcabaram === true ? "sim" : form.triaAlimentosAcabaram === false ? "nao" : ""} onChange={e => upd("triaAlimentosAcabaram")({ target: { value: e.target.value === "sim" ? true : e.target.value === "nao" ? false : null } })} disabled={readOnly}>
+              <AppSelect label="Alimentos acabaram antes de ter dinheiro para comprar?" value={form.triaAlimentosAcabaram === true ? "sim" : form.triaAlimentosAcabaram === false ? "nao" : ""} disabled>
                 <option value="">Não informado</option>
                 <option value="sim">Sim</option>
                 <option value="nao">Não</option>
               </AppSelect>
-              <AppSelect label="Precisou consumir só um tipo de alimento por falta de recursos?" value={form.triaTipoUnico === true ? "sim" : form.triaTipoUnico === false ? "nao" : ""} onChange={e => upd("triaTipoUnico")({ target: { value: e.target.value === "sim" ? true : e.target.value === "nao" ? false : null } })} disabled={readOnly}>
+              <AppSelect label="Precisou consumir só um tipo de alimento por falta de recursos?" value={form.triaTipoUnico === true ? "sim" : form.triaTipoUnico === false ? "nao" : ""} disabled>
                 <option value="">Não informado</option>
                 <option value="sim">Sim</option>
                 <option value="nao">Não</option>

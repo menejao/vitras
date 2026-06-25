@@ -195,6 +195,7 @@
   flex-shrink: 0;
   padding: var(--s-3) var(--s-3);
   border: none;
+  border-radius: 0;
   border-bottom: 2px solid transparent;
   background: none;
   font: 500 var(--t-sm) var(--font-sans);
@@ -236,6 +237,30 @@
   .patient-modal__status {
     margin-left: 0;
   }
+}
+
+/* ACS source banner inside patient modal tabs */
+.patient-modal-acs-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-2);
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-md);
+  background: var(--info-soft, color-mix(in srgb, var(--accent) 8%, transparent));
+  border: 1px solid var(--info-border, color-mix(in srgb, var(--accent) 20%, transparent));
+  font-size: var(--t-sm);
+  color: var(--text-muted);
+  line-height: var(--lh-base);
+  flex-shrink: 0;
+}
+.patient-modal-acs-banner svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--accent);
+}
+.patient-modal-acs-banner strong {
+  color: var(--text);
+  font-weight: 600;
 }
 
 /* ── Session Timeout Modal ────────────────────────────────── */
