@@ -31,7 +31,7 @@
 
 .dashboard__kpis {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: var(--s-3);
 }
 
@@ -43,10 +43,12 @@
 }
 
 @media (max-width: 1024px) {
-  .dashboard__kpis { grid-template-columns: repeat(2, 1fr); }
   .dashboard__grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 640px) {
+  .dashboard__kpis { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 420px) {
   .dashboard__kpis { grid-template-columns: 1fr; }
 }
 
@@ -471,9 +473,6 @@
 }
 .stack-list li p { margin: 0; line-height: var(--lh-snug); }
 
-@media (max-width: 1280px) {
-  .dashboard__kpis { grid-template-columns: repeat(2, 1fr); }
-}
 @media (max-width: 768px) {
   .dashboard__kpis { grid-template-columns: 1fr; }
   .dashboard__grid { grid-template-columns: 1fr; }

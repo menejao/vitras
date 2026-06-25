@@ -62,16 +62,18 @@ function Dashboard({ patients, users, allUsers, templates, protocolByPatient, de
           helper={`Atenção: ${pc.attention} · Em dia: ${pc.ok}`}
           className={`card card--compact ${pc.critical ? "kpi--danger" : pc.attention ? "kpi--warning" : "kpi--success"}`}
         />
-        <KPI
-          label="Demanda programada"
-          value={dmPct === null ? "—" : `${dmPct}%`}
-          helper={dmPct === null ? "Sem atendimentos" : dmStatus}
-          className={`card card--compact ${dmTone !== "neutral" ? `kpi--${dmTone}` : ""}`}
-        />
+        {(currentUser?.role === "doctor" || currentUser?.role === "nurse_manager") && dmPct !== null ? (
+          <KPI
+            label="Demanda programada"
+            value={`${dmPct}%`}
+            helper={dmStatus}
+            className={`card card--compact ${dmTone !== "neutral" ? `kpi--${dmTone}` : ""}`}
+          />
+        ) : null}
         <KPI label="Profissionais" value={users.length} helper={`ACS: ${acsCount} · Médicos: ${docCount}`} className="card card--compact" />
       </section>
 
-      {currentUser?.role === "nurse_manager" ? (
+      {(currentUser?.role === "nurse_manager" || currentUser?.role === "doctor" || currentUser?.role === "gestor") && dmTotal > 0 ? (
         <Card className={`dashboard__demand-card card--executive card--noPad ${dmTone !== "neutral" ? `kpi--${dmTone}` : ""}`}>
           <div className="card__header">
             <span className="card__title">Demanda programada</span>
