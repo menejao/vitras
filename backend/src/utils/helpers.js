@@ -477,6 +477,19 @@ function isSupportAdmin(user) {
   return canonicalRole(user?.role) === "support_admin";
 }
 
+// Roles that belong to the technical/platform team — invisible in UBS user listings.
+const PLATFORM_ROLES = new Set([
+  "support_admin", "break_glass_admin", "developer_readonly",
+  "security_auditor", "qa_operator", "support_operator"
+]);
+
+function isPlatformRole(roleOrUser) {
+  const r = typeof roleOrUser === "string"
+    ? canonicalRole(roleOrUser)
+    : canonicalRole(roleOrUser?.role);
+  return PLATFORM_ROLES.has(r);
+}
+
 /* ── Validators ── */
 
 function isStrongPassword(password) {
@@ -776,6 +789,8 @@ export {
   canAccessScopedPatients,
   isAnaAdminUser,
   isSupportAdmin,
+  PLATFORM_ROLES,
+  isPlatformRole,
   isStrongPassword,
   isValidEmail,
   isSequentialDigits,

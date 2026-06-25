@@ -7,7 +7,7 @@ import { requireManager } from "../middlewares/auth.js";
 import { ensureDbShape, sanitizeUser } from "../utils/domain.js";
 import {
   canonicalRole, isStrongPassword, isValidEmail, roleNeedsCouncil,
-  councilTypeForRole, getClientIp, isAnaAdminUser, hasCapability
+  councilTypeForRole, getClientIp, isAnaAdminUser, hasCapability, isPlatformRole
 } from "../utils/helpers.js";
 import { validateCouncilData, verifyCouncilExternally } from "../utils/council.js";
 import { generateVitrasId } from "../utils/vitras-id.js";
@@ -182,7 +182,7 @@ router.get("/users", requireAuth, async (req, res) => {
 
     const sourceUsers = snapshotUsers.length ? snapshotUsers : db.users;
     const safeUsers = sourceUsers
-      .filter((u) => canReadAllUsers || u.teamId === req.user.teamId)
+      .filter((u) => !isPlatformRole(u) && (canReadAllUsers || u.teamId === req.user.teamId))
       .map((u) => sanitizeUser(u, db));
 
     addAuditLog(db, buildReadAuditActor(req), "user.list_read", "user", "", {
@@ -207,6 +207,7 @@ router.get("/users/activity-log", requireAuth, async (req, res) => {
   const now = Date.now();
   const teamNameById = Object.fromEntries((db.teams || []).map((t) => [String(t.id || ""), String(t.name || "Sem equipe")]));
   const items = db.users
+    .filter((u) => !isPlatformRole(u))
     .map((u) => {
       const lastSeenAt = String(u.lastSeenAt || u.lastLoginAt || "");
       const lastSeenTs = Date.parse(lastSeenAt);

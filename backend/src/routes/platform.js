@@ -3,7 +3,7 @@ import express from "express";
 import { readDb, withDb } from "../db.js";
 import { requireAuth, requireSupportAdmin } from "../middlewares/auth.js";
 import { ensureDbShape } from "../utils/domain.js";
-import { canonicalRole, hasCapability, isValidEmail } from "../utils/helpers.js";
+import { canonicalRole, hasCapability, isValidEmail, isPlatformRole } from "../utils/helpers.js";
 import { hashPassword, generateTempPassword } from "../services/crypto.js";
 import { generateVitrasId } from "../utils/vitras-id.js";
 import { addAuditLog } from "../services/audit.js";
@@ -136,7 +136,7 @@ router.get("/platform/summary", async (req, res) => {
   const active         = units.filter((u) => u.status === "active").length;
   const inactive       = units.filter((u) => u.status === "inactive").length;
   const totalGestors   = users.filter((u) => canonicalRole(u.role) === "gestor" && !u.inactive).length;
-  const totalUsers     = users.filter((u) => !u.inactive).length;
+  const totalUsers     = users.filter((u) => !u.inactive && !isPlatformRole(u)).length;
   const totalTeams     = (db.teams || []).length;
   return res.json({ totalUnits, onboarding, active, inactive, totalGestors, totalUsers, totalTeams });
 });
