@@ -59,6 +59,10 @@ function TriagePage({ patients, users, user, token }) {
     }
   }
 
+  function closeModal() {
+    setSelected(null);
+  }
+
   async function cancelTriage() {
     if (!selected) return;
     try {
@@ -159,8 +163,16 @@ function TriagePage({ patients, users, user, token }) {
             return (
               <div
                 key={entry.id}
-                className={`triage-entry${isMe ? " triage-entry--me" : isBusy ? " triage-entry--busy" : ""}`}
-                onClick={() => { if (!isBusy && entry.status !== "triage") startTriage(entry); }}
+                className={`triage-entry${isMe ? " triage-entry--me" : isBusy ? " triage-entry--busy" : ""}${isBusy ? " triage-entry--no-cursor" : ""}`}
+                onClick={() => {
+                  if (isBusy) return;
+                  if (isMe) {
+                    setSelected(entry);
+                    setVitals(entry.vitals || { bp: "", bpD: "", weight: "", height: "", temp: "", spo2: "", hr: "", glucose: "", pain: "", notes: "" });
+                  } else {
+                    startTriage(entry);
+                  }
+                }}
               >
                 <div className="triage-entry__name">{entry.patientName}</div>
                 <div className="triage-entry__sub">Chegou {formatQueueClock(entry.arrivedAt)} · há {formatQueueWait(entry.arrivedAt)}</div>
@@ -204,7 +216,7 @@ function TriagePage({ patients, users, user, token }) {
                     </div>
                   </div>
                 </div>
-                <Button variant="ghost" size="sm" iconOnly type="button" onClick={cancelTriage}>
+                <Button variant="ghost" size="sm" iconOnly type="button" onClick={closeModal}>
                   <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
                     <path d="M2 2l12 12M14 2L2 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
                   </svg>
@@ -269,8 +281,8 @@ function TriagePage({ patients, users, user, token }) {
                 />
 
                 <div className="triage-form__footer">
-                  <Button type="button" variant="secondary" onClick={cancelTriage} style={{ flex: 1 }}>Cancelar</Button>
-                  <Button type="submit" variant="primary" disabled={saving} style={{ flex: 2 }}>
+                  <Button type="button" variant="secondary" onClick={cancelTriage} className="triage-form__btn-cancel">Cancelar</Button>
+                  <Button type="submit" variant="primary" disabled={saving} className="triage-form__btn-finish">
                     {saving ? "Finalizando..." : "Finalizar triagem"}
                   </Button>
                 </div>

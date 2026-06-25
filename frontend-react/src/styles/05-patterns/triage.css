@@ -149,6 +149,7 @@
 
 .triage-entry--me   { border-color: var(--accent); background: var(--accent-soft); }
 .triage-entry--busy { border-color: var(--warning-bd); background: var(--warning-soft); }
+.triage-entry--no-cursor { cursor: default; }
 
 .triage-entry__name {
   font: 700 var(--t-base) var(--font-sans);
@@ -293,8 +294,11 @@
 .triage-pain { display: flex; gap: var(--s-1); flex-wrap: wrap; }
 
 .triage-pain__btn {
-  width: 36px;
+  width: 36px !important;
+  min-width: 36px !important;
   height: 36px;
+  padding: 0 !important;
+  justify-content: center;
   border-radius: var(--r-md);
   font: 700 var(--t-sm) var(--font-sans);
   cursor: pointer;
@@ -313,7 +317,11 @@
   gap: var(--s-2);
   padding-top: var(--s-2);
   border-top: 1px solid var(--border);
+  justify-content: flex-end;
 }
+
+.triage-form__btn-cancel  { min-width: 120px; max-width: 160px; }
+.triage-form__btn-finish  { min-width: 160px; max-width: 220px; }
 
 @media (max-width: 768px) {
   .triage-body { flex-direction: column; padding: var(--s-4) var(--s-4) var(--s-4); }

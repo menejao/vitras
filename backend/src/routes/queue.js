@@ -165,6 +165,10 @@ router.patch("/queue/:id", validate(QueuePatchSchema), async (req, res) => {
       next.triageBy = req.user.id;
       if (!next.triageStart) next.triageStart = next.updatedAt;
     }
+    if (next.status === "waiting") {
+      next.triageBy = "";
+      next.triageStart = "";
+    }
     if (next.status === "ready" && !next.triageDone) {
       next.triageDone = next.updatedAt;
     }
