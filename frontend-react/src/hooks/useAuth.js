@@ -192,7 +192,7 @@ export function useAuth({ onSessionExpired, onLoginSuccess } = {}) {
   function logout() {
     const sess = readSession();
     if (token) logoutApi(token, sess?.refreshToken || "").catch(() => {});
-    setToken(""); setUser(null);
+    setToken(""); setUser(null); setError("");
     sessionStorage.removeItem(SESSION_KEY);
     localStorage.removeItem(UI_STATE_KEY);
     localStorage.removeItem(RECEPTION_KEY);

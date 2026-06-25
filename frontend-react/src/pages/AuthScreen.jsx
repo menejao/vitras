@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
 import Input from "../components/ui/Input";
@@ -6,12 +6,25 @@ import Alert from "../components/ui/Alert";
 import KPI from "../components/ui/KPI";
 import { BrandLockup } from "../components/brand/BrandLockup";
 
-const VITRAS_SUBTITLE = "Plataforma integrada para gestão da saúde pública";
-
 function AuthScreen({ onLogin, onVerifyTwoFactor, loginChallenge, onCancelTwoFactor, error, busy }) {
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [twoFactorCode, setTwoFactorCode] = useState("");
+  const [localError, setLocalError] = useState("");
+
+  // Limpar erro residual de sessão anterior ao montar a tela
+  useEffect(() => {
+    setLocalError("");
+  }, []);
+
+  // Sincronizar erro do pai apenas quando resultar de tentativa de login
+  // (não herdar estado residual de navegação anterior)
+  useEffect(() => {
+    if (busy) setLocalError("");
+  }, [busy]);
+
+  // Erro ativo = erro do pai quando ele muda após tentativa (busy false → error preenchido)
+  const displayError = localError || (error && !busy ? error : "");
 
   return (
     <main className="auth">
@@ -21,23 +34,23 @@ function AuthScreen({ onLogin, onVerifyTwoFactor, loginChallenge, onCancelTwoFac
         </div>
 
         <div className="auth__hero">
-          <span className="auth-eyebrow">Acesso à plataforma</span>
-          <h1>Infraestrutura institucional para gestão integrada da saúde pública.</h1>
-          <p>Acesso seguro, rastreabilidade completa e módulos operacionais para equipes autorizadas.</p>
+          <span className="auth-eyebrow">Plataforma para APS</span>
+          <h1>Infraestrutura digital para a Atenção Primária à Saúde.</h1>
+          <p>Plataforma nacional para gestão clínica, operacional e administrativa da Atenção Primária à Saúde, com segurança, rastreabilidade e governança.</p>
         </div>
 
         <div className="auth-kpi-grid">
           <KPI className="auth-info-card">
             <strong className="auth-info-card__title">Segurança</strong>
-            <span className="auth-info-card__desc">Autenticação multifator e controle por perfil clínico</span>
+            <span className="auth-info-card__desc">Autenticação forte, rastreabilidade e proteção de dados.</span>
           </KPI>
           <KPI className="auth-info-card">
             <strong className="auth-info-card__title">Conformidade</strong>
-            <span className="auth-info-card__desc">Conformidade com LGPD e audit log imutável</span>
+            <span className="auth-info-card__desc">LGPD, auditoria imutável e governança operacional.</span>
           </KPI>
           <KPI className="auth-info-card">
-            <strong className="auth-info-card__title">Multi-tenant</strong>
-            <span className="auth-info-card__desc">Isolamento por equipe e escalabilidade municipal</span>
+            <strong className="auth-info-card__title">Escalabilidade</strong>
+            <span className="auth-info-card__desc">Arquitetura SaaS preparada para implantação nacional.</span>
           </KPI>
         </div>
       </section>
@@ -47,7 +60,7 @@ function AuthScreen({ onLogin, onVerifyTwoFactor, loginChallenge, onCancelTwoFac
           <Card className="auth-card">
             <div className="auth-card__header">
               <h2>Entrar na plataforma</h2>
-              <p>{loginChallenge ? "Informe o código 2FA para concluir o acesso institucional." : VITRAS_SUBTITLE}</p>
+              <p>{loginChallenge ? "Informe o código 2FA para concluir o acesso." : "Acesso restrito a usuários autorizados."}</p>
             </div>
 
             {loginChallenge ? (
@@ -63,7 +76,7 @@ function AuthScreen({ onLogin, onVerifyTwoFactor, loginChallenge, onCancelTwoFac
                   autoComplete="one-time-code"
                   autoFocus
                 />
-                {error ? <Alert tone="danger">{error}</Alert> : null}
+                {displayError ? <Alert tone="danger">{displayError}</Alert> : null}
                 <Button type="submit" variant="primary" size="lg" disabled={busy || twoFactorCode.length !== 6}>
                   {busy ? "Validando..." : "Validar código"}
                 </Button>
@@ -74,6 +87,7 @@ function AuthScreen({ onLogin, onVerifyTwoFactor, loginChallenge, onCancelTwoFac
                   disabled={busy}
                   onClick={() => {
                     setTwoFactorCode("");
+                    setLocalError("");
                     onCancelTwoFactor?.();
                   }}
                 >
@@ -93,7 +107,7 @@ function AuthScreen({ onLogin, onVerifyTwoFactor, loginChallenge, onCancelTwoFac
                   inputMode="numeric"
                 />
                 <Input label="Senha" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="********" autoComplete="current-password" />
-                {error ? <Alert tone="danger">{error}</Alert> : null}
+                {displayError ? <Alert tone="danger">{displayError}</Alert> : null}
                 <Button type="submit" variant="primary" size="lg" disabled={busy}>
                   {busy ? (
                     <>

@@ -54,6 +54,7 @@
   font: 700 var(--t-4xl)/var(--lh-snug) var(--font-sans);
   letter-spacing: var(--ls-tight);
   color: var(--hero-text);
+  text-wrap: balance;
 }
 .auth__hero h1 em {
   font-style: normal;
@@ -64,6 +65,7 @@
   font-size: var(--t-md);
   color: var(--hero-text-muted);
   line-height: var(--lh-relaxed);
+  text-wrap: pretty;
 }
 
 /* ── Lado direito · light · form ─────────────────────────── */
@@ -399,6 +401,7 @@
 .auth-info-card__desc {
   font: 500 var(--t-xs)/var(--lh-snug) var(--font-sans);
   color: var(--hero-text-muted);
+  text-wrap: pretty;
 }
 
 /* ── Footer link (abaixo do card) ────────────────────────── */
