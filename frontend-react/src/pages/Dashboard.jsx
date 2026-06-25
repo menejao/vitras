@@ -62,6 +62,12 @@ function Dashboard({ patients, users, allUsers, templates, protocolByPatient, de
           helper={`Atenção: ${pc.attention} · Em dia: ${pc.ok}`}
           className={`card card--compact ${pc.critical ? "kpi--danger" : pc.attention ? "kpi--warning" : "kpi--success"}`}
         />
+        <KPI
+          label="Demanda programada"
+          value={dmPct === null ? "—" : `${dmPct}%`}
+          helper={dmPct === null ? "Sem atendimentos" : dmStatus}
+          className={`card card--compact ${dmTone !== "neutral" ? `kpi--${dmTone}` : ""}`}
+        />
         <KPI label="Profissionais" value={users.length} helper={`ACS: ${acsCount} · Médicos: ${docCount}`} className="card card--compact" />
       </section>
 

@@ -103,10 +103,6 @@ function Topbar({
         </Button>
         <NotificationBell
           user={user}
-          patients={patients || []}
-          protocolByPatient={protocolByPatient || {}}
-          pharmacyStock={pharmacyStock || []}
-          agenda={agenda || []}
           labNotifications={labNotifications || []}
           onNavigate={onNavigatePatient || (() => {})}
         />

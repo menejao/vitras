@@ -1,16 +1,15 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { readLS, writeLS } from "../../utils/storage";
-import { buildProactiveAlerts } from "../../utils/clinical";
 import Button from "./Button";
 
-function NotificationBell({ user, patients, protocolByPatient, pharmacyStock, agenda, labNotifications, onNavigate }) {
+// O sino exibe apenas eventos novos (lab notifications) — não duplica Alertas Proativos.
+// Alertas Proativos (protocolo, DPP, estoque) têm local próprio no Dashboard.
+function NotificationBell({ user, labNotifications, onNavigate }) {
   const userId = user?.id || "anon";
-  const NOTIF_SEEN_KEY = `vitras_notif_seen_${userId}_v1`;
-  const NOTIF_CLEARED_AT_KEY = `vitras_notif_cleared_at_${userId}_v1`;
+  const NOTIF_SEEN_KEY = `vitras_notif_seen_${userId}_v2`;
 
   const [open, setOpen] = useState(false);
   const [seenIds, setSeenIds] = useState(() => new Set(readLS(NOTIF_SEEN_KEY, [])));
-  const [clearedAt, setClearedAt] = useState(() => String(readLS(NOTIF_CLEARED_AT_KEY, "")));
   const ref = useRef(null);
 
   useEffect(() => {
@@ -20,8 +19,7 @@ function NotificationBell({ user, patients, protocolByPatient, pharmacyStock, ag
   }, []);
 
   const allAlerts = useMemo(() => {
-    const base = buildProactiveAlerts(patients, protocolByPatient, pharmacyStock, agenda);
-    const labAlerts = (labNotifications || []).map((n) => ({
+    return (labNotifications || []).map((n) => ({
       id: `lab-${n.id}`,
       type: n.type || "info",
       title: n.title,
@@ -29,9 +27,9 @@ function NotificationBell({ user, patients, protocolByPatient, pharmacyStock, ag
       patientId: n.patientId,
       createdAt: n.createdAt,
     }));
-    return [...labAlerts, ...base].slice(0, 30);
-  }, [patients, protocolByPatient, pharmacyStock, agenda, labNotifications]);
+  }, [labNotifications]);
 
+  // Prune seenIds para remover IDs que não existem mais (notif arquivada no backend)
   useEffect(() => {
     if (!allAlerts.length) return;
     const activeIds = new Set(allAlerts.map(a => a.id));
@@ -46,15 +44,8 @@ function NotificationBell({ user, patients, protocolByPatient, pharmacyStock, ag
   }, [allAlerts]);
 
   const unseenAlerts = useMemo(() => {
-    const watermark = Date.parse(clearedAt || "");
-    return allAlerts.filter((a) => {
-      if (seenIds.has(a.id)) return false;
-      if (!Number.isFinite(watermark)) return true;
-      const createdAt = Date.parse(String(a.createdAt || ""));
-      if (!Number.isFinite(createdAt)) return true;
-      return createdAt > watermark;
-    });
-  }, [allAlerts, seenIds, clearedAt]);
+    return allAlerts.filter(a => !seenIds.has(a.id));
+  }, [allAlerts, seenIds]);
 
   function markSeen(id, e) {
     e.stopPropagation();
@@ -66,13 +57,10 @@ function NotificationBell({ user, patients, protocolByPatient, pharmacyStock, ag
     });
   }
 
-  function clearAllSeen() {
+  function clearAll() {
     const allIds = new Set(allAlerts.map(a => a.id));
     setSeenIds(allIds);
     writeLS(NOTIF_SEEN_KEY, [...allIds]);
-    const nowIso = new Date().toISOString();
-    setClearedAt(nowIso);
-    writeLS(NOTIF_CLEARED_AT_KEY, nowIso);
   }
 
   const unseenCount = unseenAlerts.length;
@@ -94,21 +82,21 @@ function NotificationBell({ user, patients, protocolByPatient, pharmacyStock, ag
       {open && (
         <div className="notif-bell__panel">
           <div className="notif-bell__panel-head">
-            <span className="notif-bell__panel-title">Alertas do sistema</span>
+            <span className="notif-bell__panel-title">Notificações</span>
             <div className="notif-bell__panel-meta">
               {unseenCount > 0 && (
-                <span className="notif-bell__unseen-count">{unseenCount} não visto{unseenCount !== 1 ? "s" : ""}</span>
+                <span className="notif-bell__unseen-count">{unseenCount} nova{unseenCount !== 1 ? "s" : ""}</span>
               )}
               {unseenCount > 1 && (
-                <Button className="notif-bell__clear-btn" variant="ghost" onClick={clearAllSeen} title="Marcar todos como vistos">
-                  Limpar todos
+                <Button className="notif-bell__clear-btn" variant="ghost" onClick={clearAll} title="Marcar todas como vistas">
+                  Limpar todas
                 </Button>
               )}
             </div>
           </div>
           {!unseenCount && (
             <p className="notif-bell__panel-empty">
-              {allAlerts.length > 0 ? "Todos os alertas foram vistos" : "Nenhum alerta no momento"}
+              {allAlerts.length > 0 ? "Todas as notificações foram vistas" : "Nenhuma notificação no momento"}
             </p>
           )}
           {unseenAlerts.map(a => {
@@ -141,7 +129,7 @@ function NotificationBell({ user, patients, protocolByPatient, pharmacyStock, ag
                   size="sm"
                   iconOnly
                   onClick={e => markSeen(a.id, e)}
-                  title="Marcar como visto">
+                  title="Marcar como vista">
                   <svg viewBox="0 0 12 12" fill="none" width="9" height="9">
                     <path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
                   </svg>
