@@ -77,17 +77,26 @@ export function useBootstrap(token, {
   }
 
   async function loadSelectedPatientData(patientId) {
-    setPatientDataLoading(true);
     // Reset secondary data immediately so stale data from previous patient doesn't show
     setHistory([]); setAppointments([]); setTasks([]); setMessages([]);
-    try {
-      const summary = await getPatientProtocolSummary(token, patientId);
-      setPatientProtocolSummary(summary || null);
-    } catch (e) {
-      if (!(await handleApiError(e))) setError(e.message || "Falha ao carregar dados do paciente");
-    } finally {
+
+    // Use cached protocol summary if available — workspace opens instantly
+    const cached = protocolByPatient[patientId];
+    if (cached) {
+      setPatientProtocolSummary(cached);
       setPatientDataLoading(false);
+    } else {
+      setPatientDataLoading(true);
+      try {
+        const summary = await getPatientProtocolSummary(token, patientId);
+        setPatientProtocolSummary(summary || null);
+      } catch (e) {
+        if (!(await handleApiError(e))) setError(e.message || "Falha ao carregar dados do paciente");
+      } finally {
+        setPatientDataLoading(false);
+      }
     }
+
     // Secondary data loads in background — does not block workspace open
     Promise.all([
       getPatientHistory(token, patientId),

@@ -163,20 +163,165 @@
   margin-top: 1px;
 }
 
+.doc-form-inputs {
+  display: grid;
+  grid-template-columns: 120px 120px 1fr;
+  gap: var(--s-3);
+  padding: var(--s-3) 0 var(--s-4);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: var(--s-4);
+}
+
+/* ── Patient Card Doc ─────────────────────────────────────────── */
+.patient-card-doc {
+  font-family: var(--font-sans);
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.patient-card-doc__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding-bottom: var(--s-3);
+  border-bottom: 2px solid var(--border-strong);
+}
+
+.patient-card-doc__brand-name {
+  display: block;
+  font: 600 var(--t-base) var(--font-sans);
+  color: var(--text);
+}
+
+.patient-card-doc__brand-sub {
+  display: block;
+  font: 400 var(--t-xs) var(--font-sans);
+  color: var(--text-muted);
+}
+
+.patient-card-doc__header-title {
+  font: 600 var(--t-sm) var(--font-mono);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.patient-card-doc__identity {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: var(--s-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.patient-card-doc__name {
+  font: 700 var(--t-xl) var(--font-sans);
+  color: var(--text);
+  letter-spacing: var(--ls-tight);
+}
+
+.patient-card-doc__id-row,
+.patient-card-doc__prog-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-3);
+  font: 400 var(--t-sm) var(--font-sans);
+  color: var(--text-muted);
+}
+
+.patient-card-doc__id-row strong,
+.patient-card-doc__prog-row strong {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.patient-card-doc__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s-4);
+}
+
+.patient-card-doc__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+.patient-card-doc__section-title {
+  font: 600 var(--t-xs) var(--font-mono);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  padding-bottom: var(--s-1);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: var(--s-1);
+}
+
+.patient-card-doc__line {
+  font: 400 var(--t-sm) var(--font-sans);
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.patient-card-doc__line--alert { color: var(--danger); }
+.patient-card-doc__line--muted { color: var(--text-dim); }
+
+.patient-card-doc__vacc-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-1);
+  margin-top: var(--s-1);
+}
+
+.patient-card-doc__vacc-pill {
+  font: 400 10px var(--font-mono);
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  color: var(--text-muted);
+  background: var(--surface-2);
+}
+
+.patient-card-doc__vacc-more {
+  font: 400 10px var(--font-mono);
+  color: var(--text-dim);
+  padding: 2px 4px;
+}
+
+.patient-card-doc__footer {
+  display: flex;
+  justify-content: space-between;
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--border);
+  font: 400 var(--t-xs) var(--font-sans);
+  color: var(--text-dim);
+}
+
 /* ── Print overrides ───────────────────────────────────────────── */
 @media print {
-  .modal-backdrop,
-  .modal,
-  .modal__header,
-  .modal__footer { all: unset; }
+  /* Hide everything using visibility so deeply nested #print-doc remains accessible */
+  body * {
+    visibility: hidden;
+  }
 
-  body > *:not(#print-doc) { display: none !important; }
+  /* Show only the printable document and its descendants */
+  #print-doc,
+  #print-doc * {
+    visibility: visible;
+  }
 
   #print-doc {
-    display: block !important;
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: auto;
+    padding: 18mm 22mm !important;
     border: none !important;
     box-shadow: none !important;
-    padding: 0 !important;
     background: white !important;
     font-family: Georgia, "Times New Roman", serif;
     font-size: 11pt;
@@ -191,4 +336,13 @@
   }
 
   .doc-fill { color: #444; }
+
+  /* Patient card print */
+  .patient-card-doc__header,
+  .patient-card-doc__identity,
+  .patient-card-doc__grid,
+  .patient-card-doc__section,
+  .patient-card-doc__footer {
+    page-break-inside: avoid;
+  }
 }

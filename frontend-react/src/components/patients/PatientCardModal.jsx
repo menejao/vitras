@@ -1,22 +1,23 @@
-import { gestationalAgeInfo, calcAge } from "../../utils/clinical";
+import { calcAge, gestationalAgeInfo } from "../../utils/clinical";
 import { fmtDate, maskCpf } from "../../utils/formatting";
-import Avatar from "../ui/Avatar";
 import Button from "../ui/Button";
 import Modal from "../ui/Modal";
 
 export function PatientCardModal({ patient, users, templates, history, onClose }) {
-  const acsName = users.find((u) => u.id === patient.assignedAcsId)?.name || "Nao atribuido";
+  const acsName = users.find((u) => u.id === patient.assignedAcsId)?.name || "Não atribuído";
   const gestational = gestationalAgeInfo(patient);
   const vaccines = (history || []).filter((item) => String(item.type || "").toLowerCase() === "vaccine");
-  const meds = String(patient.medications || "").trim();
   const allergies = String(patient.allergies || "").trim();
-  const comorbid = String(patient.comorbidities || "").trim();
+  const catName = templates.find((t) => t.category === patient.careCategory)?.label || patient.careCategory || "Geral";
   const today = new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
-  const catName = templates.find((template) => template.category === patient.careCategory)?.label || patient.careCategory || "Geral";
+  const age = calcAge(patient.birthDate);
+  const address = [patient.address, patient.number, patient.neighborhood, patient.city, patient.state].filter(Boolean).join(", ");
+
+  const phone = [patient.phone, patient.phoneAlt].filter(Boolean).join(" / ");
 
   return (
     <Modal
-      title="Cartao do Paciente"
+      title="Cartão do Paciente"
       onClose={onClose}
       className="modal--wide"
       actions={(
@@ -26,81 +27,64 @@ export function PatientCardModal({ patient, users, templates, history, onClose }
         </>
       )}
     >
-      <div className="pharma-pat-card">
-        <div className="pharma-pat-card__header">
-          <Avatar name={patient.name} size="lg" />
-          <div style={{ flex: 1 }}>
-            <div className="pharma-pat-card__name">{patient.name}</div>
-            <div className="pharma-pat-card__meta-row">
-              {patient.birthDate && <span>Nasc.: {fmtDate(patient.birthDate)}{calcAge(patient.birthDate) ? ` · ${calcAge(patient.birthDate)}` : ""}</span>}
-              {patient.cpf && <span>CPF: {maskCpf(patient.cpf)}</span>}
-              {patient.cns && <span>CNS: {patient.cns}</span>}
-              {patient.sex && <span>Sexo: {patient.sex}</span>}
-            </div>
+      <div id="print-doc" className="patient-card-doc">
+        <div className="patient-card-doc__header">
+          <div className="patient-card-doc__header-brand">
+            <span className="patient-card-doc__brand-name">Vitras · Saúde Pública</span>
+            <span className="patient-card-doc__brand-sub">Unidade Básica de Saúde</span>
           </div>
-          <div className="pharma-pat-card__aside">
-            <div className="pharma-pat-card__aside-cat">{catName}</div>
-            <div>ACS: {acsName}</div>
-            {gestational && String(patient.careCategory || "").toLowerCase() === "pregnant" ? (
-              <div className="pharma-pat-card__aside-ig">IG: {gestational.weeks}s{gestational.days}d ({gestational.source})</div>
-            ) : null}
+          <div className="patient-card-doc__header-title">CARTÃO DO PACIENTE</div>
+        </div>
+
+        <div className="patient-card-doc__identity">
+          <div className="patient-card-doc__name">{patient.name}</div>
+          <div className="patient-card-doc__id-row">
+            {patient.birthDate && <span><strong>DN:</strong> {fmtDate(patient.birthDate)}{age ? ` · ${age}` : ""}</span>}
+            {patient.sex && <span><strong>Sexo:</strong> {patient.sex}</span>}
+            {patient.cpf && <span><strong>CPF:</strong> {maskCpf(patient.cpf)}</span>}
+            {patient.cns && <span><strong>CNS:</strong> {patient.cns}</span>}
+          </div>
+          <div className="patient-card-doc__prog-row">
+            <span><strong>Programa:</strong> {catName}</span>
+            <span><strong>ACS:</strong> {acsName}</span>
+            {gestational && String(patient.careCategory || "").toLowerCase() === "pregnant" && (
+              <span><strong>IG:</strong> {gestational.weeks}s{gestational.days}d</span>
+            )}
           </div>
         </div>
 
-        <div className="pharma-pat-card__grid">
-          <div>
-            <div className="pharma-pat-card__section-title">Contato</div>
-            <div className="pharma-pat-card__section-body">
-              {patient.phone && <span>{patient.phone}</span>}
-              {patient.phoneAlt && <span>{patient.phoneAlt}</span>}
-              {(patient.address || patient.city) && (
-                <span>{[patient.address, patient.number, patient.neighborhood, patient.city, patient.state].filter(Boolean).join(", ")}</span>
-              )}
-            </div>
+        <div className="patient-card-doc__grid">
+          <div className="patient-card-doc__section">
+            <div className="patient-card-doc__section-title">Contato</div>
+            {phone && <div className="patient-card-doc__line">{phone}</div>}
+            {address && <div className="patient-card-doc__line">{address}</div>}
           </div>
-          <div>
-            <div className="pharma-pat-card__section-title">Dados clinicos</div>
-            <div className="pharma-pat-card__section-body">
-              {allergies ? <span className="pharma-pat-card__allergy">Alergias: {allergies}</span> : <span className="pharma-pat-card__no-data">Sem alergias registradas</span>}
-              {comorbid && <span>{comorbid}</span>}
-            </div>
+
+          <div className="patient-card-doc__section">
+            <div className="patient-card-doc__section-title">Clínico</div>
+            {allergies
+              ? <div className="patient-card-doc__line patient-card-doc__line--alert"><strong>Alergias:</strong> {allergies}</div>
+              : <div className="patient-card-doc__line patient-card-doc__line--muted">Sem alergias registradas</div>
+            }
           </div>
         </div>
 
-        {meds ? (
-          <div className="pharma-pat-card__meds">
-            <div className="pharma-pat-card__meds-title">Medicamentos em uso</div>
-            <div className="pharma-pat-card__meds-body">{meds}</div>
-          </div>
-        ) : null}
-
-        {vaccines.length > 0 ? (
-          <div className="pharma-pat-card__vaccines">
-            <div className="pharma-pat-card__vacc-title">Vacinas registradas</div>
-            <div className="pharma-pat-card__vacc-list">
-              {vaccines.slice(0, 12).map((item, index) => (
-                <span key={`${item.id || item.title}-${index}`} className="pharma-pat-card__vacc-pill">
-                  {item.title}{item.date ? ` (${fmtDate(item.date)})` : ""}
+        {vaccines.length > 0 && (
+          <div className="patient-card-doc__section">
+            <div className="patient-card-doc__section-title">Vacinas</div>
+            <div className="patient-card-doc__vacc-row">
+              {vaccines.slice(0, 10).map((v, i) => (
+                <span key={`${v.id || v.title}-${i}`} className="patient-card-doc__vacc-pill">
+                  {v.title}{v.date ? ` (${fmtDate(v.date)})` : ""}
                 </span>
               ))}
-              {vaccines.length > 12 ? <span className="pharma-pat-card__vacc-more">+{vaccines.length - 12} mais</span> : null}
+              {vaccines.length > 10 && <span className="patient-card-doc__vacc-more">+{vaccines.length - 10}</span>}
             </div>
           </div>
-        ) : null}
+        )}
 
-        {String(patient.careCategory || "").toLowerCase() === "pregnant" ? (
-          <div className="pharma-pat-card__pregnancy">
-            <div className="pharma-pat-card__pregnancy-title">Gestacao</div>
-            <div className="pharma-pat-card__pregnancy-data">
-              {patient.pregnancyStartDate && <span>DUM: {fmtDate(patient.pregnancyStartDate)}</span>}
-              {patient.expectedDeliveryDate && <span>DPP: {fmtDate(patient.expectedDeliveryDate)}</span>}
-              {gestational && <strong>IG estimada: {gestational.weeks}s {gestational.days}d</strong>}
-            </div>
-          </div>
-        ) : null}
-
-        <div className="pharma-pat-card__footer">
-          <span>Unidade Basica de Saude</span>
+        <div className="patient-card-doc__footer">
+          <span>Unidade Básica de Saúde</span>
           <span>Emitido em {today}</span>
         </div>
       </div>

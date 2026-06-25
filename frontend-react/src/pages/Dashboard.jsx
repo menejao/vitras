@@ -6,7 +6,7 @@ import Avatar from "../components/ui/Avatar";
 import Button from "../components/ui/Button";
 import PageLayout from "../components/layout/PageLayout";
 import PageHeader from "../components/layout/PageHeader";
-import { buildProactiveAlerts, protocolChip, catLabel } from "../utils/clinical";
+import { buildProactiveAlerts, protocolChip, catLabel, deriveProtocolAlerts } from "../utils/clinical";
 import { roleLabel } from "../utils/roles";
 
 function Dashboard({ patients, users, allUsers, templates, protocolByPatient, demandMonthly, teamDemand, unitName, currentUser, onNavigate, agenda = [], pharmacyStock = [] }) {
@@ -15,14 +15,21 @@ function Dashboard({ patients, users, allUsers, templates, protocolByPatient, de
   const acsCount = users.filter((u) => u.role === "acs").length;
   const docCount = users.filter((u) => u.role === "doctor").length;
   const pc = Object.values(protocolByPatient || {}).reduce((a, s) => {
-    const chip = protocolChip(s);
-    if (chip.tone === "danger") a.critical += 1;
-    else if (chip.tone === "warn") a.attention += 1;
-    else if (chip.tone === "ok") a.ok += 1;
+    const alerts = deriveProtocolAlerts(s);
+    const hasCritical = alerts.some(al => String(al?.severity || "").toLowerCase() === "high");
+    if (hasCritical) a.critical += 1;
+    else {
+      const chip = protocolChip(s);
+      if (chip.tone === "warn") a.attention += 1;
+      else if (chip.tone === "ok") a.ok += 1;
+    }
     return a;
   }, { critical: 0, attention: 0, ok: 0 });
 
-  const critical = patients.filter((p) => protocolChip(protocolByPatient[p.id]).tone === "danger").slice(0, 6);
+  const critical = patients.filter((p) => {
+    const alerts = deriveProtocolAlerts(protocolByPatient[p.id]);
+    return alerts.some(al => String(al?.severity || "").toLowerCase() === "high");
+  }).slice(0, 6);
   const dmTotal = demandMonthly?.totals?.total ?? 0;
   const dmSched = demandMonthly?.totals?.scheduled ?? 0;
   const dmSpont = demandMonthly?.totals?.spontaneous ?? 0;
