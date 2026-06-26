@@ -106,13 +106,7 @@ export default function ChangePasswordRequiredPage({ token, onSuccess, onLogout 
         </form>
 
         <div style={{ textAlign: "center", marginTop: "1rem" }}>
-          <button
-            type="button"
-            onClick={onLogout}
-            style={{ fontSize: "0.8rem", color: "var(--color-text-secondary)", background: "none", border: "none", cursor: "pointer" }}
-          >
-            Sair do sistema
-          </button>
+          <Button variant="ghost" size="sm" onClick={onLogout}>Sair do sistema</Button>
         </div>
       </Card>
     </div>

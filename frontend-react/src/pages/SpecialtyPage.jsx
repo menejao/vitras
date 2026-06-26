@@ -166,9 +166,11 @@ function SpecialtyWorkspacePanel({ patient, config, user, token, onClose }) {
 
             {error && <div className="error field--span-2" style={{ padding: ".5rem .75rem", borderRadius: "var(--r-md)" }}>{error}</div>}
 
-            <Button type="submit" variant="primary" disabled={busy} style={{ gridColumn: "span 2" }}>
-              {busy ? "Registrando..." : "Registrar atendimento"}
-            </Button>
+            <div className="field--span-2">
+              <Button type="submit" variant="primary" loading={busy}>
+                Registrar atendimento
+              </Button>
+            </div>
           </form>
         )}
 

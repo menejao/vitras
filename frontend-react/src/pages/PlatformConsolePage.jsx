@@ -384,16 +384,8 @@ function UnitTable({ token, onSelect, onNew }) {
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "0.75rem", fontSize: "0.85rem", color: "var(--color-text-secondary,#6b7280)" }}>
           <span>{total} UBS no total — página {page} de {pages}</span>
           <div style={{ display: "flex", gap: "0.4rem" }}>
-            <button
-              type="button" disabled={page <= 1}
-              onClick={() => load(page - 1)}
-              style={{ padding: "0.3rem 0.7rem", borderRadius: "4px", border: "1px solid var(--color-border,#d1d5db)", cursor: page <= 1 ? "default" : "pointer", opacity: page <= 1 ? 0.4 : 1, background: "none" }}
-            >← Anterior</button>
-            <button
-              type="button" disabled={page >= pages}
-              onClick={() => load(page + 1)}
-              style={{ padding: "0.3rem 0.7rem", borderRadius: "4px", border: "1px solid var(--color-border,#d1d5db)", cursor: page >= pages ? "default" : "pointer", opacity: page >= pages ? 0.4 : 1, background: "none" }}
-            >Próxima →</button>
+            <Button variant="secondary" size="sm" disabled={page <= 1} onClick={() => load(page - 1)}>← Anterior</Button>
+            <Button variant="secondary" size="sm" disabled={page >= pages} onClick={() => load(page + 1)}>Próxima →</Button>
           </div>
         </div>
       )}
@@ -582,12 +574,7 @@ function OnboardingActions({ unit, gestors, teams, onAddTeam, onAddManager }) {
       {actions.map(({ label, action }) => (
         <div key={label} style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginTop: "0.4rem" }}>
           <span style={{ fontSize: "0.85rem", color: "#78350f" }}>• {label}</span>
-          <button
-            type="button" onClick={action}
-            style={{ fontSize: "0.78rem", background: "#f59e0b", border: "none", borderRadius: "4px", padding: "0.2rem 0.5rem", cursor: "pointer", color: "#fff", fontWeight: 700 }}
-          >
-            Fazer agora
-          </button>
+          <Button variant="warn" size="sm" onClick={action}>Fazer agora</Button>
         </div>
       ))}
     </div>
@@ -974,11 +961,7 @@ export default function PlatformConsolePage({ token, user, onLogout }) {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
           <span style={{ fontSize: "0.8rem", color: "var(--color-text-secondary,#6b7280)" }}>{user?.name}</span>
-          <button type="button" onClick={onLogout} style={{
-            fontSize: "0.8rem", color: "var(--color-text-secondary,#6b7280)",
-            background: "none", border: "1px solid var(--color-border,#d1d5db)",
-            borderRadius: "4px", padding: "0.25rem 0.6rem", cursor: "pointer"
-          }}>Sair</button>
+          <Button variant="secondary" size="sm" onClick={onLogout}>Sair</Button>
         </div>
       </header>
 

@@ -389,8 +389,8 @@ function InsumoPage({
                   })}
                   {dispErr && <div className="alert alert--danger" style={{ marginTop: "var(--s-2)" }}>{dispErr}</div>}
                   {dispOk && <div className="alert alert--success" style={{ marginTop: "var(--s-2)" }}>Dispensacao registrada com sucesso.</div>}
-                  <Button variant="primary" onClick={confirmarDispensa} disabled={!patSelected || dispOk || dispBusy} style={{ marginTop: "var(--s-3)", width: "100%" }}>
-                    {dispBusy ? "Salvando..." : `Confirmar dispensacao${isContinuo ? " (continuo)" : ""}`}
+                  <Button variant="primary" full loading={dispBusy} onClick={confirmarDispensa} disabled={!patSelected || dispOk || dispBusy} style={{ marginTop: "var(--s-3)" }}>
+                    {`Confirmar dispensacao${isContinuo ? " (continuo)" : ""}`}
                   </Button>
                 </div>
               )}

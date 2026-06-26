@@ -69,9 +69,63 @@
 /* ── Sizes ────────────────────────────────────────────────── */
 .btn--sm   { height: 26px; padding: 0 10px; font-size: var(--t-sm); }
 .btn--lg   { height: 38px; padding: 0 18px; font-size: var(--t-md); }
-.btn--icon { width: 30px; padding: 0; justify-content: center; }
+.btn--icon { width: 32px; padding: 0; justify-content: center; }
 .btn--icon.btn--sm { width: 26px; }
 .btn--icon.btn--lg { width: 38px; }
+
+/* ── Layout modifiers ─────────────────────────────────────── */
+/* Use btn--full only in explicit contexts: mobile actions, modals, full-width forms */
+.btn--full { width: 100%; justify-content: center; }
+
+/* ── Loading state — preserves size, no layout shift ─────── */
+.btn--loading {
+  pointer-events: none;
+  position: relative;
+  color: transparent !important;
+}
+.btn--loading::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 14px;
+  height: 14px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: btn-spin .6s linear infinite;
+  color: inherit;
+}
+.btn--primary.btn--loading::after { color: var(--text-on-accent); }
+.btn--secondary.btn--loading::after { color: var(--text-muted); }
+@keyframes btn-spin { to { transform: rotate(360deg); } }
+
+/* ── Toolbar variant — compact ghost for toolbar rows ────── */
+.btn--toolbar {
+  height: 28px;
+  padding: 0 8px;
+  font-size: var(--t-sm);
+  color: var(--text-muted);
+  border-radius: var(--r-sm);
+}
+.btn--toolbar:hover { background: var(--surface-3); color: var(--text); }
+
+/* ── Pill variant — tag/filter pills ─────────────────────── */
+.btn--pill {
+  height: 22px;
+  padding: 0 8px;
+  font-size: var(--t-xs);
+  border-radius: var(--r-pill);
+  font-weight: 500;
+}
+
+/* ── Warn variant ─────────────────────────────────────────── */
+.btn--warn {
+  background: var(--warning-soft);
+  color: var(--warning);
+  border-color: var(--warning-bd);
+}
+.btn--warn:hover { background: var(--warning-bd); }
 
 /* ── Icon button (close, dismiss, toolbar) ───────────────── */
 .icon-btn {

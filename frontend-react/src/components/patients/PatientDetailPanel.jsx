@@ -369,8 +369,9 @@ function HistoricoTab({ history, appointments, tasks, messages, canManageUser, o
                   </span>
                   {canManageUser && ev.source === "appointment" && (
                     <Button
-                      style={{ background: "none", border: "none", cursor: "pointer", opacity: .6, padding: ".1rem", display: "flex", alignItems: "center" }}
-                      title="Excluir" onClick={() => onDeleteAppointment?.(ev.id)} variant="ghost" size="sm">
+                      variant="ghost" size="sm" iconOnly
+                      aria-label="Excluir consulta" title="Excluir"
+                      onClick={() => onDeleteAppointment?.(ev.id)}>
                       <svg width="11" height="11" viewBox="0 0 16 16" fill="none">
                         <path d="M3 4h10M5 4V3h6v1M6 7v5M10 7v5M4 4l.5 9h7L12 4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
@@ -1358,15 +1359,21 @@ function TasksTab({ patient, users, templates, history, tasks, taskForm, setTask
                 </Button>
               )}
               {suggestion.date && patient && (
-                <a href={googleCalendarUrl({
-                  title: `Visita ACS — ${patient.name}`,
-                  date: suggestion.date,
-                  description: `${suggestion.reason}\nPaciente: ${patient.name}\nACS: ${acsName}`,
-                  location: [patient.address, patient.number, patient.neighborhood, patient.city].filter(Boolean).join(", "),
-                })} target="_blank" rel="noreferrer"
-                  style={{ fontSize: ".75rem", padding: ".3rem .65rem", background: "white", border: "1px solid var(--teal-200)", borderRadius: "var(--r-md)", cursor: "pointer", color: "var(--teal-700)", fontWeight: 600, textDecoration: "none", display: "inline-flex", alignItems: "center" }}>
+                <Button
+                  as="a"
+                  variant="secondary"
+                  size="sm"
+                  href={googleCalendarUrl({
+                    title: `Visita ACS — ${patient.name}`,
+                    date: suggestion.date,
+                    description: `${suggestion.reason}\nPaciente: ${patient.name}\nACS: ${acsName}`,
+                    location: [patient.address, patient.number, patient.neighborhood, patient.city].filter(Boolean).join(", "),
+                  })}
+                  target="_blank"
+                  rel="noreferrer"
+                >
                   Google Calendar
-                </a>
+                </Button>
               )}
             </div>
           </div>

@@ -70,14 +70,14 @@ function CredentialsModal({ vitrasId, password, onClose }) {
           <div><span className="muted">ID VITRAS:</span> <strong>{vitrasId}</strong></div>
           <div style={{ marginTop: "var(--s-2)" }}><span className="muted">Senha temporária:</span> <strong>{password}</strong></div>
         </div>
-        <Button variant={copied ? "success" : "primary"} size="sm" style={{ width: "100%", marginBottom: "var(--s-3)" }} onClick={handleCopy}>
+        <Button variant={copied ? "success" : "primary"} size="sm" full style={{ marginBottom: "var(--s-3)" }} onClick={handleCopy}>
           {copied ? "Copiado!" : "Copiar credenciais"}
         </Button>
         <label style={{ display: "flex", gap: "var(--s-2)", alignItems: "center", marginBottom: "var(--s-4)", fontSize: "var(--t-sm)", cursor: "pointer" }}>
           <input type="checkbox" checked={confirmed} onChange={e => setConfirmed(e.target.checked)} />
           Confirmo que copiei as credenciais.
         </label>
-        <Button variant="ghost" size="sm" style={{ width: "100%" }} disabled={!confirmed} onClick={onClose}>
+        <Button variant="ghost" size="sm" full disabled={!confirmed} onClick={onClose}>
           Concluir
         </Button>
       </div>
