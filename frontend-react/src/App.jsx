@@ -104,6 +104,14 @@ function AppInner() {
     confirmUserDelete, confirmTemplateDelete,
   } = useUserTemplateHandlers({ token, user, handleApiError, setBusy, setError, loadAll });
   const { aiView, aiData, aiQuestion, setAiQuestion, loadAiPriorities, loadAiQuality, loadAiReport, submitAiQuestion } = useAiHandlers({ token, handleApiError, setBusy, setError });
+  const [enabledModules, setEnabledModules] = useState(null);
+  useEffect(() => {
+    if (!token) return;
+    fetch(`${import.meta.env.VITE_API_URL || "https://api.vitras.com.br"}/me/unit-modules`, {
+      headers: { Authorization: `Bearer ${token}` }
+    }).then(r => r.ok ? r.json() : null).then(d => { if (d?.enabledModules) setEnabledModules(d.enabledModules); }).catch(() => {});
+  }, [token]);
+
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [labNotifications, setLabNotifications] = useState([]);
   useEffect(() => {
@@ -295,6 +303,7 @@ function AppInner() {
           mobileOpen={mobileNavOpen} setMobileOpen={setMobileNavOpen}
           query={query} setQuery={setQuery}
           user={user} canManageUser={canManageUser}
+          enabledModules={enabledModules}
           onClearPatient={()=>setSelectedPatientId("")}
           collapsed={sidebarCollapsed} onToggleCollapsed={() => setSidebarCollapsed(v => !v)}
         />}
@@ -311,6 +320,7 @@ function AppInner() {
           query={query} setQuery={setQuery} categoryFilter={categoryFilter} setCategoryFilter={setCategoryFilter}
           acsFilter={acsFilter} setAcsFilter={setAcsFilter} conditionFilter={conditionFilter} setConditionFilter={setConditionFilter}
           rosaAdjustedSummary={rosaAdjustedSummary} sortedSpecialAlerts={sortedSpecialAlerts}
+          enabledModules={enabledModules}
           canReadAuditLog={canReadAuditLog} canManageUser={canManageUser} canWriteRecords={canWriteRecords(user)}
           setTab={setTab} loadAll={loadAll} applySessionFromPayload={applySessionFromPayload}
           agendaEntries={agendaEntries} agendaLoading={agendaLoading} agendaError={agendaError} setAgendaError={setAgendaError}

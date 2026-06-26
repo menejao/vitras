@@ -179,6 +179,16 @@ router.get("/me/access-context", requireAuth, async (req, res) => {
   });
 });
 
+router.get("/me/unit-modules", requireAuth, async (req, res) => {
+  const db = await readDb();
+  ensureDbShape(db);
+  const user = db.users.find((u) => u.id === req.user.id);
+  if (!user) return res.status(404).json({ error: "Usuário não encontrado" });
+  const unitId = user.unitId || "";
+  const unit = unitId ? (db.units || []).find((u) => u.id === unitId) : null;
+  return res.json({ enabledModules: unit?.enabledModules || [] });
+});
+
 router.get("/me/2fa/status", requireAuth, async (req, res) => {
   const db = await readDb();
   ensureDbShape(db);

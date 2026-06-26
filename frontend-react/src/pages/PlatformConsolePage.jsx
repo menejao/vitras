@@ -485,6 +485,81 @@ function UnitForm({ token, onDone, onBack }) {
   );
 }
 
+// ── Unit Modules Section ────────────────────────────────────────────────────
+
+const ALL_MODULES = [
+  { id: "nutricao",           label: "Nutrição" },
+  { id: "psicologia",         label: "Psicologia" },
+  { id: "fisioterapia",       label: "Fisioterapia" },
+  { id: "servico_social",     label: "Serviço Social" },
+  { id: "terapia_ocupacional",label: "Terapia Ocupacional" },
+  { id: "fonoaudiologia",     label: "Fonoaudiologia" },
+];
+
+function UnitModulesSection({ unit, token, onUpdated }) {
+  const [saving, setSaving] = useState(false);
+  const [moduleError, setModuleError] = useState("");
+  const [localModules, setLocalModules] = useState(unit.enabledModules || []);
+
+  function toggleModule(id) {
+    setLocalModules((prev) =>
+      prev.includes(id) ? prev.filter((m) => m !== id) : [...prev, id]
+    );
+  }
+
+  async function saveModules() {
+    setSaving(true); setModuleError("");
+    try {
+      await apiFetch(`/platform/units/${unit.id}/modules`, token, {
+        method: "PATCH",
+        body: JSON.stringify({ enabledModules: localModules })
+      });
+      onUpdated();
+    } catch (err) { setModuleError(err.message); }
+    finally { setSaving(false); }
+  }
+
+  const changed = JSON.stringify([...localModules].sort()) !== JSON.stringify([...(unit.enabledModules || [])].sort());
+
+  return (
+    <div style={{ background: "var(--color-surface,#fff)", border: "1px solid var(--color-border,#e5e7eb)", borderRadius: "8px", padding: "0.875rem 1rem", marginBottom: "1rem" }}>
+      <div style={{ fontSize: "0.72rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--color-text-secondary,#6b7280)", marginBottom: "0.75rem" }}>
+        Módulos e Especialidades da Unidade
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "0.5rem", marginBottom: "0.75rem" }}>
+        {ALL_MODULES.map(({ id, label }) => (
+          <label key={id} style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer", fontSize: "0.875rem", padding: "0.3rem 0" }}>
+            <input
+              type="checkbox"
+              checked={localModules.includes(id)}
+              onChange={() => toggleModule(id)}
+              style={{ width: "15px", height: "15px", flexShrink: 0 }}
+            />
+            <span style={{ color: localModules.includes(id) ? "var(--color-text,#111)" : "var(--color-text-secondary,#6b7280)" }}>{label}</span>
+          </label>
+        ))}
+      </div>
+      {moduleError && <div style={{ color: "#ef4444", fontSize: "0.82rem", marginBottom: "0.5rem" }}>{moduleError}</div>}
+      <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+        <button
+          type="button"
+          disabled={saving || !changed}
+          onClick={saveModules}
+          style={{
+            padding: "0.35rem 0.85rem", borderRadius: "6px", fontSize: "0.82rem", fontWeight: 600,
+            background: changed ? "#3b82f6" : "#e5e7eb", color: changed ? "#fff" : "#9ca3af",
+            border: "none", cursor: (saving || !changed) ? "default" : "pointer",
+            opacity: (saving || !changed) ? 0.6 : 1
+          }}
+        >
+          {saving ? "Salvando..." : "Salvar Módulos"}
+        </button>
+        {!changed && <span style={{ fontSize: "0.78rem", color: "var(--color-text-secondary,#6b7280)" }}>Sem alterações pendentes</span>}
+      </div>
+    </div>
+  );
+}
+
 // ── Unit Detail ────────────────────────────────────────────────────────────
 
 function OnboardingActions({ unit, gestors, teams, onAddTeam, onAddManager }) {
@@ -792,6 +867,9 @@ function UnitDetail({ token, unitId, onBack }) {
               ))}
             </div>
           )}
+
+          {/* Modules */}
+          <UnitModulesSection unit={unit} token={token} onUpdated={loadUnit} />
 
           {/* Action buttons */}
           <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", marginTop: "0.5rem" }}>

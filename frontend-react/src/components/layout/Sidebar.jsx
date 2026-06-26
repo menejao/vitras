@@ -15,8 +15,8 @@ const IconChevronRight = () => (
   </svg>
 );
 
-function Sidebar({ tab, setTab, mobileOpen, setMobileOpen, user, canManageUser, onClearPatient, collapsed, onToggleCollapsed }) {
-  const navItems = buildNavItems(user, canManageUser);
+function Sidebar({ tab, setTab, mobileOpen, setMobileOpen, user, canManageUser, enabledModules, onClearPatient, collapsed, onToggleCollapsed }) {
+  const navItems = buildNavItems(user, canManageUser, enabledModules);
   const cls = ["sidebar", mobileOpen ? "is-open" : "", collapsed ? "is-collapsed" : ""].filter(Boolean).join(" ");
 
   return (

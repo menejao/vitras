@@ -40,7 +40,9 @@ export const NAV_ICON = {
   fonoaudiologia: <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M5 9c0 2.8 1.3 4 3 4s3-1.2 3-4V5c0-1.7-1.3-3-3-3S5 3.3 5 5v4z" stroke="currentColor" strokeWidth="1.3"/><path d="M3 9c0 3.3 2.2 5 5 5s5-1.7 5-5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/><path d="M8 14v2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>,
 };
 
-export function buildNavItems(user, canManageUser) {
+export const ALL_SPECIALTY_IDS = ["nutricao", "psicologia", "fisioterapia", "servico_social", "terapia_ocupacional", "fonoaudiologia"];
+
+export function buildNavItems(user, canManageUser, enabledModules) {
   const admin = isAdmin(user);
   const role = String(user?.role || "");
   const items = [];
@@ -78,14 +80,20 @@ export function buildNavItems(user, canManageUser) {
   if (role === "acs" || admin) items.push({ id: "acs_tasks", label: "ACS", section: "" });
 
   // Especialidades multiprofissionais — visíveis para clínicos e admin; ocultas de ACS, recepção, farmácia
+  // Filtradas por enabledModules da unidade (support_admin vê todas independente)
   const canSeeSpecialties = admin || (!isReceptionist(user) && !isPharmacist(user) && role !== "acs");
   if (canSeeSpecialties) {
-    items.push({ id: "nutricao", label: "Nutrição", section: "Especialidades" });
-    items.push({ id: "psicologia", label: "Psicologia", section: "" });
-    items.push({ id: "fisioterapia", label: "Fisioterapia", section: "" });
-    items.push({ id: "servico_social", label: "Serviço Social", section: "" });
-    items.push({ id: "terapia_ocupacional", label: "Terapia Ocupacional", section: "" });
-    items.push({ id: "fonoaudiologia", label: "Fonoaudiologia", section: "" });
+    const SPECIALTY_LABELS = {
+      nutricao: "Nutrição", psicologia: "Psicologia", fisioterapia: "Fisioterapia",
+      servico_social: "Serviço Social", terapia_ocupacional: "Terapia Ocupacional", fonoaudiologia: "Fonoaudiologia"
+    };
+    const activeModules = Array.isArray(enabledModules) ? enabledModules : ALL_SPECIALTY_IDS;
+    let first = true;
+    for (const id of ALL_SPECIALTY_IDS) {
+      if (!activeModules.includes(id)) continue;
+      items.push({ id, label: SPECIALTY_LABELS[id], section: first ? "Especialidades" : "" });
+      first = false;
+    }
   }
 
   if (!isPharmacist(user) || admin) items.push({ id: "vaccines", label: "Vacinas", section: "Preventivo" });

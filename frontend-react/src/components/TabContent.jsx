@@ -42,6 +42,7 @@ export function TabContent({
   query, setQuery, categoryFilter, setCategoryFilter,
   acsFilter, setAcsFilter, conditionFilter, setConditionFilter,
   rosaAdjustedSummary, sortedSpecialAlerts,
+  enabledModules,
   canReadAuditLog, canManageUser, canWriteRecords,
   setTab, loadAll, applySessionFromPayload,
   agendaEntries, agendaLoading, agendaError, setAgendaError,
@@ -66,6 +67,14 @@ export function TabContent({
 }) {
   const navigatePatient = (id) => { setTab("patients"); setSelectedPatientId(id); };
   const usersResolved = allUsers && allUsers.length ? allUsers : users;
+
+  const SPECIALTY_LABELS = {
+    nutricao: "Nutrição", psicologia: "Psicologia", fisioterapia: "Fisioterapia",
+    servico_social: "Serviço Social", terapia_ocupacional: "Terapia Ocupacional", fonoaudiologia: "Fonoaudiologia"
+  };
+  const ALL_SPECIALTIES = Object.keys(SPECIALTY_LABELS);
+  const isSpecialtyTab = ALL_SPECIALTIES.includes(tab);
+  const specialtyBlocked = isSpecialtyTab && enabledModules !== null && !enabledModules?.includes(tab);
 
   return (
     <Suspense fallback={<div className="loading-spinner" aria-label="Carregando..." />}>
@@ -175,12 +184,23 @@ export function TabContent({
           onAsk={submitAiQuestion} busy={busy} error={error} setError={setError}/>
       )}
 
-      {tab === "nutricao" && <NutricaoPage patients={patients} user={user} token={token} />}
-      {tab === "psicologia" && <PsicologiaPage patients={patients} user={user} token={token} />}
-      {tab === "fisioterapia" && <FisioterapiaPage patients={patients} user={user} token={token} />}
-      {tab === "servico_social" && <ServicoSocialPage patients={patients} user={user} token={token} />}
-      {tab === "terapia_ocupacional" && <TerapiaOcupacionalPage patients={patients} user={user} token={token} />}
-      {tab === "fonoaudiologia" && <FonoaudiologiaPage patients={patients} user={user} token={token} />}
+      {specialtyBlocked && (
+        <div style={{ padding: "3rem 2rem", textAlign: "center", color: "var(--text-muted)" }}>
+          <div style={{ fontSize: "2rem", marginBottom: "1rem" }}>🚫</div>
+          <p style={{ fontWeight: 700, fontSize: "1.05rem", color: "var(--text)", marginBottom: "0.5rem" }}>
+            Esta especialidade não está habilitada para esta unidade.
+          </p>
+          <p style={{ fontSize: "0.9rem" }}>
+            {SPECIALTY_LABELS[tab]} não foi ativada para esta UBS. Entre em contato com o Console Nacional.
+          </p>
+        </div>
+      )}
+      {!specialtyBlocked && tab === "nutricao" && <NutricaoPage patients={patients} user={user} token={token} />}
+      {!specialtyBlocked && tab === "psicologia" && <PsicologiaPage patients={patients} user={user} token={token} />}
+      {!specialtyBlocked && tab === "fisioterapia" && <FisioterapiaPage patients={patients} user={user} token={token} />}
+      {!specialtyBlocked && tab === "servico_social" && <ServicoSocialPage patients={patients} user={user} token={token} />}
+      {!specialtyBlocked && tab === "terapia_ocupacional" && <TerapiaOcupacionalPage patients={patients} user={user} token={token} />}
+      {!specialtyBlocked && tab === "fonoaudiologia" && <FonoaudiologiaPage patients={patients} user={user} token={token} />}
     </section>
     </Suspense>
   );

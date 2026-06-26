@@ -419,6 +419,58 @@ router.patch("/platform/units/:unitId", async (req, res) => {
   return res.json(result.unit);
 });
 
+// ── Unit Modules ───────────────────────────────────────────────────────────
+
+const VALID_MODULES = ["nutricao", "psicologia", "fisioterapia", "servico_social", "terapia_ocupacional", "fonoaudiologia"];
+
+router.patch("/platform/units/:unitId/modules", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.update")) {
+    return res.status(403).json({ error: "Sem permissão" });
+  }
+  const { unitId } = req.params;
+  const payload = req.body || {};
+
+  if (!payload.enabledModules || !Array.isArray(payload.enabledModules)) {
+    return res.status(400).json({ error: "enabledModules deve ser um array" });
+  }
+  const requested = payload.enabledModules;
+  const invalid = requested.filter((m) => !VALID_MODULES.includes(m));
+  if (invalid.length > 0) {
+    return res.status(400).json({ error: `Módulos inválidos: ${invalid.join(", ")}. Válidos: ${VALID_MODULES.join(", ")}` });
+  }
+
+  const result = await withDb((db) => {
+    ensureDbShape(db);
+    const idx = (db.units || []).findIndex((u) => u.id === unitId);
+    if (idx < 0) return { error: { status: 404, message: "UBS não encontrada" } };
+
+    const current = db.units[idx];
+    const previous = current.enabledModules || [];
+    const nowIso = new Date().toISOString();
+
+    db.units[idx] = { ...current, enabledModules: requested, updatedAt: nowIso };
+
+    // Audit: one entry per changed module
+    const enabled  = requested.filter((m) => !previous.includes(m));
+    const disabled = previous.filter((m) => !requested.includes(m));
+    for (const mod of enabled) {
+      addAuditLog(db, req.user, "PLATFORM_MODULE_ENABLED", "platform_unit", unitId, {
+        module: mod, unitId, unitName: current.name, previousValue: false, newValue: true, outcome: "success"
+      });
+    }
+    for (const mod of disabled) {
+      addAuditLog(db, req.user, "PLATFORM_MODULE_DISABLED", "platform_unit", unitId, {
+        module: mod, unitId, unitName: current.name, previousValue: true, newValue: false, outcome: "success"
+      });
+    }
+
+    return { enabledModules: requested };
+  });
+
+  if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
+  return res.json(result);
+});
+
 // ── Teams ──────────────────────────────────────────────────────────────────
 
 router.post("/platform/units/:unitId/teams", async (req, res) => {
