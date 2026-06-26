@@ -1314,6 +1314,8 @@ function VisitForm({ patient, taskOrigin, userId, token, onSave, onCancel }) {
 const DESFECHO_LABEL = { realizada: "Realizada", recusada: "Recusada", ausente: "Ausente" };
 const DESFECHO_CLS   = { realizada: "acs-vis-desfecho--ok", recusada: "acs-vis-desfecho--warn", ausente: "acs-vis-desfecho--dim" };
 
+const VISITS_PAGE_SIZE = 20;
+
 function VisitasTab({ patients, user, token, preSelectPatient, clearPreSelect }) {
   // view: "list" | "patient-select" | "form"
   const [view, setView] = useState(preSelectPatient ? "form" : "list");
@@ -1321,6 +1323,14 @@ function VisitasTab({ patients, user, token, preSelectPatient, clearPreSelect })
   const [taskOrigin, setTaskOrigin] = useState(null);
   const [visits, setVisits] = useState([]);
   const [loadingVisits, setLoadingVisits] = useState(true);
+
+  // list filters
+  const [vQ, setVQ]             = useState("");
+  const [vDesfecho, setVDesfecho] = useState("");
+  const [vPeriod, setVPeriod]   = useState("");
+  const [vFrom, setVFrom]       = useState("");
+  const [vTo, setVTo]           = useState("");
+  const [vPage, setVPage]       = useState(1);
 
   useEffect(() => {
     if (!token) { setLoadingVisits(false); return; }
@@ -1383,24 +1393,102 @@ function VisitasTab({ patients, user, token, preSelectPatient, clearPreSelect })
     );
   }
 
-  // List view
+  // List view — filtered + paginated
+  const { effectiveFrom, effectiveTo } = useMemo(() => {
+    if (vPeriod === "custom") return { effectiveFrom: vFrom, effectiveTo: vTo };
+    const r = dateRange(vPeriod);
+    return { effectiveFrom: r.from, effectiveTo: r.to };
+  }, [vPeriod, vFrom, vTo]);
+
+  const filteredVisits = useMemo(() => {
+    const q = vQ.trim().toLowerCase();
+    return visits.filter(v => {
+      if (q && !String(v.patientName || "").toLowerCase().includes(q)) return false;
+      if (vDesfecho && v.desfecho !== vDesfecho) return false;
+      if (effectiveFrom && v.date < effectiveFrom) return false;
+      if (effectiveTo   && v.date > effectiveTo)   return false;
+      return true;
+    });
+  }, [visits, vQ, vDesfecho, effectiveFrom, effectiveTo]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredVisits.length / VISITS_PAGE_SIZE));
+  const safePage   = Math.min(vPage, totalPages);
+  const pageVisits = filteredVisits.slice((safePage - 1) * VISITS_PAGE_SIZE, safePage * VISITS_PAGE_SIZE);
+
+  function applyFilter(fn) { fn(); setVPage(1); }
+
   return (
     <div className="acs-vis-list-view">
-      <div className="acs-vis-list-header">
-        <div>
+      <div className="acs-toolbar-card">
+        <div className="acs-toolbar__row">
+          <div className="acs-search-wrap">
+            <span className="acs-search-icon" aria-hidden="true">
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+                <circle cx="6.5" cy="6.5" r="4" stroke="currentColor" strokeWidth="1.3" />
+                <path d="M10 10l3.5 3.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+              </svg>
+            </span>
+            <input
+              className="acs-search-input"
+              type="text"
+              value={vQ}
+              onChange={e => applyFilter(() => setVQ(e.target.value))}
+              placeholder="Buscar paciente..."
+              aria-label="Buscar paciente nas visitas"
+            />
+          </div>
+          <button type="button" className="acs-vis-new-btn" onClick={startNewVisit}>
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+            </svg>
+            Nova Visita
+          </button>
+        </div>
+
+        <div className="acs-toolbar__row acs-toolbar__row--sep">
+          <select
+            className="acs-select"
+            value={vDesfecho}
+            onChange={e => applyFilter(() => setVDesfecho(e.target.value))}
+            aria-label="Filtrar por desfecho"
+          >
+            <option value="">Todos os desfechos</option>
+            {DESFECHO_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+
+          <div className="acs-period-group" role="group" aria-label="Filtrar por período">
+            {PERIOD_PRESETS.map(([val, lbl]) => (
+              <button
+                key={val}
+                type="button"
+                className={`acs-period-btn${vPeriod === val ? " is-active" : ""}`}
+                onClick={() => applyFilter(() => setVPeriod(val))}
+              >
+                {lbl}
+              </button>
+            ))}
+          </div>
+          {vPeriod === "custom" && (
+            <div className="acs-date-range">
+              <input className="acs-date-input" type="date" value={vFrom}
+                onChange={e => applyFilter(() => setVFrom(e.target.value))} aria-label="Data inicial" />
+              <span className="acs-date-range__sep" aria-hidden="true">–</span>
+              <input className="acs-date-input" type="date" value={vTo}
+                onChange={e => applyFilter(() => setVTo(e.target.value))} aria-label="Data final" />
+            </div>
+          )}
+        </div>
+
+        <div className="acs-vis-list-meta">
           <span className="acs-vis-list-count">
-            {loadingVisits ? "Carregando…" : `${visits.length} visita${visits.length !== 1 ? "s" : ""} registrada${visits.length !== 1 ? "s" : ""}`}
+            {loadingVisits ? "Carregando…" : `${filteredVisits.length} visita${filteredVisits.length !== 1 ? "s" : ""}`}
           </span>
         </div>
-        <button type="button" className="acs-vis-new-btn" onClick={startNewVisit}>
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-            <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
-          </svg>
-          Nova Visita
-        </button>
       </div>
 
-      {visits.length === 0 ? (
+      {loadingVisits ? (
+        <div className="acs-loading">Carregando visitas...</div>
+      ) : filteredVisits.length === 0 ? (
         <div className="acs-empty">
           <div className="acs-empty__icon" aria-hidden="true">
             <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
@@ -1408,35 +1496,57 @@ function VisitasTab({ patients, user, token, preSelectPatient, clearPreSelect })
               <path d="M9 22V12h6v10" stroke="currentColor" strokeWidth="1.4"/>
             </svg>
           </div>
-          <p className="acs-empty__title">Nenhuma visita registrada.</p>
-          <p className="acs-empty__sub">Clique em "Nova Visita" para registrar uma visita domiciliar.</p>
+          <p className="acs-empty__title">{visits.length === 0 ? "Nenhuma visita registrada." : "Nenhuma visita encontrada para os filtros selecionados."}</p>
+          <p className="acs-empty__sub">{visits.length === 0 ? 'Clique em "Nova Visita" para registrar uma visita domiciliar.' : "Ajuste os filtros para ver outras visitas."}</p>
         </div>
       ) : (
-        <div className="acs-vis-cards">
-          {visits.map(v => (
-            <div key={v.id} className="acs-vis-card">
-              <div className="acs-vis-card__head">
-                <span className={`acs-vis-desfecho ${DESFECHO_CLS[v.desfecho] || ""}`}>
-                  {DESFECHO_LABEL[v.desfecho] || v.desfecho}
-                </span>
-                <span className="acs-vis-card__date">{fmtDate(v.date)}</span>
-                {v.turno && <span className="acs-vis-card__turno">
-                  {v.turno === "manha" ? "Manhã" : v.turno === "tarde" ? "Tarde" : "Noite"}
-                </span>}
-              </div>
-              <div className="acs-vis-card__patient">{v.patientName}</div>
-              {v.motivos?.length > 0 && (
-                <div className="acs-vis-card__motivos">
-                  {v.motivos.map(k => {
-                    const o = MOTIVO_OPTIONS.find(m => m.key === k);
-                    return o ? <span key={k} className="acs-vis-card__motivo-tag">{o.label}</span> : null;
-                  })}
+        <>
+          <div className="acs-vis-cards">
+            {pageVisits.map(v => (
+              <div key={v.id} className="acs-vis-card">
+                <div className="acs-vis-card__head">
+                  <span className={`acs-vis-desfecho ${DESFECHO_CLS[v.desfecho] || ""}`}>
+                    {DESFECHO_LABEL[v.desfecho] || v.desfecho}
+                  </span>
+                  <span className="acs-vis-card__date">{fmtDate(v.date)}</span>
+                  {v.turno && <span className="acs-vis-card__turno">
+                    {v.turno === "manha" ? "Manhã" : v.turno === "tarde" ? "Tarde" : "Noite"}
+                  </span>}
                 </div>
-              )}
-              {v.observacoes && <p className="acs-vis-card__obs">{v.observacoes}</p>}
+                <div className="acs-vis-card__patient">{v.patientName}</div>
+                {v.motivos?.length > 0 && (
+                  <div className="acs-vis-card__motivos">
+                    {v.motivos.map(k => {
+                      const o = MOTIVO_OPTIONS.find(m => m.key === k);
+                      return o ? <span key={k} className="acs-vis-card__motivo-tag">{o.label}</span> : null;
+                    })}
+                  </div>
+                )}
+                {v.observacoes && <p className="acs-vis-card__obs">{v.observacoes}</p>}
+              </div>
+            ))}
+          </div>
+
+          {totalPages > 1 && (
+            <div className="acs-pagination">
+              <button
+                type="button"
+                className="acs-pagination__btn"
+                disabled={safePage <= 1}
+                onClick={() => setVPage(p => p - 1)}
+                aria-label="Página anterior"
+              >‹</button>
+              <span className="acs-pagination__info">{safePage} / {totalPages}</span>
+              <button
+                type="button"
+                className="acs-pagination__btn"
+                disabled={safePage >= totalPages}
+                onClick={() => setVPage(p => p + 1)}
+                aria-label="Próxima página"
+              >›</button>
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
     </div>
   );
@@ -2983,14 +3093,19 @@ function ProductionSection({ token, user }) {
         fetch(`${API_URL}/active-search/stats`,             { headers: { Authorization: `Bearer ${token}` } }),
       ]);
       if (!prodRes.ok) {
+        const status = prodRes.status;
+        if (status === 401) throw Object.assign(new Error("__401__"), { status });
+        if (status === 403) throw Object.assign(new Error("__403__"), { status });
         const body = await prodRes.json().catch(() => ({}));
-        throw new Error(body.error || `Erro ${prodRes.status} ao carregar produção`);
+        throw Object.assign(new Error(body.error || `Erro ${status}`), { status });
       }
       const [prod, st] = await Promise.all([prodRes.json(), statsRes.ok ? statsRes.json() : null]);
       setData(prod);
       setStats(st);
     } catch (e) {
-      setError(e.message);
+      if (e.status === 401) setError("Sessão expirada. Faça login novamente.");
+      else if (e.status === 403) setError("Você não tem permissão para acessar esta seção.");
+      else setError("Não foi possível carregar os dados de produção. Tente novamente.");
     } finally {
       setLoading(false);
     }
@@ -3019,7 +3134,17 @@ function ProductionSection({ token, user }) {
       </div>
 
       {loading && <p className="prod-loading">Carregando...</p>}
-      {error   && <p className="prod-error">{error}</p>}
+      {error && (
+        <div className="acs-empty">
+          <div className="acs-empty__icon" aria-hidden="true">
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.4"/>
+              <path d="M12 8v4M12 16h.01" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+            </svg>
+          </div>
+          <p className="acs-empty__title">{error}</p>
+        </div>
+      )}
 
       {!loading && !error && data && (
         <>
@@ -3185,18 +3310,19 @@ function ActiveSearchSection({ token, user, onOpenGroup, onStartVisit }) {
       ]);
 
       if (!listRes.ok) {
+        const status = listRes.status;
+        if (status === 401) throw Object.assign(new Error("__401__"), { status });
+        if (status === 403) throw Object.assign(new Error("__403__"), { status });
         const body = await listRes.json().catch(() => ({}));
-        throw new Error(body.error || `Erro ${listRes.status} ao carregar busca ativa`);
+        throw Object.assign(new Error(body.error || `Erro ${status}`), { status });
       }
-      if (!statsRes.ok) {
-        const body = await statsRes.json().catch(() => ({}));
-        throw new Error(body.error || `Erro ${statsRes.status} ao carregar estatísticas`);
-      }
-      const [list, st] = await Promise.all([listRes.json(), statsRes.json()]);
+      const [list, st] = await Promise.all([listRes.json(), statsRes.ok ? statsRes.json() : null]);
       setData(list);
       setStats(st);
     } catch (e) {
-      setError(e.message);
+      if (e.status === 401) setError("Sessão expirada. Faça login novamente.");
+      else if (e.status === 403) setError("Você não tem permissão para acessar esta seção.");
+      else setError("Não foi possível carregar os dados de busca ativa. Tente novamente.");
     } finally {
       setLoading(false);
     }
@@ -3290,7 +3416,17 @@ function ActiveSearchSection({ token, user, onOpenGroup, onStartVisit }) {
       </div>
 
       {loading && <p className="as-loading">Carregando...</p>}
-      {error   && <p className="as-error">{error}</p>}
+      {error && (
+        <div className="acs-empty">
+          <div className="acs-empty__icon" aria-hidden="true">
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.4"/>
+              <path d="M12 8v4M12 16h.01" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+            </svg>
+          </div>
+          <p className="acs-empty__title">{error}</p>
+        </div>
+      )}
 
       {!loading && !error && items.length === 0 && (
         <div className="as-empty">
@@ -3398,14 +3534,17 @@ function AcsTasksPage({ patients, users, user, token, onNavigatePatient }) {
       <PageHeader
         eyebrow="Vitras · ACS"
         title="ACS"
-        subtitle="Acompanhamento territorial, grupos familiares, visitas e obrigações da microárea."
+        subtitle="Acompanhamento territorial, grupos familiares e visitas domiciliares da microárea."
       />
 
-      <div className="acs-kpis">
+      <div className="acs-kpis-wrap">
+        <p className="acs-kpis-label">Resumo de Tarefas</p>
+        <div className="acs-kpis">
         <KPI label="Pendentes"  value={pendingCount} className="card" />
         <KPI label="Urgentes"   value={urgentCount}  className={`card${urgentCount > 0  ? " kpi--danger"  : ""}`} />
         <KPI label="Em atraso"  value={overdueCount} className={`card${overdueCount > 0 ? " kpi--warning" : ""}`} />
         <KPI label="Concluídas" value={doneCount}    className="card kpi--success" />
+        </div>
       </div>
 
       <div className="acs-body">
@@ -3614,19 +3753,23 @@ function AcsTasksPage({ patients, users, user, token, onNavigatePatient }) {
         )}
 
         {activeTab === "cd" && (
-          <CadastroDomiciliarSection
-            token={token}
-            user={user}
-            patients={patients}
-          />
+          <div className="acs-tab-panel">
+            <CadastroDomiciliarSection
+              token={token}
+              user={user}
+              patients={patients}
+            />
+          </div>
         )}
 
         {activeTab === "ci" && (
-          <CadastroIndividualSection
-            token={token}
-            user={user}
-            patients={patients}
-          />
+          <div className="acs-tab-panel">
+            <CadastroIndividualSection
+              token={token}
+              user={user}
+              patients={patients}
+            />
+          </div>
         )}
 
         {activeTab === "producao" && (
