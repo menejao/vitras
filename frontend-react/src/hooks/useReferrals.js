@@ -20,16 +20,19 @@ export function useReferrals(token, options = {}) {
   useEffect(() => { onErrorRef.current = onError; });
 
   const [entries, setEntries] = useState([]);
-  const [loading, setLoading] = useState(Boolean(enabled));
+  const [loading, setLoading] = useState(Boolean(enabled)); // true only during initial fetch
   const [error, setError] = useState("");
+  const initialized = useRef(false);
 
-  const refresh = useCallback(async () => {
+  // silent=true → skip loading spinner (post-mutation refreshes + polling)
+  const refresh = useCallback(async ({ silent = false } = {}) => {
     if (!enabled || !token) return [];
+    if (!silent || !initialized.current) setLoading(true);
     try {
-      setLoading(true);
       setError("");
       const next = await listReferrals(token);
       setEntries(sortReferrals(next));
+      initialized.current = true;
       return next;
     } catch (err) {
       const message = err?.message || "Erro ao carregar encaminhamentos.";
@@ -45,32 +48,47 @@ export function useReferrals(token, options = {}) {
     if (!enabled || !token) return undefined;
     refresh().catch(() => {});
     const intervalId = window.setInterval(() => {
-      refresh().catch(() => {});
+      refresh({ silent: true }).catch(() => {});
     }, pollMs);
     return () => window.clearInterval(intervalId);
   }, [enabled, token, pollMs, refresh]);
 
   const createEntry = useCallback(async (payload) => {
     const created = await createReferral(token, payload);
-    await refresh();
+    await refresh({ silent: true });
     return created;
   }, [token, refresh]);
 
   const patchEntry = useCallback(async (id, payload) => {
-    const updated = await updateReferral(token, id, payload);
-    await refresh();
-    return updated;
+    // Optimistic: update local state immediately so UI responds without waiting
+    setEntries((prev) =>
+      sortReferrals(
+        prev.map((e) =>
+          e.id === id ? { ...e, ...payload, updatedAt: new Date().toISOString() } : e,
+        ),
+      ),
+    );
+    try {
+      const updated = await updateReferral(token, id, payload);
+      // Silent sync to get server state (events[], contrarreferencia, etc.)
+      await refresh({ silent: true });
+      return updated;
+    } catch (err) {
+      // Rollback: restore from server
+      await refresh({ silent: true }).catch(() => {});
+      throw err;
+    }
   }, [token, refresh]);
 
   const removeEntry = useCallback(async (id) => {
     await deleteReferral(token, id);
-    await refresh();
+    await refresh({ silent: true });
   }, [token, refresh]);
 
   const derived = useMemo(() => ({
-    pending: entries.filter((item) => item.status === "pending").length,
+    pending:   entries.filter((item) => item.status === "pending").length,
     scheduled: entries.filter((item) => item.status === "scheduled").length,
-    done: entries.filter((item) => item.status === "done").length,
+    done:      entries.filter((item) => item.status === "done").length,
     cancelled: entries.filter((item) => item.status === "cancelled").length,
   }), [entries]);
 
@@ -83,6 +101,6 @@ export function useReferrals(token, options = {}) {
     createEntry,
     patchEntry,
     removeEntry,
-    ...derived
+    ...derived,
   };
 }

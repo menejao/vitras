@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import PageHeader from "../components/layout/PageHeader";
 import PageShell from "../components/layout/PageShell";
 import KpiGrid from "../components/layout/KpiGrid";
@@ -76,13 +76,14 @@ function StatusBadge({ status }) {
   return <span className={`referrals-status-badge ${cfg.cls}`}>{cfg.label}</span>;
 }
 
-function StatusSelect({ status, onChange }) {
+function StatusSelect({ status, onChange, disabled }) {
   const cfg = STATUS_MAP[status] || STATUS_MAP.pending;
   return (
     <Select
       inputClassName={`referrals-status-sel ${cfg.cls}`}
       value={status || "pending"}
       onChange={(e) => onChange(e.target.value)}
+      disabled={disabled}
     >
       {Object.entries(STATUS_MAP).map(([k, v]) => (
         <option key={k} value={k}>{v.label}</option>
@@ -130,10 +131,26 @@ function EventHistory({ events }) {
 }
 
 function ReferralCard({ referral, onUpdate, onDelete, onPrint, onEdit }) {
+  const [saving, setSaving]       = useState(false);
+  const [saveError, setSaveError] = useState("");
+
+  const handleStatusChange = useCallback(async (s) => {
+    if (saving) return;
+    setSaving(true);
+    setSaveError("");
+    try {
+      await onUpdate(referral.id, { status: s });
+    } catch (err) {
+      setSaveError(err?.message || "Erro ao salvar situação.");
+    } finally {
+      setSaving(false);
+    }
+  }, [saving, onUpdate, referral.id]);
+
   const days = daysSince(referral.date);
   const isReturned = referral.status === "returned_for_complement";
   return (
-    <div className={`ref-card${referral.priority === "urgent" ? " ref-card--urgent" : referral.priority === "priority" ? " ref-card--priority" : ""}${isReturned ? " ref-card--returned" : ""}`}>
+    <div className={`ref-card${referral.priority === "urgent" ? " ref-card--urgent" : referral.priority === "priority" ? " ref-card--priority" : ""}${isReturned ? " ref-card--returned" : ""}${saving ? " ref-card--saving" : ""}`}>
       <div className="ref-card__patient">
         <div className="ref-card__patient-name">{referral.patientName}</div>
         {referral.doctorName && <div className="ref-card__patient-meta">{referral.doctorName}</div>}
@@ -143,6 +160,7 @@ function ReferralCard({ referral, onUpdate, onDelete, onPrint, onEdit }) {
         {referral.reason && (
           <div className="ref-card__reason">{referral.reason}</div>
         )}
+        {saveError && <div className="ref-card__save-error">{saveError}</div>}
       </div>
       <div className="ref-card__date">
         <div>{fmtDate(referral.date)}</div>
@@ -156,7 +174,10 @@ function ReferralCard({ referral, onUpdate, onDelete, onPrint, onEdit }) {
         )}
       </div>
       <PriorityChip priority={referral.priority} />
-      <StatusSelect status={referral.status} onChange={(s) => onUpdate(referral.id, { status: s })} />
+      <div className="ref-card__status-wrap">
+        <StatusSelect status={referral.status} onChange={handleStatusChange} disabled={saving} />
+        {saving && <span className="ref-card__saving-indicator">Salvando...</span>}
+      </div>
       <div className="referrals-action-row">
         <Button variant="ghost" size="sm" iconOnly onClick={() => onPrint(referral)} title="Ver guia"><IconPrint /></Button>
         <Button variant="ghost" size="sm" iconOnly onClick={() => onEdit(referral)} title="Registrar movimentação"><IconEdit /></Button>
@@ -380,7 +401,7 @@ function ReferralsPage({
       </div>
 
       <MainContent className="referrals-list">
-        {referralsLoading ? (
+        {referralsLoading && referrals.length === 0 ? (
           <div className="ref-empty">
             <span>Carregando encaminhamentos...</span>
           </div>
