@@ -1,11 +1,7 @@
-cd C:\dev\vitras\backend
-
+Set-Location C:\dev\vitras\backend
 npm install
-
-if (Test-Path "C:\dev\vitras\deploy-artifacts\backend.zip") {
-  Remove-Item "C:\dev\vitras\deploy-artifacts\backend.zip"
-}
-
-tar -a -c -f "C:\dev\vitras\deploy-artifacts\backend.zip" *
-
+node C:\dev\vitras\scripts\deploy\build-backend.js
 Write-Host "Backend zip criado em C:\dev\vitras\deploy-artifacts\backend.zip"
+Write-Host "  npm audit fix"
+Write-Host ""
+Write-Host "Run ``npm audit`` for details."
