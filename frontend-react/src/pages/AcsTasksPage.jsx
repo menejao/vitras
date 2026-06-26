@@ -1975,14 +1975,17 @@ function CadastroDomiciliarSection({ token, user, patients }) {
   const statusInfo = cdStatusInfo(households);
 
   return (
-    <div className="ci-section">
-      <div className="ci-section__header">
-        <h2 className="ci-section__title">Cadastro Domiciliar e Territorial</h2>
-        <p className="ci-section__sub">Busque um paciente para visualizar ou registrar o Cadastro Domiciliar e Territorial (e-SUS).</p>
+    <div className="acs-fg-section">
+      <div className="acs-fg-note" aria-live="polite">
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.3" />
+          <path d="M8 7v4M8 5h.01" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+        </svg>
+        Cadastro Domiciliar e Territorial (e-SUS) — busque um paciente para visualizar ou registrar.
       </div>
 
       {/* ── Search bar ── */}
-      <div className="ci-search-wrap" ref={searchRef}>
+      <div className="acs-fg-search-wrap acs-fg-search-wrap--full" ref={searchRef}>
         <div className="input">
           <span className="input__icon"><CiSearchIcon /></span>
           <input
@@ -2044,11 +2047,15 @@ function CadastroDomiciliarSection({ token, user, patients }) {
 
       {/* ── Empty state ── */}
       {!selectedPatient && (
-        <div className="ci-empty">
-          <EmptyState
-            title="Selecione um paciente"
-            description="Busque um paciente pelo nome, CPF, CNS, telefone, endereço ou CEP para visualizar ou registrar o Cadastro Domiciliar."
-          />
+        <div className="acs-empty">
+          <div className="acs-empty__icon" aria-hidden="true">
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" stroke="currentColor" strokeWidth="1.4"/>
+              <path d="M9 22V12h6v10" stroke="currentColor" strokeWidth="1.4"/>
+            </svg>
+          </div>
+          <p className="acs-empty__title">Selecione um paciente</p>
+          <p className="acs-empty__sub">Busque pelo nome, CPF, CNS, telefone, endereço ou CEP para visualizar ou registrar o Cadastro Domiciliar e Territorial.</p>
         </div>
       )}
 
@@ -2751,14 +2758,17 @@ function CadastroIndividualSection({ token, user, patients }) {
   const statusInfo = ciStatusInfo(selectedPatient);
 
   return (
-    <div className="ci-section">
-      <div className="ci-section__header">
-        <h2 className="ci-section__title">Cadastro Individual</h2>
-        <p className="ci-section__sub">Busque um paciente para visualizar ou preencher o Cadastro Individual (e-SUS).</p>
+    <div className="acs-fg-section">
+      <div className="acs-fg-note" aria-live="polite">
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.3" />
+          <path d="M8 7v4M8 5h.01" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+        </svg>
+        Cadastro Individual (e-SUS) — busque um paciente para visualizar ou preencher.
       </div>
 
       {/* ── Search bar ── */}
-      <div className="ci-search-wrap" ref={searchRef}>
+      <div className="acs-fg-search-wrap acs-fg-search-wrap--full" ref={searchRef}>
         <div className="input">
           <span className="input__icon"><CiSearchIcon /></span>
           <input
@@ -2818,11 +2828,15 @@ function CadastroIndividualSection({ token, user, patients }) {
 
       {/* ── Empty state ── */}
       {!selectedPatient && (
-        <div className="ci-empty">
-          <EmptyState
-            title="Selecione um paciente"
-            description="Busque um paciente pelo nome, CPF, CNS ou telefone para visualizar ou preencher o Cadastro Individual."
-          />
+        <div className="acs-empty">
+          <div className="acs-empty__icon" aria-hidden="true">
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="1.4"/>
+              <path d="M4 20c0-4 3.582-7 8-7s8 3 8 7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+            </svg>
+          </div>
+          <p className="acs-empty__title">Selecione um paciente</p>
+          <p className="acs-empty__sub">Busque pelo nome, CPF, CNS ou telefone para visualizar ou preencher o Cadastro Individual.</p>
         </div>
       )}
 
@@ -3077,14 +3091,15 @@ function ProdKpi({ label, value, cls }) {
 }
 
 function ProductionSection({ token, user }) {
+  const isAcsUser = user?.role === "acs";
   const [period, setPeriod]   = useState("mes");
   const [data, setData]       = useState(null);
   const [stats, setStats]     = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(isAcsUser);
   const [error, setError]     = useState(null);
 
   const load = async () => {
-    if (!token) return;
+    if (!token || !isAcsUser) return;
     setLoading(true);
     setError(null);
     try {
@@ -3106,6 +3121,21 @@ function ProductionSection({ token, user }) {
   const v = data?.visits || {};
   const t = data?.tasks  || {};
   const g = data?.groups || {};
+
+  if (!isAcsUser) {
+    return (
+      <div className="acs-empty">
+        <div className="acs-empty__icon" aria-hidden="true">
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
+            <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="1.4"/>
+            <path d="M9 9h6M9 12h6M9 15h4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+          </svg>
+        </div>
+        <p className="acs-empty__title">Métricas de produção do ACS</p>
+        <p className="acs-empty__sub">Esta seção exibe métricas do Agente Comunitário de Saúde. Faça login com perfil ACS para visualizar seus dados de produção.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="prod-root">
@@ -3731,23 +3761,19 @@ function AcsTasksPage({ patients, users, user, token, onNavigatePatient }) {
         )}
 
         {activeTab === "cd" && (
-          <div className="acs-tab-panel">
-            <CadastroDomiciliarSection
-              token={token}
-              user={user}
-              patients={patients}
-            />
-          </div>
+          <CadastroDomiciliarSection
+            token={token}
+            user={user}
+            patients={patients}
+          />
         )}
 
         {activeTab === "ci" && (
-          <div className="acs-tab-panel">
-            <CadastroIndividualSection
-              token={token}
-              user={user}
-              patients={patients}
-            />
-          </div>
+          <CadastroIndividualSection
+            token={token}
+            user={user}
+            patients={patients}
+          />
         )}
 
         {activeTab === "producao" && (

@@ -516,6 +516,14 @@
   max-width: 360px;
 }
 
+/* Full-width variant: CI/CD use div.input so no absolute icon conflict */
+.acs-fg-search-wrap--full {
+  max-width: none;
+}
+.acs-fg-search-wrap--full .input {
+  width: 100%;
+}
+
 /* ── Family groups list ───────────────────────────────────────── */
 .acs-fg-list {
   display: flex;
