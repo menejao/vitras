@@ -1370,30 +1370,7 @@ function VisitasTab({ patients, user, token, preSelectPatient, clearPreSelect })
     setView("patient-select");
   }
 
-  if (view === "patient-select") {
-    return (
-      <PatientSelector
-        patients={myPatients}
-        onSelect={handleSelectPatient}
-        onCancel={() => setView("list")}
-      />
-    );
-  }
-
-  if (view === "form" && selectedPatient) {
-    return (
-      <VisitForm
-        patient={selectedPatient}
-        taskOrigin={taskOrigin}
-        userId={user?.id}
-        token={token}
-        onSave={handleSave}
-        onCancel={handleCancel}
-      />
-    );
-  }
-
-  // List view — filtered + paginated
+  // List view computations — must be before early returns (React Rules of Hooks)
   const { effectiveFrom, effectiveTo } = useMemo(() => {
     if (vPeriod === "custom") return { effectiveFrom: vFrom, effectiveTo: vTo };
     const r = dateRange(vPeriod);
@@ -1416,6 +1393,29 @@ function VisitasTab({ patients, user, token, preSelectPatient, clearPreSelect })
   const pageVisits = filteredVisits.slice((safePage - 1) * VISITS_PAGE_SIZE, safePage * VISITS_PAGE_SIZE);
 
   function applyFilter(fn) { fn(); setVPage(1); }
+
+  if (view === "patient-select") {
+    return (
+      <PatientSelector
+        patients={myPatients}
+        onSelect={handleSelectPatient}
+        onCancel={() => setView("list")}
+      />
+    );
+  }
+
+  if (view === "form" && selectedPatient) {
+    return (
+      <VisitForm
+        patient={selectedPatient}
+        taskOrigin={taskOrigin}
+        userId={user?.id}
+        token={token}
+        onSave={handleSave}
+        onCancel={handleCancel}
+      />
+    );
+  }
 
   return (
     <div className="acs-vis-list-view">

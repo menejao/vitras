@@ -313,6 +313,9 @@ function PharmacyPage({
   const [logSearch, setLogSearch] = useState("");
   const [dispenseItem, setDispenseItem] = useState(null);
   const [editItem, setEditItem] = useState(null);
+  const [stockPage, setStockPage] = useState(1);
+  const [logPage, setLogPage] = useState(1);
+  const PHARMA_PAGE_SIZE = 20;
 
   const categories = useMemo(() => buildCategoryOptions(stock), [stock]);
   const units = useMemo(() => buildUnitOptions(stock), [stock]);
@@ -353,6 +356,11 @@ function PharmacyPage({
   const prescribers = useMemo(() => (
     users.filter((entry) => ["doctor", "dentist", "nurse_manager"].includes(String(entry.role || "")))
   ), [users]);
+
+  const stockTotalPages = Math.max(1, Math.ceil(filtered.length / PHARMA_PAGE_SIZE));
+  const pagedFiltered   = filtered.slice((stockPage - 1) * PHARMA_PAGE_SIZE, stockPage * PHARMA_PAGE_SIZE);
+  const logTotalPages   = Math.max(1, Math.ceil(filteredLog.length / PHARMA_PAGE_SIZE));
+  const pagedLog        = filteredLog.slice((logPage - 1) * PHARMA_PAGE_SIZE, logPage * PHARMA_PAGE_SIZE);
 
   const canUseWriteFlow = canWrite && isPharmacist(user);
 
@@ -424,14 +432,14 @@ function PharmacyPage({
           <div className="card card--noPad overflow-hidden">
             <div className="pharma-toolbar">
               <div className="pharma-search">
-                <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar medicamento, categoria ou localizacao..." />
+                <Input value={search} onChange={(e) => { setSearch(e.target.value); setStockPage(1); }} placeholder="Buscar medicamento, categoria ou localizacao..." />
               </div>
               <div className="pharma-filter-cat">
-                <Select value={catFilter} onChange={(e) => setCatFilter(e.target.value)}>
+                <Select value={catFilter} onChange={(e) => { setCatFilter(e.target.value); setStockPage(1); }}>
                   {categories.map((category) => <option key={category}>{category}</option>)}
                 </Select>
               </div>
-              <Button variant="ghost" size="sm" className={showLowOnly ? "is-active" : ""} onClick={() => setShowLowOnly((value) => !value)}>
+              <Button variant="ghost" size="sm" className={showLowOnly ? "is-active" : ""} onClick={() => { setShowLowOnly((v) => !v); setStockPage(1); }}>
                 {showLowOnly ? "So baixo" : "Filtrar baixo"}
               </Button>
               {canUseWriteFlow ? <Button size="sm" onClick={() => setEditItem({ item: null, mode: "add" })}>+ Novo medicamento</Button> : null}
@@ -456,7 +464,7 @@ function PharmacyPage({
                       </td>
                     </tr>
                   ) : null}
-                  {filtered.map((item) => {
+                  {pagedFiltered.map((item) => {
                     const status = stockStatusClass(item);
                     return (
                       <tr key={item.id}>
@@ -485,6 +493,15 @@ function PharmacyPage({
                   })}
                 </tbody>
             </table>
+            {stockTotalPages > 1 && (
+              <div className="table-pagination">
+                <span>{filtered.length} itens — página {stockPage} de {stockTotalPages}</span>
+                <div style={{ display: "flex", gap: "var(--s-2)" }}>
+                  <Button variant="secondary" size="sm" disabled={stockPage <= 1} onClick={() => setStockPage(p => p - 1)}>← Anterior</Button>
+                  <Button variant="secondary" size="sm" disabled={stockPage >= stockTotalPages} onClick={() => setStockPage(p => p + 1)}>Próxima →</Button>
+                </div>
+              </div>
+            )}
           </div>
         )}
         {pharmaTab === "log" && (
@@ -498,7 +515,7 @@ function PharmacyPage({
             <div className="card card--noPad overflow-hidden">
               <div className="pharma-toolbar">
                 <div className="pharma-search" style={{ maxWidth: 380 }}>
-                  <Input value={logSearch} onChange={(e) => setLogSearch(e.target.value)} placeholder="Buscar por medicamento, paciente, prescritor ou receita..." />
+                  <Input value={logSearch} onChange={(e) => { setLogSearch(e.target.value); setLogPage(1); }} placeholder="Buscar por medicamento, paciente, prescritor ou receita..." />
                 </div>
                 <Button onClick={() => exportPharmacyCsv(filteredLog)}>Exportar CSV (ANVISA)</Button>
               </div>
@@ -520,7 +537,7 @@ function PharmacyPage({
                       </td>
                     </tr>
                   ) : null}
-                  {filteredLog.map((entry) => (
+                  {pagedLog.map((entry) => (
                     <tr key={entry.id}>
                       <td className="muted" style={{ fontSize: "var(--t-xs)", whiteSpace: "nowrap" }}>{fmtTs(entry.ts)}</td>
                       <td>{logTypeBadge(entry.type)}</td>
@@ -553,6 +570,15 @@ function PharmacyPage({
                   ))}
                 </tbody>
               </table>
+              {logTotalPages > 1 && (
+                <div className="table-pagination">
+                  <span>{filteredLog.length} registros — página {logPage} de {logTotalPages}</span>
+                  <div style={{ display: "flex", gap: "var(--s-2)" }}>
+                    <Button variant="secondary" size="sm" disabled={logPage <= 1} onClick={() => setLogPage(p => p - 1)}>← Anterior</Button>
+                    <Button variant="secondary" size="sm" disabled={logPage >= logTotalPages} onClick={() => setLogPage(p => p + 1)}>Próxima →</Button>
+                  </div>
+                </div>
+              )}
             </div>
           </>
         )}

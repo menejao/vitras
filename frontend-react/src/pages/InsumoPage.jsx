@@ -66,6 +66,10 @@ function InsumoPage({
   const [stockBusy, setStockBusy] = useState(false);
   const [logSearch, setLogSearch] = useState("");
   const [logFilter, setLogFilter] = useState("all");
+  const [dispPage, setDispPage] = useState(1);
+  const [stockPageIns, setStockPageIns] = useState(1);
+  const [logPageIns, setLogPageIns] = useState(1);
+  const INS_PAGE_SIZE = 20;
   const [closingContinuous, setClosingContinuous] = useState(null);
   const [closingBusy, setClosingBusy] = useState(false);
   const [closingReason, setClosingReason] = useState("");
@@ -107,6 +111,19 @@ function InsumoPage({
     const today = new Date().toISOString().slice(0, 10);
     return log.filter((entry) => String(entry.date || entry.ts || "").slice(0, 10) === today && entry.type === "dispensa").length;
   }, [log]);
+
+  const dispCatFiltered = useMemo(() =>
+    stock.filter((item) => catFilter === "Todas" || item.category === catFilter),
+    [stock, catFilter]
+  );
+  const dispTotalPages = Math.max(1, Math.ceil(dispCatFiltered.length / INS_PAGE_SIZE));
+  const pagedDispStock = dispCatFiltered.slice((dispPage - 1) * INS_PAGE_SIZE, dispPage * INS_PAGE_SIZE);
+
+  const stockTotalPagesIns = Math.max(1, Math.ceil(filteredStock.length / INS_PAGE_SIZE));
+  const pagedStockIns = filteredStock.slice((stockPageIns - 1) * INS_PAGE_SIZE, stockPageIns * INS_PAGE_SIZE);
+
+  const logTotalPagesIns = Math.max(1, Math.ceil(filteredLog.length / INS_PAGE_SIZE));
+  const pagedLogIns = filteredLog.slice((logPageIns - 1) * INS_PAGE_SIZE, logPageIns * INS_PAGE_SIZE);
 
   const tabs = [
     canDispense && ["dispensar", "Nova Dispensação"],
@@ -338,7 +355,7 @@ function InsumoPage({
               </div>
 
               <div className="ins-grid">
-                {stock.filter((item) => catFilter === "Todas" || item.category === catFilter).map((item) => {
+                {pagedDispStock.map((item) => {
                   const qty = itens[item.id] || 0;
                   const estq = Number(item.qty || 0);
                   const semEstoque = estq === 0;
@@ -374,6 +391,15 @@ function InsumoPage({
                   );
                 })}
               </div>
+              {dispTotalPages > 1 && (
+                <div className="table-pagination">
+                  <span>{dispCatFiltered.length} insumos — página {dispPage} de {dispTotalPages}</span>
+                  <div style={{ display: "flex", gap: "var(--s-2)" }}>
+                    <Button variant="secondary" size="sm" disabled={dispPage <= 1} onClick={() => { setDispPage(p => p - 1); }}>← Anterior</Button>
+                    <Button variant="secondary" size="sm" disabled={dispPage >= dispTotalPages} onClick={() => { setDispPage(p => p + 1); }}>Próxima →</Button>
+                  </div>
+                </div>
+              )}
 
               {Object.values(itens).some((value) => value > 0) && (
                 <div className="ins-summary">
@@ -421,7 +447,7 @@ function InsumoPage({
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredStock.map((item) => {
+                  {pagedStockIns.map((item) => {
                     const st = Number(item.qty || 0);
                     const pct = Number(item.maxQty || 0) > 0 ? Math.round((st / Number(item.maxQty || 1)) * 100) : 0;
                     const sc = sitClass(st, pct);
@@ -457,6 +483,15 @@ function InsumoPage({
                   })}
                 </tbody>
               </table>
+              {stockTotalPagesIns > 1 && (
+                <div className="table-pagination">
+                  <span>{filteredStock.length} itens — página {stockPageIns} de {stockTotalPagesIns}</span>
+                  <div style={{ display: "flex", gap: "var(--s-2)" }}>
+                    <Button variant="secondary" size="sm" disabled={stockPageIns <= 1} onClick={() => setStockPageIns(p => p - 1)}>← Anterior</Button>
+                    <Button variant="secondary" size="sm" disabled={stockPageIns >= stockTotalPagesIns} onClick={() => setStockPageIns(p => p + 1)}>Próxima →</Button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -484,8 +519,9 @@ function InsumoPage({
             {!filteredLog.length ? (
               <div className="empty-state">Nenhuma dispensacao registrada.</div>
             ) : (
+              <>
               <div className="ins-log-list">
-                {filteredLog.map((entry) => (
+                {pagedLogIns.map((entry) => (
                   <div key={entry.id} className={`ins-log-entry${entry.continuo ? " ins-log-entry--continuo" : ""}`}>
                     <div className="ins-log-entry__head">
                       <div>
@@ -511,6 +547,16 @@ function InsumoPage({
                   </div>
                 ))}
               </div>
+              {logTotalPagesIns > 1 && (
+                <div className="table-pagination">
+                  <span>{filteredLog.length} registros — página {logPageIns} de {logTotalPagesIns}</span>
+                  <div style={{ display: "flex", gap: "var(--s-2)" }}>
+                    <Button variant="secondary" size="sm" disabled={logPageIns <= 1} onClick={() => setLogPageIns(p => p - 1)}>← Anterior</Button>
+                    <Button variant="secondary" size="sm" disabled={logPageIns >= logTotalPagesIns} onClick={() => setLogPageIns(p => p + 1)}>Próxima →</Button>
+                  </div>
+                </div>
+              )}
+              </>
             )}
           </>
         )}

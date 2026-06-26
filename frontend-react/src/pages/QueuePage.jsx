@@ -540,7 +540,7 @@ function QueuePage({ patients, users, user, token, agenda = [], onNewPatient }) 
               {newPatErr ? <p className="field__error">{newPatErr}</p> : null}
 
               <div className="queue-form-footer">
-                <Button variant="secondary" type="button" onClick={() => setStep("select")}>← Voltar</Button>
+                <Button variant="secondary" type="button" onClick={() => setStep("select")}>← Voltar</Button>
                 <Button variant="primary" type="submit" disabled={savingNew}>{savingNew ? "Cadastrando..." : "Cadastrar e continuar →"}</Button>
               </div>
             </form>

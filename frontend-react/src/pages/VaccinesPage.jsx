@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { getPatientHistory, createRecord } from "../api";
 import { parseLocalDate } from "../utils/dates";
 import { gestationalAgeInfo, ageInMonths, getBaseAgeGroup, matchesPatientSearch } from "../utils/clinical";
 import { initials, fmtDate } from "../utils/formatting";
@@ -233,7 +234,6 @@ function VaccinesPage({ patients, users, templates, token, canManageUser, user }
   const [applyError, setApplyError] = useState("");
   const [applyBusy, setApplyBusy]   = useState(false);
 
-  const authHeader = { "Authorization": `Bearer ${token}` };
   const selectedPatient = patients.find(p => p.id === selectedId) || null;
 
   async function openPatient(p) {
@@ -244,8 +244,7 @@ function VaccinesPage({ patients, users, templates, token, canManageUser, user }
     setApplyError("");
     setApplyForm({ vaccine:"", date:"", appliedBy:"", details:"" });
     try {
-      const res = await fetch(`/patients/${p.id}/history`, { headers: authHeader });
-      const data = res.ok ? await res.json() : [];
+      const data = await getPatientHistory(token, p.id);
       setCard({ history: Array.isArray(data) ? data : [], loading:false });
     } catch { setCard({ history:[], loading:false }); }
   }
@@ -259,19 +258,8 @@ function VaccinesPage({ patients, users, templates, token, canManageUser, user }
         applyForm.appliedBy ? `Aplicado por: ${applyForm.appliedBy}` : "",
         applyForm.details,
       ].filter(Boolean);
-      const res = await fetch(`/patients/${selectedId}/records`, {
-        method:"POST",
-        headers:{ ...authHeader, "Content-Type":"application/json" },
-        body: JSON.stringify({ type:"vaccine", title:applyForm.vaccine, date:applyForm.date, details:detailsParts.join(" — ") }),
-      });
-      if (!res.ok) {
-        const friendly = { 400:"Dados inválidos", 401:"Sessão expirada", 403:"Sem permissão", 404:"Paciente ou vacina não encontrado" }[res.status] ?? (res.status >= 500 ? "Não foi possível registrar" : "Erro ao registrar");
-        let msg = friendly;
-        try { const body = await res.json(); if (body?.error) msg = body.error; } catch {}
-        throw new Error(msg);
-      }
-      const r2 = await fetch(`/patients/${selectedId}/history`, { headers: authHeader });
-      const data2 = r2.ok ? await r2.json() : [];
+      await createRecord(token, selectedId, { type:"vaccine", title:applyForm.vaccine, date:applyForm.date, details:detailsParts.join(" — ") });
+      const data2 = await getPatientHistory(token, selectedId);
       setCard({ history: Array.isArray(data2) ? data2 : [], loading:false });
       setApplying(false);
       setApplyForm({ vaccine:"", date:"", appliedBy:"", details:"" });
