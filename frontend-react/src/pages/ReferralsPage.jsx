@@ -76,9 +76,12 @@ function StatusBadge({ status }) {
   return <span className={`referrals-status-badge ${cfg.cls}`}>{cfg.label}</span>;
 }
 
-// StatusPill: botão compacto + menu absoluto (substitui StatusSelect para evitar truncamento e quebra de layout)
+const MENU_WIDTH = 248; // px — must match .ref-status-menu min-width in CSS
+
+// StatusPill: botão compacto + menu absoluto com flip automático de borda
 function StatusPill({ status, onChange, disabled }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen]       = useState(false);
+  const [flipLeft, setFlipLeft] = useState(false);
   const wrapRef = useRef(null);
   const cfg = STATUS_MAP[status] || STATUS_MAP.pending;
 
@@ -91,12 +94,22 @@ function StatusPill({ status, onChange, disabled }) {
     return () => document.removeEventListener("mousedown", handle);
   }, [open]);
 
+  function toggle() {
+    if (disabled) return;
+    if (!open && wrapRef.current) {
+      const rect = wrapRef.current.getBoundingClientRect();
+      // Flip to left if not enough room on the right
+      setFlipLeft(rect.left + MENU_WIDTH > window.innerWidth - 12);
+    }
+    setOpen((o) => !o);
+  }
+
   return (
     <div className="ref-status-pill-wrap" ref={wrapRef}>
       <button
         type="button"
         className={`ref-status-pill ${cfg.cls}`}
-        onClick={() => { if (!disabled) setOpen((o) => !o); }}
+        onClick={toggle}
         disabled={disabled}
         aria-haspopup="listbox"
         aria-expanded={open}
@@ -108,7 +121,11 @@ function StatusPill({ status, onChange, disabled }) {
         </svg>
       </button>
       {open && (
-        <ul className="ref-status-menu" role="listbox" aria-label="Situação do encaminhamento">
+        <ul
+          className={`ref-status-menu${flipLeft ? " ref-status-menu--flip-left" : ""}`}
+          role="listbox"
+          aria-label="Situação do encaminhamento"
+        >
           {Object.entries(STATUS_MAP).map(([k, v]) => (
             <li
               key={k}
