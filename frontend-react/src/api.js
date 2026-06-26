@@ -163,8 +163,15 @@ export async function api(path, options = {}, token = "") {
         continue;
       }
       const body = await response.json().catch(() => ({}));
-      const err = new Error(body?.error || "Erro na API");
+      let message = body?.error || "Erro na API";
+      // Translate generic validation error to actionable message; log technical details only
+      if (message === "Dados inválidos" && response.status === 400) {
+        if (body?.details?.length) console.warn("[API] Validation details:", body.details);
+        message = "Não foi possível salvar. Verifique os dados e tente novamente.";
+      }
+      const err = new Error(message);
       err.status = response.status;
+      err.details = body?.details;
       throw err;
     }
 

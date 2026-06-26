@@ -222,42 +222,82 @@
 [data-theme="dark"] .ref-priority-chip--urgent   { background: rgba(248,113,113,.14); color: #f87171;  border-color: rgba(248,113,113,.3); }
 [data-theme="dark"] .ref-priority-chip--priority { background: rgba(245,158,11,.14);  color: #fbbf24;  border-color: rgba(245,158,11,.3);  }
 
-/* ── Status select (pill, inline) ───────────────────────────── */
-.referrals-status-sel {
-  height: 26px;
-  /* min-width garante que labels longos ("Devolvido para complementação") não truncam */
-  min-width: 230px;
-  max-width: 260px;
-  padding: 0 var(--s-5) 0 var(--s-2);
-  border-radius: var(--r-pill);
-  border: 1px solid;
-  font: 700 var(--t-xs) var(--font-sans);
-  cursor: pointer;
-  appearance: none;
-  background-repeat: no-repeat;
-  background-position: right 5px center;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 10 6'%3E%3Cpath fill='%2394a3b8' d='M0 0h10L5 6z'/%3E%3C/svg%3E");
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-.referrals-status-sel:disabled {
-  opacity: .65;
-  cursor: not-allowed;
-}
-/* Garante que o label selecionado nunca trunca dentro do trigger */
-.referrals-status-sel .asel__value {
-  overflow: visible;
-  text-overflow: unset;
-  white-space: nowrap;
-}
+/* ── StatusPill: botão compacto + menu absoluto ─────────────── */
+/* Substitui o AppSelect de 230px que quebrava o layout do card.
+   Botão permanece compacto; menu abre com largura suficiente para labels longos. */
 
-/* Wrapper para status + indicador "Salvando..." */
 .ref-card__status-wrap {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   flex-shrink: 0;
   gap: 2px;
+}
+
+.ref-status-pill-wrap {
+  position: relative;
+}
+
+.ref-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  max-width: 160px;
+  padding: 0 var(--s-2) 0 var(--s-3);
+  border-radius: var(--r-pill);
+  border: 1px solid;
+  font: 700 var(--t-xs) var(--font-sans);
+  cursor: pointer;
+  background: transparent;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.ref-status-pill:disabled {
+  opacity: .65;
+  cursor: not-allowed;
+}
+.ref-status-pill__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ref-status-pill__chevron {
+  flex-shrink: 0;
+  opacity: .7;
+}
+
+/* Menu absoluto — largura suficiente para labels longos */
+.ref-status-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 200;
+  min-width: 240px;
+  max-height: 320px;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-lg);
+  box-shadow: 0 4px 16px rgba(0,0,0,.12);
+  list-style: none;
+  margin: 0;
+  padding: var(--s-1) 0;
+}
+.ref-status-menu__item {
+  padding: var(--s-2) var(--s-3);
+  font: 400 var(--t-sm) var(--font-sans);
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.ref-status-menu__item:hover {
+  background: var(--surface-2);
+}
+.ref-status-menu__item--current {
+  font-weight: 700;
+  color: var(--accent);
 }
 
 .ref-card__saving-indicator {

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import PageHeader from "../components/layout/PageHeader";
 import PageShell from "../components/layout/PageShell";
 import KpiGrid from "../components/layout/KpiGrid";
@@ -76,19 +76,57 @@ function StatusBadge({ status }) {
   return <span className={`referrals-status-badge ${cfg.cls}`}>{cfg.label}</span>;
 }
 
-function StatusSelect({ status, onChange, disabled }) {
+// StatusPill: botão compacto + menu absoluto (substitui StatusSelect para evitar truncamento e quebra de layout)
+function StatusPill({ status, onChange, disabled }) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef(null);
   const cfg = STATUS_MAP[status] || STATUS_MAP.pending;
+
+  useEffect(() => {
+    if (!open) return;
+    function handle(e) {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handle);
+    return () => document.removeEventListener("mousedown", handle);
+  }, [open]);
+
   return (
-    <Select
-      inputClassName={`referrals-status-sel ${cfg.cls}`}
-      value={status || "pending"}
-      onChange={(e) => onChange(e.target.value)}
-      disabled={disabled}
-    >
-      {Object.entries(STATUS_MAP).map(([k, v]) => (
-        <option key={k} value={k}>{v.label}</option>
-      ))}
-    </Select>
+    <div className="ref-status-pill-wrap" ref={wrapRef}>
+      <button
+        type="button"
+        className={`ref-status-pill ${cfg.cls}`}
+        onClick={() => { if (!disabled) setOpen((o) => !o); }}
+        disabled={disabled}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        title={cfg.label}
+      >
+        <span className="ref-status-pill__label">{cfg.label}</span>
+        <svg className="ref-status-pill__chevron" width="8" height="5" viewBox="0 0 10 6" fill="none" aria-hidden="true">
+          <path d="M1 1l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      </button>
+      {open && (
+        <ul className="ref-status-menu" role="listbox" aria-label="Situação do encaminhamento">
+          {Object.entries(STATUS_MAP).map(([k, v]) => (
+            <li
+              key={k}
+              role="option"
+              aria-selected={k === status}
+              className={`ref-status-menu__item${k === status ? " ref-status-menu__item--current" : ""}`}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                onChange(k);
+                setOpen(false);
+              }}
+            >
+              {v.label}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
 
@@ -175,7 +213,7 @@ function ReferralCard({ referral, onUpdate, onDelete, onPrint, onEdit }) {
       </div>
       <PriorityChip priority={referral.priority} />
       <div className="ref-card__status-wrap">
-        <StatusSelect status={referral.status} onChange={handleStatusChange} disabled={saving} />
+        <StatusPill status={referral.status} onChange={handleStatusChange} disabled={saving} />
         {saving && <span className="ref-card__saving-indicator">Salvando...</span>}
       </div>
       <div className="referrals-action-row">
@@ -279,8 +317,9 @@ function ReferralsPage({
     try {
       setSubmitError("");
       if (editId) {
-        // No edit, não enviar status na criação — apenas no PATCH
-        await onUpdateReferral(editId, form);
+        // Strip non-patchable fields before sending PATCH
+        const { patientId: _pid, ...patchPayload } = form;
+        await onUpdateReferral(editId, patchPayload);
       } else {
         // Criação: status sempre "pending", não enviamos status editável
         const { status: _ignored, contrarreferencia: _c, eventNote: _e, ...createPayload } = form;
