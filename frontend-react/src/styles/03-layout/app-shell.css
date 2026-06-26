@@ -243,6 +243,7 @@
   color: var(--text-muted);
   font: 400 var(--t-base)/var(--lh-relaxed) var(--font-sans);
   max-width: 64ch;
+  text-wrap: balance;
 }
 
 .page-header__actions {

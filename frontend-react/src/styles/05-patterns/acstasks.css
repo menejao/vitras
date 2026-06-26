@@ -17,10 +17,9 @@
   flex-shrink: 0;
 }
 
-/* ── KPI strip (outside scroll area) ─────────────────────────── */
+/* ── KPI strip (inside Tasks tab) ────────────────────────────── */
 .acs-kpis-wrap {
-  margin: var(--s-4) var(--s-6) 0;
-  flex-shrink: 0;
+  /* now lives inside acs-body — no external margins needed */
 }
 
 .acs-kpis-label {
@@ -2420,4 +2419,77 @@ details[open] > .cd-acc__header::after { transform: rotate(90deg); }
   color: var(--text-secondary);
   min-width: 56px;
   text-align: center;
+}
+
+/* ── CI / CD: normalização dentro do acs-tab-panel ──────────────
+   Objetivo: fazer ci-section e cd-section parecerem parte do
+   mesmo Design System que as demais abas do módulo ACS.
+   Não altera comportamento — só aparência.                       */
+
+.acs-tab-panel .ci-section,
+.acs-tab-panel .cd-section {
+  padding: 0;
+  max-width: none;
+}
+
+/* Header: de h2 estilizado para label sutil — igual ao padrão ACS */
+.acs-tab-panel .ci-section__header,
+.acs-tab-panel .cd-section__header {
+  margin-bottom: var(--s-4);
+  padding-bottom: var(--s-3);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.acs-tab-panel .ci-section__title,
+.acs-tab-panel .cd-section__title {
+  font: 600 var(--t-sm) var(--font-sans);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  font-size: var(--t-xs);
+  margin: 0 0 var(--s-1);
+}
+
+.acs-tab-panel .ci-section__sub,
+.acs-tab-panel .cd-section__sub {
+  font: 400 var(--t-sm) var(--font-sans);
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* Search: mesmo visual do acs-toolbar-card search */
+.acs-tab-panel .ci-search-wrap,
+.acs-tab-panel .cd-search-wrap {
+  background: var(--surface-raised, var(--surface));
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-lg);
+  padding: var(--s-3) var(--s-4);
+  margin-bottom: var(--s-4);
+}
+
+.acs-tab-panel .ci-search-wrap .input,
+.acs-tab-panel .cd-search-wrap .input {
+  width: 100%;
+  background: var(--surface);
+}
+
+/* Empty state: reutilizar acs-empty aparência */
+.acs-tab-panel .ci-empty,
+.acs-tab-panel .cd-empty {
+  margin-top: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--s-10) var(--s-6);
+  text-align: center;
+  gap: var(--s-2);
+}
+
+/* Patient card: alinhamento e espaçamento consistente */
+.acs-tab-panel .ci-patient-card {
+  background: var(--surface-raised, var(--surface));
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-lg);
+  padding: var(--s-4);
+  margin-bottom: var(--s-4);
 }

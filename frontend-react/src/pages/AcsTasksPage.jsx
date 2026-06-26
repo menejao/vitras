@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
-import { API_URL, listTasksByAssignee, updateTaskStatus } from "../api";
+import { API_URL, api, listTasksByAssignee, updateTaskStatus } from "../api";
 import PageHeader from "../components/layout/PageHeader";
 import KPI from "../components/ui/KPI";
 import Modal from "../components/ui/Modal";
@@ -3088,24 +3088,14 @@ function ProductionSection({ token, user }) {
     setLoading(true);
     setError(null);
     try {
-      const [prodRes, statsRes] = await Promise.all([
-        fetch(`${API_URL}/production/acs?period=${period}`, { headers: { Authorization: `Bearer ${token}` } }),
-        fetch(`${API_URL}/active-search/stats`,             { headers: { Authorization: `Bearer ${token}` } }),
+      const [prod, st] = await Promise.all([
+        api(`/production/acs?period=${period}`, {}, token),
+        api(`/active-search/stats`, {}, token).catch(() => null),
       ]);
-      if (!prodRes.ok) {
-        const status = prodRes.status;
-        if (status === 401) throw Object.assign(new Error("__401__"), { status });
-        if (status === 403) throw Object.assign(new Error("__403__"), { status });
-        const body = await prodRes.json().catch(() => ({}));
-        throw Object.assign(new Error(body.error || `Erro ${status}`), { status });
-      }
-      const [prod, st] = await Promise.all([prodRes.json(), statsRes.ok ? statsRes.json() : null]);
       setData(prod);
       setStats(st);
     } catch (e) {
-      if (e.status === 401) setError("Sessão expirada. Faça login novamente.");
-      else if (e.status === 403) setError("Você não tem permissão para acessar esta seção.");
-      else setError("Não foi possível carregar os dados de produção. Tente novamente.");
+      setError(e.message || "Não foi possível carregar os dados de produção.");
     } finally {
       setLoading(false);
     }
@@ -3304,25 +3294,14 @@ function ActiveSearchSection({ token, user, onOpenGroup, onStartVisit }) {
       if (filterPendency) params.set("pendency",  filterPendency);
       if (filterAcs)      params.set("acsId",     filterAcs);
 
-      const [listRes, statsRes] = await Promise.all([
-        fetch(`${API_URL}/active-search?${params}`, { headers: { Authorization: `Bearer ${token}` } }),
-        fetch(`${API_URL}/active-search/stats`,     { headers: { Authorization: `Bearer ${token}` } }),
+      const [list, st] = await Promise.all([
+        api(`/active-search?${params}`, {}, token),
+        api(`/active-search/stats`, {}, token).catch(() => null),
       ]);
-
-      if (!listRes.ok) {
-        const status = listRes.status;
-        if (status === 401) throw Object.assign(new Error("__401__"), { status });
-        if (status === 403) throw Object.assign(new Error("__403__"), { status });
-        const body = await listRes.json().catch(() => ({}));
-        throw Object.assign(new Error(body.error || `Erro ${status}`), { status });
-      }
-      const [list, st] = await Promise.all([listRes.json(), statsRes.ok ? statsRes.json() : null]);
       setData(list);
       setStats(st);
     } catch (e) {
-      if (e.status === 401) setError("Sessão expirada. Faça login novamente.");
-      else if (e.status === 403) setError("Você não tem permissão para acessar esta seção.");
-      else setError("Não foi possível carregar os dados de busca ativa. Tente novamente.");
+      setError(e.message || "Não foi possível carregar os dados de busca ativa.");
     } finally {
       setLoading(false);
     }
@@ -3537,16 +3516,6 @@ function AcsTasksPage({ patients, users, user, token, onNavigatePatient }) {
         subtitle="Acompanhamento territorial, grupos familiares e visitas domiciliares da microárea."
       />
 
-      <div className="acs-kpis-wrap">
-        <p className="acs-kpis-label">Resumo de Tarefas</p>
-        <div className="acs-kpis">
-        <KPI label="Pendentes"  value={pendingCount} className="card" />
-        <KPI label="Urgentes"   value={urgentCount}  className={`card${urgentCount > 0  ? " kpi--danger"  : ""}`} />
-        <KPI label="Em atraso"  value={overdueCount} className={`card${overdueCount > 0 ? " kpi--warning" : ""}`} />
-        <KPI label="Concluídas" value={doneCount}    className="card kpi--success" />
-        </div>
-      </div>
-
       <div className="acs-body">
 
         <div className="acs-tabs" role="tablist" aria-label="Seções ACS">
@@ -3566,6 +3535,15 @@ function AcsTasksPage({ patients, users, user, token, onNavigatePatient }) {
 
         {activeTab === "tasks" && (
           <>
+            <div className="acs-kpis-wrap">
+              <p className="acs-kpis-label">Resumo de Tarefas</p>
+              <div className="acs-kpis">
+                <KPI label="Pendentes"  value={pendingCount} className="card" />
+                <KPI label="Urgentes"   value={urgentCount}  className={`card${urgentCount > 0  ? " kpi--danger"  : ""}`} />
+                <KPI label="Em atraso"  value={overdueCount} className={`card${overdueCount > 0 ? " kpi--warning" : ""}`} />
+                <KPI label="Concluídas" value={doneCount}    className="card kpi--success" />
+              </div>
+            </div>
             <div className="acs-toolbar-card">
               <div className="acs-toolbar__row">
                 <div className="acs-search-wrap">
