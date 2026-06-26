@@ -3,7 +3,7 @@ import PageHeader from "../components/layout/PageHeader";
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
 import Select from "../components/ui/Select";
-import EmptyState from "../components/ui/EmptyState";
+import Avatar from "../components/ui/Avatar";
 import { createRecord, createAppointment, getPatientHistory } from "../api";
 import { matchesPatientSearch } from "../utils/clinical";
 import { fmtDate, initials } from "../utils/formatting";
@@ -204,80 +204,96 @@ export default function SpecialtyPage({ config, patients, user, token }) {
   const [selectedPatient, setSelectedPatient] = useState(null);
 
   const filtered = useMemo(() => {
-    if (!query.trim()) return patients;
-    return patients.filter(p => matchesPatientSearch(p, query));
+    const base = !query.trim() ? patients : patients.filter(p => matchesPatientSearch(p, query));
+    return [...base].sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "pt-BR"));
   }, [patients, query]);
 
   const paged = useMemo(() => filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE), [filtered, page]);
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
 
   return (
-    <div className="specialty-page">
-      <PageHeader title={config.label} subtitle={`${config.description} · ${filtered.length} paciente${filtered.length !== 1 ? "s" : ""}`} />
+    <div className="vaccines-page">
+      <PageHeader
+        eyebrow={config.description}
+        title={config.label}
+        subtitle={`${filtered.length} paciente${filtered.length !== 1 ? "s" : ""} cadastrado${filtered.length !== 1 ? "s" : ""}`}
+      />
 
-      <div className="specialty-page__layout">
-        <div className="specialty-page__list-col">
-          <div style={{ display: "flex", gap: ".5rem", marginBottom: ".75rem" }}>
-            <Input
-              placeholder="Buscar paciente..."
-              value={query}
-              onChange={e => { setQuery(e.target.value); setPage(0); }}
-              style={{ flex: 1 }}
-            />
-          </div>
-
-          {paged.length === 0 ? (
-            <EmptyState title="Nenhum paciente encontrado" description="Ajuste a busca ou verifique os filtros." />
-          ) : paged.map(p => {
-            const age = p.birthDate
-              ? Math.floor((Date.now() - new Date(p.birthDate + "T12:00:00").getTime()) / (365.25 * 24 * 3600 * 1000))
-              : null;
-            return (
-              <button
-                key={p.id}
-                type="button"
-                className={`specialty-page__patient-card${selectedPatient?.id === p.id ? " is-selected" : ""}`}
-                onClick={() => setSelectedPatient(p)}
-              >
-                <div className="specialty-page__card-avatar">{initials(p.name)}</div>
-                <div className="specialty-page__card-info">
-                  <div className="specialty-page__card-name">{p.name}</div>
-                  <div className="specialty-page__card-meta">
-                    {age !== null ? `${age} anos` : "Idade desconhecida"}
-                    {p.chronicConditions?.length ? ` · ${p.chronicConditions.slice(0, 2).join(", ")}` : ""}
-                  </div>
-                </div>
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0, opacity: .4 }}>
-                  <path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </button>
-            );
-          })}
-
-          {totalPages > 1 && (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: ".5rem", marginTop: ".75rem" }}>
-              <Button type="button" variant="secondary" size="sm" disabled={page === 0} onClick={() => setPage(p => p - 1)}>‹ Ant.</Button>
-              <span style={{ fontSize: ".8rem", color: "var(--text-2)" }}>{page + 1} / {totalPages}</span>
-              <Button type="button" variant="secondary" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)}>Próx. ›</Button>
+      <div className="vaccines-layout">
+        {/* ── Patient list panel — idêntico ao Vacinas ── */}
+        <div className="vacc-panel">
+          <div className="card card--noPad overflow-hidden">
+            <div className="vacc-panel__search">
+              <Input
+                value={query}
+                onChange={e => { setQuery(e.target.value); setPage(0); }}
+                placeholder="Buscar paciente..."
+              />
             </div>
-          )}
+            <div className="vacc-panel__list">
+              {paged.length === 0 ? (
+                <p className="vacc-panel__empty">Nenhum paciente encontrado.</p>
+              ) : paged.map(p => {
+                const am = p.birthDate
+                  ? Math.round((Date.now() - new Date(p.birthDate + "T12:00:00").getTime()) / (1000 * 60 * 60 * 24 * 30.44))
+                  : null;
+                const isActive = selectedPatient?.id === p.id;
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    className={`vacc-pat${isActive ? " is-active" : ""}`}
+                    onClick={() => setSelectedPatient(isActive ? null : p)}
+                  >
+                    <Avatar name={p.name} size="sm" />
+                    <div className="vacc-pat__copy">
+                      <div className="vacc-pat__name">{p.name}</div>
+                      <div className="vacc-pat__meta">
+                        {am !== null && (
+                          <span className="vacc-pat__age">
+                            {am < 24 ? `${am}m` : `${Math.floor(am / 12)}a`}
+                          </span>
+                        )}
+                        {p.chronicConditions?.length > 0 && (
+                          <span className="vacc-pat__age">{p.chronicConditions.slice(0, 2).join(", ")}</span>
+                        )}
+                      </div>
+                    </div>
+                    <svg className="vacc-pat__chevron" width="11" height="11" viewBox="0 0 16 16" fill="none">
+                      <path d="M6 12l4-4-4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </button>
+                );
+              })}
+            </div>
+            {totalPages > 1 && (
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: ".5rem", padding: "var(--s-2) var(--s-3)", borderTop: "1px solid var(--border)" }}>
+                <Button type="button" variant="secondary" size="sm" disabled={page === 0} onClick={() => setPage(p => p - 1)}>‹</Button>
+                <span style={{ fontSize: ".75rem", color: "var(--text-dim)" }}>{page + 1} / {totalPages}</span>
+                <Button type="button" variant="secondary" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)}>›</Button>
+              </div>
+            )}
+          </div>
         </div>
 
-        <div className="specialty-page__workspace-col">
+        {/* ── Workspace area ── */}
+        <div className="vacc-main">
           {selectedPatient ? (
-            <SpecialtyWorkspacePanel
-              patient={selectedPatient}
-              config={config}
-              user={user}
-              token={token}
-              onClose={() => setSelectedPatient(null)}
-            />
+            <div className="card card--noPad overflow-hidden" style={{ height: "100%" }}>
+              <SpecialtyWorkspacePanel
+                patient={selectedPatient}
+                config={config}
+                user={user}
+                token={token}
+                onClose={() => setSelectedPatient(null)}
+              />
+            </div>
           ) : (
-            <div className="specialty-page__empty-workspace">
-              <div className="specialty-page__empty-icon">
+            <div className="vacc-empty">
+              <div className="vacc-empty__icon" style={{ opacity: .25 }}>
                 {config.icon}
               </div>
-              <p className="specialty-page__empty-text">Selecione um paciente para iniciar o atendimento de {config.label}.</p>
+              <p className="vacc-empty__label">Selecione um paciente para iniciar o atendimento de {config.label}.</p>
             </div>
           )}
         </div>
