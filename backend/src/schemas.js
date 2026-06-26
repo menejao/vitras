@@ -437,6 +437,23 @@ const AgendaPatchSchema = z.object({
   status: z.enum(["scheduled", "arrived", "attending", "done", "absent"]).optional()
 });
 
+// REGULACAO-REFERENCIA-01: enum expandido para refletir fluxo real SUS
+// Status legados mantidos (backward-compat): pending, regulated, scheduled, done, cancelled
+const REFERRAL_STATUS_VALUES = [
+  "pending",                  // Solicitado (legado: pending)
+  "sent_to_regulation",       // Enviado para Regulação
+  "under_analysis",           // Em análise pela Regulação
+  "returned_for_complement",  // Devolvido para complementação
+  "regulated",                // Regulado (legado)
+  "waiting_slot",             // Aguardando vaga
+  "scheduled",                // Agendado pela Regulação (legado)
+  "attended",                 // Atendimento realizado
+  "counter_referral_received",// Contrarreferência recebida
+  "closed",                   // Encerrado
+  "done",                     // Realizado (legado — mantido)
+  "cancelled",                // Cancelado (legado)
+];
+
 // D-02: .strict() rejects unknown keys to prevent mass-assignment on referrals
 const ReferralCreateSchema = z.object({
   patientId: z.string().trim().min(1).max(100),
@@ -445,7 +462,7 @@ const ReferralCreateSchema = z.object({
   priority: z.enum(["urgent", "priority", "routine"]).optional(),
   date: z.string().trim().min(1).max(50),
   notes: optionalShortString(4000),
-  status: z.enum(["pending", "regulated", "scheduled", "done", "cancelled"]).optional()
+  status: z.enum(REFERRAL_STATUS_VALUES).optional()
 }).strict();
 
 const ReferralPatchSchema = z.object({
@@ -454,7 +471,10 @@ const ReferralPatchSchema = z.object({
   priority: z.enum(["urgent", "priority", "routine"]).optional(),
   date: z.string().trim().min(1).max(50).optional(),
   notes: optionalShortString(4000),
-  status: z.enum(["pending", "regulated", "scheduled", "done", "cancelled"]).optional()
+  status: z.enum(REFERRAL_STATUS_VALUES).optional(),
+  // REGULACAO-REFERENCIA-01: novos campos para acompanhamento regulatório
+  contrarreferencia: optionalShortString(4000), // texto livre, opcional
+  eventNote: optionalShortString(1000),          // nota para evento de movimentação
 });
 
 const PharmacyStockCreateSchema = z.object({

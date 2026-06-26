@@ -18,12 +18,21 @@ const SPECIALTIES = [
   "Psicologia","Serviço Social","Pronto-Socorro","Hospital","Outras",
 ];
 
+// REGULACAO-REFERENCIA-01: 11 status refletindo fluxo real SUS
+// Legados mantidos: pending, regulated, scheduled, done, cancelled
 const STATUS_MAP = {
-  pending:   { label: "Aguardando",  cls: "referrals-status-sel--pending"   },
-  regulated: { label: "Regulado",    cls: "referrals-status-sel--regulated"  },
-  scheduled: { label: "Agendado",    cls: "referrals-status-sel--scheduled"  },
-  done:      { label: "Realizado",   cls: "referrals-status-sel--done"       },
-  cancelled: { label: "Cancelado",   cls: "referrals-status-sel--cancelled"  },
+  pending:                   { label: "Solicitado",                     cls: "referrals-status-sel--pending"                   },
+  sent_to_regulation:        { label: "Enviado para Regulação",          cls: "referrals-status-sel--sent-to-regulation"         },
+  under_analysis:            { label: "Em análise pela Regulação",       cls: "referrals-status-sel--under-analysis"             },
+  returned_for_complement:   { label: "Devolvido para complementação",   cls: "referrals-status-sel--returned-for-complement"    },
+  regulated:                 { label: "Regulado",                       cls: "referrals-status-sel--regulated"                 },
+  waiting_slot:              { label: "Aguardando vaga",                cls: "referrals-status-sel--waiting-slot"              },
+  scheduled:                 { label: "Agendado pela Regulação",        cls: "referrals-status-sel--scheduled"                 },
+  attended:                  { label: "Atendimento realizado",          cls: "referrals-status-sel--attended"                  },
+  counter_referral_received: { label: "Contrarreferência recebida",     cls: "referrals-status-sel--counter-referral-received"  },
+  closed:                    { label: "Encerrado",                      cls: "referrals-status-sel--closed"                    },
+  done:                      { label: "Realizado",                      cls: "referrals-status-sel--done"                      },
+  cancelled:                 { label: "Cancelado",                      cls: "referrals-status-sel--cancelled"                 },
 };
 
 const PRIORITY_MAP = {
@@ -32,15 +41,40 @@ const PRIORITY_MAP = {
   routine:  { label: "Rotina",       cls: "ref-priority-chip--routine"  },
 };
 
+// Status que indicam encaminhamento ativo (não encerrado)
+const ACTIVE_STATUSES = new Set(["pending","sent_to_regulation","under_analysis","returned_for_complement","regulated","waiting_slot","scheduled","attended","counter_referral_received"]);
+// Status "em tramitação na regulação"
+const IN_REGULATION = new Set(["sent_to_regulation","under_analysis"]);
+// Status "aguardando vaga ou regulado"
+const WAITING_SLOT = new Set(["regulated","waiting_slot"]);
+
 function fmtDate(d) {
   if (!d) return "—";
   try { return new Date(d + "T12:00:00").toLocaleDateString("pt-BR"); } catch { return d; }
+}
+
+function fmtDateTime(ts) {
+  if (!ts) return "—";
+  try { return new Date(ts).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }); } catch { return ts; }
+}
+
+function daysSince(dateStr) {
+  if (!dateStr) return null;
+  try {
+    const ms = Date.now() - new Date(dateStr + "T12:00:00").getTime();
+    return Math.max(0, Math.floor(ms / 86400000));
+  } catch { return null; }
 }
 
 const IconPlus  = () => <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M8 2v12M2 8h12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>;
 const IconPrint = () => <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><rect x="2" y="5" width="12" height="8" rx="1" stroke="currentColor" strokeWidth="1.3"/><path d="M4 5V3h8v2M4 10h8" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>;
 const IconEdit  = () => <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M11 2l3 3-8 8H3v-3L11 2z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/></svg>;
 const IconTrash = () => <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M2 4h12M5 4V2h6v2M6 7v5M10 7v5M3 4l1 10h8l1-10" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>;
+
+function StatusBadge({ status }) {
+  const cfg = STATUS_MAP[status] || STATUS_MAP.pending;
+  return <span className={`referrals-status-badge ${cfg.cls}`}>{cfg.label}</span>;
+}
 
 function StatusSelect({ status, onChange }) {
   const cfg = STATUS_MAP[status] || STATUS_MAP.pending;
@@ -62,9 +96,44 @@ function PriorityChip({ priority }) {
   return <span className={`ref-priority-chip ${cfg.cls}`}>{cfg.label}</span>;
 }
 
-function ReferralCard({ referral, onUpdate, onDelete, onPrint, onEdit }) {
+// Mostrar histórico de movimentações
+function EventHistory({ events }) {
+  if (!events || events.length === 0) {
+    return <p className="ref-events__empty">Nenhuma movimentação registrada.</p>;
+  }
+  const sorted = [...events].reverse();
   return (
-    <div className={`ref-card${referral.priority === "urgent" ? " ref-card--urgent" : referral.priority === "priority" ? " ref-card--priority" : ""}`}>
+    <ul className="ref-events">
+      {sorted.map((ev, i) => (
+        <li key={i} className={`ref-events__item ref-events__item--${ev.type}`}>
+          <span className="ref-events__ts">{fmtDateTime(ev.ts)}</span>
+          <span className="ref-events__user">{ev.userName || "Sistema"}</span>
+          {ev.type === "status_change" && (
+            <span className="ref-events__desc">
+              Situação: <em>{STATUS_MAP[ev.fromStatus]?.label || ev.fromStatus}</em> &rarr; <strong>{STATUS_MAP[ev.toStatus]?.label || ev.toStatus}</strong>
+              {ev.note ? ` — ${ev.note}` : ""}
+            </span>
+          )}
+          {ev.type === "created" && (
+            <span className="ref-events__desc">{ev.description}</span>
+          )}
+          {ev.type === "counter_referral_received" && (
+            <span className="ref-events__desc">Contrarreferência registrada</span>
+          )}
+          {ev.type === "note" && (
+            <span className="ref-events__desc">{ev.note}</span>
+          )}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function ReferralCard({ referral, onUpdate, onDelete, onPrint, onEdit }) {
+  const days = daysSince(referral.date);
+  const isReturned = referral.status === "returned_for_complement";
+  return (
+    <div className={`ref-card${referral.priority === "urgent" ? " ref-card--urgent" : referral.priority === "priority" ? " ref-card--priority" : ""}${isReturned ? " ref-card--returned" : ""}`}>
       <div className="ref-card__patient">
         <div className="ref-card__patient-name">{referral.patientName}</div>
         {referral.doctorName && <div className="ref-card__patient-meta">{referral.doctorName}</div>}
@@ -75,13 +144,23 @@ function ReferralCard({ referral, onUpdate, onDelete, onPrint, onEdit }) {
           <div className="ref-card__reason">{referral.reason}</div>
         )}
       </div>
-      <div className="ref-card__date">{fmtDate(referral.date)}</div>
+      <div className="ref-card__date">
+        <div>{fmtDate(referral.date)}</div>
+        {days !== null && ACTIVE_STATUSES.has(referral.status) && (
+          <div className="ref-card__days">{days}d em espera</div>
+        )}
+        {referral.updatedAt && (
+          <div className="ref-card__last-move" title={`Última movimentação: ${fmtDateTime(referral.updatedAt)}`}>
+            Mov: {fmtDate(referral.updatedAt?.slice(0,10))}
+          </div>
+        )}
+      </div>
       <PriorityChip priority={referral.priority} />
       <StatusSelect status={referral.status} onChange={(s) => onUpdate(referral.id, { status: s })} />
       <div className="referrals-action-row">
         <Button variant="ghost" size="sm" iconOnly onClick={() => onPrint(referral)} title="Ver guia"><IconPrint /></Button>
-        <Button variant="ghost" size="sm" iconOnly onClick={() => onEdit(referral)} title="Editar"><IconEdit /></Button>
-        <Button variant="ghost" size="sm" iconOnly onClick={() => onDelete(referral.id)} title="Excluir"><IconTrash /></Button>
+        <Button variant="ghost" size="sm" iconOnly onClick={() => onEdit(referral)} title="Registrar movimentação"><IconEdit /></Button>
+        <Button variant="ghost" size="sm" iconOnly onClick={() => onDelete(referral.id)} title="Cancelar"><IconTrash /></Button>
       </div>
     </div>
   );
@@ -90,7 +169,11 @@ function ReferralCard({ referral, onUpdate, onDelete, onPrint, onEdit }) {
 const DEFAULT_FORM = {
   patientId: "", specialty: "Cardiologia", reason: "", priority: "routine",
   date: new Date().toISOString().slice(0, 10), notes: "", status: "pending",
+  contrarreferencia: "", eventNote: "",
 };
+
+// Status que devem mostrar campo contrarreferência
+const SHOW_CONTRAREF_STATUSES = new Set(["attended","counter_referral_received","closed","done"]);
 
 function ReferralsPage({
   patients,
@@ -105,6 +188,7 @@ function ReferralsPage({
   const [showForm, setShowForm]       = useState(false);
   const [showDoc, setShowDoc]         = useState(null);
   const [editId, setEditId]           = useState(null);
+  const [editRef, setEditRef]         = useState(null); // referral completo para histórico
   const [form, setForm]               = useState(DEFAULT_FORM);
   const [submitError, setSubmitError] = useState("");
 
@@ -114,12 +198,15 @@ function ReferralsPage({
   const [filterSpecialty, setFilterSpecialty] = useState("all");
   const [filterFrom, setFilterFrom]           = useState("");
 
+  // REGULACAO-REFERENCIA-01: KPIs baseados no fluxo regulatório APS
   const counts = useMemo(() => ({
-    pending:   referrals.filter((r) => r.status === "pending").length,
-    regulated: referrals.filter((r) => r.status === "regulated").length,
-    scheduled: referrals.filter((r) => r.status === "scheduled").length,
-    done:      referrals.filter((r) => r.status === "done").length,
-    urgent:    referrals.filter((r) => r.priority === "urgent" && r.status !== "done" && r.status !== "cancelled").length,
+    inRegulation:       referrals.filter((r) => IN_REGULATION.has(r.status)).length,
+    waitingSlot:        referrals.filter((r) => WAITING_SLOT.has(r.status)).length,
+    returned:           referrals.filter((r) => r.status === "returned_for_complement").length,
+    scheduled:          referrals.filter((r) => r.status === "scheduled").length,
+    // Atendidos sem contrarreferência preenchida
+    pendingCounterRef:  referrals.filter((r) => r.status === "attended" && !r.contrarreferencia?.trim()).length,
+    urgentActive:       referrals.filter((r) => r.priority === "urgent" && ACTIVE_STATUSES.has(r.status)).length,
   }), [referrals]);
 
   const filtered = useMemo(() => referrals.filter((r) => {
@@ -139,6 +226,7 @@ function ReferralsPage({
   function openNew() {
     setForm({ ...DEFAULT_FORM, date: new Date().toISOString().slice(0, 10) });
     setEditId(null);
+    setEditRef(null);
     setSubmitError("");
     setShowForm(true);
   }
@@ -152,8 +240,11 @@ function ReferralsPage({
       date: ref.date,
       notes: ref.notes || "",
       status: ref.status || "pending",
+      contrarreferencia: ref.contrarreferencia || "",
+      eventNote: "",
     });
     setEditId(ref.id);
+    setEditRef(ref);
     setSubmitError("");
     setShowForm(true);
   }
@@ -166,11 +257,17 @@ function ReferralsPage({
     }
     try {
       setSubmitError("");
-      if (editId) await onUpdateReferral(editId, form);
-      else        await onCreateReferral(form);
+      if (editId) {
+        // No edit, não enviar status na criação — apenas no PATCH
+        await onUpdateReferral(editId, form);
+      } else {
+        // Criação: status sempre "pending", não enviamos status editável
+        const { status: _ignored, contrarreferencia: _c, eventNote: _e, ...createPayload } = form;
+        await onCreateReferral(createPayload);
+      }
       setShowForm(false);
     } catch (err) {
-      setSubmitError(err?.message || "Erro ao salvar encaminhamento.");
+      setSubmitError(err?.message || "Erro ao salvar.");
     }
   }
 
@@ -184,21 +281,54 @@ function ReferralsPage({
     [referrals],
   );
 
+  const showContraRef = editId && SHOW_CONTRAREF_STATUSES.has(form.status);
+
   return (
     <PageShell className="referrals-page">
       <PageHeader
         eyebrow="REGULAÇÃO E REFERÊNCIA"
-        title="Encaminhamentos"
-        subtitle="Gestão de encaminhamentos externos, especialistas e acompanhamento regulatório dos pacientes."
-        actions={<Button onClick={openNew}><IconPlus /> Novo encaminhamento</Button>}
+        title="Regulação e Referência"
+        subtitle="Acompanhamento do percurso do paciente na rede. A UBS solicita e acompanha; a Regulação avalia, agenda e encaminha."
+        actions={<Button onClick={openNew}><IconPlus /> Solicitar encaminhamento</Button>}
       />
 
       <KpiGrid>
-        <KPI label="Pendentes"   value={counts.pending}   helper="aguardando regulação" className={`card${counts.pending  > 0 ? " kpi--warning" : ""}`} />
-        <KPI label="Regulados"   value={counts.regulated} helper="em regulação"          className="card kpi--info" />
-        <KPI label="Agendados"   value={counts.scheduled} helper="com data marcada"      className="card" />
-        <KPI label="Realizados"  value={counts.done}      helper="finalizados"           className="card" />
-        <KPI label="Urgentes"    value={counts.urgent}    helper="ativos"                className={`card${counts.urgent  > 0 ? " kpi--danger" : ""}`} />
+        <KPI
+          label="Em análise"
+          value={counts.inRegulation}
+          helper="enviado / em análise pela regulação"
+          className={`card${counts.inRegulation > 0 ? " kpi--info" : ""}`}
+        />
+        <KPI
+          label="Aguardando vaga"
+          value={counts.waitingSlot}
+          helper="regulado ou aguardando vaga"
+          className="card kpi--info"
+        />
+        <KPI
+          label="Devolvidos"
+          value={counts.returned}
+          helper="para complementação pela UBS"
+          className={`card${counts.returned > 0 ? " kpi--danger" : ""}`}
+        />
+        <KPI
+          label="Agendados"
+          value={counts.scheduled}
+          helper="pela regulação"
+          className="card"
+        />
+        <KPI
+          label="Contraref. pendente"
+          value={counts.pendingCounterRef}
+          helper="atendidos sem contrarreferência"
+          className={`card${counts.pendingCounterRef > 0 ? " kpi--warning" : ""}`}
+        />
+        <KPI
+          label="Urgentes ativos"
+          value={counts.urgentActive}
+          helper="prioridade urgente em aberto"
+          className={`card${counts.urgentActive > 0 ? " kpi--danger" : ""}`}
+        />
       </KpiGrid>
 
       {referralsError && !referralsLoading && (
@@ -226,9 +356,9 @@ function ReferralsPage({
           inputClassName="ref-filter-select"
           value={filterStatus}
           onChange={(e) => setFilterStatus(e.target.value)}
-          aria-label="Status"
+          aria-label="Situação"
         >
-          <option value="all">Todos os status</option>
+          <option value="all">Todas as situações</option>
           {Object.entries(STATUS_MAP).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
         </Select>
         <Select
@@ -261,8 +391,8 @@ function ReferralsPage({
               <path d="M14 3v5h5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
             </svg>
             <p className="ref-empty__title">Nenhum encaminhamento encontrado.</p>
-            <p className="ref-empty__sub">Os encaminhamentos externos e regulações dos pacientes aparecerão aqui.</p>
-            <Button onClick={openNew} variant="secondary" size="sm"><IconPlus /> Novo encaminhamento</Button>
+            <p className="ref-empty__sub">Os encaminhamentos solicitados e seu acompanhamento regulatório aparecerão aqui.</p>
+            <Button onClick={openNew} variant="secondary" size="sm"><IconPlus /> Solicitar encaminhamento</Button>
           </div>
         ) : (
           <div className="ref-list">
@@ -280,32 +410,42 @@ function ReferralsPage({
         )}
       </MainContent>
 
+      {/* Modal de criação / edição (registrar movimentação) */}
       {showForm && (
         <Modal
-          title={editId ? "Editar encaminhamento" : "Novo encaminhamento externo"}
+          title={editId ? "Registrar movimentação" : "Solicitar encaminhamento"}
           onClose={() => setShowForm(false)}
           actions={
             <>
               <Button variant="secondary" onClick={() => setShowForm(false)}>Cancelar</Button>
               <Button type="submit" form="referral-form">
-                {editId ? "Salvar alterações" : "Criar encaminhamento"}
+                {editId ? "Salvar movimentação" : "Criar solicitação"}
               </Button>
             </>
           }
         >
           {submitError && <div className="error">{submitError}</div>}
           <form id="referral-form" onSubmit={submit} className="field-grid field-grid--no-pad">
-            <Select
-              className="field--span-2"
-              label="Paciente *"
-              value={form.patientId}
-              onChange={(e) => setForm((s) => ({ ...s, patientId: e.target.value }))}
-            >
-              <option value="">Selecionar paciente...</option>
-              {sortedPatients.map((p) => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
-            </Select>
+            {/* Paciente — apenas em criação; no edit mostra nome do paciente como leitura */}
+            {!editId ? (
+              <Select
+                className="field--span-2"
+                label="Paciente *"
+                value={form.patientId}
+                onChange={(e) => setForm((s) => ({ ...s, patientId: e.target.value }))}
+              >
+                <option value="">Selecionar paciente...</option>
+                {sortedPatients.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </Select>
+            ) : (
+              <div className="field--span-2">
+                <label className="field__label">Paciente</label>
+                <p className="ref-form__patient-name">{editRef?.patientName || "—"}</p>
+              </div>
+            )}
+
             <Select
               label="Especialidade / serviço de destino *"
               value={form.specialty}
@@ -328,13 +468,18 @@ function ReferralsPage({
               value={form.date}
               onChange={(e) => setForm((s) => ({ ...s, date: e.target.value }))}
             />
-            <Select
-              label="Status"
-              value={form.status}
-              onChange={(e) => setForm((s) => ({ ...s, status: e.target.value }))}
-            >
-              {Object.entries(STATUS_MAP).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-            </Select>
+
+            {/* Status apenas no edit, com label correto */}
+            {editId && (
+              <Select
+                label="Situação atual (registrar movimentação)"
+                value={form.status}
+                onChange={(e) => setForm((s) => ({ ...s, status: e.target.value }))}
+              >
+                {Object.entries(STATUS_MAP).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+              </Select>
+            )}
+
             <Textarea
               className="field--span-2"
               label="Motivo clínico / hipótese diagnóstica *"
@@ -345,18 +490,50 @@ function ReferralsPage({
             />
             <Input
               className="field--span-2"
-              label="Unidade reguladora / observações"
+              label="Destino regulador / observações"
               value={form.notes}
               onChange={(e) => setForm((s) => ({ ...s, notes: e.target.value }))}
-              placeholder="Unidade de destino, SISREG, observações para o especialista..."
+              placeholder="Central de Regulação, SISREG, número do protocolo..."
             />
+
+            {/* Nota sobre esta movimentação (edit apenas) */}
+            {editId && (
+              <Input
+                className="field--span-2"
+                label="Observação sobre esta movimentação (opcional)"
+                value={form.eventNote}
+                onChange={(e) => setForm((s) => ({ ...s, eventNote: e.target.value }))}
+                placeholder="Descreva o que motivou esta atualização de situação..."
+              />
+            )}
+
+            {/* Contrarreferência — aparece somente quando status relevante no edit */}
+            {showContraRef && (
+              <Textarea
+                className="field--span-2"
+                label="Contrarreferência"
+                value={form.contrarreferencia}
+                onChange={(e) => setForm((s) => ({ ...s, contrarreferencia: e.target.value }))}
+                rows={3}
+                placeholder="Resumo do atendimento realizado, orientações recebidas, conduta do especialista..."
+              />
+            )}
+
+            {/* Histórico de movimentações — edit apenas */}
+            {editId && (
+              <div className="field--span-2 ref-events-section">
+                <label className="field__label">Histórico de movimentações</label>
+                <EventHistory events={editRef?.events} />
+              </div>
+            )}
           </form>
         </Modal>
       )}
 
+      {/* Guia de Encaminhamento SUS */}
       {showDoc && (
         <Modal
-          title="Guia de Encaminhamento"
+          title="Guia de Encaminhamento SUS"
           onClose={() => setShowDoc(null)}
           actions={
             <>
@@ -367,28 +544,37 @@ function ReferralsPage({
         >
           <div className="referrals-doc">
             <div className="referrals-doc__title-block">
-              <div className="referrals-doc__title">GUIA DE ENCAMINHAMENTO</div>
+              <div className="referrals-doc__title">GUIA DE ENCAMINHAMENTO SUS</div>
               <div className="referrals-doc__subtitle">Unidade Básica de Saúde</div>
             </div>
             <div className="referrals-doc__grid">
               <div><strong>Paciente:</strong> {showDoc.patientName}</div>
-              <div><strong>Data:</strong> {fmtDate(showDoc.date)}</div>
+              <div><strong>Data da solicitação:</strong> {fmtDate(showDoc.date)}</div>
               <div><strong>Especialidade:</strong> {showDoc.specialty}</div>
               <div><strong>Prioridade:</strong> {PRIORITY_MAP[showDoc.priority]?.label || showDoc.priority}</div>
-              <div><strong>Status:</strong> {STATUS_MAP[showDoc.status]?.label || showDoc.status}</div>
-              <div><strong>Profissional:</strong> {showDoc.doctorName || "—"}</div>
+              <div><strong>Situação atual:</strong> {STATUS_MAP[showDoc.status]?.label || showDoc.status}</div>
+              <div><strong>Profissional solicitante:</strong> {showDoc.doctorName || "—"}</div>
             </div>
             <div className="referrals-doc__field">
-              <strong>Motivo / hipótese:</strong><br />
+              <strong>Motivo / hipótese diagnóstica:</strong><br />
               <span style={{ whiteSpace: "pre-wrap" }}>{showDoc.reason}</span>
             </div>
             {showDoc.notes && (
               <div className="referrals-doc__field">
-                <strong>Unidade / observações:</strong><br />{showDoc.notes}
+                <strong>Destino regulador / observações:</strong><br />{showDoc.notes}
+              </div>
+            )}
+            {showDoc.contrarreferencia && (
+              <div className="referrals-doc__field referrals-doc__field--counter-ref">
+                <strong>Contrarreferência:</strong><br />
+                <span style={{ whiteSpace: "pre-wrap" }}>{showDoc.contrarreferencia}</span>
               </div>
             )}
             <div className="referrals-doc__footer">
               <span>Emitido em: {showDoc.createdAt ? new Date(showDoc.createdAt).toLocaleDateString("pt-BR") : "—"}</span>
+              {showDoc.updatedAt && (
+                <span>Última movimentação: {fmtDate(showDoc.updatedAt?.slice(0,10))}</span>
+              )}
             </div>
           </div>
         </Modal>

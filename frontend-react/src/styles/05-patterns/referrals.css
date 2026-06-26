@@ -238,34 +238,215 @@
   flex-shrink: 0;
 }
 
+/* ── Status pills — todos os 12 valores (legados + REGULACAO-REFERENCIA-01) ── */
+
+/* Solicitado (pending) — amarelo: aguardando ação da UBS/regulação */
 .referrals-status-sel--pending {
   background-color: var(--warning-soft);
   border-color: var(--warning-bd);
   color: var(--warning);
 }
 
+/* Enviado para Regulação — laranja: em trânsito */
+.referrals-status-sel--sent-to-regulation {
+  background-color: #fff7ed;
+  border-color: #fed7aa;
+  color: #c2410c;
+}
+
+/* Em análise pela Regulação — laranja-âmbar */
+.referrals-status-sel--under-analysis {
+  background-color: #fef3c7;
+  border-color: #fde68a;
+  color: #b45309;
+}
+
+/* Devolvido para complementação — vermelho suave: atenção UBS */
+.referrals-status-sel--returned-for-complement {
+  background-color: #fee2e2;
+  border-color: #fecaca;
+  color: #b91c1c;
+}
+
+/* Regulado — azul: em progresso regulatório */
 .referrals-status-sel--regulated {
   background-color: var(--accent-soft);
   border-color: var(--accent-soft-2);
   color: var(--accent-text);
 }
 
+/* Aguardando vaga — azul-índigo */
+.referrals-status-sel--waiting-slot {
+  background-color: #ede9fe;
+  border-color: #c4b5fd;
+  color: #6d28d9;
+}
+
+/* Agendado pela Regulação — verde suave: positivo */
 .referrals-status-sel--scheduled {
   background-color: var(--info-soft);
   border-color: var(--info-bd);
   color: var(--info);
 }
 
+/* Atendimento realizado — verde */
+.referrals-status-sel--attended {
+  background-color: #d1fae5;
+  border-color: #6ee7b7;
+  color: #065f46;
+}
+
+/* Contrarreferência recebida — verde escuro: concluído */
+.referrals-status-sel--counter-referral-received {
+  background-color: var(--success-soft);
+  border-color: var(--success-bd);
+  color: var(--success);
+}
+
+/* Encerrado — cinza */
+.referrals-status-sel--closed {
+  background-color: var(--surface-2);
+  border-color: var(--border);
+  color: var(--text-dim);
+}
+
+/* Realizado (legado: done) — verde (mesmo que attended) */
 .referrals-status-sel--done {
   background-color: var(--success-soft);
   border-color: var(--success-bd);
   color: var(--success);
 }
 
+/* Cancelado — cinza escuro */
 .referrals-status-sel--cancelled {
   background-color: var(--surface-2);
   border-color: var(--border);
   color: var(--text-muted);
+}
+
+/* Dark mode adjustments para novos status */
+[data-theme="dark"] .referrals-status-sel--sent-to-regulation     { background: rgba(194,65,12,.15);  color: #fb923c; border-color: rgba(194,65,12,.3); }
+[data-theme="dark"] .referrals-status-sel--under-analysis         { background: rgba(180,83,9,.15);   color: #fbbf24; border-color: rgba(180,83,9,.3); }
+[data-theme="dark"] .referrals-status-sel--returned-for-complement { background: rgba(185,28,28,.15); color: #f87171; border-color: rgba(185,28,28,.3); }
+[data-theme="dark"] .referrals-status-sel--waiting-slot           { background: rgba(109,40,217,.15); color: #a78bfa; border-color: rgba(109,40,217,.3); }
+[data-theme="dark"] .referrals-status-sel--attended               { background: rgba(6,95,70,.2);     color: #34d399; border-color: rgba(6,95,70,.4); }
+[data-theme="dark"] .referrals-status-sel--counter-referral-received { background: rgba(6,95,70,.15); color: #10b981; border-color: rgba(6,95,70,.3); }
+[data-theme="dark"] .referrals-status-sel--closed                 { background: rgba(100,116,139,.12); color: var(--text-muted); border-color: var(--border); }
+
+/* ── Card devolvido — destaque vermelho suave ───────────────── */
+.ref-card--returned {
+  border-left-color: #ef4444;
+  background: #fff5f5;
+}
+[data-theme="dark"] .ref-card--returned { background: rgba(239,68,68,.07); }
+
+/* ── Dias em espera / última movimentação ───────────────────── */
+.ref-card__days {
+  font: 400 var(--t-xs) var(--font-mono);
+  color: var(--text-dim);
+  margin-top: 1px;
+}
+
+.ref-card__last-move {
+  font: 400 var(--t-xs) var(--font-sans);
+  color: var(--text-dim);
+  margin-top: 1px;
+  cursor: default;
+}
+
+/* ── Status badge (leitura, sem select) ─────────────────────── */
+.referrals-status-badge {
+  display: inline-block;
+  height: 22px;
+  line-height: 22px;
+  padding: 0 var(--s-2);
+  border-radius: var(--r-pill);
+  border: 1px solid;
+  font: 700 var(--t-xs) var(--font-sans);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ── Form: patient name leitura no edit ─────────────────────── */
+.ref-form__patient-name {
+  margin: 0;
+  font: 600 var(--t-sm) var(--font-sans);
+  color: var(--text);
+  padding: var(--s-1) 0;
+}
+
+/* ── Seção histórico de eventos ─────────────────────────────── */
+.ref-events-section {
+  margin-top: var(--s-2);
+}
+
+.ref-events {
+  list-style: none;
+  margin: var(--s-2) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  max-height: 240px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: var(--s-2);
+  background: var(--surface-2);
+}
+
+.ref-events__empty {
+  font: 400 var(--t-sm) var(--font-sans);
+  color: var(--text-dim);
+  margin: var(--s-2) 0 0;
+}
+
+.ref-events__item {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  gap: 0 var(--s-2);
+  align-items: baseline;
+  padding: var(--s-1) var(--s-2);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  font: 400 var(--t-xs) var(--font-sans);
+}
+
+.ref-events__item--status_change {
+  border-left: 3px solid var(--accent);
+}
+
+.ref-events__item--counter_referral_received {
+  border-left: 3px solid var(--success);
+}
+
+.ref-events__item--created {
+  border-left: 3px solid var(--border-strong);
+}
+
+.ref-events__ts {
+  color: var(--text-dim);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.ref-events__user {
+  color: var(--text-muted);
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.ref-events__desc {
+  color: var(--text);
+}
+
+/* ── Guia: campo contrarreferência ──────────────────────────── */
+.referrals-doc__field--counter-ref {
+  background: var(--success-soft);
+  border-radius: var(--r-sm);
+  padding: var(--s-2) var(--s-3);
+  border-left: 3px solid var(--success);
 }
 
 /* ── Action row ─────────────────────────────────────────────── */

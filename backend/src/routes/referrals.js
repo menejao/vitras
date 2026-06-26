@@ -22,9 +22,16 @@ function canAccessTeam(user, teamId) {
   return currentTeamId === String(teamId || "").trim();
 }
 
+// REGULACAO-REFERENCIA-01: aceita 11 status + legados (backward-compat)
+const VALID_REFERRAL_STATUSES = [
+  "pending", "sent_to_regulation", "under_analysis", "returned_for_complement",
+  "regulated", "waiting_slot", "scheduled", "attended", "counter_referral_received",
+  "closed", "done", "cancelled",
+];
+
 function normalizeReferralStatus(value) {
   const raw = String(value || "").trim().toLowerCase();
-  if (["pending", "regulated", "scheduled", "done", "cancelled"].includes(raw)) return raw;
+  if (VALID_REFERRAL_STATUSES.includes(raw)) return raw;
   return "pending";
 }
 
@@ -88,6 +95,7 @@ router.post("/referrals", validate(ReferralCreateSchema), async (req, res) => {
 
     const doctor = db.users.find((item) => item.id === String(req.user.id || "")) || null;
     const now = new Date().toISOString();
+    const userName = String(req.user?.name || req.user?.email || req.user?.id || "").trim();
     const entry = {
       id: uuidv4(),
       patientId: patient.id,
@@ -99,12 +107,17 @@ router.post("/referrals", validate(ReferralCreateSchema), async (req, res) => {
       date: String(payload.date || "").trim(),
       notes: String(payload.notes || "").trim(),
       status: normalizeReferralStatus(payload.status),
+      contrarreferencia: "",
       doctorId: String(req.user.id || ""),
       doctorName: String(doctor?.name || req.user?.name || "").trim(),
       createdAt: now,
       createdBy: req.user.id,
       updatedAt: now,
-      updatedBy: req.user.id
+      updatedBy: req.user.id,
+      // REGULACAO-REFERENCIA-01: histórico de movimentações embutido no documento
+      events: [
+        { ts: now, userId: req.user.id, userName, type: "created", description: "Encaminhamento criado" }
+      ]
     };
 
     db.referrals.push(entry);
@@ -135,6 +148,51 @@ router.patch("/referrals/:id", validate(ReferralPatchSchema), async (req, res) =
       return { error: { status: 403, message: "Sem permissão para este encaminhamento" } };
     }
 
+    const now = new Date().toISOString();
+    const userName = String(req.user?.name || req.user?.email || req.user?.id || "").trim();
+    const currentEvents = Array.isArray(current.events) ? current.events : [];
+    const newEvents = [...currentEvents];
+
+    // REGULACAO-REFERENCIA-01: registrar evento de mudança de status
+    const newStatus = req.body.status !== undefined ? normalizeReferralStatus(req.body.status) : current.status;
+    if (req.body.status !== undefined && newStatus !== current.status) {
+      newEvents.push({
+        ts: now,
+        userId: req.user.id,
+        userName,
+        type: "status_change",
+        fromStatus: current.status,
+        toStatus: newStatus,
+        note: String(req.body.eventNote || "").trim()
+      });
+    }
+
+    // REGULACAO-REFERENCIA-01: registrar evento quando contrarreferência é adicionada pela primeira vez
+    const newContrarreferencia = req.body.contrarreferencia !== undefined
+      ? String(req.body.contrarreferencia || "").trim()
+      : (current.contrarreferencia || "");
+    const hadContrarreferencia = Boolean(current.contrarreferencia && current.contrarreferencia.trim());
+    if (!hadContrarreferencia && newContrarreferencia) {
+      newEvents.push({
+        ts: now,
+        userId: req.user.id,
+        userName,
+        type: "counter_referral_received",
+        note: "Contrarreferência registrada"
+      });
+    }
+
+    // eventNote sem mudança de status: registrar nota avulsa se fornecida
+    if (req.body.eventNote && req.body.status === undefined) {
+      newEvents.push({
+        ts: now,
+        userId: req.user.id,
+        userName,
+        type: "note",
+        note: String(req.body.eventNote || "").trim()
+      });
+    }
+
     const next = {
       ...current,
       ...(req.body.specialty !== undefined ? { specialty: String(req.body.specialty || "").trim() } : {}),
@@ -142,8 +200,10 @@ router.patch("/referrals/:id", validate(ReferralPatchSchema), async (req, res) =
       ...(req.body.priority !== undefined ? { priority: normalizeReferralPriority(req.body.priority) } : {}),
       ...(req.body.date !== undefined ? { date: String(req.body.date || "").trim() } : {}),
       ...(req.body.notes !== undefined ? { notes: String(req.body.notes || "").trim() } : {}),
-      ...(req.body.status !== undefined ? { status: normalizeReferralStatus(req.body.status) } : {}),
-      updatedAt: new Date().toISOString(),
+      status: newStatus,
+      contrarreferencia: newContrarreferencia,
+      events: newEvents,
+      updatedAt: now,
       updatedBy: req.user.id
     };
 
