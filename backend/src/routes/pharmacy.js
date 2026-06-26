@@ -256,12 +256,16 @@ router.post("/pharmacy/stock/:id/adjust", validate(PharmacyAdjustSchema), async 
       updatedBy: req.user.id,
     };
     db.pharmacyStock[index] = next;
+    const isEntrada = Number(req.body.delta || 0) > 0;
     const logEntry = appendPharmacyLog(db, req.user, {
-      type: "ajuste",
+      type: isEntrada ? "entrada" : "ajuste",
       itemId: next.id,
       itemName: next.name,
       delta: Number(req.body.delta || 0),
       reason: String(req.body.reason || ""),
+      lote: String(req.body.lote || ""),
+      validade: String(req.body.validade || ""),
+      obs: String(req.body.obs || ""),
       teamId: next.teamId,
     });
     addAuditLog(db, req.user, "pharmacy.stock_item.adjusted", "pharmacy_stock_item", next.id, {

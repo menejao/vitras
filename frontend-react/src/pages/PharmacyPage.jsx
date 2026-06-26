@@ -194,6 +194,10 @@ function StockEditModal({ item, mode, categories, units, onConfirm, onClose }) {
   });
   const [delta, setDelta] = useState(0);
   const [reason, setReason] = useState("");
+  const [entQty, setEntQty] = useState("");
+  const [entLote, setEntLote] = useState("");
+  const [entValidade, setEntValidade] = useState("");
+  const [entObs, setEntObs] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
 
@@ -206,7 +210,11 @@ function StockEditModal({ item, mode, categories, units, onConfirm, onClose }) {
     try {
       setBusy(true);
       setErr("");
-      if (mode === "adjust") {
+      if (mode === "entrada") {
+        const qty = Number(entQty);
+        if (!Number.isInteger(qty) || qty <= 0) return setErr("Informe uma quantidade inteira positiva.");
+        await onConfirm({ mode: "adjust", delta: qty, reason: "Entrada de estoque", lote: entLote.trim(), validade: entValidade.trim(), obs: entObs.trim() });
+      } else if (mode === "adjust") {
         if (!Number.isInteger(Number(delta)) || Number(delta) === 0) return setErr("Informe um ajuste inteiro diferente de zero.");
         if (!String(reason || "").trim()) return setErr("Informe o motivo do ajuste.");
         await onConfirm({ mode, delta: Number(delta), reason: String(reason || "").trim() });
@@ -235,7 +243,7 @@ function StockEditModal({ item, mode, categories, units, onConfirm, onClose }) {
     }
   }
 
-  const title = mode === "add" ? "Novo medicamento" : mode === "edit" ? "Editar medicamento" : "Ajustar estoque";
+  const title = mode === "add" ? "Novo medicamento" : mode === "edit" ? "Editar medicamento" : mode === "entrada" ? "Entrada de estoque" : "Ajustar estoque";
 
   return (
     <Modal
@@ -249,7 +257,16 @@ function StockEditModal({ item, mode, categories, units, onConfirm, onClose }) {
       )}
     >
       <form className="form-grid" onSubmit={submit}>
-        {mode === "adjust" ? (
+        {mode === "entrada" ? (
+          <>
+            <Input label="Medicamento" value={String(item?.name || "")} readOnly />
+            <Input label="Estoque atual" value={String(item?.qty || 0)} readOnly />
+            <Input label="Quantidade" type="number" min={1} value={entQty} onChange={(e) => setEntQty(e.target.value)} required />
+            <Input label="Lote" value={entLote} onChange={(e) => setEntLote(e.target.value)} placeholder="Ex: L2025-001" />
+            <Input label="Validade" type="date" value={entValidade} onChange={(e) => setEntValidade(e.target.value)} />
+            <Input className="field--span-2" label="Observação" value={entObs} onChange={(e) => setEntObs(e.target.value)} placeholder="Fornecedor, nota fiscal, etc." />
+          </>
+        ) : mode === "adjust" ? (
           <>
             <Input label="Medicamento" value={String(item?.name || "")} readOnly />
             <Input label="Estoque atual" value={String(item?.qty || 0)} readOnly />
@@ -362,7 +379,7 @@ function PharmacyPage({
   const logTotalPages   = Math.max(1, Math.ceil(filteredLog.length / PHARMA_PAGE_SIZE));
   const pagedLog        = filteredLog.slice((logPage - 1) * PHARMA_PAGE_SIZE, logPage * PHARMA_PAGE_SIZE);
 
-  const canUseWriteFlow = canWrite && isPharmacist(user);
+  const canUseWriteFlow = canWrite;
 
   async function handleDispense(payload) {
     await onDispense?.(payload);
@@ -377,7 +394,7 @@ function PharmacyPage({
       await onUpdateStockItem?.(editItem.item.id, payload.form);
       return;
     }
-    await onAdjustStockItem?.(editItem.item.id, { delta: payload.delta, reason: payload.reason });
+    await onAdjustStockItem?.(editItem.item.id, { delta: payload.delta, reason: payload.reason, lote: payload.lote, validade: payload.validade, obs: payload.obs });
   }
 
   if (!canRead) {
@@ -483,6 +500,7 @@ function PharmacyPage({
                           <td style={{ textAlign: "center" }}>
                             <div style={{ display: "flex", gap: "var(--s-1)", justifyContent: "center" }}>
                               <Button size="sm" onClick={() => setDispenseItem(item)} disabled={Number(item.qty || 0) === 0}>Dispensar</Button>
+                              <Button variant="ghost" size="sm" onClick={() => setEditItem({ item, mode: "entrada" })}>+ Entrada</Button>
                               <Button variant="ghost" size="sm" onClick={() => setEditItem({ item, mode: "adjust" })}>± Ajustar</Button>
                               <Button variant="ghost" size="sm" onClick={() => setEditItem({ item, mode: "edit" })}>Editar</Button>
                             </div>

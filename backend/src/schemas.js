@@ -497,7 +497,10 @@ const PharmacyStockUpdateSchema = z.object({
 
 const PharmacyAdjustSchema = z.object({
   delta: z.number().int().min(-100000).max(100000),
-  reason: z.string().trim().min(3).max(1000)
+  reason: z.string().trim().min(3).max(1000),
+  lote: optionalShortString(120),
+  validade: optionalShortString(50),
+  obs: optionalShortString(2000),
 });
 
 const PharmacyDispenseSchema = z.object({
