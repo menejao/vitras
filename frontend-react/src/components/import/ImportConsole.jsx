@@ -143,21 +143,6 @@ function JobStatusBadge({ status }) {
   );
 }
 
-function BackButton({ onClick, label = "← Voltar" }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={{
-        background: "none", border: "none", cursor: "pointer", padding: "0.25rem 0",
-        fontSize: "0.9rem", color: "var(--color-text-secondary,#6b7280)",
-        display: "flex", alignItems: "center", gap: "0.3rem",
-      }}
-    >
-      {label}
-    </button>
-  );
-}
 
 function InfoRow({ label, value, mono }) {
   return (
@@ -345,152 +330,141 @@ function NewImportJobForm({ token, onDone, onBack }) {
     }
   }
 
-  const selectStyle = {
-    width: "100%", padding: "0.45rem 0.6rem", borderRadius: "6px",
-    fontSize: "0.875rem", border: "1px solid var(--color-border,#d1d5db)",
-    background: "var(--color-surface,#fff)", boxSizing: "border-box",
-  };
-
-  const certifiedProfiles  = SOURCE_PROFILES_REGISTRY.filter((p) => p.certified);
-  const pendingProfiles     = SOURCE_PROFILES_REGISTRY.filter((p) => !p.certified);
+  const certifiedProfiles = SOURCE_PROFILES_REGISTRY.filter((p) => p.certified);
+  const pendingProfiles   = SOURCE_PROFILES_REGISTRY.filter((p) => !p.certified);
 
   return (
     <form onSubmit={handleSubmit}>
-      <div style={{ display: "flex", alignItems: "center", marginBottom: "1.5rem", gap: "0.5rem" }}>
-        <BackButton onClick={onBack} />
-        <h2 style={{ fontWeight: 700, fontSize: "1.2rem", margin: 0 }}>Nova Migração</h2>
+      {/* Breadcrumb */}
+      <div className="console-breadcrumb">
+        <Button type="button" variant="ghost" size="sm" onClick={onBack}>← Migrações</Button>
+        <span className="console-breadcrumb__sep">/</span>
+        <span className="console-breadcrumb__current">Nova Migração</span>
       </div>
 
-      {error && <Alert type="error" style={{ marginBottom: "1rem" }}>{error}</Alert>}
+      {error && <Alert type="error" style={{ marginBottom: "var(--s-4)" }}>{error}</Alert>}
 
-      {/* UBS destino */}
-      <div style={{ marginBottom: "0.875rem" }}>
-        <label style={{ fontSize: "0.875rem", fontWeight: 500, display: "block", marginBottom: "0.25rem" }}>
-          UBS Destino *
-        </label>
-        <select value={form.unitId} onChange={set("unitId")} style={selectStyle}>
-          <option value="">Selecionar UBS...</option>
-          {units.map((u) => (
-            <option key={u.id} value={u.id}>
-              {u.name}{u.cnes ? ` (CNES ${u.cnes})` : ""}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {/* Sistema de origem — FASE 5 */}
-      <div style={{ marginBottom: "0.875rem" }}>
-        <label style={{ fontSize: "0.875rem", fontWeight: 500, display: "block", marginBottom: "0.25rem" }}>
-          Sistema de Origem *
-        </label>
-        <select value={form.sourceProfileId} onChange={set("sourceProfileId")} style={selectStyle}>
-          <optgroup label="Certificadas">
-            {certifiedProfiles.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.label} {p.version ? p.version : ""}
-              </option>
-            ))}
-          </optgroup>
-          <optgroup label="Pendentes de homologação">
-            {pendingProfiles.map((p) => (
-              <option key={p.id} value={p.id} disabled>
-                {p.label} — Pendente de homologação
-              </option>
-            ))}
-          </optgroup>
-        </select>
-        {selectedProfile && !selectedProfile.certified && (
-          <div style={{ fontSize: "0.75rem", color: "#b45309", marginTop: "0.25rem", fontWeight: 600 }}>
-            Este sistema não possui Source Profile certificado. Selecione um sistema certificado para continuar.
-          </div>
-        )}
-        {selectedProfile?.certified && (
-          <div style={{ fontSize: "0.75rem", color: "#065f46", marginTop: "0.25rem" }}>
-            Certificado em {selectedProfile.certifiedAt}
-          </div>
-        )}
-      </div>
-
-      {/* Registro LGPD — FASE 6-7 */}
-      <div style={{ marginBottom: "1rem" }}>
-        <label style={{ fontSize: "0.875rem", fontWeight: 500, display: "block", marginBottom: "0.25rem" }}>
-          Registro de Consentimento LGPD *
-        </label>
-
-        {!hasValidLgpd ? (
-          <div style={{ background: "#fee2e2", border: "1px solid #fca5a5", borderRadius: "6px", padding: "0.75rem", fontSize: "0.82rem", color: "#991b1b" }}>
-            <strong>Nenhum registro LGPD válido cadastrado.</strong> Import Jobs não podem ser criados sem base legal LGPD.
-            Entre em contato com o responsável jurídico para cadastrar um registro válido.
-          </div>
-        ) : (
-          <>
-            <select value={form.lgpdRecordId} onChange={set("lgpdRecordId")} style={selectStyle}>
-              <option value="">Selecionar registro LGPD...</option>
-              {validLgpdRecords.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.id} — {r.tipo}
+      {/* Origem e destino */}
+      <div className="console-section" style={{ marginBottom: "var(--s-4)" }}>
+        <div className="console-section__header">Origem e Destino</div>
+        <div className="field-grid">
+          {/* UBS destino */}
+          <div className="field field--span-2">
+            <label className="field__label">UBS Destino *</label>
+            <select className="console-filter-select" style={{ height: 34, width: "100%" }} value={form.unitId} onChange={set("unitId")}>
+              <option value="">Selecionar UBS...</option>
+              {units.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.name}{u.cnes ? ` (CNES ${u.cnes})` : ""}
                 </option>
               ))}
             </select>
+          </div>
 
-            {selectedLgpd && (
-              <div style={{ marginTop: "0.5rem", background: "#f0fdf4", border: "1px solid #86efac", borderRadius: "6px", padding: "0.6rem 0.75rem", fontSize: "0.82rem" }}>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.2rem" }}>
-                  <div><strong>Responsável:</strong> {selectedLgpd.responsavel}</div>
-                  <div><strong>Tipo:</strong> {selectedLgpd.tipo}</div>
-                  <div><strong>Validade:</strong> {new Date(selectedLgpd.validade).toLocaleDateString("pt-BR")}</div>
-                  <div>
-                    <strong>Status:</strong>{" "}
-                    <span style={{ color: "#065f46", fontWeight: 700 }}>{selectedLgpd.status}</span>
-                  </div>
-                </div>
-              </div>
+          {/* Sistema de origem */}
+          <div className="field field--span-2">
+            <label className="field__label">Sistema de Origem *</label>
+            <select className="console-filter-select" style={{ height: 34, width: "100%" }} value={form.sourceProfileId} onChange={set("sourceProfileId")}>
+              <optgroup label="Certificadas">
+                {certifiedProfiles.map((p) => (
+                  <option key={p.id} value={p.id}>{p.label}{p.version ? ` ${p.version}` : ""}</option>
+                ))}
+              </optgroup>
+              <optgroup label="Pendentes de homologação">
+                {pendingProfiles.map((p) => (
+                  <option key={p.id} value={p.id} disabled>{p.label} — Pendente</option>
+                ))}
+              </optgroup>
+            </select>
+            {selectedProfile?.certified && (
+              <span className="field__hint" style={{ color: "var(--success)" }}>Certificado em {selectedProfile.certifiedAt}</span>
             )}
-          </>
-        )}
+            {selectedProfile && !selectedProfile.certified && (
+              <span className="field__error">Sistema não certificado. Selecione um sistema certificado.</span>
+            )}
+          </div>
+
+          {/* Team ID */}
+          <Input
+            label="Team ID (opcional)"
+            value={form.teamId}
+            onChange={set("teamId")}
+            placeholder="ID da equipe (deixar em branco para toda a UBS)"
+          />
+        </div>
       </div>
 
-      {/* Team ID */}
-      <div style={{ marginBottom: "0.875rem" }}>
-        <label style={{ fontSize: "0.875rem", fontWeight: 500, display: "block", marginBottom: "0.25rem" }}>
-          Team ID (opcional)
-        </label>
-        <Input
-          value={form.teamId}
-          onChange={set("teamId")}
-          placeholder="ID da equipe (deixar em branco para importar para toda a UBS)"
-          style={{ width: "100%", boxSizing: "border-box" }}
-        />
+      {/* LGPD */}
+      <div className="console-section" style={{ marginBottom: "var(--s-4)" }}>
+        <div className="console-section__header">Registro de Consentimento LGPD</div>
+        <div className="field-grid">
+          {!hasValidLgpd ? (
+            <div className="field--span-2">
+              <Alert type="error">
+                <strong>Nenhum registro LGPD válido cadastrado.</strong> Import Jobs não podem ser criados sem base legal LGPD.
+                Entre em contato com o responsável jurídico para cadastrar um registro válido.
+              </Alert>
+            </div>
+          ) : (
+            <>
+              <div className="field field--span-2">
+                <label className="field__label">Registro LGPD *</label>
+                <select className="console-filter-select" style={{ height: 34, width: "100%" }} value={form.lgpdRecordId} onChange={set("lgpdRecordId")}>
+                  <option value="">Selecionar registro LGPD...</option>
+                  {validLgpdRecords.map((r) => (
+                    <option key={r.id} value={r.id}>{r.id} — {r.tipo}</option>
+                  ))}
+                </select>
+              </div>
+
+              {selectedLgpd && (
+                <div className="field--span-2">
+                  <div style={{ background: "var(--success-soft)", border: "1px solid var(--success-bd)", borderRadius: "var(--r-md)", padding: "var(--s-3) var(--s-4)", fontSize: "var(--t-sm)", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--s-1)" }}>
+                    <div><strong>Responsável:</strong> {selectedLgpd.responsavel}</div>
+                    <div><strong>Tipo:</strong> {selectedLgpd.tipo}</div>
+                    <div><strong>Validade:</strong> {new Date(selectedLgpd.validade).toLocaleDateString("pt-BR")}</div>
+                    <div><strong>Status:</strong> <span style={{ color: "var(--success)", fontWeight: 700 }}>{selectedLgpd.status}</span></div>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </div>
 
       {/* Observações */}
-      <div style={{ marginBottom: "1.25rem" }}>
-        <label style={{ fontSize: "0.875rem", fontWeight: 500, display: "block", marginBottom: "0.25rem" }}>
-          Observações
-        </label>
-        <textarea
-          value={form.notes}
-          onChange={set("notes")}
-          placeholder="Contexto adicional sobre esta migração..."
-          rows={3}
-          style={{
-            width: "100%", padding: "0.45rem 0.6rem", borderRadius: "6px",
-            fontSize: "0.875rem", border: "1px solid var(--color-border,#d1d5db)",
-            background: "var(--color-surface,#fff)", boxSizing: "border-box", resize: "vertical",
-          }}
-        />
+      <div className="console-section" style={{ marginBottom: "var(--s-4)" }}>
+        <div className="console-section__header">Observações</div>
+        <div className="field-grid">
+          <div className="field field--span-2">
+            <label className="field__label">Contexto adicional (opcional)</label>
+            <textarea
+              className="input"
+              value={form.notes}
+              onChange={set("notes")}
+              placeholder="Contexto adicional sobre esta migração..."
+              rows={3}
+              style={{ resize: "vertical" }}
+            />
+          </div>
+        </div>
       </div>
 
-      <Button type="submit" disabled={busy || !hasValidLgpd || !selectedProfile?.certified}>
-        {busy ? "Criando Import Job..." : "Criar Import Job"}
-      </Button>
-
-      {(!hasValidLgpd || !selectedProfile?.certified) && !busy && (
-        <div style={{ fontSize: "0.75rem", color: "var(--color-text-secondary,#6b7280)", marginTop: "0.5rem" }}>
-          {!hasValidLgpd && "Bloqueado: sem registro LGPD válido. "}
-          {selectedProfile && !selectedProfile.certified && "Bloqueado: sistema de origem não certificado."}
-        </div>
-      )}
+      <div style={{ display: "flex", gap: "var(--s-3)", alignItems: "center" }}>
+        <Button
+          type="submit"
+          loading={busy}
+          disabled={busy || !hasValidLgpd || !selectedProfile?.certified}
+        >
+          Criar Import Job
+        </Button>
+        {(!hasValidLgpd || (selectedProfile && !selectedProfile.certified)) && !busy && (
+          <span style={{ fontSize: "var(--t-sm)", color: "var(--danger)" }}>
+            {!hasValidLgpd && "Sem registro LGPD válido. "}
+            {selectedProfile && !selectedProfile.certified && "Sistema não certificado."}
+          </span>
+        )}
+      </div>
     </form>
   );
 }

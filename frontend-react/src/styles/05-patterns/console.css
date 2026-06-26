@@ -191,13 +191,14 @@
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
   box-shadow: var(--shadow-xs);
-  overflow: hidden;
+  /* overflow: visible — permite dropdowns filhos vazarem a seção */
 }
 
 .console-section__header {
   padding: var(--s-3) var(--s-4);
   border-bottom: 1px solid var(--border-subtle);
   background: var(--surface-2);
+  border-radius: var(--r-lg) var(--r-lg) 0 0; /* clippa o próprio background sem overflow:hidden */
   font: 700 10.5px var(--font-sans);
   letter-spacing: .07em;
   text-transform: uppercase;

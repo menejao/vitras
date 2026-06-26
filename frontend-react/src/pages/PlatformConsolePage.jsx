@@ -3,7 +3,6 @@ import { api } from "../api";
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
 import Alert from "../components/ui/Alert";
-import Select from "../components/ui/Select";
 import { BrandLockup } from "../components/brand/BrandLockup";
 import ImportConsole from "../components/import/ImportConsole";
 
@@ -408,12 +407,19 @@ function UnitForm({ token, onDone, onBack }) {
         <div className="console-section__header">Localização e Status</div>
         <div className="field-grid">
           <Input label="Município *" value={form.municipalityName} onChange={set("municipalityName")} placeholder="Recife" />
-          <Select label="UF *" value={form.uf} onChange={set("uf")} placeholder="Selecionar UF">
-            {UF_OPTIONS.map(uf => <option key={uf} value={uf}>{uf}</option>)}
-          </Select>
-          <Select label="Status inicial" value={form.status} onChange={set("status")}>
-            {STATUS_OPTIONS.map(s => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}
-          </Select>
+          <div className="field">
+            <label className="field__label">UF *</label>
+            <select className="console-filter-select" style={{ height: 34, width: "100%" }} value={form.uf} onChange={set("uf")}>
+              <option value="">Selecionar UF</option>
+              {UF_OPTIONS.map(uf => <option key={uf} value={uf}>{uf}</option>)}
+            </select>
+          </div>
+          <div className="field">
+            <label className="field__label">Status inicial</label>
+            <select className="console-filter-select" style={{ height: 34, width: "100%" }} value={form.status} onChange={set("status")}>
+              {STATUS_OPTIONS.map(s => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}
+            </select>
+          </div>
         </div>
       </div>
 
