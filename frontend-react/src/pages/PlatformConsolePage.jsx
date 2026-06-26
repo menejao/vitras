@@ -3,6 +3,7 @@ import { api } from "../api";
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
 import Alert from "../components/ui/Alert";
+import Select from "../components/ui/Select";
 import { BrandLockup } from "../components/brand/BrandLockup";
 import ImportConsole from "../components/import/ImportConsole";
 
@@ -21,13 +22,25 @@ const STATUS_LABELS  = {
   suspended:    "Suspensa"
 };
 
-// State machine: maps current status → allowed next states + button labels
 const STATUS_TRANSITIONS = {
   draft:        [{ to: "onboarding",   label: "Iniciar Implantação" }],
   onboarding:   [{ to: "homologation", label: "Iniciar Homologação" }],
   homologation: [{ to: "active",       label: "Ativar UBS" }, { to: "onboarding", label: "Voltar a Implantação" }],
   active:       [{ to: "suspended",    label: "Suspender" }],
   suspended:    [{ to: "active",       label: "Reativar" }]
+};
+
+const STATUS_BADGE = {
+  draft:        "badge",
+  onboarding:   "badge badge--warning",
+  homologation: "badge badge--info",
+  active:       "badge badge--success",
+  suspended:    "badge badge--danger",
+};
+
+const TRANSITION_VARIANT = {
+  active:    "primary",
+  suspended: "danger",
 };
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -44,152 +57,99 @@ function fmtDate(iso) {
   } catch { return iso.slice(0, 10); }
 }
 
-// ── UI primitives ──────────────────────────────────────────────────────────
+// ── Icons ──────────────────────────────────────────────────────────────────
+
+const IcoOverview = () => (
+  <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden>
+    <rect x="1" y="1" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.3"/>
+    <rect x="9" y="1" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.3"/>
+    <rect x="1" y="9" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.3"/>
+    <rect x="9" y="9" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.3"/>
+  </svg>
+);
+
+const IcoBuilding = () => (
+  <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden>
+    <path d="M2 14V5l6-3 6 3v9" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/>
+    <rect x="6" y="10" width="4" height="4" rx=".5" stroke="currentColor" strokeWidth="1.2"/>
+    <rect x="4" y="7" width="2" height="2" rx=".5" fill="currentColor"/>
+    <rect x="10" y="7" width="2" height="2" rx=".5" fill="currentColor"/>
+  </svg>
+);
+
+const IcoImport = () => (
+  <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden>
+    <path d="M8 1v9M4 7l4 4 4-4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M1 12h14v2a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1v-2z" stroke="currentColor" strokeWidth="1.3"/>
+  </svg>
+);
+
+const IcoCheck = () => (
+  <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden>
+    <path d="M2 6l3 3 5-5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
+const IcoWarning = () => (
+  <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
+    <path d="M8 2L1 14h14L8 2z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/>
+    <path d="M8 7v3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+    <circle cx="8" cy="12" r=".7" fill="currentColor"/>
+  </svg>
+);
+
+// ── StatusBadge ────────────────────────────────────────────────────────────
 
 function StatusBadge({ status }) {
-  const palette = {
-    draft:        { bg: "#f3f4f6", color: "#374151" },
-    onboarding:   { bg: "#fef3c7", color: "#92400e" },
-    homologation: { bg: "#dbeafe", color: "#1d4ed8" },
-    active:       { bg: "#d1fae5", color: "#065f46" },
-    suspended:    { bg: "#fee2e2", color: "#991b1b" }
-  };
-  const p = palette[status] || palette.draft;
   return (
-    <span style={{ padding: "0.15rem 0.5rem", borderRadius: "999px", fontSize: "0.72rem", fontWeight: 700, background: p.bg, color: p.color, whiteSpace: "nowrap" }}>
+    <span className={STATUS_BADGE[status] || "badge"}>
       {STATUS_LABELS[status] || status}
     </span>
   );
 }
 
-function StatCard({ label, value, sub }) {
-  return (
-    <div style={{
-      background: "var(--color-surface,#fff)", border: "1px solid var(--color-border,#e5e7eb)",
-      borderRadius: "8px", padding: "1rem 1.25rem", flex: "1 1 140px", minWidth: 0
-    }}>
-      <div style={{ fontSize: "1.75rem", fontWeight: 800, lineHeight: 1 }}>{value ?? "—"}</div>
-      <div style={{ fontSize: "0.78rem", color: "var(--color-text-secondary,#6b7280)", marginTop: "0.25rem" }}>{label}</div>
-      {sub && <div style={{ fontSize: "0.72rem", color: "var(--color-text-secondary,#6b7280)" }}>{sub}</div>}
-    </div>
-  );
-}
-
-function SelectInput({ value, onChange, options, placeholder, style }) {
-  return (
-    <select value={value} onChange={onChange} style={{
-      padding: "0.45rem 0.6rem", borderRadius: "6px", fontSize: "0.875rem",
-      border: "1px solid var(--color-border,#d1d5db)", background: "var(--color-surface,#fff)",
-      color: value ? "inherit" : "var(--color-text-secondary,#6b7280)", ...style
-    }}>
-      <option value="">{placeholder}</option>
-      {options.map((o) => <option key={o.value ?? o} value={o.value ?? o}>{o.label ?? o}</option>)}
-    </select>
-  );
-}
-
-function BackButton({ onClick, label = "← Voltar" }) {
-  return (
-    <button type="button" onClick={onClick} style={{
-      background: "none", border: "none", cursor: "pointer", padding: "0.25rem 0",
-      fontSize: "0.9rem", color: "var(--color-text-secondary,#6b7280)", display: "flex", alignItems: "center", gap: "0.3rem"
-    }}>
-      {label}
-    </button>
-  );
-}
-
-// ── Temp Password Modal (FASE 1-3) ────────────────────────────────────────
+// ── TempPasswordModal ──────────────────────────────────────────────────────
 
 function TempPasswordModal({ password, onClose }) {
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied]     = useState(false);
   const [confirmed, setConfirmed] = useState(false);
 
   async function handleCopy() {
-    try {
-      await navigator.clipboard.writeText(password);
-    } catch {
-      // fallback: do nothing — user reads manually
-    }
+    try { await navigator.clipboard.writeText(password); } catch {}
     setCopied(true);
     setTimeout(() => setCopied(false), 3000);
   }
 
   return (
-    <div style={{
-      position: "fixed", inset: 0, zIndex: 9999,
-      background: "rgba(0,0,0,0.55)", display: "flex",
-      alignItems: "center", justifyContent: "center", padding: "1rem",
-    }}>
-      <div style={{
-        background: "#fff", borderRadius: "12px", padding: "1.5rem",
-        width: "100%", maxWidth: 440,
-        boxShadow: "0 20px 60px rgba(0,0,0,0.25)",
-      }}>
-        <h3 style={{ fontWeight: 700, fontSize: "1rem", margin: "0 0 1rem" }}>
-          Senha Temporária — Exibição Única
-        </h3>
-
-        <div style={{ background: "#fef3c7", border: "1px solid #fbbf24", borderRadius: "8px", padding: "0.875rem 1rem", marginBottom: "1rem" }}>
-          <div style={{ fontSize: "0.78rem", fontWeight: 700, color: "#92400e", marginBottom: "0.5rem" }}>
-            Esta senha será exibida uma única vez. Anote ou copie agora.
-          </div>
-          <code style={{
-            display: "block", fontSize: "1.15rem", letterSpacing: "0.12em",
-            fontFamily: "monospace", fontWeight: 700, color: "#1f2937",
-            padding: "0.5rem 0", wordBreak: "break-all",
-          }}>
-            {password}
-          </code>
+    <div className="console-modal-overlay">
+      <div className="console-modal">
+        <h2 className="console-modal__title">Senha Temporária — Exibição Única</h2>
+        <div className="console-pwd-box">
+          <div className="console-pwd-box__warn">Esta senha será exibida uma única vez. Anote ou copie agora.</div>
+          <code className="console-pwd-box__code">{password}</code>
         </div>
-
-        <button
-          type="button"
-          onClick={handleCopy}
-          style={{
-            width: "100%", padding: "0.6rem", borderRadius: "6px", cursor: "pointer",
-            background: copied ? "#d1fae5" : "#2563eb",
-            color: copied ? "#065f46" : "#fff",
-            border: "none", fontWeight: 700, fontSize: "0.875rem",
-            marginBottom: "1rem", transition: "background 0.15s",
-          }}
-        >
+        <Button full variant={copied ? "secondary" : "primary"} onClick={handleCopy} style={{ marginBottom: "var(--s-3)" }}>
           {copied ? "✓ Senha copiada com sucesso!" : "Copiar Senha"}
-        </button>
-
-        <label style={{ display: "flex", alignItems: "flex-start", gap: "0.5rem", cursor: "pointer", marginBottom: "1rem" }}>
+        </Button>
+        <label style={{ display: "flex", alignItems: "flex-start", gap: "var(--s-2)", cursor: "pointer", marginBottom: "var(--s-4)", fontSize: "var(--t-sm)" }}>
           <input
             type="checkbox"
             checked={confirmed}
             onChange={(e) => setConfirmed(e.target.checked)}
-            style={{ width: 16, height: 16, marginTop: "0.15rem", flexShrink: 0, accentColor: "#2563eb" }}
+            style={{ width: 16, height: 16, marginTop: 2, flexShrink: 0, accentColor: "var(--accent)" }}
           />
-          <span style={{ fontSize: "0.875rem" }}>Confirmo que anotei ou copiei esta senha.</span>
+          <span>Confirmo que anotei ou copiei esta senha.</span>
         </label>
-
-        <button
-          type="button"
-          disabled={!confirmed}
-          onClick={onClose}
-          style={{
-            width: "100%", padding: "0.55rem", borderRadius: "6px",
-            background: confirmed ? "#374151" : "#e5e7eb",
-            color: confirmed ? "#fff" : "#9ca3af",
-            border: "none", fontWeight: 600, fontSize: "0.875rem",
-            cursor: confirmed ? "pointer" : "default",
-          }}
-        >
-          Fechar
-        </button>
+        <Button full variant="secondary" disabled={!confirmed} onClick={onClose}>Fechar</Button>
       </div>
     </div>
   );
 }
 
-// ── National Summary ───────────────────────────────────────────────────────
+// ── NationalSummary ────────────────────────────────────────────────────────
 
 function NationalSummary({ token }) {
-  const [data, setData]     = useState(null);
+  const [data, setData]       = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -199,25 +159,46 @@ function NationalSummary({ token }) {
       .finally(() => setLoading(false));
   }, [token]);
 
-  if (loading) return <div style={{ height: 80, display: "flex", alignItems: "center", color: "var(--color-text-secondary,#6b7280)", fontSize: "0.875rem" }}>Carregando indicadores...</div>;
+  if (loading) return (
+    <div className="console-kpi-strip">
+      {[...Array(5)].map((_, i) => (
+        <div key={i} className="console-kpi" style={{ opacity: .4, minHeight: 80 }} />
+      ))}
+    </div>
+  );
   if (!data) return null;
 
   return (
-    <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem", marginBottom: "1.5rem" }}>
-      <StatCard label="Total de UBS"       value={data.totalUnits} />
-      <StatCard label="Em implantação"     value={data.onboarding} />
-      <StatCard label="Operacionais"       value={data.active} />
-      <StatCard label="Gestores"           value={data.totalGestors} />
-      <StatCard label="Usuários ativos"    value={data.totalUsers} />
+    <div className="console-kpi-strip">
+      <div className="console-kpi console-kpi--accent">
+        <div className="console-kpi__value">{data.totalUnits ?? "—"}</div>
+        <div className="console-kpi__label">Total de UBS</div>
+      </div>
+      <div className="console-kpi console-kpi--warning">
+        <div className="console-kpi__value">{data.onboarding ?? "—"}</div>
+        <div className="console-kpi__label">Em implantação</div>
+      </div>
+      <div className="console-kpi console-kpi--success">
+        <div className="console-kpi__value">{data.active ?? "—"}</div>
+        <div className="console-kpi__label">Operacionais</div>
+      </div>
+      <div className="console-kpi">
+        <div className="console-kpi__value">{data.totalGestors ?? "—"}</div>
+        <div className="console-kpi__label">Gestores</div>
+      </div>
+      <div className="console-kpi">
+        <div className="console-kpi__value">{data.totalUsers ?? "—"}</div>
+        <div className="console-kpi__label">Usuários ativos</div>
+      </div>
     </div>
   );
 }
 
-// ── Unit Table + Search ────────────────────────────────────────────────────
+// ── Unit Table ─────────────────────────────────────────────────────────────
 
 const PAGE_SIZE = 25;
 
-function UnitTable({ token, onSelect, onNew }) {
+function UnitTable({ token, onSelect }) {
   const [units, setUnits]     = useState([]);
   const [total, setTotal]     = useState(0);
   const [pages, setPages]     = useState(1);
@@ -225,11 +206,11 @@ function UnitTable({ token, onSelect, onNew }) {
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState("");
 
-  const [search, setSearch]   = useState("");
-  const [filterUf, setFilterUf]     = useState("");
+  const [search, setSearch]             = useState("");
+  const [filterUf, setFilterUf]         = useState("");
   const [filterStatus, setFilterStatus] = useState("");
-  const [sortBy, setSortBy]   = useState("name");
-  const [sortDir, setSortDir] = useState("asc");
+  const [sortBy, setSortBy]             = useState("name");
+  const [sortDir, setSortDir]           = useState("asc");
 
   const debounceRef = useRef(null);
 
@@ -262,11 +243,6 @@ function UnitTable({ token, onSelect, onNew }) {
     debounceRef.current = setTimeout(() => load(1, val, filterUf, filterStatus, sortBy, sortDir), 300);
   }
 
-  function handleFilter(field, val) {
-    if (field === "uf")     { setFilterUf(val);     load(1, search, val, filterStatus, sortBy, sortDir); }
-    if (field === "status") { setFilterStatus(val); load(1, search, filterUf, val, sortBy, sortDir); }
-  }
-
   function handleSort(col) {
     const nd = sortBy === col && sortDir === "asc" ? "desc" : "asc";
     setSortBy(col); setSortDir(nd);
@@ -274,72 +250,59 @@ function UnitTable({ token, onSelect, onNew }) {
   }
 
   function SortIcon({ col }) {
-    if (sortBy !== col) return <span style={{ opacity: 0.3, marginLeft: "0.2rem" }}>⇅</span>;
-    return <span style={{ marginLeft: "0.2rem" }}>{sortDir === "asc" ? "↑" : "↓"}</span>;
+    if (sortBy !== col) return <span style={{ opacity: .3, marginLeft: 3, fontSize: 11 }}>⇅</span>;
+    return <span style={{ marginLeft: 3, fontSize: 11 }}>{sortDir === "asc" ? "↑" : "↓"}</span>;
   }
-
-  const thStyle = (col) => ({
-    padding: "0.5rem 0.75rem", textAlign: "left", fontSize: "0.78rem", fontWeight: 700,
-    color: "var(--color-text-secondary,#6b7280)", textTransform: "uppercase", letterSpacing: "0.04em",
-    borderBottom: "1px solid var(--color-border,#e5e7eb)", whiteSpace: "nowrap",
-    cursor: "pointer", userSelect: "none", background: "var(--color-surface,#fff)"
-  });
-
-  const tdStyle = {
-    padding: "0.6rem 0.75rem", fontSize: "0.875rem",
-    borderBottom: "1px solid var(--color-border,#e5e7eb)", verticalAlign: "middle"
-  };
 
   return (
     <div>
       {/* Toolbar */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", gap: "0.75rem", flexWrap: "wrap" }}>
-        <h2 style={{ fontWeight: 700, fontSize: "1.2rem", margin: 0 }}>Unidades de Saúde</h2>
-        <Button onClick={onNew} style={{ whiteSpace: "nowrap" }}>+ Nova UBS</Button>
+      <div className="console-toolbar">
+        <div className="console-toolbar__search">
+          <Input
+            value={search}
+            onChange={(e) => handleSearch(e.target.value)}
+            placeholder="Buscar por nome, CNES, município ou gestor..."
+          />
+        </div>
+        <div className="console-toolbar__filters">
+          <select
+            className="console-filter-select"
+            value={filterUf}
+            onChange={(e) => { setFilterUf(e.target.value); load(1, search, e.target.value, filterStatus, sortBy, sortDir); }}
+          >
+            <option value="">UF</option>
+            {UF_OPTIONS.map(uf => <option key={uf} value={uf}>{uf}</option>)}
+          </select>
+          <select
+            className="console-filter-select"
+            value={filterStatus}
+            onChange={(e) => { setFilterStatus(e.target.value); load(1, search, filterUf, e.target.value, sortBy, sortDir); }}
+          >
+            <option value="">Todos os status</option>
+            {STATUS_OPTIONS.map(s => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}
+          </select>
+        </div>
       </div>
 
-      {/* Filters */}
-      <div style={{ display: "flex", gap: "0.6rem", marginBottom: "1rem", flexWrap: "wrap" }}>
-        <Input
-          value={search}
-          onChange={(e) => handleSearch(e.target.value)}
-          placeholder="Buscar por nome, CNES, município ou gestor..."
-          style={{ flex: "1 1 220px", minWidth: 0 }}
-        />
-        <SelectInput
-          value={filterUf}
-          onChange={(e) => handleFilter("uf", e.target.value)}
-          options={UF_OPTIONS}
-          placeholder="UF"
-          style={{ width: 90 }}
-        />
-        <SelectInput
-          value={filterStatus}
-          onChange={(e) => handleFilter("status", e.target.value)}
-          options={STATUS_OPTIONS.map((s) => ({ value: s, label: STATUS_LABELS[s] }))}
-          placeholder="Status"
-          style={{ width: 160 }}
-        />
-      </div>
-
-      {error && <Alert type="error" style={{ marginBottom: "0.75rem" }}>{error}</Alert>}
+      {error && <Alert type="error" style={{ marginBottom: "var(--s-3)" }}>{error}</Alert>}
 
       {/* Table */}
-      <div style={{ overflowX: "auto", border: "1px solid var(--color-border,#e5e7eb)", borderRadius: "8px" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 640 }}>
+      <div className="table-wrap">
+        <table className="table">
           <thead>
             <tr>
               {[
-                { col: "name",             label: "Nome da UBS" },
+                { col: "name",             label: "Unidade de Saúde" },
                 { col: "cnes",             label: "CNES" },
-                { col: "municipalityName", label: "Município/UF" },
+                { col: "municipalityName", label: "Município / UF" },
                 { col: "status",           label: "Status" },
+                { col: null,               label: "Equipes" },
                 { col: null,               label: "Gestores" },
                 { col: null,               label: "Usuários" },
-                { col: null,               label: "Equipes" },
-                { col: "createdAt",        label: "Criado em" },
+                { col: "createdAt",        label: "Cadastro" },
               ].map(({ col, label }) => (
-                <th key={label} style={thStyle(col)} onClick={col ? () => handleSort(col) : undefined}>
+                <th key={label} onClick={col ? () => handleSort(col) : undefined} style={{ cursor: col ? "pointer" : "default" }}>
                   {label}{col && <SortIcon col={col} />}
                 </th>
               ))}
@@ -347,58 +310,49 @@ function UnitTable({ token, onSelect, onNew }) {
           </thead>
           <tbody>
             {loading && (
-              <tr><td colSpan={8} style={{ ...tdStyle, textAlign: "center", color: "var(--color-text-secondary,#6b7280)", padding: "2rem" }}>Carregando...</td></tr>
+              <tr><td colSpan={8} style={{ textAlign: "center", padding: "var(--s-8)", color: "var(--text-muted)" }}>Carregando...</td></tr>
             )}
             {!loading && units.length === 0 && (
-              <tr><td colSpan={8} style={{ ...tdStyle, textAlign: "center", color: "var(--color-text-secondary,#6b7280)", padding: "2rem" }}>
-                {search || filterUf || filterStatus ? "Nenhuma UBS encontrada para os filtros aplicados." : "Nenhuma UBS cadastrada. Clique em \"+ Nova UBS\" para começar."}
+              <tr><td colSpan={8} style={{ textAlign: "center", padding: "var(--s-8)", color: "var(--text-muted)" }}>
+                {search || filterUf || filterStatus
+                  ? "Nenhuma UBS encontrada para os filtros aplicados."
+                  : "Nenhuma UBS cadastrada."}
               </td></tr>
             )}
             {units.map((u) => (
-              <tr
-                key={u.id}
-                onClick={() => onSelect(u)}
-                style={{ cursor: "pointer", transition: "background 0.1s" }}
-                onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-bg,#f9fafb)"}
-                onMouseLeave={(e) => e.currentTarget.style.background = ""}
-              >
-                <td style={tdStyle}><strong style={{ fontWeight: 600 }}>{u.name}</strong></td>
-                <td style={{ ...tdStyle, fontFamily: "monospace", fontSize: "0.82rem" }}>{u.cnes || "—"}</td>
-                <td style={tdStyle}>
-                  {u.municipalityName ? `${u.municipalityName}` : "—"}
-                  {u.uf ? <span style={{ marginLeft: "0.3rem", fontWeight: 700, fontSize: "0.8rem", color: "var(--color-text-secondary,#6b7280)" }}>{u.uf}</span> : null}
+              <tr key={u.id} onClick={() => onSelect(u)}>
+                <td style={{ fontWeight: 600 }}>{u.name}</td>
+                <td><span className="num">{u.cnes || "—"}</span></td>
+                <td>
+                  {u.municipalityName || "—"}
+                  {u.uf && <span style={{ marginLeft: "var(--s-2)", fontWeight: 700, fontSize: "var(--t-xs)", color: "var(--text-muted)" }}>{u.uf}</span>}
                 </td>
-                <td style={tdStyle}><StatusBadge status={u.status} /></td>
-                <td style={{ ...tdStyle, textAlign: "center" }}>{u.gestorCount ?? 0}</td>
-                <td style={{ ...tdStyle, textAlign: "center" }}>{u.userCount ?? 0}</td>
-                <td style={{ ...tdStyle, textAlign: "center" }}>{u.teamCount ?? 0}</td>
-                <td style={{ ...tdStyle, fontSize: "0.8rem", color: "var(--color-text-secondary,#6b7280)" }}>{fmtDate(u.createdAt)}</td>
+                <td><StatusBadge status={u.status} /></td>
+                <td style={{ textAlign: "center" }}>{u.teamCount ?? 0}</td>
+                <td style={{ textAlign: "center" }}>{u.gestorCount ?? 0}</td>
+                <td style={{ textAlign: "center" }}>{u.userCount ?? 0}</td>
+                <td style={{ color: "var(--text-muted)", fontSize: "var(--t-sm)" }}>{fmtDate(u.createdAt)}</td>
               </tr>
             ))}
           </tbody>
         </table>
-      </div>
-
-      {/* Pagination */}
-      {pages > 1 && (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "0.75rem", fontSize: "0.85rem", color: "var(--color-text-secondary,#6b7280)" }}>
-          <span>{total} UBS no total — página {page} de {pages}</span>
-          <div style={{ display: "flex", gap: "0.4rem" }}>
-            <Button variant="secondary" size="sm" disabled={page <= 1} onClick={() => load(page - 1)}>← Anterior</Button>
-            <Button variant="secondary" size="sm" disabled={page >= pages} onClick={() => load(page + 1)}>Próxima →</Button>
+        {(pages > 1 || total > 0) && (
+          <div className="table-pagination">
+            <span>{total} UBS no total{pages > 1 ? ` — página ${page} de ${pages}` : ""}</span>
+            {pages > 1 && (
+              <div style={{ display: "flex", gap: "var(--s-2)" }}>
+                <Button variant="secondary" size="sm" disabled={page <= 1} onClick={() => load(page - 1)}>← Anterior</Button>
+                <Button variant="secondary" size="sm" disabled={page >= pages} onClick={() => load(page + 1)}>Próxima →</Button>
+              </div>
+            )}
           </div>
-        </div>
-      )}
-      {pages <= 1 && total > 0 && (
-        <div style={{ marginTop: "0.5rem", fontSize: "0.8rem", color: "var(--color-text-secondary,#6b7280)" }}>
-          {total} UBS
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
 
-// ── Unit Form (Create) ─────────────────────────────────────────────────────
+// ── Unit Form ──────────────────────────────────────────────────────────────
 
 function UnitForm({ token, onDone, onBack }) {
   const [form, setForm] = useState({
@@ -413,10 +367,10 @@ function UnitForm({ token, onDone, onBack }) {
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
-    if (!form.name.trim())           { setError("Nome da UBS é obrigatório."); return; }
-    if (!/^\d{7}$/.test(form.cnes)) { setError("CNES deve ter exatamente 7 dígitos."); return; }
+    if (!form.name.trim())            { setError("Nome da UBS é obrigatório."); return; }
+    if (!/^\d{7}$/.test(form.cnes))  { setError("CNES deve ter exatamente 7 dígitos."); return; }
     if (!form.municipalityName.trim()) { setError("Município é obrigatório."); return; }
-    if (!form.uf)                    { setError("UF é obrigatória."); return; }
+    if (!form.uf)                     { setError("UF é obrigatória."); return; }
     setBusy(true);
     try {
       await apiFetch("/platform/units", token, { method: "POST", body: JSON.stringify(form) });
@@ -428,51 +382,45 @@ function UnitForm({ token, onDone, onBack }) {
     }
   }
 
-  const fields = [
-    { label: "Nome da UBS *",           key: "name",             placeholder: "UBS Francisca Lima de Lira" },
-    { label: "CNES (7 dígitos) *",      key: "cnes",             placeholder: "1234567" },
-    { label: "Município *",             key: "municipalityName", placeholder: "Recife" },
-    { label: "Código IBGE (7 dígitos)", key: "municipalityId",   placeholder: "2611606" },
-    { label: "Endereço",                key: "address",          placeholder: "Rua das Flores, 123 — Centro" },
-    { label: "E-mail institucional",    key: "contactEmail",     placeholder: "ubs@municipio.gov.br" },
-    { label: "Telefone",                key: "phone",            placeholder: "(81) 3000-0000" },
-  ];
-
   return (
     <form onSubmit={handleSubmit}>
-      <div style={{ display: "flex", alignItems: "center", marginBottom: "1.5rem", gap: "0.5rem" }}>
-        <BackButton onClick={onBack} />
-        <h2 style={{ fontWeight: 700, fontSize: "1.2rem", margin: 0 }}>Nova UBS</h2>
+      <div className="console-breadcrumb">
+        <Button type="button" variant="ghost" size="sm" onClick={onBack}>← Unidades</Button>
+        <span className="console-breadcrumb__sep">/</span>
+        <span className="console-breadcrumb__current">Nova UBS</span>
       </div>
 
-      {error && <Alert type="error" style={{ marginBottom: "1rem" }}>{error}</Alert>}
+      {error && <Alert type="error" style={{ marginBottom: "var(--s-4)" }}>{error}</Alert>}
 
-      {fields.map(({ label, key, placeholder }) => (
-        <div key={key} style={{ marginBottom: "0.875rem" }}>
-          <label style={{ fontSize: "0.875rem", fontWeight: 500, display: "block", marginBottom: "0.25rem" }}>{label}</label>
-          <Input value={form[key]} onChange={set(key)} placeholder={placeholder} style={{ width: "100%", boxSizing: "border-box" }} />
+      <div className="console-section" style={{ marginBottom: "var(--s-4)" }}>
+        <div className="console-section__header">Dados Institucionais</div>
+        <div className="field-grid">
+          <Input label="Nome da UBS *" value={form.name} onChange={set("name")} placeholder="UBS Francisca Lima de Lira" />
+          <Input label="CNES (7 dígitos) *" value={form.cnes} onChange={set("cnes")} placeholder="1234567" />
+          <Input label="Código IBGE (7 dígitos)" value={form.municipalityId} onChange={set("municipalityId")} placeholder="2611606" />
+          <Input label="Endereço" value={form.address} onChange={set("address")} placeholder="Rua das Flores, 123 — Centro" />
+          <Input label="E-mail institucional" value={form.contactEmail} onChange={set("contactEmail")} placeholder="ubs@municipio.gov.br" />
+          <Input label="Telefone" value={form.phone} onChange={set("phone")} placeholder="(81) 3000-0000" />
         </div>
-      ))}
-
-      <div style={{ marginBottom: "0.875rem" }}>
-        <label style={{ fontSize: "0.875rem", fontWeight: 500, display: "block", marginBottom: "0.25rem" }}>UF *</label>
-        <SelectInput value={form.uf} onChange={set("uf")} options={UF_OPTIONS} placeholder="Selecionar UF" style={{ width: "100%", boxSizing: "border-box" }} />
       </div>
 
-      <div style={{ marginBottom: "1.25rem" }}>
-        <label style={{ fontSize: "0.875rem", fontWeight: 500, display: "block", marginBottom: "0.25rem" }}>Status</label>
-        <SelectInput
-          value={form.status}
-          onChange={set("status")}
-          options={STATUS_OPTIONS.map((s) => ({ value: s, label: STATUS_LABELS[s] }))}
-          placeholder="Status"
-          style={{ width: "100%", boxSizing: "border-box" }}
-        />
+      <div className="console-section" style={{ marginBottom: "var(--s-4)" }}>
+        <div className="console-section__header">Localização e Status</div>
+        <div className="field-grid">
+          <Input label="Município *" value={form.municipalityName} onChange={set("municipalityName")} placeholder="Recife" />
+          <Select label="UF *" value={form.uf} onChange={set("uf")} placeholder="Selecionar UF">
+            {UF_OPTIONS.map(uf => <option key={uf} value={uf}>{uf}</option>)}
+          </Select>
+          <Select label="Status inicial" value={form.status} onChange={set("status")}>
+            {STATUS_OPTIONS.map(s => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}
+          </Select>
+        </div>
       </div>
 
-      <Button type="submit" disabled={busy}>
-        {busy ? "Criando UBS..." : "Criar UBS"}
-      </Button>
+      <div style={{ display: "flex", gap: "var(--s-3)" }}>
+        <Button type="submit" loading={busy}>Criar UBS</Button>
+        <Button type="button" variant="ghost" onClick={onBack}>Cancelar</Button>
+      </div>
     </form>
   );
 }
@@ -480,16 +428,16 @@ function UnitForm({ token, onDone, onBack }) {
 // ── Unit Modules Section ────────────────────────────────────────────────────
 
 const ALL_MODULES = [
-  { id: "nutricao",           label: "Nutrição" },
-  { id: "psicologia",         label: "Psicologia" },
-  { id: "fisioterapia",       label: "Fisioterapia" },
-  { id: "servico_social",     label: "Serviço Social" },
-  { id: "terapia_ocupacional",label: "Terapia Ocupacional" },
-  { id: "fonoaudiologia",     label: "Fonoaudiologia" },
+  { id: "nutricao",            label: "Nutrição" },
+  { id: "psicologia",          label: "Psicologia" },
+  { id: "fisioterapia",        label: "Fisioterapia" },
+  { id: "servico_social",      label: "Serviço Social" },
+  { id: "terapia_ocupacional", label: "Terapia Ocupacional" },
+  { id: "fonoaudiologia",      label: "Fonoaudiologia" },
 ];
 
 function UnitModulesSection({ unit, token, onUpdated }) {
-  const [saving, setSaving] = useState(false);
+  const [saving, setSaving]         = useState(false);
   const [moduleError, setModuleError] = useState("");
   const [localModules, setLocalModules] = useState(unit.enabledModules || []);
 
@@ -514,47 +462,36 @@ function UnitModulesSection({ unit, token, onUpdated }) {
   const changed = JSON.stringify([...localModules].sort()) !== JSON.stringify([...(unit.enabledModules || [])].sort());
 
   return (
-    <div style={{ background: "var(--color-surface,#fff)", border: "1px solid var(--color-border,#e5e7eb)", borderRadius: "8px", padding: "0.875rem 1rem", marginBottom: "1rem" }}>
-      <div style={{ fontSize: "0.72rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--color-text-secondary,#6b7280)", marginBottom: "0.75rem" }}>
-        Módulos e Especialidades da Unidade
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "0.5rem", marginBottom: "0.75rem" }}>
-        {ALL_MODULES.map(({ id, label }) => (
-          <label key={id} style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer", fontSize: "0.875rem", padding: "0.3rem 0" }}>
-            <input
-              type="checkbox"
-              checked={localModules.includes(id)}
-              onChange={() => toggleModule(id)}
-              style={{ width: "15px", height: "15px", flexShrink: 0 }}
-            />
-            <span style={{ color: localModules.includes(id) ? "var(--color-text,#111)" : "var(--color-text-secondary,#6b7280)" }}>{label}</span>
-          </label>
-        ))}
-      </div>
-      {moduleError && <div style={{ color: "#ef4444", fontSize: "0.82rem", marginBottom: "0.5rem" }}>{moduleError}</div>}
-      <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-        <button
-          type="button"
-          disabled={saving || !changed}
-          onClick={saveModules}
-          style={{
-            padding: "0.35rem 0.85rem", borderRadius: "6px", fontSize: "0.82rem", fontWeight: 600,
-            background: changed ? "#3b82f6" : "#e5e7eb", color: changed ? "#fff" : "#9ca3af",
-            border: "none", cursor: (saving || !changed) ? "default" : "pointer",
-            opacity: (saving || !changed) ? 0.6 : 1
-          }}
-        >
-          {saving ? "Salvando..." : "Salvar Módulos"}
-        </button>
-        {!changed && <span style={{ fontSize: "0.78rem", color: "var(--color-text-secondary,#6b7280)" }}>Sem alterações pendentes</span>}
+    <div className="console-section" style={{ marginBottom: "var(--s-4)" }}>
+      <div className="console-section__header">Módulos e Especialidades</div>
+      <div className="console-section__body">
+        <div className="console-modules-grid">
+          {ALL_MODULES.map(({ id, label }) => {
+            const active = localModules.includes(id);
+            return (
+              <label key={id} className={`console-module-item${active ? " is-active" : ""}`}>
+                <input type="checkbox" checked={active} onChange={() => toggleModule(id)} style={{ display: "none" }} />
+                <div className="console-module-item__check">{active && <IcoCheck />}</div>
+                <span>{label}</span>
+              </label>
+            );
+          })}
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: "var(--s-3)" }}>
+          <Button variant="primary" size="sm" loading={saving} disabled={!changed || saving} onClick={saveModules}>
+            Salvar módulos
+          </Button>
+          {!changed && <span style={{ fontSize: "var(--t-sm)", color: "var(--text-muted)" }}>Sem alterações pendentes</span>}
+          {moduleError && <span style={{ color: "var(--danger)", fontSize: "var(--t-sm)" }}>{moduleError}</span>}
+        </div>
       </div>
     </div>
   );
 }
 
-// ── Unit Detail ────────────────────────────────────────────────────────────
+// ── Onboarding Actions ─────────────────────────────────────────────────────
 
-function OnboardingActions({ unit, gestors, teams, onAddTeam, onAddManager }) {
+function OnboardingActions({ gestors, teams, onAddTeam, onAddManager }) {
   const actions = [];
   if (!gestors || gestors.length === 0) {
     actions.push({ label: "Cadastrar gestor inicial", action: onAddManager });
@@ -564,45 +501,44 @@ function OnboardingActions({ unit, gestors, teams, onAddTeam, onAddManager }) {
   }
   if (actions.length === 0) return null;
   return (
-    <div style={{
-      background: "#fffbeb", border: "1px solid #fbbf24", borderRadius: "8px",
-      padding: "0.875rem 1rem", marginBottom: "1rem"
-    }}>
-      <div style={{ fontWeight: 700, fontSize: "0.85rem", color: "#92400e", marginBottom: "0.5rem" }}>
-        Ações necessárias para concluir implantação:
+    <div className="console-onboarding-alert">
+      <div className="console-onboarding-alert__title">
+        <IcoWarning /> Ações necessárias para concluir implantação
       </div>
-      {actions.map(({ label, action }) => (
-        <div key={label} style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginTop: "0.4rem" }}>
-          <span style={{ fontSize: "0.85rem", color: "#78350f" }}>• {label}</span>
-          <Button variant="warn" size="sm" onClick={action}>Fazer agora</Button>
-        </div>
-      ))}
+      <div className="console-onboarding-alert__rows">
+        {actions.map(({ label, action }) => (
+          <div key={label} className="console-onboarding-alert__row">
+            <span style={{ flex: 1 }}>• {label}</span>
+            <Button variant="warn" size="sm" onClick={action}>Fazer agora</Button>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
 
+// ── Unit Detail ────────────────────────────────────────────────────────────
+
 function UnitDetail({ token, unitId, onBack }) {
-  const [unit, setUnit]   = useState(null);
-  const [view, setView]   = useState("detail");
+  const [unit, setUnit]     = useState(null);
+  const [view, setView]     = useState("detail");
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [error, setError]   = useState("");
 
   const [teamForm, setTeamForm]       = useState({ name: "", ine: "", tipoEquipe: "" });
   const [managerForm, setManagerForm] = useState({ name: "", email: "", cpf: "", cns: "", cbo: "", phone: "" });
-  const [busy, setBusy]     = useState(false);
+  const [busy, setBusy]       = useState(false);
   const [formError, setFormError] = useState("");
-  const [tempPwd, setTempPwd]     = useState("");
+  const [tempPwd, setTempPwd]   = useState("");
 
   const [transitioning, setTransitioning] = useState(false);
   const [checklist, setChecklist] = useState(null);
 
-  async function loadChecklist(unitId) {
+  async function loadChecklist(id) {
     try {
-      const data = await apiFetch(`/platform/units/${unitId}/checklist`, token);
+      const data = await apiFetch(`/platform/units/${id}/checklist`, token);
       setChecklist(data);
-    } catch {
-      setChecklist(null);
-    }
+    } catch { setChecklist(null); }
   }
 
   async function handleTransition(toStatus) {
@@ -613,7 +549,6 @@ function UnitDetail({ token, unitId, onBack }) {
       await apiFetch(`/platform/units/${unitId}`, token, { method: "PATCH", body: JSON.stringify({ status: toStatus }) });
       await loadUnit();
     } catch (err) {
-      // Show blocked criteria if present
       let msg = err.message;
       try {
         const parsed = JSON.parse(err.message);
@@ -633,11 +568,13 @@ function UnitDetail({ token, unitId, onBack }) {
         method: "PATCH",
         body: JSON.stringify({ [itemId]: value })
       });
-      setChecklist((prev) => prev ? { ...prev, criteria: prev.criteria.map((c) => c.id === itemId ? { ...c, pass: value } : c), ok: data.allChecked } : prev);
+      setChecklist((prev) => prev ? {
+        ...prev,
+        criteria: prev.criteria.map((c) => c.id === itemId ? { ...c, pass: value } : c),
+        ok: data.allChecked
+      } : prev);
       if (data.allChecked) await loadUnit();
-    } catch (err) {
-      setFormError(err.message);
-    }
+    } catch (err) { setFormError(err.message); }
   }
 
   const loadUnit = useCallback(() => {
@@ -679,236 +616,293 @@ function UnitDetail({ token, unitId, onBack }) {
     finally { setBusy(false); }
   }
 
-  if (loading) return <div style={{ color: "var(--color-text-secondary,#6b7280)", padding: "2rem 0" }}>Carregando dados da UBS...</div>;
+  if (loading) return <div className="console-loading">Carregando dados da UBS...</div>;
   if (error)   return <Alert type="error">{error}</Alert>;
   if (!unit)   return null;
 
   const gestors = unit.gestors || [];
   const teams   = unit.teams   || [];
+  const transitions = STATUS_TRANSITIONS[unit.status] || [];
 
   return (
     <div>
-      <div style={{ display: "flex", alignItems: "center", marginBottom: "1.25rem", gap: "0.5rem" }}>
-        <BackButton onClick={() => { setView("detail"); onBack(); }} />
-        <h2 style={{ fontWeight: 700, fontSize: "1.2rem", margin: 0 }}>{unit.name}</h2>
-        <StatusBadge status={unit.status} />
+      {/* Breadcrumb */}
+      <div className="console-breadcrumb">
+        <Button type="button" variant="ghost" size="sm" onClick={() => { setView("detail"); onBack(); }}>← Unidades</Button>
+        <span className="console-breadcrumb__sep">/</span>
+        <span className="console-breadcrumb__current">{unit.name}</span>
       </div>
 
-      {tempPwd && (
-        <TempPasswordModal password={tempPwd} onClose={() => setTempPwd("")} />
-      )}
+      {/* Page title row */}
+      <div className="console-page-header" style={{ marginBottom: "var(--s-4)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "var(--s-3)", flexWrap: "wrap" }}>
+          <h1 className="console-page-header__title" style={{ fontSize: "var(--t-xl)" }}>{unit.name}</h1>
+          <StatusBadge status={unit.status} />
+        </div>
+        {view === "detail" && (
+          <div style={{ display: "flex", gap: "var(--s-2)" }}>
+            <Button variant="secondary" size="sm" onClick={() => { setFormError(""); setView("new-team"); }}>+ Equipe</Button>
+            <Button variant="secondary" size="sm" onClick={() => { setFormError(""); setTempPwd(""); setView("new-manager"); }}>+ Gestor</Button>
+          </div>
+        )}
+      </div>
 
-      {formError && <Alert type="error" style={{ marginBottom: "1rem" }}>{formError}</Alert>}
+      {tempPwd && <TempPasswordModal password={tempPwd} onClose={() => setTempPwd("")} />}
+      {formError && <Alert type="error" style={{ marginBottom: "var(--s-4)" }}>{formError}</Alert>}
 
-      {/* Onboarding actions from real data */}
-      {view === "detail" && (
-        <OnboardingActions
-          unit={unit}
-          gestors={gestors}
-          teams={teams}
-          onAddManager={() => { setFormError(""); setTempPwd(""); setView("new-manager"); }}
-          onAddTeam={() => { setFormError(""); setView("new-team"); }}
-        />
-      )}
-
-      {/* Institutional data */}
+      {/* Detail view */}
       {view === "detail" && (
         <>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: "0.75rem", marginBottom: "1rem" }}>
-            {/* Institutional */}
-            <div style={{ background: "var(--color-surface,#fff)", border: "1px solid var(--color-border,#e5e7eb)", borderRadius: "8px", padding: "0.875rem 1rem" }}>
-              <div style={{ fontSize: "0.72rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--color-text-secondary,#6b7280)", marginBottom: "0.6rem" }}>Dados Institucionais</div>
-              <div style={{ fontSize: "0.875rem", display: "grid", gap: "0.3rem" }}>
-                <div><strong>CNES:</strong> <code style={{ fontFamily: "monospace" }}>{unit.cnes || "—"}</code></div>
-                <div><strong>Município:</strong> {unit.municipalityName || "—"}{unit.uf ? ` / ${unit.uf}` : ""}</div>
-                {unit.municipalityId && <div><strong>IBGE:</strong> <code style={{ fontFamily: "monospace" }}>{unit.municipalityId}</code></div>}
-                {unit.contactEmail && <div><strong>E-mail:</strong> {unit.contactEmail}</div>}
-                {unit.phone && <div><strong>Telefone:</strong> {unit.phone}</div>}
-              </div>
-            </div>
+          {/* Onboarding actions */}
+          <OnboardingActions
+            gestors={gestors}
+            teams={teams}
+            onAddManager={() => { setFormError(""); setTempPwd(""); setView("new-manager"); }}
+            onAddTeam={() => { setFormError(""); setView("new-team"); }}
+          />
 
-            {/* Operational */}
-            <div style={{ background: "var(--color-surface,#fff)", border: "1px solid var(--color-border,#e5e7eb)", borderRadius: "8px", padding: "0.875rem 1rem" }}>
-              <div style={{ fontSize: "0.72rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--color-text-secondary,#6b7280)", marginBottom: "0.6rem" }}>Dados Operacionais</div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
-                {[
-                  { label: "Equipes",   val: unit.teamCount    ?? 0 },
-                  { label: "Gestores",  val: unit.gestorCount  ?? 0 },
-                  { label: "Usuários",  val: unit.userCount    ?? 0 },
-                  { label: "Pacientes", val: unit.patientCount ?? 0 },
-                ].map(({ label, val }) => (
-                  <div key={label} style={{ textAlign: "center" }}>
-                    <div style={{ fontWeight: 800, fontSize: "1.5rem" }}>{val}</div>
-                    <div style={{ fontSize: "0.72rem", color: "var(--color-text-secondary,#6b7280)" }}>{label}</div>
+          {/* Info cards grid */}
+          <div className="console-detail-grid">
+            {/* Dados Institucionais */}
+            <div className="console-section">
+              <div className="console-section__header">Dados Institucionais</div>
+              <div className="console-section__body">
+                <div className="console-data-row">
+                  <span className="console-data-row__label">CNES</span>
+                  <span className="num">{unit.cnes || "—"}</span>
+                </div>
+                <div className="console-data-row">
+                  <span className="console-data-row__label">Município</span>
+                  <span>{unit.municipalityName || "—"}{unit.uf ? ` / ${unit.uf}` : ""}</span>
+                </div>
+                {unit.municipalityId && (
+                  <div className="console-data-row">
+                    <span className="console-data-row__label">IBGE</span>
+                    <span className="num">{unit.municipalityId}</span>
                   </div>
-                ))}
+                )}
+                {unit.contactEmail && (
+                  <div className="console-data-row">
+                    <span className="console-data-row__label">E-mail</span>
+                    <span>{unit.contactEmail}</span>
+                  </div>
+                )}
+                {unit.phone && (
+                  <div className="console-data-row">
+                    <span className="console-data-row__label">Telefone</span>
+                    <span>{unit.phone}</span>
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Deployment */}
-            <div style={{ background: "var(--color-surface,#fff)", border: "1px solid var(--color-border,#e5e7eb)", borderRadius: "8px", padding: "0.875rem 1rem" }}>
-              <div style={{ fontSize: "0.72rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--color-text-secondary,#6b7280)", marginBottom: "0.6rem" }}>Implantação</div>
-              <div style={{ fontSize: "0.875rem", display: "grid", gap: "0.3rem" }}>
-                <div><strong>Cadastro:</strong> {fmtDate(unit.createdAt)}</div>
-                {unit.activatedAt && <div><strong>Ativação:</strong> {fmtDate(unit.activatedAt)}</div>}
-                {unit.suspendedAt && <div><strong>Suspensão:</strong> {fmtDate(unit.suspendedAt)}</div>}
-                <div><strong>Atualização:</strong> {fmtDate(unit.updatedAt)}</div>
-                {unit.createdByName && <div style={{ color: "var(--color-text-secondary,#6b7280)" }}>Responsável: {unit.createdByName}</div>}
+            {/* Operacional */}
+            <div className="console-section">
+              <div className="console-section__header">Operacional</div>
+              <div className="console-section__body">
+                <div className="console-metric-grid">
+                  {[
+                    { label: "Equipes",   val: unit.teamCount    ?? 0 },
+                    { label: "Gestores",  val: unit.gestorCount  ?? 0 },
+                    { label: "Usuários",  val: unit.userCount    ?? 0 },
+                    { label: "Pacientes", val: unit.patientCount ?? 0 },
+                  ].map(({ label, val }) => (
+                    <div key={label}>
+                      <div className="console-metric__value">{val}</div>
+                      <div className="console-metric__label">{label}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Implantação */}
+            <div className="console-section">
+              <div className="console-section__header">Implantação</div>
+              <div className="console-section__body">
+                <div className="console-data-row">
+                  <span className="console-data-row__label">Cadastro</span>
+                  <span>{fmtDate(unit.createdAt)}</span>
+                </div>
+                {unit.activatedAt && (
+                  <div className="console-data-row">
+                    <span className="console-data-row__label">Ativação</span>
+                    <span>{fmtDate(unit.activatedAt)}</span>
+                  </div>
+                )}
+                {unit.suspendedAt && (
+                  <div className="console-data-row">
+                    <span className="console-data-row__label">Suspensão</span>
+                    <span>{fmtDate(unit.suspendedAt)}</span>
+                  </div>
+                )}
+                <div className="console-data-row">
+                  <span className="console-data-row__label">Atualização</span>
+                  <span>{fmtDate(unit.updatedAt)}</span>
+                </div>
+                {unit.createdByName && (
+                  <div className="console-data-row">
+                    <span className="console-data-row__label">Responsável</span>
+                    <span style={{ color: "var(--text-muted)" }}>{unit.createdByName}</span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
 
-          {/* Status transition panel */}
-          {(STATUS_TRANSITIONS[unit.status] || []).length > 0 && (
-            <div style={{ background: "var(--color-surface,#fff)", border: "1px solid var(--color-border,#e5e7eb)", borderRadius: "8px", padding: "0.875rem 1rem", marginBottom: "1rem" }}>
-              <div style={{ fontSize: "0.72rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--color-text-secondary,#6b7280)", marginBottom: "0.6rem" }}>Ciclo de Vida</div>
-              <div style={{ fontSize: "0.85rem", color: "var(--color-text-secondary,#6b7280)", marginBottom: "0.75rem" }}>
-                Status atual: <strong style={{ color: "inherit" }}>{STATUS_LABELS[unit.status] || unit.status}</strong>
+          {/* Lifecycle / Status Transitions */}
+          {transitions.length > 0 && (
+            <div className="console-section" style={{ marginBottom: "var(--s-4)" }}>
+              <div className="console-section__header">
+                Ciclo de Vida
+                <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0, fontSize: "var(--t-sm)", color: "var(--text-muted)" }}>
+                  Status atual: <strong style={{ color: "var(--text)" }}>{STATUS_LABELS[unit.status] || unit.status}</strong>
+                </span>
               </div>
+              <div className="console-section__body">
+                {/* Checklist */}
+                {checklist?.criteria?.length > 0 && (
+                  <>
+                    <p style={{ fontSize: "var(--t-sm)", fontWeight: 600, color: "var(--text)", marginBottom: "var(--s-3)" }}>
+                      Critérios para avançar para {STATUS_LABELS[transitions[0]?.to] || "próximo estado"}:
+                    </p>
+                    <div className="console-checklist">
+                      {checklist.criteria.map((c) => {
+                        const isInteractive = ["auth_","rbac_","team_configured","user_created","patient_","household_","individual_","audit_"]
+                          .some(pfx => c.id.startsWith(pfx));
+                        if (isInteractive) {
+                          return (
+                            <label key={c.id} className="console-checklist__item" style={{ cursor: "pointer" }}>
+                              <input
+                                type="checkbox"
+                                checked={!!c.pass}
+                                onChange={(e) => handleChecklistItem(c.id, e.target.checked)}
+                                style={{ width: 14, height: 14, flexShrink: 0, accentColor: "var(--success)" }}
+                              />
+                              <span style={{ color: c.pass ? "var(--success)" : "var(--text)" }}>{c.label}</span>
+                              {c.pass && <span className="chip ok">✓</span>}
+                            </label>
+                          );
+                        }
+                        return (
+                          <div key={c.id} className="console-checklist__item">
+                            <div className={`console-checklist__dot ${c.pass ? "pass" : "pending"}`} />
+                            <span style={{ color: c.pass ? "var(--success)" : "var(--text)" }}>{c.label}</span>
+                            {c.pass
+                              ? <span className="chip ok">✓</span>
+                              : <span className="chip warn">pendente</span>
+                            }
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
 
-              {/* Checklist — show criteria blocking the next forward transition */}
-              {checklist && checklist.criteria && checklist.criteria.length > 0 && (
-                <div style={{ marginBottom: "0.75rem", fontSize: "0.82rem" }}>
-                  <div style={{ fontWeight: 600, marginBottom: "0.4rem", color: "var(--color-text,#111)" }}>
-                    Critérios para avançar para {STATUS_LABELS[(STATUS_TRANSITIONS[unit.status] || [])[0]?.to] || "próximo estado"}:
-                  </div>
-                  {checklist.criteria.map((c) => (
-                    c.id.startsWith("auth_") || c.id.startsWith("rbac_") || c.id.startsWith("team_configured") || c.id.startsWith("user_created") || c.id.startsWith("patient_") || c.id.startsWith("household_") || c.id.startsWith("individual_") || c.id.startsWith("audit_") ? (
-                      // Homologation checklist items — interactive
-                      <label key={c.id} style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: "0.2rem 0", cursor: "pointer" }}>
-                        <input
-                          type="checkbox"
-                          checked={!!c.pass}
-                          onChange={(e) => handleChecklistItem(c.id, e.target.checked)}
-                          style={{ width: "14px", height: "14px", flexShrink: 0 }}
-                        />
-                        <span style={{ color: c.pass ? "#065f46" : "#374151" }}>{c.label}</span>
-                        {c.pass && <span style={{ color: "#10b981", fontWeight: 700 }}>✓</span>}
-                      </label>
-                    ) : (
-                      // Auto-derived criteria — read-only
-                      <div key={c.id} style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: "0.2rem 0" }}>
-                        <span style={{ width: "14px", height: "14px", borderRadius: "50%", flexShrink: 0, display: "inline-block", background: c.pass ? "#10b981" : "#e5e7eb" }} />
-                        <span style={{ color: c.pass ? "#065f46" : (c.pass === false ? "#991b1b" : "#374151") }}>{c.label}</span>
-                        {c.pass && <span style={{ color: "#10b981", fontWeight: 700 }}>✓</span>}
-                        {!c.pass && <span style={{ color: "#ef4444", fontSize: "0.75rem" }}>pendente</span>}
-                      </div>
-                    )
+                {/* Transition buttons */}
+                <div style={{ display: "flex", gap: "var(--s-2)", flexWrap: "wrap" }}>
+                  {transitions.map(({ to, label }) => {
+                    const isForward = ["onboarding","homologation","active"].includes(to);
+                    const blocked   = isForward && checklist && !checklist.ok;
+                    return (
+                      <Button
+                        key={to}
+                        variant={TRANSITION_VARIANT[to] || "secondary"}
+                        size="sm"
+                        disabled={transitioning || blocked}
+                        loading={transitioning}
+                        onClick={() => handleTransition(to)}
+                        title={blocked ? `Critérios pendentes: ${(checklist?.criteria || []).filter(c => !c.pass).map(c => c.label).join(", ")}` : undefined}
+                      >
+                        {label}
+                      </Button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Gestors */}
+          {gestors.length > 0 && (
+            <div className="console-section" style={{ marginBottom: "var(--s-4)" }}>
+              <div className="console-section__header">Gestores ({gestors.length})</div>
+              <div className="console-section__body">
+                <div className="console-people-list">
+                  {gestors.map((g) => (
+                    <div key={g.id} className="console-person">
+                      <span className="console-person__name">{g.name}</span>
+                      <span className="console-person__email">{g.email}</span>
+                      {g.forcePasswordChange && <span className="chip warn">Troca pendente</span>}
+                    </div>
                   ))}
                 </div>
-              )}
-
-              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-                {(STATUS_TRANSITIONS[unit.status] || []).map(({ to, label }) => {
-                  const isForward = ["onboarding","homologation","active"].includes(to);
-                  const blocked = isForward && checklist && !checklist.ok;
-                  return (
-                    <button
-                      key={to}
-                      type="button"
-                      disabled={transitioning || blocked}
-                      onClick={() => handleTransition(to)}
-                      title={blocked ? `Critérios pendentes: ${(checklist?.criteria || []).filter((c) => !c.pass).map((c) => c.label).join(", ")}` : undefined}
-                      style={{
-                        padding: "0.35rem 0.85rem", borderRadius: "6px", fontSize: "0.82rem", fontWeight: 600,
-                        cursor: (transitioning || blocked) ? "default" : "pointer",
-                        opacity: (transitioning || blocked) ? 0.45 : 1,
-                        background: to === "active" ? "#10b981" : to === "suspended" ? "#ef4444" : "#3b82f6",
-                        color: "#fff", border: "none"
-                      }}
-                    >
-                      {transitioning ? "Aguarde..." : label}
-                    </button>
-                  );
-                })}
               </div>
             </div>
           )}
 
-          {/* Gestors list */}
-          {gestors.length > 0 && (
-            <div style={{ marginBottom: "1rem" }}>
-              <div style={{ fontWeight: 700, fontSize: "0.875rem", marginBottom: "0.5rem" }}>Gestores ({gestors.length})</div>
-              {gestors.map((g) => (
-                <div key={g.id} style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.5rem 0.75rem", background: "var(--color-surface,#fff)", border: "1px solid var(--color-border,#e5e7eb)", borderRadius: "6px", marginBottom: "0.4rem", fontSize: "0.875rem" }}>
-                  <div style={{ flex: 1 }}>
-                    <strong>{g.name}</strong>
-                    <span style={{ color: "var(--color-text-secondary,#6b7280)", marginLeft: "0.5rem" }}>{g.email}</span>
-                  </div>
-                  {g.forcePasswordChange && <span style={{ fontSize: "0.72rem", background: "#fef3c7", color: "#92400e", padding: "0.1rem 0.4rem", borderRadius: "4px", fontWeight: 700 }}>Troca pendente</span>}
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Teams list */}
+          {/* Teams */}
           {teams.length > 0 && (
-            <div style={{ marginBottom: "1rem" }}>
-              <div style={{ fontWeight: 700, fontSize: "0.875rem", marginBottom: "0.5rem" }}>Equipes ({teams.length})</div>
-              {teams.map((t) => (
-                <div key={t.id} style={{ padding: "0.5rem 0.75rem", background: "var(--color-surface,#fff)", border: "1px solid var(--color-border,#e5e7eb)", borderRadius: "6px", marginBottom: "0.4rem", fontSize: "0.875rem" }}>
-                  <strong>{t.name}</strong>
-                  {t.ine && <span style={{ color: "var(--color-text-secondary,#6b7280)", marginLeft: "0.5rem" }}>INE {t.ine}</span>}
-                  {t.tipoEquipe && <span style={{ color: "var(--color-text-secondary,#6b7280)", marginLeft: "0.5rem" }}>· {t.tipoEquipe}</span>}
+            <div className="console-section" style={{ marginBottom: "var(--s-4)" }}>
+              <div className="console-section__header">Equipes ({teams.length})</div>
+              <div className="console-section__body">
+                <div className="console-people-list">
+                  {teams.map((t) => (
+                    <div key={t.id} className="console-person">
+                      <span className="console-person__name">{t.name}</span>
+                      <span className="console-person__email">
+                        {t.ine ? `INE ${t.ine}` : ""}
+                        {t.tipoEquipe ? ` · ${t.tipoEquipe}` : ""}
+                      </span>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              </div>
             </div>
           )}
 
           {/* Modules */}
           <UnitModulesSection unit={unit} token={token} onUpdated={loadUnit} />
-
-          {/* Action buttons */}
-          <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", marginTop: "0.5rem" }}>
-            <Button onClick={() => { setFormError(""); setView("new-team"); }}>+ Equipe</Button>
-            <Button onClick={() => { setFormError(""); setTempPwd(""); setView("new-manager"); }}>+ Gestor</Button>
-          </div>
         </>
       )}
 
       {/* New team form */}
       {view === "new-team" && (
-        <form onSubmit={submitTeam} style={{ marginTop: "0.5rem" }}>
-          <h3 style={{ fontWeight: 600, marginBottom: "0.75rem" }}>Nova equipe</h3>
-          {[
-            { label: "Nome da equipe *", key: "name", placeholder: "ESF Francisca" },
-            { label: "INE",              key: "ine",  placeholder: "0000000000" },
-            { label: "Tipo de equipe",   key: "tipoEquipe", placeholder: "ESF" },
-          ].map(({ label, key, placeholder }) => (
-            <div key={key} style={{ marginBottom: "0.875rem" }}>
-              <label style={{ fontSize: "0.875rem", fontWeight: 500, display: "block", marginBottom: "0.25rem" }}>{label}</label>
-              <Input value={teamForm[key]} onChange={setTF(key)} placeholder={placeholder} style={{ width: "100%", boxSizing: "border-box" }} />
+        <div className="console-section">
+          <div className="console-section__header">Nova Equipe</div>
+          <form onSubmit={submitTeam}>
+            <div className="field-grid">
+              <Input label="Nome da equipe *" value={teamForm.name} onChange={setTF("name")} placeholder="ESF Francisca" />
+              <Input label="INE" value={teamForm.ine} onChange={setTF("ine")} placeholder="0000000000" />
+              <Input label="Tipo de equipe" value={teamForm.tipoEquipe} onChange={setTF("tipoEquipe")} placeholder="ESF" />
             </div>
-          ))}
-          <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
-            <Button type="submit" disabled={busy}>{busy ? "Criando..." : "Criar equipe"}</Button>
-            <Button type="button" onClick={() => { setFormError(""); setView("detail"); }} style={{ background: "none", border: "1px solid var(--color-border)", color: "inherit" }}>Cancelar</Button>
-          </div>
-        </form>
+            <div style={{ display: "flex", gap: "var(--s-3)", padding: "0 var(--s-5) var(--s-5)" }}>
+              <Button type="submit" loading={busy}>Criar equipe</Button>
+              <Button type="button" variant="ghost" onClick={() => { setFormError(""); setView("detail"); }}>Cancelar</Button>
+            </div>
+          </form>
+        </div>
       )}
 
       {/* New manager form */}
       {view === "new-manager" && (
-        <form onSubmit={submitManager} style={{ marginTop: "0.5rem" }}>
-          <h3 style={{ fontWeight: 600, marginBottom: "0.75rem" }}>Gestor inicial</h3>
-          {[
-            { label: "Nome completo *", key: "name",  placeholder: "Maria da Silva" },
-            { label: "E-mail *",        key: "email", placeholder: "gestora@ubs.gov.br" },
-            { label: "CPF",             key: "cpf",   placeholder: "000.000.000-00" },
-            { label: "CNS",             key: "cns",   placeholder: "000 0000 0000 0000" },
-            { label: "CBO",             key: "cbo",   placeholder: "2232" },
-            { label: "Telefone",        key: "phone", placeholder: "(81) 99999-0000" },
-          ].map(({ label, key, placeholder }) => (
-            <div key={key} style={{ marginBottom: "0.875rem" }}>
-              <label style={{ fontSize: "0.875rem", fontWeight: 500, display: "block", marginBottom: "0.25rem" }}>{label}</label>
-              <Input value={managerForm[key]} onChange={setMF(key)} placeholder={placeholder} style={{ width: "100%", boxSizing: "border-box" }} />
+        <div className="console-section">
+          <div className="console-section__header">Gestor Inicial</div>
+          <form onSubmit={submitManager}>
+            <div className="field-grid">
+              <Input label="Nome completo *" value={managerForm.name} onChange={setMF("name")} placeholder="Maria da Silva" />
+              <Input label="E-mail *" value={managerForm.email} onChange={setMF("email")} placeholder="gestora@ubs.gov.br" />
+              <Input label="CPF" value={managerForm.cpf} onChange={setMF("cpf")} placeholder="000.000.000-00" />
+              <Input label="CNS" value={managerForm.cns} onChange={setMF("cns")} placeholder="000 0000 0000 0000" />
+              <Input label="CBO" value={managerForm.cbo} onChange={setMF("cbo")} placeholder="2232" />
+              <Input label="Telefone" value={managerForm.phone} onChange={setMF("phone")} placeholder="(81) 99999-0000" />
             </div>
-          ))}
-          <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
-            <Button type="submit" disabled={busy}>{busy ? "Criando..." : "Criar gestor"}</Button>
-            <Button type="button" onClick={() => { setFormError(""); setView("detail"); }} style={{ background: "none", border: "1px solid var(--color-border)", color: "inherit" }}>Cancelar</Button>
-          </div>
-        </form>
+            <div style={{ display: "flex", gap: "var(--s-3)", padding: "0 var(--s-5) var(--s-5)" }}>
+              <Button type="submit" loading={busy}>Criar gestor</Button>
+              <Button type="button" variant="ghost" onClick={() => { setFormError(""); setView("detail"); }}>Cancelar</Button>
+            </div>
+          </form>
+        </div>
       )}
     </div>
   );
@@ -917,14 +911,15 @@ function UnitDetail({ token, unitId, onBack }) {
 // ── Main Console ───────────────────────────────────────────────────────────
 
 export default function PlatformConsolePage({ token, user, onLogout }) {
-  const [tab, setTab]                 = useState("units");
-  const [view, setView]               = useState("list");
+  const [tab, setTab]                       = useState("overview");
+  const [view, setView]                     = useState("list");
   const [selectedUnitId, setSelectedUnitId] = useState(null);
-  const [listKey, setListKey]         = useState(0);
+  const [listKey, setListKey]               = useState(0);
 
   function goToDetail(unit) {
     setSelectedUnitId(unit.id);
     setView("unit-detail");
+    setTab("units");
   }
 
   function goToList() {
@@ -937,84 +932,126 @@ export default function PlatformConsolePage({ token, user, onLogout }) {
     setView("list");
   }
 
-  const navTabStyle = (active) => ({
-    padding: "0.5rem 1rem", background: "none", border: "none", cursor: "pointer",
-    fontSize: "0.875rem", fontWeight: active ? 700 : 400,
-    color: active ? "var(--color-primary,#2563eb)" : "var(--color-text-secondary,#6b7280)",
-    borderBottom: active ? "2px solid var(--color-primary,#2563eb)" : "2px solid transparent",
-    marginBottom: "-1px", whiteSpace: "nowrap",
-  });
+  function switchTab(t) {
+    setTab(t);
+    if (t !== "units") return;
+    setView("list");
+    setSelectedUnitId(null);
+  }
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "var(--color-bg,#f9fafb)" }}>
+    <div className="console-shell">
       {/* Header */}
-      <header style={{
-        padding: "0.7rem 1.25rem", borderBottom: "1px solid var(--color-border,#e5e7eb)",
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        background: "var(--color-surface,#fff)", position: "sticky", top: 0, zIndex: 10
-      }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+      <header className="console-header">
+        <div className="console-header__brand">
           <BrandLockup variant="compact-light" />
-          <span style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--color-text-secondary,#6b7280)", textTransform: "uppercase", letterSpacing: "0.07em" }}>
-            Console Nacional
-          </span>
+          <span className="console-header__badge">Console Nacional</span>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-          <span style={{ fontSize: "0.8rem", color: "var(--color-text-secondary,#6b7280)" }}>{user?.name}</span>
+        <div className="console-header__user">
+          <span className="console-header__username">{user?.name}</span>
           <Button variant="secondary" size="sm" onClick={onLogout}>Sair</Button>
         </div>
       </header>
 
-      {/* Tab navigation */}
-      <div style={{
-        borderBottom: "1px solid var(--color-border,#e5e7eb)",
-        background: "var(--color-surface,#fff)",
-        padding: "0 1.25rem",
-        display: "flex", gap: "0.1rem",
-      }}>
-        <button
-          type="button"
-          onClick={() => { setTab("units"); setView("list"); setSelectedUnitId(null); }}
-          style={navTabStyle(tab === "units")}
-        >
-          Unidades de Saúde
-        </button>
-        <button
-          type="button"
-          onClick={() => setTab("migrations")}
-          style={navTabStyle(tab === "migrations")}
-        >
-          Migrações
-        </button>
-      </div>
+      <div className="console-body">
+        {/* Sidenav */}
+        <nav className="console-sidenav" aria-label="Navegação do console">
+          <span className="console-nav__section">Painel</span>
+          <button
+            type="button"
+            className={`console-nav__item${tab === "overview" ? " is-active" : ""}`}
+            onClick={() => switchTab("overview")}
+          >
+            <IcoOverview /> Visão Geral
+          </button>
 
-      {/* Main */}
-      <main style={{ flex: 1, padding: "1.5rem 1.25rem", maxWidth: 1100, margin: "0 auto", width: "100%", boxSizing: "border-box" }}>
-        {tab === "units" && (
-          <>
-            {view === "list" && (
-              <>
-                <NationalSummary token={token} key={listKey} />
-                <UnitTable
-                  key={listKey}
-                  token={token}
-                  onSelect={goToDetail}
-                  onNew={() => setView("new-unit")}
-                />
-              </>
-            )}
-            {view === "new-unit" && (
-              <UnitForm token={token} onDone={afterNewUnit} onBack={goToList} />
-            )}
-            {view === "unit-detail" && selectedUnitId && (
-              <UnitDetail token={token} unitId={selectedUnitId} onBack={goToList} />
-            )}
-          </>
-        )}
-        {tab === "migrations" && (
-          <ImportConsole token={token} />
-        )}
-      </main>
+          <span className="console-nav__section">Gestão</span>
+          <button
+            type="button"
+            className={`console-nav__item${tab === "units" ? " is-active" : ""}`}
+            onClick={() => switchTab("units")}
+          >
+            <IcoBuilding /> Unidades de Saúde
+          </button>
+
+          <span className="console-nav__section">Sistema</span>
+          <button
+            type="button"
+            className={`console-nav__item${tab === "migrations" ? " is-active" : ""}`}
+            onClick={() => switchTab("migrations")}
+          >
+            <IcoImport /> Migrações
+          </button>
+        </nav>
+
+        {/* Content */}
+        <main className="console-content">
+          {/* Visão Geral */}
+          {tab === "overview" && (
+            <>
+              <div className="console-page-header">
+                <div>
+                  <h1 className="console-page-header__title">Visão Geral</h1>
+                  <p className="console-page-header__sub">Indicadores da plataforma VITRAS APS em tempo real</p>
+                </div>
+              </div>
+              <NationalSummary token={token} key={listKey} />
+              <div className="console-section">
+                <div className="console-section__header">Ações rápidas</div>
+                <div className="console-section__body" style={{ display: "flex", gap: "var(--s-3)", flexWrap: "wrap" }}>
+                  <Button variant="secondary" onClick={() => switchTab("units")}>
+                    <IcoBuilding /> Ver Unidades de Saúde
+                  </Button>
+                  <Button variant="secondary" onClick={() => { switchTab("units"); setView("new-unit"); }}>
+                    + Nova UBS
+                  </Button>
+                  <Button variant="secondary" onClick={() => switchTab("migrations")}>
+                    <IcoImport /> Ir para Migrações
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Unidades de Saúde */}
+          {tab === "units" && (
+            <>
+              {view === "list" && (
+                <>
+                  <div className="console-page-header">
+                    <div>
+                      <h1 className="console-page-header__title">Unidades de Saúde</h1>
+                      <p className="console-page-header__sub">Gerencie as UBS cadastradas na plataforma</p>
+                    </div>
+                    <Button onClick={() => setView("new-unit")}>+ Nova UBS</Button>
+                  </div>
+                  <NationalSummary token={token} key={listKey} />
+                  <UnitTable key={listKey} token={token} onSelect={goToDetail} />
+                </>
+              )}
+              {view === "new-unit" && (
+                <UnitForm token={token} onDone={afterNewUnit} onBack={goToList} />
+              )}
+              {view === "unit-detail" && selectedUnitId && (
+                <UnitDetail token={token} unitId={selectedUnitId} onBack={goToList} />
+              )}
+            </>
+          )}
+
+          {/* Migrações */}
+          {tab === "migrations" && (
+            <>
+              <div className="console-page-header">
+                <div>
+                  <h1 className="console-page-header__title">Migrações</h1>
+                  <p className="console-page-header__sub">Importação de dados e migrações de sistema</p>
+                </div>
+              </div>
+              <ImportConsole token={token} />
+            </>
+          )}
+        </main>
+      </div>
     </div>
   );
 }
