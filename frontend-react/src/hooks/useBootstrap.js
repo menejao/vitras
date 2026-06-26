@@ -117,29 +117,30 @@ export function useBootstrap(token, {
   useEffect(() => { if (token) loadAll(); }, [token]);
 
   useEffect(() => {
+    // NETWORK-OPTIMIZATION-01: pingPresence apenas — sem listUsers duplicado.
+    // users já foram carregados pelo loadAll/bootstrap. Atualizar o status online
+    // via listUsers a cada 60s gera carga desnecessária no t3.micro e duplica a
+    // chamada que já ocorre no bootstrap. O ping de presença é suficiente para
+    // manter a sessão ativa do usuário corrente.
     if (!token || String(token).startsWith("local_")) return;
-    async function ping() { await pingPresence(token); }
-    ping().then(async () => {
-      try {
-        const fu = await listUsers(token);
-        if (Array.isArray(fu)) setAllUsers(fu.map(u => u.id === currentUserId ? { ...u, online: true } : u));
-      } catch {}
-    });
-    const iv = setInterval(async () => {
-      await ping();
-      try {
-        const fu = await listUsers(token);
-        if (Array.isArray(fu)) setAllUsers(fu.map(u => u.id === currentUserId ? { ...u, online: true } : u));
-      } catch {}
-    }, 60000);
+    async function ping() {
+      try { await pingPresence(token); } catch {}
+    }
+    // Primeiro ping sem listUsers (loadAll já carregou users)
+    ping();
+    // Polling periódico: apenas presença, sem listUsers
+    const iv = setInterval(ping, 60000);
     return () => clearInterval(iv);
   }, [token]);
 
   useEffect(() => {
+    // NETWORK-OPTIMIZATION-01: listPublicTeams é dado estático (equipes públicas
+    // para cadastro). Deve ser chamado uma única vez na montagem, sem depender de
+    // token — a dependência de [token] causava re-chamada a cada refresh de auth.
     listPublicTeams().then(arr => {
       setPublicTeams(Array.isArray(arr) ? arr : []);
     }).catch(() => setPublicTeams([]));
-  }, [token]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return {
     patients, setPatients,

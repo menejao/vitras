@@ -5,7 +5,8 @@ import { matchesPatientSearch, emptyPatientForm, isProfileIncomplete, ageInMonth
 import { inferQueuePriorityFromPatient } from "../utils/queue";
 import { isUnavailableDay, unavailableReason } from "../utils/dates";
 import { formatCpf, formatPhone, initials, maskCpf } from "../utils/formatting";
-import { useAgenda } from "../hooks/useAgenda";
+// NETWORK-OPTIMIZATION-01: useAgenda removido — dados recebidos via props do App.jsx
+// para evitar instância duplicada do hook com poll paralelo de 15s.
 import { AGENDA_HOURS, AGENDA_STATUS_LABELS, AGENDA_PROCEDURE_SUBTYPES, describeAgendaType } from "../utils/agenda";
 import Button from "../components/ui/Button";
 import Alert from "../components/ui/Alert";
@@ -60,7 +61,14 @@ const IconLock = () => (
   </svg>
 );
 
-function AgendaPage({ patients, users, user, token, onNewPatient, onPatientCreated, onNavigatePatient, teams = [] }) {
+// NETWORK-OPTIMIZATION-01: AgendaPage recebe agenda, CRUD e estado via props
+// do App.jsx (única instância de useAgenda). token ainda é passado para createPatient/createQueueEntry.
+function AgendaPage({
+  patients, users, user, token,
+  onNewPatient, onPatientCreated, onNavigatePatient, teams = [],
+  agenda = [], agendaLoading = false, agendaError = "", setAgendaError = () => {},
+  createEntry, patchEntry, removeEntry,
+}) {
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [showForm, setShowForm]         = useState(false);
   const [form, setForm]                 = useState({ patientId: "", doctorId: "", date: "", time: "", type: "consultation", notes: "", status: "scheduled" });
@@ -74,15 +82,6 @@ function AgendaPage({ patients, users, user, token, onNewPatient, onPatientCreat
   const [newPatForm, setNewPatForm]     = useState({ name: "", cpf: "", phone: "", careCategory: "general", birthDate: "", teamId: String(user?.teamId || "") });
   const [newPatErr, setNewPatErr]       = useState("");
   const [blockedStatusMessage, setBlockedStatusMessage] = useState("");
-  const {
-    entries: agenda,
-    loading: agendaLoading,
-    error: agendaError,
-    setError: setAgendaError,
-    createEntry,
-    patchEntry,
-    removeEntry
-  } = useAgenda(token, { onError: () => {} });
 
   const patWrapRef = useRef(null);
 

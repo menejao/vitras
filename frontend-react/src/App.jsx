@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { readUiState, writeLS } from "./utils/storage";
 import { UI_STATE_KEY } from "./config/constants";
 import { useTheme } from "./hooks/useTheme";
-import { isReceptionist, isAdmin, canWriteRecords } from "./utils/roles";
+import { isReceptionist, isAdmin, canWriteRecords, hasAnyCapability } from "./utils/roles";
 import AppShell from "./components/layout/AppShell";
 import Sidebar from "./components/layout/Sidebar";
 import Topbar from "./components/layout/Topbar";
@@ -107,9 +107,16 @@ function AppInner() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [labNotifications, setLabNotifications] = useState([]);
   useEffect(() => {
-    if (!token) return;
+    // NETWORK-OPTIMIZATION-01: notificações de lab são geradas apenas para
+    // usuários com teamId (equipe clínica) ou com capability exams.read.
+    // Roles sem teamId (gestor, receptionist, enterprise readonly) receberiam
+    // lista vazia mas ainda fariam o round-trip — evita chamada desnecessária.
+    const canReceiveNotifications = Boolean(
+      token && user && (user.teamId || hasAnyCapability(user, ["exams.read", "exams.write"]))
+    );
+    if (!canReceiveNotifications) return;
     listNotifications(token).then(setLabNotifications).catch(() => {});
-  }, [token]);
+  }, [token, user?.teamId]); // eslint-disable-line react-hooks/exhaustive-deps
   const {
     showProfileModal, setShowProfileModal, profileForm, setProfileForm, profileBusy, profileError,
     openProfile, submitProfile,
@@ -123,7 +130,18 @@ function AppInner() {
     user?.teamId &&
     (user?.capabilities?.includes("agenda.read") || user?.capabilities?.includes("agenda.write"))
   );
-  const { entries: agendaEntries = [] } = useAgenda(token, { enabled: canUseAgenda });
+  // NETWORK-OPTIMIZATION-01: extrair também CRUD e estado de loading/error para
+  // repassar à AgendaPage via props, eliminando a instância duplicada do hook
+  // que gerava dois polls paralelos de 15s para o mesmo endpoint.
+  const {
+    entries: agendaEntries = [],
+    loading: agendaLoading,
+    error: agendaError,
+    setError: setAgendaError,
+    createEntry: createAgendaEntry,
+    patchEntry: patchAgendaEntry,
+    removeEntry: removeAgendaEntry,
+  } = useAgenda(token, { enabled: canUseAgenda });
   const canUseReferrals = Boolean(
     token &&
     user?.teamId &&
@@ -295,7 +313,9 @@ function AppInner() {
           rosaAdjustedSummary={rosaAdjustedSummary} sortedSpecialAlerts={sortedSpecialAlerts}
           canReadAuditLog={canReadAuditLog} canManageUser={canManageUser} canWriteRecords={canWriteRecords(user)}
           setTab={setTab} loadAll={loadAll} applySessionFromPayload={applySessionFromPayload}
-          agendaEntries={agendaEntries} referralEntries={referralEntries} referralsLoading={referralsLoading} referralsError={referralsError}
+          agendaEntries={agendaEntries} agendaLoading={agendaLoading} agendaError={agendaError} setAgendaError={setAgendaError}
+          createAgendaEntry={createAgendaEntry} patchAgendaEntry={patchAgendaEntry} removeAgendaEntry={removeAgendaEntry}
+          referralEntries={referralEntries} referralsLoading={referralsLoading} referralsError={referralsError}
           createReferralEntry={createReferralEntry} patchReferralEntry={patchReferralEntry} removeReferralEntry={removeReferralEntry}
           pharmacyStock={pharmacyStock} pharmacyLog={pharmacyLog} pharmacyLoading={pharmacyLoading} pharmacyError={pharmacyError} canUsePharmacy={canUsePharmacy}
           createPharmacyItem={createPharmacyItem} updatePharmacyItem={updatePharmacyItem} adjustPharmacyItem={adjustPharmacyItem} dispensePharmacyItem={dispensePharmacyItem}

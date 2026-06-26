@@ -44,7 +44,9 @@ export function TabContent({
   rosaAdjustedSummary, sortedSpecialAlerts,
   canReadAuditLog, canManageUser, canWriteRecords,
   setTab, loadAll, applySessionFromPayload,
-  agendaEntries, referralEntries, referralsLoading, referralsError,
+  agendaEntries, agendaLoading, agendaError, setAgendaError,
+  createAgendaEntry, patchAgendaEntry, removeAgendaEntry,
+  referralEntries, referralsLoading, referralsError,
   createReferralEntry, patchReferralEntry, removeReferralEntry,
   pharmacyStock, pharmacyLog, pharmacyLoading, pharmacyError, canUsePharmacy,
   createPharmacyItem, updatePharmacyItem, adjustPharmacyItem, dispensePharmacyItem,
@@ -81,7 +83,12 @@ export function TabContent({
 
       {tab === "queue" && <QueuePage patients={patients} users={users} user={user} token={token} agenda={agendaEntries} onNewPatient={p => setPatients(prev => [...prev, p])}/>}
       {tab === "triage" && <TriagePage patients={patients} users={users} user={user} token={token}/>}
-      {tab === "agenda" && <AgendaPage patients={patients} users={users} user={user} token={token} teams={publicTeams} onNewPatient={p => setPatients(prev => [...prev, p])} onPatientCreated={loadAll} onNavigatePatient={navigatePatient}/>}
+      {tab === "agenda" && <AgendaPage
+        patients={patients} users={users} user={user} token={token} teams={publicTeams}
+        onNewPatient={p => setPatients(prev => [...prev, p])} onPatientCreated={loadAll} onNavigatePatient={navigatePatient}
+        agenda={agendaEntries} agendaLoading={agendaLoading} agendaError={agendaError} setAgendaError={setAgendaError}
+        createEntry={createAgendaEntry} patchEntry={patchAgendaEntry} removeEntry={removeAgendaEntry}
+      />}
 
       {tab === "referrals" && (
         <ReferralsPage
