@@ -1,16 +1,17 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 import PageHeader from "../components/layout/PageHeader";
-import Avatar from "../components/ui/Avatar";
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
-import { roleLabel, hasCapability } from "../utils/roles";
-import { getTeam, patchTeam } from "../api";
+import { roleLabel } from "../utils/roles";
+import { initials } from "../utils/formatting";
+
+const PAGE_SIZE = 20;
 
 const ROLE_GROUPS = [
-  { id: "medicos",    label: "Médicos",                    roles: ["doctor"] },
+  { id: "medicos",    label: "Médicos",                   roles: ["doctor"] },
   { id: "dentistas",  label: "Dentistas",                  roles: ["dentist"] },
   { id: "enfermagem", label: "Enfermagem",                  roles: ["nurse_manager", "nursing_tech"] },
-  { id: "acs",        label: "Agentes Comunitários (ACS)",  roles: ["acs"] },
+  { id: "acs",        label: "Agentes Comunitários (ACS)", roles: ["acs"] },
   { id: "farmacia",   label: "Farmácia",                   roles: ["pharmacist", "pharmacy_tech"] },
   { id: "recepcao",   label: "Recepção",                   roles: ["receptionist"] },
   { id: "gestao",     label: "Gestão",                     roles: ["gestor"] },
@@ -24,172 +25,10 @@ function groupIdFor(role) {
   return ROLE_GROUPS.find((g) => g.roles.includes(r))?.id || "outros";
 }
 
-function MemberCard({ member, isSelf, onOpenProfile }) {
-  return (
-    <div className={`equipe-card${isSelf ? " equipe-card--self" : ""}`}>
-      <div className="equipe-card__top">
-        <Avatar name={member.name} size="md" />
-        {isSelf && <span className="equipe-card__you">Você</span>}
-      </div>
-      <div className="equipe-card__body">
-        <div className="equipe-card__name">{member.name}</div>
-        <div className="equipe-card__role">{roleLabel(member.role)}</div>
-        {member.teamName && <div className="equipe-card__meta">{member.teamName}</div>}
-        {member.email && <div className="equipe-card__email">{member.email}</div>}
-        {member.councilNumber && (
-          <div className="equipe-card__meta">
-            {member.councilType || "Conselho"} {member.councilNumber}/{member.councilUf}
-          </div>
-        )}
-      </div>
-      {isSelf && onOpenProfile && (
-        <div className="equipe-card__footer">
-          <Button variant="ghost" size="sm" onClick={onOpenProfile}>
-            Editar meus dados
-          </Button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-const TIPO_EQUIPE_OPTIONS = [
-  { value: "", label: "Selecionar..." },
-  { value: "ESF",    label: "ESF — Estratégia Saúde da Família" },
-  { value: "NASF",   label: "NASF — Núcleo Ampliado de Saúde da Família" },
-  { value: "CEO",    label: "CEO — Centro de Especialidades Odontológicas" },
-  { value: "EMAP",   label: "EMAP — Equipe Multiprofissional de Atenção Primária" },
-  { value: "EMAD",   label: "EMAD — Equipe Multiprofissional de Atenção Domiciliar" },
-  { value: "EAPS",   label: "EAPS — Equipe de Atenção Primária à Saúde" },
-  { value: "OUTROS", label: "Outros" },
-];
-
-function TeamMetaPanel({ user, token }) {
-  const canManage = hasCapability(user, "team.manage");
-  const teamId = user?.teamId;
-
-  const [teamData, setTeamData] = useState(null);
-  const [editing, setEditing]   = useState(false);
-  const [ine, setIne]           = useState("");
-  const [tipoEquipe, setTipoEquipe] = useState("");
-  const [saving, setSaving]     = useState(false);
-  const [error, setError]       = useState("");
-  const [success, setSuccess]   = useState("");
-
-  useEffect(() => {
-    if (!teamId || !token) return;
-    getTeam(teamId, token).then((data) => {
-      if (data && !data.error) {
-        setTeamData(data);
-        setIne(data.ine || "");
-        setTipoEquipe(data.tipoEquipe || "");
-      }
-    }).catch(() => {});
-  }, [teamId, token]);
-
-  if (!teamId || !teamData) return null;
-
-  async function handleSave() {
-    setError("");
-    setSuccess("");
-    if (ine && !/^\d{10}$/.test(ine)) {
-      setError("INE deve ter exatamente 10 dígitos numéricos.");
-      return;
-    }
-    setSaving(true);
-    try {
-      const payload = {};
-      if (ine !== (teamData.ine || "")) payload.ine = ine;
-      if (tipoEquipe !== (teamData.tipoEquipe || "")) payload.tipoEquipe = tipoEquipe || undefined;
-      if (!Object.keys(payload).length) { setEditing(false); setSaving(false); return; }
-      const result = await patchTeam(teamId, payload, token);
-      if (result?.error) { setError(result.error); }
-      else {
-        setTeamData(result);
-        setIne(result.ine || "");
-        setTipoEquipe(result.tipoEquipe || "");
-        setEditing(false);
-        setSuccess("Dados da equipe atualizados.");
-        setTimeout(() => setSuccess(""), 3000);
-      }
-    } catch (e) {
-      setError("Erro ao salvar: " + (e?.message || ""));
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <div className="card" style={{ marginBottom: "var(--sp-6)" }}>
-      <div className="card__header">
-        <span className="card__title">Identificação da Equipe</span>
-        {canManage && !editing && (
-          <Button variant="ghost" size="sm" onClick={() => { setEditing(true); setError(""); setSuccess(""); }}>
-            Editar
-          </Button>
-        )}
-      </div>
-      <div className="card__body">
-        {success && <p style={{ color: "var(--c-success)", marginBottom: "var(--sp-3)", fontSize: "var(--t-sm)" }}>{success}</p>}
-        {error && <p style={{ color: "var(--c-danger)", marginBottom: "var(--sp-3)", fontSize: "var(--t-sm)" }}>{error}</p>}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--sp-4)" }}>
-          <div>
-            <div className="label" style={{ marginBottom: "var(--sp-1)" }}>Nome da Equipe</div>
-            <div style={{ fontSize: "var(--t-sm)" }}>{teamData.name || "—"}</div>
-          </div>
-          <div>
-            <div className="label" style={{ marginBottom: "var(--sp-1)" }}>INE</div>
-            {editing ? (
-              <Input
-                value={ine}
-                onChange={(e) => setIne(e.target.value.replace(/\D/g, "").slice(0, 10))}
-                placeholder="10 dígitos numéricos"
-                maxLength={10}
-                inputMode="numeric"
-              />
-            ) : (
-              <div style={{ fontSize: "var(--t-sm)", fontFamily: "var(--font-mono)" }}>
-                {teamData.ine || <span className="muted">Não informado</span>}
-              </div>
-            )}
-          </div>
-          <div>
-            <div className="label" style={{ marginBottom: "var(--sp-1)" }}>Tipo de Equipe</div>
-            {editing ? (
-              <select
-                className="input"
-                value={tipoEquipe}
-                onChange={(e) => setTipoEquipe(e.target.value)}
-              >
-                {TIPO_EQUIPE_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </select>
-            ) : (
-              <div style={{ fontSize: "var(--t-sm)" }}>
-                {teamData.tipoEquipe ? (TIPO_EQUIPE_OPTIONS.find((o) => o.value === teamData.tipoEquipe)?.label || teamData.tipoEquipe) : <span className="muted">Não informado</span>}
-              </div>
-            )}
-          </div>
-        </div>
-        {editing && (
-          <div style={{ display: "flex", gap: "var(--sp-2)", marginTop: "var(--sp-4)" }}>
-            <Button variant="primary" size="sm" onClick={handleSave} disabled={saving}>
-              {saving ? "Salvando…" : "Salvar"}
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => { setEditing(false); setIne(teamData.ine || ""); setTipoEquipe(teamData.tipoEquipe || ""); setError(""); }}>
-              Cancelar
-            </Button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-export default function EquipePage({ users = [], user, onOpenProfile, token }) {
+export default function EquipePage({ users = [], user, onOpenProfile }) {
   const [search, setSearch]           = useState("");
   const [groupFilter, setGroupFilter] = useState("all");
+  const [page, setPage]               = useState(1);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
@@ -198,53 +37,73 @@ export default function EquipePage({ users = [], user, onOpenProfile, token }) {
         const matchName  = String(u.name  || "").toLowerCase().includes(q);
         const matchEmail = String(u.email || "").toLowerCase().includes(q);
         const matchRole  = roleLabel(u.role).toLowerCase().includes(q);
-        if (!matchName && !matchEmail && !matchRole) return false;
+        const matchId    = String(u.id    || "").toLowerCase().includes(q);
+        if (!matchName && !matchEmail && !matchRole && !matchId) return false;
       }
       if (groupFilter !== "all" && groupIdFor(u.role) !== groupFilter) return false;
       return true;
     });
   }, [users, search, groupFilter]);
 
-  const grouped = useMemo(() => {
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage   = Math.min(page, totalPages);
+  const paged      = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+
+  // Build groups only from current page slice for header rows
+  const pagedGrouped = useMemo(() => {
     const map = new Map();
     for (const g of ROLE_GROUPS) {
       const members = filtered.filter((u) => g.roles.includes(String(u.role || "").toLowerCase()));
-      if (members.length) map.set(g.id, { label: g.label, members });
+      if (members.length) map.set(g.id, { label: g.label, total: members.length });
     }
     const others = filtered.filter((u) => !ALL_KNOWN_ROLES.has(String(u.role || "").toLowerCase()));
-    if (others.length) map.set("outros", { label: "Outros", members: others });
+    if (others.length) map.set("outros", { label: "Outros", total: others.length });
     return map;
   }, [filtered]);
 
-  const visibleGroups = [...ROLE_GROUPS, { id: "outros", label: "Outros" }].filter(
-    (g) => grouped.has(g.id)
-  );
+  function applyFilter(fn) { fn(); setPage(1); }
 
   const total = filtered.length;
+
+  // Build table rows with group separators
+  const rows = useMemo(() => {
+    const result = [];
+    let lastGroupId = null;
+    for (const member of paged) {
+      const gid = groupIdFor(member.role);
+      if (gid !== lastGroupId) {
+        const info = pagedGrouped.get(gid) || { label: "Outros", total: 0 };
+        result.push({ type: "group", id: gid, label: info.label, total: info.total });
+        lastGroupId = gid;
+      }
+      result.push({ type: "member", member });
+    }
+    return result;
+  }, [paged, pagedGrouped]);
+
+  const isSelf = (m) => m.id === user?.id;
 
   return (
     <div className="equipe-page">
       <PageHeader
         eyebrow="EQUIPE"
         title="Equipe"
-        subtitle="Visualização dos profissionais da unidade, organizados por cargo e função."
+        subtitle="Profissionais da unidade organizados por cargo e função."
       />
-
-      <TeamMetaPanel user={user} token={token} />
 
       <div className="equipe-toolbar">
         <div style={{ flex: "1 1 240px" }}>
           <Input
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por nome, e-mail ou cargo..."
+            onChange={(e) => applyFilter(() => setSearch(e.target.value))}
+            placeholder="Buscar por nome, e-mail, ID ou cargo..."
           />
         </div>
         <select
           className="input"
           style={{ flex: "0 0 200px" }}
           value={groupFilter}
-          onChange={(e) => setGroupFilter(e.target.value)}
+          onChange={(e) => applyFilter(() => setGroupFilter(e.target.value))}
         >
           <option value="all">Todos os cargos</option>
           {ROLE_GROUPS.map((g) => (
@@ -257,34 +116,91 @@ export default function EquipePage({ users = [], user, onOpenProfile, token }) {
       </div>
 
       <div className="equipe-body">
-        {grouped.size === 0 ? (
+        {filtered.length === 0 ? (
           <div className="empty-state">
             <div className="empty-state__title">Nenhum profissional encontrado</div>
             <div className="empty-state__body">Tente ajustar os filtros de busca.</div>
           </div>
         ) : (
-          visibleGroups.map((g) => {
-            const section = grouped.get(g.id);
-            if (!section) return null;
-            return (
-              <div key={g.id} className="equipe-group">
-                <div className="equipe-group__header">
-                  <span className="equipe-group__label">{section.label}</span>
-                  <span className="equipe-group__count">{section.members.length}</span>
-                </div>
-                <div className="equipe-group__grid">
-                  {section.members.map((member) => (
-                    <MemberCard
-                      key={member.id}
-                      member={member}
-                      isSelf={member.id === user?.id}
-                      onOpenProfile={onOpenProfile}
-                    />
-                  ))}
+          <>
+            <div style={{ overflowX: "auto" }}>
+              <table className="equipe-table">
+                <thead>
+                  <tr>
+                    <th>Profissional</th>
+                    <th>Cargo</th>
+                    <th>Equipe</th>
+                    <th>ID</th>
+                    <th>Registro</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((row, idx) => {
+                    if (row.type === "group") {
+                      return (
+                        <tr key={`g-${row.id}-${idx}`} className="equipe-table__group-row">
+                          <td colSpan={6}>
+                            <span className="equipe-group__label">{row.label}</span>
+                            <span className="equipe-group__count">{row.total}</span>
+                          </td>
+                        </tr>
+                      );
+                    }
+                    const m = row.member;
+                    const self = isSelf(m);
+                    return (
+                      <tr key={m.id} className={self ? "equipe-table__row--self" : ""}>
+                        <td>
+                          <div className="equipe-table__name-cell">
+                            <div className="equipe-table__avatar">
+                              {initials(m.name)}
+                            </div>
+                            <div>
+                              <div className="equipe-table__name">
+                                {m.name}
+                                {self && <span className="equipe-card__you" style={{ marginLeft: "var(--s-2)" }}>Você</span>}
+                              </div>
+                              {m.email && <div className="equipe-table__email">{m.email}</div>}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="equipe-table__role">{roleLabel(m.role)}</td>
+                        <td className="muted small">{m.teamName || "—"}</td>
+                        <td className="equipe-table__id">{String(m.id || "").slice(0, 8)}</td>
+                        <td className="muted small">
+                          {m.councilNumber
+                            ? `${m.councilType || "CRM"} ${m.councilNumber}/${m.councilUf || ""}`
+                            : "—"}
+                        </td>
+                        <td>
+                          {self && onOpenProfile && (
+                            <Button variant="ghost" size="sm" onClick={onOpenProfile}>
+                              Editar
+                            </Button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {totalPages > 1 && (
+              <div className="table-pagination">
+                <span>{total} profissionais — página {safePage} de {totalPages}</span>
+                <div style={{ display: "flex", gap: "var(--s-2)" }}>
+                  <Button variant="secondary" size="sm" disabled={safePage <= 1} onClick={() => setPage(p => p - 1)}>
+                    ← Anterior
+                  </Button>
+                  <Button variant="secondary" size="sm" disabled={safePage >= totalPages} onClick={() => setPage(p => p + 1)}>
+                    Próxima →
+                  </Button>
                 </div>
               </div>
-            );
-          })
+            )}
+          </>
         )}
       </div>
     </div>

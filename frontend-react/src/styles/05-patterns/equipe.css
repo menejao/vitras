@@ -31,19 +31,10 @@
   padding: 0 var(--s-6) var(--s-8);
   display: flex;
   flex-direction: column;
-  gap: var(--s-6);
+  gap: var(--s-4);
 }
 
-/* ── Group section ────────────────────────────────────────────── */
-.equipe-group__header {
-  display: flex;
-  align-items: center;
-  gap: var(--s-2);
-  margin-bottom: var(--s-3);
-  padding-bottom: var(--s-2);
-  border-bottom: 1px solid var(--border);
-}
-
+/* ── Group label / count (reused in table group rows) ─────────── */
 .equipe-group__label {
   font: 700 var(--t-xs) var(--font-sans);
   text-transform: uppercase;
@@ -52,6 +43,9 @@
 }
 
 .equipe-group__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font: 500 11px var(--font-mono);
   color: var(--text-dim);
   background: var(--surface-2);
@@ -59,41 +53,99 @@
   border-radius: var(--r-pill);
   padding: 0 var(--s-2);
   min-width: 20px;
+  margin-left: var(--s-2);
   text-align: center;
 }
 
-/* ── Member grid ──────────────────────────────────────────────── */
-.equipe-group__grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: var(--s-3);
+/* ── Table ────────────────────────────────────────────────────── */
+.equipe-table {
+  width: 100%;
+  border-collapse: collapse;
+  font: 400 var(--t-sm) var(--font-sans);
 }
 
-/* ── Member card ──────────────────────────────────────────────── */
-.equipe-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--r-lg);
-  padding: var(--s-4);
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-3);
-  transition: box-shadow var(--d-fast);
+.equipe-table th {
+  text-align: left;
+  font: 600 var(--t-xs) var(--font-sans);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--text-muted);
+  padding: var(--s-2) var(--s-3);
+  border-bottom: 2px solid var(--border);
+  white-space: nowrap;
 }
 
-.equipe-card:hover { box-shadow: var(--shadow-sm); }
-
-.equipe-card--self {
-  border-color: var(--accent-soft-2);
-  background: var(--accent-soft);
+.equipe-table td {
+  padding: var(--s-2) var(--s-3);
+  border-bottom: 1px solid var(--border-subtle);
+  vertical-align: middle;
+  color: var(--text);
 }
 
-.equipe-card__top {
+.equipe-table tbody tr:hover { background: var(--surface-2); }
+.equipe-table tbody tr:last-child td { border-bottom: none; }
+
+/* Group separator row */
+.equipe-table__group-row td {
+  background: var(--surface-2);
+  padding: var(--s-2) var(--s-3);
+  border-top: 2px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.equipe-table__group-row:first-child td { border-top: none; }
+
+/* Self row highlight */
+.equipe-table__row--self td { background: var(--accent-soft); }
+.equipe-table__row--self:hover td { background: var(--accent-soft); }
+
+/* Name cell */
+.equipe-table__name-cell {
   display: flex;
   align-items: center;
   gap: var(--s-2);
 }
 
+.equipe-table__avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--r-pill);
+  background: var(--accent-soft-2);
+  color: var(--accent-text);
+  font: 700 var(--t-xs) var(--font-sans);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  text-transform: uppercase;
+}
+
+.equipe-table__name {
+  font: 600 var(--t-base) var(--font-sans);
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+}
+
+.equipe-table__email {
+  font: 400 var(--t-xs) var(--font-sans);
+  color: var(--text-dim);
+  margin-top: 1px;
+}
+
+.equipe-table__role {
+  font: 500 var(--t-sm) var(--font-sans);
+  color: var(--accent-text);
+  white-space: nowrap;
+}
+
+.equipe-table__id {
+  font: 400 var(--t-xs) var(--font-mono);
+  color: var(--text-dim);
+}
+
+/* Badge "Você" (reused from card) */
 .equipe-card__you {
   font: 700 var(--t-xs) var(--font-sans);
   padding: 1px var(--s-2);
@@ -102,42 +154,9 @@
   color: var(--text-on-accent);
 }
 
-.equipe-card__body {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.equipe-card__name {
-  font: 700 var(--t-base) var(--font-sans);
-  color: var(--text);
-}
-
-.equipe-card__role {
-  font: 600 var(--t-sm) var(--font-sans);
-  color: var(--accent-text);
-}
-
-.equipe-card__meta {
-  font: 400 var(--t-xs) var(--font-sans);
-  color: var(--text-dim);
-}
-
-.equipe-card__email {
-  font: 400 var(--t-xs) var(--font-sans);
-  color: var(--text-muted);
-  word-break: break-all;
-}
-
-.equipe-card__footer {
-  padding-top: var(--s-2);
-  border-top: 1px solid var(--accent-soft-2);
-}
-
 /* ── Responsive ───────────────────────────────────────────────── */
 @media (max-width: 640px) {
   .equipe-page > .hero,
   .equipe-toolbar,
   .equipe-body { padding-left: var(--s-4); padding-right: var(--s-4); }
-  .equipe-group__grid { grid-template-columns: 1fr; }
 }
