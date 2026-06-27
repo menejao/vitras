@@ -2,162 +2,7 @@ import { useState, useEffect } from "react";
 
 import PageHeader from "../components/layout/PageHeader";
 import Button from "../components/ui/Button";
-import Input from "../components/ui/Input";
-import Select from "../components/ui/Select";
 import { ageInMonths, protocolChip } from "../utils/clinical";
-import { roleLabel } from "../utils/roles";
-
-const APS_CARGO_CATALOG = [
-  { id: "receptionist",       label: "Recepcionista",               teamRequired: false },
-  { id: "acs",                label: "Agente Comunitário de Saúde",  teamRequired: true  },
-  { id: "nursing_tech",       label: "Técnico de Enfermagem",        teamRequired: true  },
-  { id: "nurse_manager",      label: "Enfermeiro(a)",                teamRequired: true  },
-  { id: "doctor",             label: "Médico(a)",                    teamRequired: true  },
-  { id: "dentist",            label: "Dentista",                     teamRequired: true  },
-  { id: "oral_health_aux",    label: "Auxiliar de Saúde Bucal",      teamRequired: true  },
-  { id: "oral_health_tech",   label: "Técnico de Saúde Bucal",       teamRequired: true  },
-  { id: "pharmacist",         label: "Farmacêutico(a)",              teamRequired: false },
-  { id: "psychologist",       label: "Psicólogo(a)",                 teamRequired: false },
-  { id: "physical_therapist", label: "Fisioterapeuta",               teamRequired: false },
-  { id: "social_worker",      label: "Assistente Social",            teamRequired: false },
-  { id: "nutritionist",       label: "Nutricionista",                teamRequired: false },
-  { id: "physical_educator",  label: "Educador(a) Físico(a)",        teamRequired: false },
-  { id: "gestor",             label: "Gestor(a) UBS",                teamRequired: false },
-  { id: "local_admin",        label: "Administrador(a) Local",       teamRequired: false },
-  { id: "aps_coordinator",    label: "Coordenador(a) APS",           teamRequired: false },
-];
-
-function cargoLabel(id) {
-  return APS_CARGO_CATALOG.find(c => c.id === id)?.label || id;
-}
-
-async function apiFetch(path, options = {}, token) {
-  const { body, ...rest } = options;
-  const res = await fetch(path, {
-    ...rest,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(rest.headers || {}),
-    },
-    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
-    credentials: "include",
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data?.error || `Erro ${res.status}`);
-  return data;
-}
-
-function CredentialsModal({ vitrasId, password, onClose }) {
-  const [copied, setCopied] = useState(false);
-  const [confirmed, setConfirmed] = useState(false);
-
-  async function handleCopy() {
-    const text = `ID VITRAS: ${vitrasId}\nSenha temporária: ${password}`;
-    try { await navigator.clipboard.writeText(text); } catch {}
-    setCopied(true);
-    setTimeout(() => setCopied(false), 3000);
-  }
-
-  return (
-    <div className="modal-overlay" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999 }}>
-      <div className="modal-box card" style={{ maxWidth: 420, width: "100%", padding: "var(--s-6)" }}>
-        <h3 style={{ marginBottom: "var(--s-3)" }}>Credenciais geradas</h3>
-        <p className="muted small" style={{ marginBottom: "var(--s-4)" }}>
-          Estas credenciais serão exibidas <strong>apenas uma vez</strong>. Copie agora.
-        </p>
-        <div style={{ background: "var(--surface-2)", borderRadius: "var(--radius)", padding: "var(--s-3)", marginBottom: "var(--s-4)", fontFamily: "var(--font-mono)", fontSize: "var(--t-sm)" }}>
-          <div><span className="muted">ID VITRAS:</span> <strong>{vitrasId}</strong></div>
-          <div style={{ marginTop: "var(--s-2)" }}><span className="muted">Senha temporária:</span> <strong>{password}</strong></div>
-        </div>
-        <Button variant={copied ? "success" : "primary"} size="sm" full style={{ marginBottom: "var(--s-3)" }} onClick={handleCopy}>
-          {copied ? "Copiado!" : "Copiar credenciais"}
-        </Button>
-        <label style={{ display: "flex", gap: "var(--s-2)", alignItems: "center", marginBottom: "var(--s-4)", fontSize: "var(--t-sm)", cursor: "pointer" }}>
-          <input type="checkbox" checked={confirmed} onChange={e => setConfirmed(e.target.checked)} />
-          Confirmo que copiei as credenciais.
-        </label>
-        <Button variant="ghost" size="sm" full disabled={!confirmed} onClick={onClose}>
-          Concluir
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-function CreateUserModal({ token, teams, unitId, onDone, onClose }) {
-  const [form, setForm] = useState({ name: "", cargo: "", teamId: "", status: "active" });
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState("");
-
-  const selectedCargo = APS_CARGO_CATALOG.find(c => c.id === form.cargo);
-  const teamRequired = selectedCargo?.teamRequired === true;
-
-  async function handleSubmit(e) {
-    e.preventDefault();
-    setErr("");
-    if (!form.name.trim()) return setErr("Nome é obrigatório.");
-    if (!form.cargo) return setErr("Selecione cargo/função.");
-    if (teamRequired && !form.teamId) return setErr("Equipe obrigatória para este cargo.");
-    setBusy(true);
-    try {
-      const result = await apiFetch("/users", {
-        method: "POST",
-        body: {
-          name: form.name.trim(),
-          role: form.cargo,
-          cargo: form.cargo,
-          teamId: form.teamId || "",
-          unitId,
-        },
-      }, token);
-      onDone(result);
-    } catch (error) {
-      setErr(error.message);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <div className="modal-overlay" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9998 }}>
-      <div className="modal-box card" style={{ maxWidth: 440, width: "100%", padding: "var(--s-6)" }}>
-        <h3 style={{ marginBottom: "var(--s-4)" }}>Cadastrar usuário</h3>
-        <form onSubmit={handleSubmit}>
-          <Input label="Nome completo" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Nome e sobrenome" autoFocus style={{ marginBottom: "var(--s-3)" }} />
-          <div style={{ marginBottom: "var(--s-3)" }}>
-            <label style={{ fontSize: "var(--t-sm)", fontWeight: 600, display: "block", marginBottom: "var(--s-1)" }}>Cargo / Função APS</label>
-            <Select value={form.cargo} onChange={e => setForm(f => ({ ...f, cargo: e.target.value, teamId: "" }))}>
-              <option value="">Selecionar cargo...</option>
-              {APS_CARGO_CATALOG.map(c => (
-                <option key={c.id} value={c.id}>{c.label}{c.teamRequired ? " *" : ""}</option>
-              ))}
-            </Select>
-            <span className="muted" style={{ fontSize: "var(--t-xs)" }}>* Equipe obrigatória</span>
-          </div>
-          {form.cargo && (
-            <div style={{ marginBottom: "var(--s-3)" }}>
-              <label style={{ fontSize: "var(--t-sm)", fontWeight: 600, display: "block", marginBottom: "var(--s-1)" }}>
-                Equipe{teamRequired ? " (obrigatória)" : " (opcional)"}
-              </label>
-              <Select value={form.teamId} onChange={e => setForm(f => ({ ...f, teamId: e.target.value }))}>
-                <option value="">Sem equipe</option>
-                {(teams || []).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-              </Select>
-            </div>
-          )}
-          {err && <div className="alert alert--danger" style={{ marginBottom: "var(--s-3)", padding: "var(--s-2)", borderRadius: "var(--radius)", background: "var(--danger-bg, #fee)", color: "var(--danger)", fontSize: "var(--t-sm)" }}>{err}</div>}
-          <div style={{ display: "flex", gap: "var(--s-2)" }}>
-            <Button type="submit" variant="primary" size="sm" disabled={busy} style={{ flex: 1 }}>
-              {busy ? "Criando..." : "Criar usuário"}
-            </Button>
-            <Button type="button" variant="ghost" size="sm" onClick={onClose}>Cancelar</Button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
 
 const C_ACCENT  = "var(--accent)";
 const C_DANGER  = "var(--danger)";
@@ -368,56 +213,6 @@ function GestorPage({
   user,
 }) {
   const now = new Date();
-  const ONLINE_WINDOW_MS = 2 * 60 * 1000;
-  const [globalUserSearch, setGlobalUserSearch] = useState("");
-  const [globalUserRoleFilter, setGlobalUserRoleFilter] = useState("all");
-  const [globalUserStatusFilter, setGlobalUserStatusFilter] = useState("all");
-  const [globalUserTeamFilter, setGlobalUserTeamFilter] = useState("all");
-
-  const [showCreateUser, setShowCreateUser] = useState(false);
-  const [newCredentials, setNewCredentials] = useState(null);
-  const [resettingId, setResettingId] = useState(null);
-  const [deactivatingId, setDeactivatingId] = useState(null);
-  const [actionError, setActionError] = useState("");
-  const [teams, setTeams] = useState([]);
-
-  useEffect(() => {
-    if (!token) return;
-    fetch("/teams/public", { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.json()).then(data => setTeams(Array.isArray(data) ? data : [])).catch(() => {});
-  }, [token]);
-
-  async function handleResetPassword(userId) {
-    setActionError("");
-    setResettingId(userId);
-    try {
-      const result = await apiFetch(`/users/${userId}/reset-password`, { method: "POST" }, token);
-      if (result.temporaryPassword && result.vitrasId) {
-        setNewCredentials({ vitrasId: result.vitrasId, temporaryPassword: result.temporaryPassword });
-      } else if (result.temporaryPassword) {
-        setNewCredentials({ vitrasId: "", temporaryPassword: result.temporaryPassword });
-      }
-    } catch (error) {
-      setActionError(error.message);
-    } finally {
-      setResettingId(null);
-    }
-  }
-
-  async function handleDeactivate(userId, userName) {
-    if (!window.confirm(`Desativar "${userName}"? O histórico será preservado.`)) return;
-    setActionError("");
-    setDeactivatingId(userId);
-    try {
-      await apiFetch(`/users/${userId}/deactivate`, { method: "POST" }, token);
-      window.alert(`Usuário "${userName}" desativado. Recarregue a página para atualizar a lista.`);
-    } catch (error) {
-      setActionError(error.message);
-    } finally {
-      setDeactivatingId(null);
-    }
-  }
-
   const [period, setPeriod] = useState("month");
   function inPeriod(dateStr) {
     if (!dateStr) return false;
@@ -471,50 +266,7 @@ function GestorPage({
   patients.forEach(p => { const c = p.careCategory || "general"; catBreak[c] = (catBreak[c] || 0) + 1; });
   const catEntries = Object.entries(catBreak).sort((a, b) => b[1] - a[1]);
 
-  const userPresence = [...users].map(u => {
-    const lastSeenAt = String(u?.lastSeenAt || u?.lastLoginAt || "");
-    const lastSeenTs = Date.parse(lastSeenAt);
-    const online = Number.isFinite(lastSeenTs) ? (Date.now() - lastSeenTs <= ONLINE_WINDOW_MS) : false;
-    return { ...u, online, lastSeenAt };
-  }).sort((a, b) => Number(b.online) - Number(a.online) || String(a.name || "").localeCompare(String(b.name || ""), "pt-BR"));
-
-  const userRoleOptions = [...new Set(userPresence.map(u => String(u.role || "")).filter(Boolean))];
-  const userTeamOptions = [...new Set(userPresence.map(u => String(u.teamName || "")).filter(Boolean))];
-
-  const filteredUsersGlobal = userPresence.filter(u => {
-    const q = String(globalUserSearch || "").trim().toLowerCase();
-    const matchesText = !q || String(u.name || "").toLowerCase().includes(q) || String(u.email || "").toLowerCase().includes(q) || String(u.vitrasId || "").includes(q);
-    const matchesRole = globalUserRoleFilter === "all" || String(u.role || "") === globalUserRoleFilter;
-    const matchesStatus = globalUserStatusFilter === "all"
-      || (globalUserStatusFilter === "online" && u.online)
-      || (globalUserStatusFilter === "offline" && !u.online);
-    const matchesTeam = globalUserTeamFilter === "all" || String(u.teamName || "") === globalUserTeamFilter;
-    return matchesText && matchesRole && matchesStatus && matchesTeam;
-  });
-
   return (
-    <>
-    {showCreateUser && (
-      <CreateUserModal
-        token={token}
-        teams={teams}
-        unitId={user?.unitId || ""}
-        onDone={(result) => {
-          setShowCreateUser(false);
-          if (result.vitrasId && result.temporaryPassword) {
-            setNewCredentials({ vitrasId: result.vitrasId, temporaryPassword: result.temporaryPassword });
-          }
-        }}
-        onClose={() => setShowCreateUser(false)}
-      />
-    )}
-    {newCredentials && (
-      <CredentialsModal
-        vitrasId={newCredentials.vitrasId}
-        password={newCredentials.temporaryPassword}
-        onClose={() => setNewCredentials(null)}
-      />
-    )}
     <div className="gestor-page">
 
       <PageHeader
@@ -533,80 +285,6 @@ function GestorPage({
           </div>
         }
       />
-
-      {/* Usuários da UBS */}
-      <div className="card card--noPad">
-        <div className="card__header">
-          <span className="card__title">Usuários da UBS</span>
-          <div style={{ display: "flex", gap: "var(--s-2)", alignItems: "center" }}>
-            <span className="muted small">{filteredUsersGlobal.filter(u => u.online).length} online · {filteredUsersGlobal.length} visíveis</span>
-            <Button size="sm" variant="primary" onClick={() => setShowCreateUser(true)}>+ Cadastrar usuário</Button>
-          </div>
-        </div>
-        <div className="card__body">
-          <div className="gestor-filter-row">
-            <Input
-              value={globalUserSearch}
-              onChange={e => setGlobalUserSearch(e.target.value)}
-              placeholder="Buscar por nome, ID ou e-mail..."
-            />
-            <Select value={globalUserRoleFilter} onChange={e => setGlobalUserRoleFilter(e.target.value)}>
-                <option value="all">Todas as funções</option>
-                {userRoleOptions.map(role => <option key={role} value={role}>{roleLabel(role)}</option>)}
-            </Select>
-            <Select value={globalUserStatusFilter} onChange={e => setGlobalUserStatusFilter(e.target.value)}>
-                <option value="all">Todos status</option>
-                <option value="online">Online</option>
-                <option value="offline">Offline</option>
-            </Select>
-            <Select value={globalUserTeamFilter} onChange={e => setGlobalUserTeamFilter(e.target.value)}>
-                <option value="all">Todas equipes</option>
-                {userTeamOptions.map(team => <option key={team} value={team}>{team}</option>)}
-            </Select>
-          </div>
-        </div>
-        {actionError && (
-          <div style={{ padding: "var(--s-2) var(--s-4)", color: "var(--danger)", fontSize: "var(--t-sm)" }}>
-            Erro: {actionError}
-          </div>
-        )}
-        <div className="gestor-user-list">
-          {!filteredUsersGlobal.length ? (
-            <p className="muted small">Nenhum usuário cadastrado.</p>
-          ) : (
-            filteredUsersGlobal.map(u => (
-              <div key={u.id} className={`gestor-user-row${u.inactive ? " gestor-user-row--inactive" : ""}`}>
-                <div style={{ flex: 1 }}>
-                  <div className="gestor-user-row__name">
-                    {u.name}
-                    {u.inactive && <span className="badge badge--muted" style={{ marginLeft: "var(--s-2)", fontSize: "var(--t-xs)" }}>Inativo</span>}
-                  </div>
-                  <div className="gestor-user-row__meta">
-                    {u.vitrasId && <span style={{ fontFamily: "var(--font-mono)", marginRight: "var(--s-2)" }}>ID {u.vitrasId}</span>}
-                    {cargoLabel(u.cargo || u.role)} · {u.teamName || "Sem equipe"}
-                  </div>
-                </div>
-                <div style={{ display: "flex", gap: "var(--s-2)", alignItems: "center" }}>
-                  <span className={`badge ${u.online ? "badge--success" : ""}`}>
-                    <span className="dot" />
-                    {u.online ? "Online" : "Offline"}
-                  </span>
-                  {!u.inactive && (
-                    <>
-                      <Button size="sm" variant="ghost" disabled={!!resettingId} onClick={() => handleResetPassword(u.id)}>
-                        {resettingId === u.id ? "..." : "Redefinir senha"}
-                      </Button>
-                      <Button size="sm" variant="ghost" style={{ color: "var(--danger)" }} disabled={!!deactivatingId} onClick={() => handleDeactivate(u.id, u.name)}>
-                        {deactivatingId === u.id ? "..." : "Desativar"}
-                      </Button>
-                    </>
-                  )}
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
 
       {/* KPI executivo */}
       <div className="gestor-kpi-grid">
@@ -857,7 +535,6 @@ function GestorPage({
 
 
     </div>
-    </>
   );
 }
 
