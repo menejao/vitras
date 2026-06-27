@@ -42,6 +42,7 @@ function InsumoPage({
   error = "",
   canRead = false,
   canWrite = false,
+  onCreateStock,
   onAdjustStock,
   onDispense,
   onCloseContinuous,
@@ -64,6 +65,10 @@ function InsumoPage({
   const [editStockItem, setEditStockItem] = useState(null);
   const [editQty, setEditQty] = useState("");
   const [stockBusy, setStockBusy] = useState(false);
+  const [showNewInsumo, setShowNewInsumo] = useState(false);
+  const [newInsumoForm, setNewInsumoForm] = useState({ name: "", category: "", unit: "", qty: "", maxQty: "", notes: "" });
+  const [newInsumoBusy, setNewInsumoBusy] = useState(false);
+  const [newInsumoErr, setNewInsumoErr] = useState("");
   const [logSearch, setLogSearch] = useState("");
   const [logFilter, setLogFilter] = useState("all");
   const [dispPage, setDispPage] = useState(1);
@@ -226,6 +231,31 @@ function InsumoPage({
       setEditQty("");
     } finally {
       setStockBusy(false);
+    }
+  }
+
+  async function confirmarNovoInsumo(e) {
+    e.preventDefault();
+    if (!newInsumoForm.name.trim()) { setNewInsumoErr("Nome obrigatório."); return; }
+    if (!newInsumoForm.category.trim()) { setNewInsumoErr("Categoria obrigatória."); return; }
+    if (!newInsumoForm.unit.trim()) { setNewInsumoErr("Unidade obrigatória."); return; }
+    try {
+      setNewInsumoBusy(true);
+      setNewInsumoErr("");
+      await onCreateStock?.({
+        name: newInsumoForm.name.trim(),
+        category: newInsumoForm.category.trim(),
+        unit: newInsumoForm.unit.trim(),
+        qty: Number(newInsumoForm.qty || 0),
+        maxQty: Number(newInsumoForm.maxQty || 0),
+        notes: newInsumoForm.notes.trim(),
+      });
+      setShowNewInsumo(false);
+      setNewInsumoForm({ name: "", category: "", unit: "", qty: "", maxQty: "", notes: "" });
+    } catch (err) {
+      setNewInsumoErr(err?.message || "Falha ao cadastrar insumo.");
+    } finally {
+      setNewInsumoBusy(false);
     }
   }
 
@@ -428,13 +458,18 @@ function InsumoPage({
           <div className="card card--noPad overflow-hidden">
             <div className="ins-toolbar">
               <div style={{ flex: "1 1 200px", maxWidth: 320 }}>
-                <Input value={stockSearch} onChange={(event) => setStockSearch(event.target.value)} placeholder="Buscar insumo..." />
+                <Input value={stockSearch} onChange={(event) => { setStockSearch(event.target.value); setStockPageIns(1); }} placeholder="Buscar insumo..." />
               </div>
               <div style={{ flex: "0 0 auto" }}>
-                <Select value={stockCat} onChange={(event) => setStockCat(event.target.value)}>
+                <Select value={stockCat} onChange={(event) => { setStockCat(event.target.value); setStockPageIns(1); }}>
                   {categories.map((category) => <option key={category}>{category}</option>)}
                 </Select>
               </div>
+              {canWrite && (
+                <div style={{ flex: "0 0 auto" }}>
+                  <Button size="sm" onClick={() => { setShowNewInsumo(true); setNewInsumoErr(""); }}>+ Novo insumo</Button>
+                </div>
+              )}
             </div>
 
             <div style={{ overflowX: "auto" }}>
@@ -693,6 +728,29 @@ function InsumoPage({
             />
           </label>
           {closingError ? <div className="alert alert--danger" style={{ marginTop: "var(--s-2)" }}>{closingError}</div> : null}
+        </Modal>
+      )}
+
+      {showNewInsumo && (
+        <Modal
+          title="Novo insumo"
+          onClose={() => setShowNewInsumo(false)}
+          actions={(
+            <>
+              <Button variant="secondary" onClick={() => setShowNewInsumo(false)} disabled={newInsumoBusy}>Cancelar</Button>
+              <Button onClick={confirmarNovoInsumo} loading={newInsumoBusy} disabled={newInsumoBusy}>Cadastrar</Button>
+            </>
+          )}
+        >
+          <form className="form-grid" onSubmit={confirmarNovoInsumo}>
+            <Input label="Nome" value={newInsumoForm.name} onChange={(e) => setNewInsumoForm(f => ({ ...f, name: e.target.value }))} required />
+            <Input label="Categoria" value={newInsumoForm.category} onChange={(e) => setNewInsumoForm(f => ({ ...f, category: e.target.value }))} placeholder="Ex: Curativo, EPI, Sonda" required />
+            <Input label="Unidade" value={newInsumoForm.unit} onChange={(e) => setNewInsumoForm(f => ({ ...f, unit: e.target.value }))} placeholder="Ex: unidade, caixa, frasco" required />
+            <Input label="Qtd inicial" type="number" min={0} value={newInsumoForm.qty} onChange={(e) => setNewInsumoForm(f => ({ ...f, qty: e.target.value }))} />
+            <Input label="Qtd máxima" type="number" min={0} value={newInsumoForm.maxQty} onChange={(e) => setNewInsumoForm(f => ({ ...f, maxQty: e.target.value }))} />
+            <Input className="field--span-2" label="Observações" value={newInsumoForm.notes} onChange={(e) => setNewInsumoForm(f => ({ ...f, notes: e.target.value }))} />
+            {newInsumoErr ? <div className="alert alert--danger field--span-2">{newInsumoErr}</div> : null}
+          </form>
         </Modal>
       )}
     </div>

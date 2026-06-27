@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  createSuppliesStockItem,
   adjustSuppliesStockItem,
   closeSuppliesContinuous,
   dispenseSupplies,
@@ -21,7 +22,7 @@ function sortContinuous(entries = []) {
 }
 
 export function useSupplies(token, options = {}) {
-  const { enabled = true, pollMs = 15000, onError } = options;
+  const { enabled = true, onError } = options;
   const onErrorRef = useRef(onError);
   useEffect(() => { onErrorRef.current = onError; });
 
@@ -58,11 +59,13 @@ export function useSupplies(token, options = {}) {
   useEffect(() => {
     if (!enabled || !token) return undefined;
     refresh().catch(() => {});
-    const intervalId = window.setInterval(() => {
-      refresh().catch(() => {});
-    }, pollMs);
-    return () => window.clearInterval(intervalId);
-  }, [enabled, token, pollMs, refresh]);
+  }, [enabled, token, refresh]);
+
+  const createStock = useCallback(async (payload) => {
+    const item = await createSuppliesStockItem(token, payload);
+    await refresh();
+    return item;
+  }, [token, refresh]);
 
   const adjustStock = useCallback(async (id, payload) => {
     const updated = await adjustSuppliesStockItem(token, id, payload);
@@ -97,6 +100,7 @@ export function useSupplies(token, options = {}) {
     loading,
     error,
     refresh,
+    createStock,
     adjustStock,
     dispense,
     closeContinuous,

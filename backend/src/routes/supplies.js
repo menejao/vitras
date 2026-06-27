@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from "uuid";
 import { readDb, withDb } from "../db.js";
 import {
   validate,
+  SuppliesStockCreateSchema,
   SuppliesAdjustSchema,
   SuppliesDispenseSchema,
   SuppliesCloseContinuousSchema,
@@ -160,6 +161,50 @@ function appendSupplyLog(db, user, payload) {
   db.suppliesLogs.unshift(entry);
   return entry;
 }
+
+router.post("/supplies/stock", validate(SuppliesStockCreateSchema), async (req, res) => {
+  if (!canWriteSupplies(req.user)) {
+    return res.status(403).json({ error: "Sem permissao para cadastrar insumos" });
+  }
+  const result = await withDb((db) => {
+    ensureDbShape(db);
+    const teamId = String(req.user?.teamId || "").trim();
+    if (!teamId && !hasCapability(req.user, "team.manage")) {
+      return { error: { status: 400, message: "Equipe do usuario nao definida" } };
+    }
+    const now = new Date().toISOString();
+    const item = {
+      id: uuidv4(),
+      teamId,
+      name: req.body.name,
+      category: req.body.category,
+      unit: req.body.unit,
+      qty: Number(req.body.qty || 0),
+      maxQty: Number(req.body.maxQty || 0),
+      notes: String(req.body.notes || ""),
+      createdAt: now,
+      createdBy: req.user.id,
+      updatedAt: now,
+      updatedBy: req.user.id,
+    };
+    db.suppliesStock.push(item);
+    appendSupplyLog(db, req.user, {
+      type: "cadastro",
+      itemId: item.id,
+      itemName: item.name,
+      qty: item.qty,
+      date: now.slice(0, 10),
+      teamId,
+    });
+    addAuditLog(db, req.user, "supplies.stock_item.created", "supplies_stock_item", item.id, {
+      teamId,
+      after: buildStockSnapshot(item),
+    });
+    return { item };
+  });
+  if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
+  return res.status(201).json(result.item);
+});
 
 router.get("/supplies/stock", async (req, res) => {
   if (!canReadSupplies(req.user)) {

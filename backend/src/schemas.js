@@ -514,6 +514,15 @@ const PharmacyDispenseSchema = z.object({
   notes: optionalShortString(2000)
 });
 
+const SuppliesStockCreateSchema = z.object({
+  name: z.string().trim().min(1).max(200),
+  category: z.string().trim().min(1).max(120),
+  unit: z.string().trim().min(1).max(60),
+  qty: z.number().min(0).max(100000).optional().default(0),
+  maxQty: z.number().min(0).max(100000).optional().default(0),
+  notes: optionalShortString(500),
+});
+
 const SuppliesAdjustSchema = z.object({
   qty: z.number().int().min(1).max(100000)
 });
@@ -987,6 +996,7 @@ export {
   PharmacyStockUpdateSchema,
   PharmacyAdjustSchema,
   PharmacyDispenseSchema,
+  SuppliesStockCreateSchema,
   SuppliesAdjustSchema,
   SuppliesDispenseSchema,
   SuppliesCloseContinuousSchema,

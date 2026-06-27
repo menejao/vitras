@@ -52,7 +52,7 @@ export function TabContent({
   pharmacyStock, pharmacyLog, pharmacyLoading, pharmacyError, canUsePharmacy,
   createPharmacyItem, updatePharmacyItem, adjustPharmacyItem, dispensePharmacyItem,
   suppliesStock, suppliesLog, suppliesContinuous, suppliesLoading, suppliesError, canUseSupplies,
-  adjustSuppliesStock, dispenseSupplies, closeSuppliesContinuous,
+  createSuppliesStock, adjustSuppliesStock, dispenseSupplies, closeSuppliesContinuous,
   aiView, aiData, aiQuestion, setAiQuestion,
   loadAiPriorities, loadAiQuality, loadAiReport, submitAiQuestion,
   openEditPatient, removePatient, openViewPatient,
@@ -174,7 +174,7 @@ export function TabContent({
           stock={suppliesStock} log={suppliesLog} continuous={suppliesContinuous}
           loading={suppliesLoading} error={suppliesError}
           canRead={canUseSupplies} canWrite={Boolean(user?.capabilities?.includes("supplies.write"))}
-          onAdjustStock={adjustSuppliesStock} onDispense={dispenseSupplies} onCloseContinuous={closeSuppliesContinuous}
+          onCreateStock={createSuppliesStock} onAdjustStock={adjustSuppliesStock} onDispense={dispenseSupplies} onCloseContinuous={closeSuppliesContinuous}
         />
       )}
 

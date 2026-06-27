@@ -337,6 +337,10 @@ export async function listSuppliesContinuous(token) {
   return api("/supplies/continuous", { method: "GET", retryCount: 2 }, token);
 }
 
+export async function createSuppliesStockItem(token, payload) {
+  return api("/supplies/stock", { method: "POST", body: JSON.stringify(payload) }, token);
+}
+
 export async function adjustSuppliesStockItem(token, id, payload) {
   return api(`/supplies/stock/${id}/adjust`, { method: "POST", body: JSON.stringify(payload) }, token);
 }

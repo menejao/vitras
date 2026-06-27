@@ -189,6 +189,7 @@ function AppInner() {
     continuous: suppliesContinuous = [],
     loading: suppliesLoading,
     error: suppliesError,
+    createStock: createSuppliesStock,
     adjustStock: adjustSuppliesStock,
     dispense: dispenseSupplies,
     closeContinuous: closeSuppliesContinuous,
@@ -330,7 +331,7 @@ function AppInner() {
           pharmacyStock={pharmacyStock} pharmacyLog={pharmacyLog} pharmacyLoading={pharmacyLoading} pharmacyError={pharmacyError} canUsePharmacy={canUsePharmacy}
           createPharmacyItem={createPharmacyItem} updatePharmacyItem={updatePharmacyItem} adjustPharmacyItem={adjustPharmacyItem} dispensePharmacyItem={dispensePharmacyItem}
           suppliesStock={suppliesStock} suppliesLog={suppliesLog} suppliesContinuous={suppliesContinuous} suppliesLoading={suppliesLoading} suppliesError={suppliesError} canUseSupplies={canUseSupplies}
-          adjustSuppliesStock={adjustSuppliesStock} dispenseSupplies={dispenseSupplies} closeSuppliesContinuous={closeSuppliesContinuous}
+          createSuppliesStock={createSuppliesStock} adjustSuppliesStock={adjustSuppliesStock} dispenseSupplies={dispenseSupplies} closeSuppliesContinuous={closeSuppliesContinuous}
           aiView={aiView} aiData={aiData} aiQuestion={aiQuestion} setAiQuestion={setAiQuestion}
           loadAiPriorities={loadAiPriorities} loadAiQuality={loadAiQuality} loadAiReport={loadAiReport} submitAiQuestion={submitAiQuestion}
           openEditPatient={openEditPatient} removePatient={removePatient} openViewPatient={openViewPatient}
