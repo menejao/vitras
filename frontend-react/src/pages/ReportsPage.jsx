@@ -70,6 +70,7 @@ function ReportsPage({
   pharmacyLog = [],
   suppliesStock = [],
   suppliesLog = [],
+  token,
 }) {
   const [period, setPeriod] = useState("month");
   const [tab, setTab]       = useState("overview");
@@ -559,7 +560,7 @@ function ReportsPage({
 
         {/* ── e-SUS / RNDS ─────────────────────────────────────────────────── */}
         {tab === "esus" && (
-          <EsusMirror patients={patients} users={users} agenda={agenda} referrals={referrals} pharmacyLog={pharmacyLog} period={period} periodLabel={periodLabel} />
+          <EsusMirror patients={patients} users={users} agenda={agenda} referrals={referrals} pharmacyLog={pharmacyLog} period={period} periodLabel={periodLabel} token={token} />
         )}
 
         {/* ── AUDITORIA ────────────────────────────────────────────────────── */}

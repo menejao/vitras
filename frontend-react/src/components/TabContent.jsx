@@ -113,7 +113,7 @@ export function TabContent({
       {tab === "gestor" && <GestorPage patients={patients} users={users} templates={templates} protocolByPatient={protocolByPatient} agenda={agendaEntries} referrals={referralEntries} pharmacyStock={pharmacyStock} pharmacyLog={pharmacyLog} token={token} user={user}/>}
 
       {tab === "audit_log" && canReadAuditLog && <AuditLogPanel />}
-      {tab === "reports" && <ReportsPage patients={patients} users={allUsers && allUsers.length ? allUsers : users} templates={templates} protocolByPatient={protocolByPatient} agenda={agendaEntries} referrals={referralEntries} pharmacyStock={pharmacyStock} pharmacyLog={pharmacyLog} suppliesStock={suppliesStock} suppliesLog={suppliesLog}/>}
+      {tab === "reports" && <ReportsPage patients={patients} users={allUsers && allUsers.length ? allUsers : users} templates={templates} protocolByPatient={protocolByPatient} agenda={agendaEntries} referrals={referralEntries} pharmacyStock={pharmacyStock} pharmacyLog={pharmacyLog} suppliesStock={suppliesStock} suppliesLog={suppliesLog} token={token}/>}
 
       {tab === "diagnostics" && (
         <DiagnosticsPage apiHealth={apiHealth} token={token} user={user} patients={patients} users={users} templates={templates} lastLoadAt={lastLoadAt} demandMonthly={demandMonthly}/>

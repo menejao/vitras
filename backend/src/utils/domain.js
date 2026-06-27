@@ -202,6 +202,7 @@ function ensureDbShape(db) {
   ensureArray(db, "registerVerifications");
   ensureArray(db, "loginChallenges");
   ensureArray(db, "refreshTokens");
+  ensureArray(db, "exportHistory");
 
   if (!db.teams.length) {
     const defaultTeamId = "team-default";

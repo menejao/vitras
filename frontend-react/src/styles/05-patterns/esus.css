@@ -212,3 +212,64 @@
 }
 .esus-issue-tag--error { background: var(--danger-bg, #fee); color: var(--danger); border: 1px solid var(--danger); }
 .esus-issue-tag--warn  { background: var(--warning-bg, #fef3c7); color: var(--warning, #b45309); border: 1px solid var(--warning, #b45309); }
+
+/* ── Batch export section ─────────────────────────────────────────────────── */
+.esus-batch-section {
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  margin-bottom: var(--s-5);
+  overflow: hidden;
+}
+.esus-batch-section__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: var(--s-3) var(--s-4);
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+}
+.esus-batch-section__title { font: 600 var(--t-sm) var(--font-sans); color: var(--text); display: block; }
+.esus-batch-section__sub { font: 400 var(--t-xs) var(--font-sans); color: var(--text-dim); display: block; margin-top: 2px; }
+.esus-batch-section__body { padding: var(--s-4); display: flex; flex-direction: column; gap: var(--s-4); }
+.esus-batch-label { font: 600 var(--t-xs) var(--font-sans); color: var(--text-muted); display: block; margin-bottom: var(--s-2); text-transform: uppercase; letter-spacing: .04em; }
+.esus-batch-period { display: flex; flex-direction: column; }
+.esus-batch-period__selects { display: flex; gap: var(--s-2); align-items: center; flex-wrap: wrap; }
+.esus-batch-err { margin-top: var(--s-2); padding: var(--s-2) var(--s-3); background: var(--danger-bg, #fee); border: 1px solid var(--danger); border-radius: var(--r-sm); font: 400 var(--t-xs) var(--font-sans); color: var(--danger); }
+.esus-batch-warn { margin-top: var(--s-2); padding: var(--s-2) var(--s-3); background: var(--warning-bg, #fef3c7); border: 1px solid var(--warning, #b45309); border-radius: var(--r-sm); font: 400 var(--t-xs) var(--font-sans); color: var(--warning, #b45309); }
+.esus-batch-success { margin-top: var(--s-2); padding: var(--s-2) var(--s-3); background: var(--success-bg, #f0fff4); border: 1px solid var(--success); border-radius: var(--r-sm); font: 500 var(--t-xs) var(--font-sans); color: var(--success); }
+.esus-batch-generate { display: flex; flex-direction: column; gap: var(--s-2); align-items: flex-start; padding-top: var(--s-3); border-top: 1px solid var(--border-subtle); }
+
+/* ── Validation result ────────────────────────────────────────────────────── */
+.esus-validation-result { display: flex; flex-direction: column; gap: var(--s-3); padding: var(--s-4); background: var(--surface-2); border-radius: var(--r-md); border: 1px solid var(--border); }
+.esus-val-section-title { font: 600 var(--t-xs) var(--font-sans); color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; margin: 0 0 var(--s-2); }
+.esus-val-infos { display: flex; flex-direction: column; gap: var(--s-2); }
+.esus-val-info { display: flex; align-items: flex-start; gap: var(--s-2); padding: var(--s-2) var(--s-3); border-radius: var(--r-sm); border: 1px solid var(--border-subtle); font: 400 var(--t-xs) var(--font-sans); }
+.esus-val-info--ok    { background: var(--success-bg, #f0fff4); border-color: var(--success-bd, #9ae6b4); }
+.esus-val-info--warn  { background: var(--warning-bg, #fffbea); border-color: var(--warning, #b45309); }
+.esus-val-info--error { background: var(--danger-bg, #fee); border-color: var(--danger); }
+.esus-val-info__icon { flex-shrink: 0; font-size: .9rem; margin-top: 1px; }
+.esus-val-info__text { flex: 1; color: var(--text); line-height: 1.5; }
+.esus-val-info__fix { display: block; margin-top: 2px; color: var(--danger); font-weight: 600; }
+.esus-blockers { display: flex; flex-direction: column; gap: var(--s-2); }
+.esus-blocker-row { display: flex; align-items: flex-start; gap: var(--s-2); padding: var(--s-2) var(--s-3); background: var(--danger-bg, #fee); border: 1px solid var(--danger); border-radius: var(--r-sm); font: 500 var(--t-xs) var(--font-sans); }
+.esus-blocker-row__icon { flex-shrink: 0; }
+.esus-blocker-row__msg { color: var(--danger); }
+
+/* ── Export history section ───────────────────────────────────────────────── */
+.esus-history-section {
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  margin-bottom: var(--s-5);
+  overflow: hidden;
+}
+.esus-history-section__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--s-3) var(--s-4);
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+}
+.esus-history-section__title { font: 600 var(--t-sm) var(--font-sans); color: var(--text); }
