@@ -99,8 +99,25 @@ function AcsProductionPanel({ token, user }) {
         </div>
       </div>
 
-      {loading && <p className="gp-loading">Carregando...</p>}
-      {error   && <p className="gp-error">{error}</p>}
+      {loading && (
+        <div className="gp-state-box gp-state-box--loading">
+          <span className="gp-state-icon">⏳</span>
+          <span>Carregando dados do território...</span>
+        </div>
+      )}
+      {!loading && error && (
+        <div className="gp-state-box gp-state-box--error">
+          <span className="gp-state-icon">⚠</span>
+          <span>Não foi possível carregar os dados do território. Tente novamente em instantes.</span>
+          <button type="button" className="gp-retry-btn" onClick={load}>Tentar novamente</button>
+        </div>
+      )}
+      {!loading && !error && !terr && (
+        <div className="gp-state-box gp-state-box--empty">
+          <span className="gp-state-icon">📋</span>
+          <span>Sem dados disponíveis para o período selecionado.</span>
+        </div>
+      )}
 
       {!loading && !error && terr && (
         <>

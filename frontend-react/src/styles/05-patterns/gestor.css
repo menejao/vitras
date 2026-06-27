@@ -355,3 +355,30 @@
   .gestor-filter-row { grid-template-columns: 1fr; }
   .gestor-gauge-row  { gap: var(--s-4); }
 }
+
+/* ── State boxes ──────────────────────────────────────────────────────────── */
+.gp-state-box {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-4) var(--s-5);
+  border-radius: var(--r-md);
+  font: 400 var(--t-sm) var(--font-sans);
+  color: var(--text-muted);
+  margin: var(--s-2) 0;
+}
+.gp-state-box--loading { background: var(--surface-2); }
+.gp-state-box--error   { background: var(--danger-bg, #fff0f0); color: var(--text); border: 1px solid var(--danger); }
+.gp-state-box--empty   { background: var(--surface-2); }
+.gp-state-icon { font-size: 1.2rem; flex-shrink: 0; }
+.gp-retry-btn  {
+  margin-left: auto;
+  padding: var(--s-1) var(--s-3);
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font: 500 var(--t-xs) var(--font-sans);
+  cursor: pointer;
+  color: var(--text);
+}
+.gp-retry-btn:hover { background: var(--surface-2); }

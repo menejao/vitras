@@ -29,7 +29,6 @@ export const NAV_ICON = {
   exams_page: <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M3 2h7l3 3v9H3V2z" stroke="currentColor" strokeWidth="1.4"/><path d="M10 2v3h3" stroke="currentColor" strokeWidth="1.4"/><path d="M5.5 6h5M5.5 8.5h5M5.5 11h3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/><circle cx="11.5" cy="11.5" r="2.8" fill="var(--surface)" stroke="currentColor" strokeWidth="1.3"/><path d="M10.5 11.5h2M11.5 10.5v2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>,
   diagnostics: <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M2 2h12v12H2z" stroke="currentColor" strokeWidth="1.4"/><path d="M4.5 11V8.5M8 11V5M11.5 11V7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><path d="M4 4h8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>,
   acs_tasks: <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M3 3h10v10H3z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/><path d="M5.5 8l2 2 3-3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>,
-  access_requests: <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><circle cx="6" cy="5" r="2.5" stroke="currentColor" strokeWidth="1.4"/><path d="M1 13c0-2.761 2.239-5 5-5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><path d="M10 8h5M12.5 5.5v5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>,
   audit_log: <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="12" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.4"/><path d="M5 5.5h6M5 8h6M5 10.5h4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>,
   equipe: <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><circle cx="5.5" cy="5" r="2.5" stroke="currentColor" strokeWidth="1.4"/><path d="M1 14c0-2.761 2.239-5 4.5-5S10 11.239 10 14" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><circle cx="12" cy="5" r="2" stroke="currentColor" strokeWidth="1.3"/><path d="M10.5 14c0-2 .9-3.5 2.5-3.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>,
   nutricao: <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M8 2c0 3-2 6-2 9h4c0-3-2-6-2-9z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/><path d="M5 11h6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>,
@@ -50,7 +49,6 @@ export function buildNavItems(user, canManageUser, enabledModules) {
   const canReadPatients = admin || hasCapability(user, "patients.read.all") || hasCapability(user, "patients.read.scoped");
   const canReadReports = admin || hasCapability(user, "reports.read");
   const canReadDiagnostics = admin || hasCapability(user, "diagnostics.read");
-  const canReadAccessRequests = admin || hasCapability(user, "access_requests.read") || isGestor(user);
   const canReadAuditLog = admin || hasCapability(user, "audit.read");
   const canReadPharmacy = admin || hasCapability(user, "pharmacy.read") || hasCapability(user, "pharmacy.write");
   const canReadSupplies = admin || hasCapability(user, "supplies.read") || hasCapability(user, "supplies.write");
@@ -106,7 +104,6 @@ export function buildNavItems(user, canManageUser, enabledModules) {
 
   if (canManageUser || admin) items.push({ id: "gestor", label: "Gestão à Vista", section: "Gestão" });
   if (canReadReports) items.push({ id: "reports", label: "Relatórios", section: "" });
-  if (canReadAccessRequests) items.push({ id: "access_requests", label: "Solicitações de Acesso", section: "" });
   if (canManageUser || admin || isGestor(user) || canReadDiagnostics) items.push({ id: "diagnostics", label: "Diagnósticos", section: "" });
   if (canReadAuditLog) items.push({ id: "audit_log", label: "Auditoria", section: "" });
   if (canAccessAI(user) || admin) items.push({ id: "ai", label: "IA Assistida", section: "" });
