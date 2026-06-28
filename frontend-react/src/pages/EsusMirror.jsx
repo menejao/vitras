@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { ageInMonths } from "../utils/clinical";
 import Button from "../components/ui/Button";
-import { API_URL } from "../api";
+import { api, API_URL, COOKIE_SESSION_SENTINEL, getCsrfToken } from "../api";
 
 const LAYOUT_VERSION = "3.2.3";
 const LAYOUT_VIGENCIA = "jan/2024";
@@ -57,51 +57,42 @@ function validateUserLocal(u) {
 
 // ── api helpers ─────────────────────────────────────────────────────────────
 
-// All paths are prefixed with API_URL so requests go to the backend,
-// not the frontend CDN origin. Without this, bare paths return 404 from Amplify.
-async function apiFetch(path, opts = {}, token) {
-  const { body, ...rest } = opts;
-  let res;
-  try {
-    res = await fetch(`${API_URL}${path}`, {
-      ...rest,
-      headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(rest.headers || {}) },
-      credentials: "include",
-      ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
-    });
-  } catch {
-    throw new Error("Falha de comunicação com o servidor. Verifique sua conexão e tente novamente.");
-  }
-  if (res.status === 401) throw new Error("Sessão expirada. Faça login novamente.");
-  if (res.status === 403) throw new Error("Você não possui permissão para realizar esta operação.");
-  if (res.status === 404) throw new Error("O serviço de exportação não está disponível. Contate o suporte.");
-  if (res.status === 503) throw new Error("O serviço está temporariamente indisponível. Tente novamente em instantes.");
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data?.error || "Não foi possível processar a solicitação.");
-  return data;
+// Uses shared api() from api.js — identical auth flow (sentinel, CSRF, refresh, retry)
+// as PatientsPage, FarmaciaPage, SuprimentosPage, EquipePage, etc.
+
+function translateApiError(err) {
+  const status = err?.status;
+  if (status === 401) return "Sessão expirada. Faça login novamente.";
+  if (status === 403) return "Você não possui permissão para exportar dados do e-SUS APS.";
+  if (status === 404) return "Serviço de exportação não encontrado.";
+  if (status === 422) return err.message || "Existem inconsistências que impedem a exportação.";
+  if (status >= 500)  return "Erro interno ao validar a competência.";
+  if (!status)        return "Não foi possível conectar ao servidor.";
+  return err.message || "Erro ao comunicar com o servidor.";
 }
 
+// downloadBatch uses raw fetch (needs blob, not JSON) but mirrors api() auth logic exactly:
+// sentinel check, CSRF header, credentials:include, API_URL prefix.
 async function downloadBatch(token, month, year) {
+  const headers = { "Content-Type": "application/json" };
+  if (token && token !== COOKIE_SESSION_SENTINEL) headers.Authorization = `Bearer ${token}`;
+  const csrf = getCsrfToken();
+  if (csrf) headers["X-CSRF-Token"] = csrf;
+
   let res;
   try {
     res = await fetch(`${API_URL}/export/cds/batch`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      headers,
       credentials: "include",
       body: JSON.stringify({ month, year }),
     });
   } catch {
-    throw new Error("Falha de comunicação com o servidor. Verifique sua conexão e tente novamente.");
-  }
-  if (res.status === 401) throw new Error("Sessão expirada. Faça login novamente.");
-  if (res.status === 403) throw new Error("Você não possui permissão para gerar o lote de exportação.");
-  if (res.status === 422) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data?.error || "Exportação bloqueada por inconsistências. Execute a validação antes de gerar o lote.");
+    throw Object.assign(new Error("Não foi possível conectar ao servidor."), { status: 0 });
   }
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
-    throw new Error(data?.error || "Não foi possível gerar o lote de exportação.");
+    throw Object.assign(new Error(data?.error || "Não foi possível gerar o lote de exportação."), { status: res.status });
   }
   const blob = await res.blob();
   const url  = URL.createObjectURL(blob);
@@ -214,24 +205,23 @@ function EsusMirror({ patients = [], users = [], agenda = [], referrals = [], ph
     if (!token) return;
     setHistLoading(true);
     try {
-      const data = await apiFetch("/export/cds/batch/history", {}, token);
+      const data = await api("/export/cds/batch/history", { method: "GET" }, token);
       setHistory(data.history || []);
-    } catch { /* silent */ }
+    } catch { /* silent — history failure must not block UI */ }
     finally { setHistLoading(false); }
   }, [token]);
 
   useEffect(() => { loadHistory(); }, [loadHistory]);
 
-  // Validate competência via API
+  // Validate competência via API — uses shared api() (sentinel, CSRF, refresh identical to all modules)
   async function handleValidate() {
     setValidating(true); setValidErr(""); setValidation(null); setGenSuccess("");
     try {
-      const data = await apiFetch(`/export/cds/batch/validate?month=${batchMonth}&year=${batchYear}`, {}, token);
+      const data = await api(`/export/cds/batch/validate?month=${batchMonth}&year=${batchYear}`, { method: "GET" }, token);
       setValidation(data);
     } catch (e) {
-      // Internal log only — user sees friendly message from apiFetch
-      console.error("[esus-validate]", new Date().toISOString(), e.message);
-      setValidErr(e.message || "Não foi possível validar a competência. Tente novamente.");
+      console.error("[esus-validate]", new Date().toISOString(), e.status, e.message);
+      setValidErr(translateApiError(e));
     } finally { setValidating(false); }
   }
 
@@ -247,8 +237,8 @@ function EsusMirror({ patients = [], users = [], agenda = [], referrals = [], ph
       setGenSuccess(msg);
       await loadHistory();
     } catch (e) {
-      console.error("[esus-generate]", new Date().toISOString(), e.message);
-      setGenErr(e.message || "Não foi possível gerar o lote. Tente novamente.");
+      console.error("[esus-generate]", new Date().toISOString(), e.status, e.message);
+      setGenErr(translateApiError(e));
     } finally { setGenerating(false); }
   }
 
