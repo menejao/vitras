@@ -14,6 +14,7 @@ import { readDb, withDb } from "../db.js";
 import { ensureDbShape } from "../utils/domain.js";
 import { addAuditLog } from "../services/audit.js";
 import { exportCadastroIndividual } from "../services/cds-export/index.js";
+import { isValidCns, isValidCpf, resolveSexField } from "../utils/cds-validators.js";
 
 const router = express.Router();
 
@@ -34,11 +35,14 @@ function parseCompetencia(query) {
 function validatePatientForExport(p) {
   const blockers = [];
   const warnings = [];
-  if (!p.name || !String(p.name).trim())        blockers.push({ field: "Nome",              msg: "Nome obrigatório no e-SUS" });
-  if (!p.birthDate)                              blockers.push({ field: "Data de nascimento", msg: "Data de nascimento obrigatória" });
-  if (!p.gender && !p.sex)                       blockers.push({ field: "Sexo",              msg: "Sexo biológico obrigatório no CDS" });
-  if (!p.cns && !p.cpf && !p.document)          warnings.push({ field: "Identificação",     msg: "CNS ou CPF recomendados para evitar rejeição" });
-  if (!p.address && !p.street && !p.microarea)  warnings.push({ field: "Endereço/Microárea", msg: "Endereço ou microárea ausente" });
+  if (!p.name || !String(p.name).trim())                blockers.push({ field: "Nome",              msg: "Nome obrigatório no e-SUS" });
+  if (!p.birthDate)                                     blockers.push({ field: "Data de nascimento", msg: "Data de nascimento obrigatória" });
+  // resolveSexField checks sexAtBirth, sex, gender in order — same as cds-structs serializer
+  if (!resolveSexField(p))                              blockers.push({ field: "Sexo",              msg: "Sexo biológico obrigatório no CDS (campo sexAtBirth)" });
+  if (p.cns   && !isValidCns(p.cns))                   blockers.push({ field: "CNS",               msg: `CNS do paciente inválido: "${p.cns}"` });
+  if (p.cpf   && !isValidCpf(p.cpf))                   blockers.push({ field: "CPF",               msg: `CPF do paciente inválido: "${p.cpf}"` });
+  if (!p.cns && !p.cpf && !p.document)                 warnings.push({ field: "Identificação",     msg: "CNS ou CPF recomendados para evitar rejeição" });
+  if (!p.address && !p.street && !p.microarea && !p.microArea) warnings.push({ field: "Endereço/Microárea", msg: "Endereço ou microárea ausente" });
   return { blockers, warnings };
 }
 
@@ -49,10 +53,12 @@ function buildSummary(db, professional, unit, team, competencia) {
   const cbo     = professional?.cboCodigo;
 
   const blockers = [];
-  if (!cnes || cnes === "0000000")     blockers.push("CNES da unidade ausente ou inválido — cadastre o CNES antes de exportar");
-  if (!ine  || ine  === "0000000000") blockers.push("INE da equipe ausente ou inválido — cadastre o INE antes de exportar");
-  if (!cnsProf)                        blockers.push("CNS do profissional exportador ausente — necessário para identificação no e-SUS");
-  if (!cbo)                            blockers.push("Código CBO do profissional exportador ausente");
+  // CNES/INE/CBO/CNS profissional: deployment checklist items — system blocks correctly and guides configuration
+  if (!cnes || cnes === "0000000")     blockers.push("CNES da unidade ausente ou inválido — configure em Configurações > Unidade antes de exportar");
+  if (!ine  || ine  === "0000000000") blockers.push("INE da equipe ausente ou inválido — configure em Configurações > Equipe antes de exportar");
+  if (!cnsProf)                        blockers.push("CNS do profissional exportador ausente — configure em Meu Perfil antes de exportar");
+  else if (!isValidCns(cnsProf))       blockers.push(`CNS do profissional inválido: "${cnsProf}" — deve ter 15 dígitos numéricos (algoritmo oficial)`);
+  if (!cbo)                            blockers.push("Código CBO do profissional exportador ausente — configure em Meu Perfil antes de exportar");
 
   const patients = (db.patients || []).filter(p => !p.inactive);
   const patientResults = patients.map(p => {

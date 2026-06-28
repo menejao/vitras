@@ -19,6 +19,7 @@ import {
   ACOMPANHAMENTO_MAP, CONTROLE_AMBIENTAL_MAP, MOMENTO_GLICEMIA_MAP
 } from "./enum-maps.js";
 import { MUNICIPALITY_ID as CONFIG_MUNICIPALITY_ID } from "../../config.js";
+import { resolveSexField } from "../../utils/cds-validators.js";
 
 // ──────────────────────────────────────────────
 // UnicaLotacaoHeaderTransport
@@ -54,7 +55,7 @@ function writeIdentificacaoUsuario(w, p) {
   // field 13: paisNascimento — omit (default Brasileiro, field is conditional on nationality)
   const racaCor = mapEnum(RACA_COR_MAP, p.racaCor || p.raceColor);
   writeI64Field(w, 14, racaCor ?? 99n);  // 99n = sem informação
-  const sexo = mapEnum(SEXO_MAP, p.sex || p.sexAtBirth);
+  const sexo = mapEnum(SEXO_MAP, resolveSexField(p));
   if (sexo != null) writeI64Field(w, 15, sexo);
   // field 16: statusEhResponsavel — omit (not tracked)
   const etnia = mapEnum(RACA_COR_MAP, null);  // only when racaCor=5 (Indígena)
@@ -373,7 +374,7 @@ function writeAtendimentoIndividualChild(w, { record, patient }) {
   const localAtend = LOCAL_ATENDIMENTO_MAP[String(record.localDeAtendimento || "UBS").toUpperCase()] ?? LOCAL_ATENDIMENTO_DEFAULT;
   writeI64Field(w, 4, localAtend);
 
-  const sexo = mapEnum(SEXO_MAP, patient.sex || patient.sexAtBirth);
+  const sexo = mapEnum(SEXO_MAP, resolveSexField(patient));
   if (sexo != null) writeI64Field(w, 5, sexo);
 
   const turno = TURNO_MAP[String(record.turno || "TARDE").toUpperCase()] ?? TURNO_DEFAULT;
@@ -428,6 +429,35 @@ export function buildAtendimentoIndividual({ record, patient, professional, unit
   return { buffer: w.toBuffer(), uuid: fichaUuid };
 }
 
+// Normalize internal acsVisit desfecho values to LEDI enum keys.
+// e-SUS PEC exports use "VISITA_REALIZADA", "VISITA_AUSENTE", "VISITA_RECUSADA";
+// LEDI DESFECHO_VISITA_MAP keys are "REALIZADA", "AUSENTE", "RECUSADA".
+function normalizeDesfechoVisita(raw) {
+  if (!raw) return null;
+  return String(raw).trim().toUpperCase()
+    .replace(/^VISITA_/, "")   // VISITA_REALIZADA → REALIZADA
+    .replace(/^DESFECHO_/, ""); // defensive strip
+}
+
+// Normalize internal acsVisit motivosVisita values to LEDI MOTIVO_VISITA_MAP keys.
+// e-SUS PEC exports use "CADASTRAMENTO_ATUALIZACAO", "VISITA_PERIODICA", etc.
+// MOTIVO_VISITA_MAP keys are snake_case: "cadastro_atualizacao", "visita_periodica", etc.
+function normalizeMotivosVisita(raw) {
+  if (!raw) return null;
+  // Map known PEC export values to LEDI enum keys
+  const PEC_TO_LEDI = {
+    CADASTRAMENTO_ATUALIZACAO:  "cadastro_atualizacao",
+    VISITA_PERIODICA:           "visita_periodica",
+    BUSCA_ATIVA:                "busca_ativa",
+    ACOMPANHAMENTO:             "acompanhamento",
+    CONTROLE_AMBIENTAL:         "controle_ambiental",
+    CONVITE_ATIVIDADE_COLETIVA: "convite_atividade",
+    CONVITE_ATIVIDADE:          "convite_atividade",
+  };
+  const key = String(raw).trim().toUpperCase();
+  return PEC_TO_LEDI[key] || raw; // pass through if already in LEDI format
+}
+
 // ──────────────────────────────────────────────
 // C04D: FichaVisitaDomiciliarTerritorialChildThrift
 // Source: github.com/laboratoriobridge/esusaps-integracao
@@ -446,15 +476,22 @@ function writeVisitaChild(w, { visit, patient }) {
   }
   if (visit.microarea)    writeStringField(w, 3, String(visit.microarea).substring(0, 2));
 
-  const sexo = mapEnum(SEXO_MAP, patient?.sex || patient?.sexAtBirth);
+  const sexo = mapEnum(SEXO_MAP, resolveSexField(patient));
   if (sexo != null)       writeI64Field(w, 4, sexo);
 
-  const desfecho = mapEnum(DESFECHO_VISITA_MAP, visit.desfecho);
-  writeI64Field(w, 5, desfecho ?? 1n); // default: REALIZADA
+  // Normalize desfecho: internal values like "VISITA_REALIZADA" → "REALIZADA"
+  const normalizedDesfecho = normalizeDesfechoVisita(visit.desfecho);
+  const desfecho = mapEnum(DESFECHO_VISITA_MAP, normalizedDesfecho);
+  writeI64Field(w, 5, desfecho ?? 1n); // 1n = REALIZADA
 
   if (visit.foraArea)     writeBoolField(w, 6, true);
 
-  const motivos = mapEnumList(MOTIVO_VISITA_MAP, Array.isArray(visit.motivos) ? visit.motivos : []);
+  // motivosVisita is the canonical field name in acsVisits entity
+  const rawMotivos = Array.isArray(visit.motivosVisita) ? visit.motivosVisita
+                   : Array.isArray(visit.motivos)       ? visit.motivos
+                   : [];
+  const normalizedMotivos = rawMotivos.map(normalizeMotivosVisita);
+  const motivos = mapEnumList(MOTIVO_VISITA_MAP, normalizedMotivos);
   if (motivos.length > 0) writeI64ListField(w, 7, motivos);
 
   const buscaAtiva = mapEnumList(BUSCA_ATIVA_MAP, Array.isArray(visit.buscaAtiva) ? visit.buscaAtiva : []);
@@ -510,7 +547,16 @@ function writeVisitaChild(w, { visit, patient }) {
 export function buildVisitaDomiciliar({ visit, patient, professional, unit, team, fichaUuid }) {
   const w = new BinaryWriter();
 
-  const visitDate = visit.date ? new Date(visit.date).getTime() : Date.now();
+  // dataVisita is the canonical field name in acsVisits entity
+  const rawDate = visit.dataVisita || visit.date;
+  if (!rawDate) {
+    throw new Error("Visita sem data (dataVisita ausente) — exportação bloqueada");
+  }
+  const parsedDate = new Date(rawDate);
+  if (isNaN(parsedDate.getTime())) {
+    throw new Error(`Data da visita inválida: "${rawDate}" — exportação bloqueada`);
+  }
+  const visitDate = parsedDate.getTime();
   const ibgeMunicipio = String(unit?.municipalityId || team?.municipalityId || CONFIG_MUNICIPALITY_ID || "3534401").replace(/\D/g, "").substring(0, 7);
 
   // 1: headerTransport (UnicaLotacaoHeaderThrift — single ACS professional)

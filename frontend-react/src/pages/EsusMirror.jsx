@@ -5,16 +5,45 @@ import Button from "../components/ui/Button";
 const LAYOUT_VERSION = "3.2.3";
 const LAYOUT_VIGENCIA = "jan/2024";
 
+// ── client-side CNS/CPF validators (mirrors backend cds-validators.js) ──────
+
+function isValidCns(cns) {
+  if (!cns) return false;
+  const digits = String(cns).replace(/\D/g, "");
+  if (digits.length !== 15 || !/^[1289]/.test(digits)) return false;
+  let total = 0;
+  for (let i = 0; i < 15; i++) total += parseInt(digits[i], 10) * (15 - i);
+  return total % 11 === 0;
+}
+
+function isValidCpf(cpf) {
+  if (!cpf) return false;
+  const digits = String(cpf).replace(/\D/g, "");
+  if (digits.length !== 11 || /^(\d)\1{10}$/.test(digits)) return false;
+  let sum = 0;
+  for (let i = 0; i < 9; i++) sum += parseInt(digits[i], 10) * (10 - i);
+  let d1 = 11 - (sum % 11); if (d1 >= 10) d1 = 0;
+  if (d1 !== parseInt(digits[9], 10)) return false;
+  sum = 0;
+  for (let i = 0; i < 10; i++) sum += parseInt(digits[i], 10) * (11 - i);
+  let d2 = 11 - (sum % 11); if (d2 >= 10) d2 = 0;
+  return d2 === parseInt(digits[10], 10);
+}
+
+function resolveSex(p) { return p?.sexAtBirth || p?.sex || p?.gender || null; }
+
 // ── client-side pre-validation (mirrors backend, runs offline) ──────────────
 
 function validatePatientLocal(p) {
   const blockers = [];
   const warnings = [];
-  if (!p.name || !String(p.name).trim())        blockers.push({ field: "Nome",              msg: "Nome obrigatório no e-SUS" });
-  if (!p.birthDate)                              blockers.push({ field: "Data de nascimento", msg: "Data de nascimento obrigatória" });
-  if (!p.gender && !p.sex)                       blockers.push({ field: "Sexo",              msg: "Sexo biológico obrigatório no CDS" });
-  if (!p.cns && !p.cpf && !p.document)          warnings.push({ field: "Identificação",     msg: "CNS ou CPF recomendados" });
-  if (!p.address && !p.street && !p.microarea)  warnings.push({ field: "Endereço/Microárea", msg: "Endereço ou microárea ausente" });
+  if (!p.name || !String(p.name).trim())                    blockers.push({ field: "Nome",              msg: "Nome obrigatório no e-SUS" });
+  if (!p.birthDate)                                         blockers.push({ field: "Data de nascimento", msg: "Data de nascimento obrigatória" });
+  if (!resolveSex(p))                                       blockers.push({ field: "Sexo",              msg: "Sexo biológico obrigatório (campo sexAtBirth)" });
+  if (p.cns  && !isValidCns(p.cns))                        blockers.push({ field: "CNS",               msg: "CNS inválido — deve ter 15 dígitos (algoritmo oficial)" });
+  if (p.cpf  && !isValidCpf(p.cpf))                        blockers.push({ field: "CPF",               msg: "CPF inválido — dígito verificador incorreto" });
+  if (!p.cns && !p.cpf && !p.document)                     warnings.push({ field: "Identificação",     msg: "CNS ou CPF recomendados para evitar rejeição" });
+  if (!p.address && !p.street && !p.microarea && !p.microArea) warnings.push({ field: "Endereço/Microárea", msg: "Endereço ou microárea ausente" });
   return { blockers, warnings };
 }
 
