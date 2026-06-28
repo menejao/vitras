@@ -1,8 +1,14 @@
 #!/bin/bash
-# Swap package.json with a no-dep version so EB npm install is instant.
-# Real package.json backed up in /tmp for predeploy restore.
-cp /var/app/staging/package.json /tmp/package.json.real
-cat > /var/app/staging/package.json << 'EOF'
-{"name":"vitras-backend","version":"1.0.0","main":"src/server.js","type":"module","scripts":{"start":"node src/server.js"}}
-EOF
-echo "[01_skip_npm] package.json swapped — npm install will be instant"
+# Fast incremental npm install: copy existing node_modules first, then npm install handles only new/changed packages.
+# This avoids a full npm install on every deploy while still picking up new dependencies.
+
+STAGING=/var/app/staging
+CURRENT=/var/app/current
+
+if [ -d "$CURRENT/node_modules" ]; then
+  echo "[01_skip_npm] Copying node_modules from current to staging..."
+  cp -r "$CURRENT/node_modules" "$STAGING/node_modules"
+  echo "[01_skip_npm] node_modules copied ($(ls $STAGING/node_modules | wc -l) packages)"
+else
+  echo "[01_skip_npm] No existing node_modules — full npm install will run"
+fi

@@ -6,7 +6,7 @@
 //   GET  /export/cds/batch/history   — list export history
 
 import express from "express";
-import archiver from "archiver";
+import { ZipArchive } from "archiver";
 import { v4 as uuidv4 } from "uuid";
 import { requireAuth } from "../middlewares/auth.js";
 import { hasCapability } from "../utils/helpers.js";
@@ -152,7 +152,7 @@ router.post("/export/cds/batch", requireAuth, async (req, res) => {
   try {
     zipBuffer = await new Promise((resolve, reject) => {
       const chunks = [];
-      const archive = archiver("zip", { store: true });
+      const archive = new ZipArchive({ store: true });
       archive.on("data",   c => chunks.push(c));
       archive.on("end",    () => resolve(Buffer.concat(chunks)));
       archive.on("error",  reject);
