@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { ageInMonths } from "../utils/clinical";
 import Button from "../components/ui/Button";
+import { API_URL } from "../api";
 
 const LAYOUT_VERSION = "3.2.3";
 const LAYOUT_VIGENCIA = "jan/2024";
@@ -56,29 +57,51 @@ function validateUserLocal(u) {
 
 // ── api helpers ─────────────────────────────────────────────────────────────
 
+// All paths are prefixed with API_URL so requests go to the backend,
+// not the frontend CDN origin. Without this, bare paths return 404 from Amplify.
 async function apiFetch(path, opts = {}, token) {
   const { body, ...rest } = opts;
-  const res = await fetch(path, {
-    ...rest,
-    headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(rest.headers || {}) },
-    credentials: "include",
-    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
-  });
+  let res;
+  try {
+    res = await fetch(`${API_URL}${path}`, {
+      ...rest,
+      headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(rest.headers || {}) },
+      credentials: "include",
+      ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+    });
+  } catch {
+    throw new Error("Falha de comunicação com o servidor. Verifique sua conexão e tente novamente.");
+  }
+  if (res.status === 401) throw new Error("Sessão expirada. Faça login novamente.");
+  if (res.status === 403) throw new Error("Você não possui permissão para realizar esta operação.");
+  if (res.status === 404) throw new Error("O serviço de exportação não está disponível. Contate o suporte.");
+  if (res.status === 503) throw new Error("O serviço está temporariamente indisponível. Tente novamente em instantes.");
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data?.error || `Erro ${res.status}`);
+  if (!res.ok) throw new Error(data?.error || "Não foi possível processar a solicitação.");
   return data;
 }
 
 async function downloadBatch(token, month, year) {
-  const res = await fetch("/export/cds/batch", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    credentials: "include",
-    body: JSON.stringify({ month, year }),
-  });
+  let res;
+  try {
+    res = await fetch(`${API_URL}/export/cds/batch`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      credentials: "include",
+      body: JSON.stringify({ month, year }),
+    });
+  } catch {
+    throw new Error("Falha de comunicação com o servidor. Verifique sua conexão e tente novamente.");
+  }
+  if (res.status === 401) throw new Error("Sessão expirada. Faça login novamente.");
+  if (res.status === 403) throw new Error("Você não possui permissão para gerar o lote de exportação.");
+  if (res.status === 422) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data?.error || "Exportação bloqueada por inconsistências. Execute a validação antes de gerar o lote.");
+  }
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
-    throw new Error(data?.error || `Erro ${res.status}`);
+    throw new Error(data?.error || "Não foi possível gerar o lote de exportação.");
   }
   const blob = await res.blob();
   const url  = URL.createObjectURL(blob);
@@ -206,7 +229,9 @@ function EsusMirror({ patients = [], users = [], agenda = [], referrals = [], ph
       const data = await apiFetch(`/export/cds/batch/validate?month=${batchMonth}&year=${batchYear}`, {}, token);
       setValidation(data);
     } catch (e) {
-      setValidErr(e.message);
+      // Internal log only — user sees friendly message from apiFetch
+      console.error("[esus-validate]", new Date().toISOString(), e.message);
+      setValidErr(e.message || "Não foi possível validar a competência. Tente novamente.");
     } finally { setValidating(false); }
   }
 
@@ -222,7 +247,8 @@ function EsusMirror({ patients = [], users = [], agenda = [], referrals = [], ph
       setGenSuccess(msg);
       await loadHistory();
     } catch (e) {
-      setGenErr(e.message);
+      console.error("[esus-generate]", new Date().toISOString(), e.message);
+      setGenErr(e.message || "Não foi possível gerar o lote. Tente novamente.");
     } finally { setGenerating(false); }
   }
 
@@ -349,7 +375,12 @@ function EsusMirror({ patients = [], users = [], agenda = [], referrals = [], ph
                 {validating ? "Validando..." : "Validar"}
               </Button>
             </div>
-            {validErr && <div className="esus-batch-err">{validErr}</div>}
+            {validErr && (
+              <div className="esus-batch-err" style={{ display: "flex", alignItems: "center", gap: "var(--s-3)" }}>
+                <span>{validErr}</span>
+                <Button variant="ghost" size="sm" onClick={handleValidate} disabled={validating}>Tentar novamente</Button>
+              </div>
+            )}
           </div>
 
           {/* Validation result */}
