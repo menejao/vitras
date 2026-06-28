@@ -217,8 +217,8 @@ function EsusMirror({ patients = [], users = [], agenda = [], referrals = [], ph
     try {
       const result = await downloadBatch(token, batchMonth, batchYear);
       const msg = result.skipped && result.skipped !== "0"
-        ? `Lote gerado: ${result.exported} pacientes exportados, ${result.skipped} excluídos por inconsistência.`
-        : `Lote gerado com sucesso: ${result.exported} fichas de Cadastro Individual.`;
+        ? `Lote gerado com sucesso: ${result.exported} fichas exportadas, ${result.skipped} excluídas por inconsistência. O lote está pronto para importação no PEC e-SUS APS.`
+        : `Lote gerado com sucesso: ${result.exported} fichas de Cadastro Individual. O lote está pronto para importação no PEC e-SUS APS.`;
       setGenSuccess(msg);
       await loadHistory();
     } catch (e) {
@@ -447,7 +447,7 @@ function EsusMirror({ patients = [], users = [], agenda = [], referrals = [], ph
 
         {/* Transparency notice */}
         <div className="esus-notice" style={{ margin: "var(--s-3) var(--s-4)" }}>
-          <strong>Transparência:</strong> O lote gerado contém fichas de Cadastro Individual no formato e-SUS APS (layout v{LAYOUT_VERSION}) e está disponível para importação no e-SUS PEC. O envio automático ao Ministério da Saúde dependerá da integração disponível no ambiente da UBS.
+          <strong>Como importar:</strong> Após o download, acesse o PEC e-SUS APS da unidade, vá em <em>Transmissão de dados → Importar</em> e selecione o arquivo ZIP gerado. O VITRAS gera o lote — a importação e transmissão ocorrem no PEC.
         </div>
       </div>
 

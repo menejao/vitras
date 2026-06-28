@@ -224,6 +224,14 @@ router.post("/export/cds/batch", requireAuth, async (req, res) => {
     res.setHeader("X-Batch-Skipped",  String(skipped.length));
   }
 
+  // FUTURE: PEC_AUTO_INTEGRATION
+  // When the municipality activates the official PEC integration:
+  //   1. Replace res.send(zipBuffer) with a POST to the PEC API endpoint
+  //   2. Store the PEC transmission response in historyEntry.pecTransmission
+  //   3. Update historyEntry.status to "transmitted" on success
+  // All validation, generation, and audit logic above remains unchanged.
+  // Only this final delivery step changes — architecture is ready.
+
   res.setHeader("Content-Type", "application/zip");
   res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
   res.setHeader("X-Batch-Id",          batchId);
