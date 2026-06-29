@@ -1,4 +1,6 @@
-﻿function toDateSafe(value) {
+﻿import { planAndExecute } from "./ai-planner.js";
+
+function toDateSafe(value) {
   const d = new Date(value || "");
   return Number.isNaN(d.getTime()) ? null : d;
 }
@@ -391,251 +393,17 @@ function teamReport(items, options = {}) {
   };
 }
 
-// ── intent classifier ─────────────────────────────────────────────────────────
+// ── chat entry point — delegates to ai-planner ───────────────────────────────
 
-function classifyIntent(q) {
-  // OUT_OF_SCOPE: clinical prescriptive questions the system must not answer
-  if (/antibiotico|antimicrobiano|posologia|prescri[çc]|conduta clinica|diagnostico diferencial|indicac[aã]o de medica|qual medica|trat[ae]r com/.test(q)) {
-    return "OUT_OF_SCOPE";
-  }
-  // SYSTEM_HELP_QUERY: how-to questions about using the system
-  if (/^como |como (export|cadastr|registr|gerar|criar|acess|valida|importa|us[ao]r|abrir|localiz|config|baixar|enviar)|onde (fica|encontr|acesso|vejo)|passo a passo|tutorial|ajuda com|instrucao/.test(q)) {
-    return "SYSTEM_HELP_QUERY";
-  }
-  // OPERATIONAL_DATA_QUERY: counting / listing patients or unit data
-  if (/quantos|quantas|total de|numero de|existem (paciente|gestante|gravida|hiperten|diabet|idoso|familia|visita)|tenho cadastrad|lista de (gestante|gravida|hiperten)/.test(q)) {
-    return "OPERATIONAL_DATA_QUERY";
-  }
-  // CLINICAL_OR_MANAGERIAL_ANALYSIS: team analysis using existing logic
-  if (/inconsisten|prontuar|erro de dado|duplicad|demanda|agendada|espontan|atras|penden|risco alto|alto risco|prioridade|sem telefone|telefone ausente|sem endereco|endereco ausente|sem acs/.test(q)) {
-    return "CLINICAL_OR_MANAGERIAL_ANALYSIS";
-  }
-  // Category-specific queries without quantifier also count as operational
-  if (/gestante|gravida|hiperten|diabet|idoso|puerper|cronico/.test(q)) {
-    return "OPERATIONAL_DATA_QUERY";
-  }
-  return "UNKNOWN";
-}
-
-// ── system help knowledge base ────────────────────────────────────────────────
-
-const HELP_KB = [
-  {
-    keys: /export.*esus|esus.*export|gerar.*lote|lote.*esus|cds.*export/,
-    answer: `Para exportar dados ao e-SUS APS:
-1. Acesse Relatórios.
-2. Abra a aba e-SUS APS.
-3. Selecione mês e ano da competência.
-4. Clique em Validar lote.
-5. Corrija pendências indicadas, se houver.
-6. Clique em Gerar exportação.
-7. Baixe o arquivo ZIP gerado.
-8. No PEC e-SUS APS da unidade, acesse Transmissão de dados → Importar e selecione o arquivo.
-
-Atenção: a exportação requer CNES, INE e cadastros válidos configurados.`
-  },
-  {
-    keys: /historico.*export|export.*histor|lotes anterior|exportacoes anterior/,
-    answer: `Para consultar o histórico de exportações e-SUS:
-1. Acesse Relatórios.
-2. Abra a aba e-SUS APS.
-3. Role a página até a seção Histórico de exportações.
-
-O histórico mostra data, competência, quantidade de fichas e status de cada lote gerado.`
-  },
-  {
-    keys: /valida.*lote|lote.*valid|inconsistencia.*esus|esus.*inconsistencia/,
-    answer: `Para validar o lote antes de exportar:
-1. Acesse Relatórios → aba e-SUS APS.
-2. Selecione a competência (mês/ano).
-3. Clique em Validar lote.
-4. O sistema exibe bloqueadores (campos obrigatórios ausentes) e avisos (campos recomendados).
-5. Corrija os pacientes indicados antes de gerar o lote.`
-  },
-  {
-    keys: /cadastr.*paciente|paciente.*cadastr|como adicionar paciente|novo paciente/,
-    answer: `Para cadastrar um paciente:
-1. Acesse Pacientes no menu principal.
-2. Clique em Novo Paciente.
-3. Preencha nome, data de nascimento, sexo e documentos (CNS ou CPF).
-4. Informe endereço, microárea e ACS responsável.
-5. Salve o cadastro.
-
-Campos obrigatórios para o e-SUS: nome, data de nascimento, sexo biológico.`
-  },
-  {
-    keys: /cadastr.*familia|familia.*cadastr|grupo familiar|como cria.*familia/,
-    answer: `Para cadastrar uma família (grupo familiar):
-1. Acesse Pacientes.
-2. Abra o cadastro do paciente que será responsável.
-3. Na seção Família, clique em Criar grupo familiar.
-4. Adicione os demais membros da família.
-5. Salve.`
-  },
-  {
-    keys: /registr.*visita|visita.*registr|visita acs|como lancar visita|como registrar visita/,
-    answer: `Para registrar uma visita domiciliar ACS:
-1. Acesse o cadastro do paciente.
-2. Clique em Nova visita / Registrar visita.
-3. Informe data, motivo(s) da visita e desfecho.
-4. Salve.
-
-A visita ficará disponível para exportação na Ficha de Visita Domiciliar (FVD) do e-SUS.`
-  },
-  {
-    keys: /relatorio|gerar relatorio|relatorio executivo/,
-    answer: `Para gerar relatórios gerenciais:
-1. Acesse Relatórios.
-2. Selecione o tipo: Análise por IA → Relatório executivo.
-3. O sistema gera sumário com totais de pacientes, risco, tarefas e demanda.
-
-Também há relatórios de Qualidade de dados e Prioridades do dia.`
-  },
-];
-
-function systemHelpAnswer(q) {
-  const qn = q.replace(/-/g, ""); // "e-sus" → "esus" for kb matching
-  for (const entry of HELP_KB) {
-    if (entry.keys.test(qn)) {
-      return { intent: "SYSTEM_HELP_QUERY", answer: entry.answer, references: [] };
-    }
-  }
-  return {
-    intent: "SYSTEM_HELP_QUERY",
-    answer: `Não encontrei um tutorial específico para essa dúvida.\n\nTópicos disponíveis:\n• Exportar o e-SUS APS\n• Validar lote e-SUS\n• Cadastrar paciente\n• Cadastrar família\n• Registrar visita ACS\n• Gerar relatórios\n• Consultar histórico de exportações`,
-    references: []
-  };
-}
-
-// ── operational data handlers ─────────────────────────────────────────────────
-
-function operationalAnswer(q, contexts, db) {
-  // Gestantes / grávidas
-  if (/gestante|gravida|prenatal|pre.natal|gestacao/.test(q)) {
-    const list = contexts.filter((c) => c.patient.careCategory === "pregnant");
-    const count = list.length;
-    return {
-      intent: "OPERATIONAL_DATA_QUERY",
-      answer: count > 0
-        ? `Você tem ${count} gestante(s) cadastrada(s).\n\nCritério: pacientes com categoria de acompanhamento definida como gestante.\n\nPara conferir: acesse Pacientes e use o filtro de categoria "Gestante".`
-        : `Não há gestantes cadastradas no momento.\n\nSe houver pacientes gestantes, atualize a categoria de acompanhamento no cadastro de cada uma.`,
-      references: list.map((c) => c.patient.name)
-    };
-  }
-
-  // Hipertensos
-  if (/hiperten/.test(q)) {
-    const list = contexts.filter((c) => /hiperten/i.test(c.patient.comorbidities || "") || c.patient.careCategory === "chronic");
-    return {
-      intent: "OPERATIONAL_DATA_QUERY",
-      answer: list.length > 0
-        ? `Foram encontrados ${list.length} paciente(s) com indicação de hipertensão.\n\nCritério: pacientes com "hipertensão" nas comorbidades ou categoria crônica.\n\nPara conferir: acesse Pacientes e filtre por comorbidade.`
-        : `Não foram identificados pacientes com hipertensão nos campos de comorbidade.`,
-      references: list.map((c) => c.patient.name)
-    };
-  }
-
-  // Diabéticos
-  if (/diabet/.test(q)) {
-    const list = contexts.filter((c) => /diabet/i.test(c.patient.comorbidities || ""));
-    return {
-      intent: "OPERATIONAL_DATA_QUERY",
-      answer: list.length > 0
-        ? `Foram encontrados ${list.length} paciente(s) com indicação de diabetes.\n\nCritério: pacientes com "diabetes" nas comorbidades.\n\nPara conferir: acesse Pacientes e filtre por comorbidade.`
-        : `Não foram identificados pacientes com diabetes nos campos de comorbidade.`,
-      references: list.map((c) => c.patient.name)
-    };
-  }
-
-  // Idosos
-  if (/idos[ao]|geriatra|pessoa idosa/.test(q)) {
-    const list = contexts.filter((c) => c.patient.careCategory === "elderly");
-    return {
-      intent: "OPERATIONAL_DATA_QUERY",
-      answer: list.length > 0
-        ? `Você tem ${list.length} paciente(s) idoso(s) cadastrado(s).\n\nCritério: categoria de acompanhamento "Pessoa Idosa".`
-        : `Não há pacientes com categoria Pessoa Idosa cadastrada no momento.`,
-      references: list.map((c) => c.patient.name)
-    };
-  }
-
-  // Total de pacientes
-  if (/total de paciente|quantos paciente|numero de paciente/.test(q)) {
-    const total = contexts.length;
-    return {
-      intent: "OPERATIONAL_DATA_QUERY",
-      answer: `Total de pacientes cadastrados: ${total}.\n\nPara ver todos: acesse Pacientes no menu principal.`,
-      references: []
-    };
-  }
-
-  // Famílias
-  if (/familia|grupo familiar/.test(q)) {
-    const famCount = Array.isArray(db?.familyGroups) ? db.familyGroups.length : "indisponível";
-    return {
-      intent: "OPERATIONAL_DATA_QUERY",
-      answer: `Total de famílias (grupos familiares) cadastradas: ${famCount}.\n\nPara conferir: acesse Pacientes e filtre por família.`,
-      references: []
-    };
-  }
-
-  // Visitas ACS
-  if (/visita.*acs|acs.*visita|visita domiciliar|total.*visita/.test(q)) {
-    const visitCount = Array.isArray(db?.acsVisits) ? db.acsVisits.length : "indisponível";
-    return {
-      intent: "OPERATIONAL_DATA_QUERY",
-      answer: `Total de visitas domiciliares registradas: ${visitCount}.\n\nPara conferir: acesse o prontuário de cada paciente ou os relatórios de ACS.`,
-      references: []
-    };
-  }
-
-  // Puerperais
-  if (/puerper/.test(q)) {
-    const list = contexts.filter((c) => c.patient.careCategory === "puerperal");
-    return {
-      intent: "OPERATIONAL_DATA_QUERY",
-      answer: list.length > 0
-        ? `Você tem ${list.length} paciente(s) em acompanhamento puerperal.\n\nCritério: categoria de acompanhamento "Puerpério".`
-        : `Não há pacientes com categoria Puerpério no momento.`,
-      references: list.map((c) => c.patient.name)
-    };
-  }
-
-  // Generic count fallback
-  return null;
-}
-
-// ── main chat router ───────────────────────────────────────────────────────────
-
+// chatAnswer signature kept for backward compat with routes/ai.js.
+// contexts kept for legacy managerial analysis (high-risk, demand, chart inconsistencies).
+// All operational + help queries routed through planner → tools layer.
 function chatAnswer(question, contexts, db = null) {
   const originalQ = String(question || "").trim();
   const q = normalizeQueryText(originalQ);
-  if (!q.trim()) return { intent: "EMPTY", answer: "Envie uma pergunta para o assistente.", references: [] };
 
-  const intent = classifyIntent(q);
-
-  // OUT_OF_SCOPE: clinical prescriptive — clear boundary
-  if (intent === "OUT_OF_SCOPE") {
-    return {
-      intent,
-      answer: "Não posso indicar conduta clínica individualizada. Use os protocolos vigentes e avalie com o profissional responsável.",
-      references: []
-    };
-  }
-
-  // SYSTEM_HELP_QUERY
-  if (intent === "SYSTEM_HELP_QUERY") {
-    return systemHelpAnswer(q);
-  }
-
-  // OPERATIONAL_DATA_QUERY
-  if (intent === "OPERATIONAL_DATA_QUERY") {
-    const result = operationalAnswer(q, contexts, db);
-    if (result) return result;
-  }
-
-  // CLINICAL_OR_MANAGERIAL_ANALYSIS — existing deterministic handlers
-
+  // Legacy managerial analysis handlers (use pre-built patient contexts with protocol summaries).
+  // These handle queries that need the full AI context (risk scores, protocol pending, demand).
   if (/inconsisten|prontuar|erro de dado|duplicad/.test(q)) {
     const inconsistencies = detectChartInconsistencies(contexts).slice(0, 12);
     if (!inconsistencies.length) {
@@ -661,20 +429,7 @@ function chatAnswer(question, contexts, db = null) {
     };
   }
 
-  if (q.includes("atras") || q.includes("penden")) {
-    const pendentes = contexts
-      .map((c) => ({ name: c.patient.name, pending: c.protocolSummary?.pending || {} }))
-      .filter((i) => Number(i.pending.visits || 0) + Number(i.pending.consultations || 0) + Number(i.pending.vaccines || 0) > 0)
-      .slice(0, 12);
-    if (!pendentes.length) return { intent: "CLINICAL_OR_MANAGERIAL_ANALYSIS", answer: "Não há pendências de protocolo no momento.", references: [] };
-    return {
-      intent: "CLINICAL_OR_MANAGERIAL_ANALYSIS",
-      answer: `Pendências encontradas: ${pendentes.map((p) => `${p.name} (V:${p.pending.visits || 0}, C:${p.pending.consultations || 0}, Vac:${p.pending.vaccines || 0})`).join("; ")}.`,
-      references: pendentes.map((p) => p.name)
-    };
-  }
-
-  if (/risco alto|alto risco|prioridade/.test(q)) {
+  if (/risco alto|alto risco/.test(q)) {
     const high = teamPriorities(contexts).filter((p) => p.risk.level === "alto").slice(0, 12);
     if (!high.length) return { intent: "CLINICAL_OR_MANAGERIAL_ANALYSIS", answer: "Não há pacientes em alto risco no momento.", references: [] };
     return {
@@ -684,27 +439,24 @@ function chatAnswer(question, contexts, db = null) {
     };
   }
 
-  if (/sem telefone|telefone ausente|sem endereco|endereco ausente|sem acs/.test(q)) {
-    const quality = dataQualityChecks(contexts);
-    const filtered = quality.filter((f) =>
-      (/telefone/.test(q) && /telefone/i.test(f.issue))
-      || (/endereco/.test(q) && /endere/i.test(f.issue))
-      || (/sem acs/.test(q) && /acs/i.test(f.issue))
-    ).slice(0, 12);
-    if (!filtered.length) return { intent: "CLINICAL_OR_MANAGERIAL_ANALYSIS", answer: "Não encontrei pacientes com esse tipo de pendência.", references: [] };
+  // Protocol pending — requires pre-built context with protocolSummary (not directly in db)
+  if (/protocol.*atras|atras.*protocol|pendencia.*protocol|protocol.*penden/.test(q) ||
+      (q.includes("penden") && /visita|consulta|vacina/.test(q))) {
+    const pendentes = contexts
+      .map((c) => ({ name: c.patient.name, pending: c.protocolSummary?.pending || {} }))
+      .filter((i) => Number(i.pending.visits || 0) + Number(i.pending.consultations || 0) + Number(i.pending.vaccines || 0) > 0)
+      .slice(0, 12);
+    if (!pendentes.length) return { intent: "CLINICAL_OR_MANAGERIAL_ANALYSIS", answer: "Não há pendências de protocolo no momento.", references: [] };
     return {
       intent: "CLINICAL_OR_MANAGERIAL_ANALYSIS",
-      answer: `Pendências encontradas: ${filtered.map((f) => `${f.patientName} (${f.issue})`).join("; ")}.`,
-      references: filtered.map((f) => f.patientName)
+      answer: `Pendências de protocolo: ${pendentes.map((p) => `${p.name} (V:${p.pending.visits || 0}, C:${p.pending.consultations || 0}, Vac:${p.pending.vaccines || 0})`).join("; ")}.`,
+      references: pendentes.map((p) => p.name)
     };
   }
 
-  // UNKNOWN / safe fallback — never returns "Sugestão de foco do dia" for unrecognized questions
-  return {
-    intent: "UNKNOWN",
-    answer: `Não encontrei dados suficientes para responder essa pergunta com segurança.\n\nTente perguntar de forma mais específica, por exemplo:\n• Quantos pacientes tenho cadastrados?\n• Quantas gestantes existem?\n• Como exportar o e-SUS?\n• Como cadastrar uma visita ACS?\n• Quais pacientes estão em alto risco?`,
-    references: []
-  };
+  // All other queries (operational data + system help + out-of-scope + unknown)
+  // go to the planner which uses the tools layer with direct db access.
+  return planAndExecute(originalQ, db || {});
 }
 
 export {
