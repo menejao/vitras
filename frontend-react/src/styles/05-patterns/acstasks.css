@@ -480,8 +480,34 @@
   .acs-status-group { flex: 1; }
   .acs-status-btn { flex: 1; text-align: center; }
   .acs-tab { min-height: 44px; padding: var(--s-2) var(--s-3); font-size: var(--t-xs); }
-  .acs-select { width: 100%; }
+  .acs-select { width: 100%; min-width: 0; }
   .acs-page .page-subtitle { font-size: var(--t-sm); }
+
+  /* Task card: stack body + controls vertically */
+  .acs-task__head { flex-direction: column; gap: var(--s-2); }
+  .acs-task__controls {
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-end;
+    width: 100%;
+    padding-top: var(--s-2);
+    border-top: 1px solid color-mix(in srgb, currentColor 10%, transparent);
+  }
+  .acs-task__status { flex: 1; }
+
+  /* Visit form actions: stretch to full width */
+  .acs-vis-form__actions { flex-direction: column-reverse; }
+  .acs-vis-btn-cancel,
+  .acs-vis-btn-save { width: 100%; text-align: center; justify-content: center; }
+
+  /* Period group: full width */
+  .acs-period-group { flex: 1; justify-content: space-between; }
+  .acs-period-btn { flex: 1; text-align: center; }
+
+  /* Custom date range: stack */
+  .acs-date-range { flex-direction: column; }
+  .acs-date-input { width: 100%; min-width: 0; box-sizing: border-box; }
+  .acs-date-range__sep { display: none; }
 }
 
 /* ── Family groups section wrapper ───────────────────────────── */
