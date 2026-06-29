@@ -328,4 +328,9 @@
   .triage-queue,
   .triage-body--split .triage-queue { flex: none; max-width: none; }
   .triage-form__grid-4 { grid-template-columns: 1fr 1fr; }
+  .triage-form__grid-3 { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 480px) {
+  .triage-form__grid-4,
+  .triage-form__grid-3 { grid-template-columns: 1fr; }
 }

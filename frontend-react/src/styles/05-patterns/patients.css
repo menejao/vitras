@@ -2030,6 +2030,7 @@
 
 @media (max-width: 768px) {
   .patients-layout { margin: var(--s-3); }
+  .patients-layout--split { grid-template-columns: 1fr; }
   .panel-block { max-height: none; }
   .panel-patient-actions { display: none; }
 }

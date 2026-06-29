@@ -132,4 +132,10 @@ textarea.input {
   resize: vertical;
 }
 
+/* ── Touch targets mobile (WCAG 2.5.5) ──────────────────── */
+@media (max-width: 768px) {
+  .input { min-height: 44px; }
+  textarea.input { min-height: 72px; }
+}
+
 /* AppSelect replaces native <select>. This rule kept for legacy fallbacks. */

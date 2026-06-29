@@ -28,6 +28,7 @@
   padding: var(--s-3) var(--s-6);
   flex-shrink: 0;
   align-items: flex-start;
+  flex-wrap: wrap;
 }
 
 .queue-kpis .kpi {
