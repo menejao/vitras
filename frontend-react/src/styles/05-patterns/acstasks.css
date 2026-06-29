@@ -53,7 +53,13 @@
   gap: var(--s-1);
   border-bottom: 1px solid var(--border-subtle);
   flex-shrink: 0;
+  overflow-x: auto;
+  flex-wrap: nowrap;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding-bottom: 2px;
 }
+.acs-tabs::-webkit-scrollbar { display: none; }
 
 .acs-tab {
   padding: var(--s-2) var(--s-4);
@@ -65,6 +71,7 @@
   margin-bottom: -1px;
   cursor: pointer;
   white-space: nowrap;
+  flex-shrink: 0;
   transition: color .12s, border-color .12s;
 }
 
@@ -472,6 +479,9 @@
   .acs-search-wrap { max-width: none; }
   .acs-status-group { flex: 1; }
   .acs-status-btn { flex: 1; text-align: center; }
+  .acs-tab { min-height: 44px; padding: var(--s-2) var(--s-3); font-size: var(--t-xs); }
+  .acs-select { width: 100%; }
+  .acs-page .page-subtitle { font-size: var(--t-sm); }
 }
 
 /* ── Family groups section wrapper ───────────────────────────── */
