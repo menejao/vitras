@@ -122,7 +122,7 @@ router.post("/ai/chat", async (req, res) => {
   const db = await readDb();
   ensureDbShape(db);
   const contexts = buildAiTeamContexts(db, req.user);
-  return res.json(chatAnswer(question, contexts));
+  return res.json(chatAnswer(question, contexts, db));
 });
 
 export default router;
