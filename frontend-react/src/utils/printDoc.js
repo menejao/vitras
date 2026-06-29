@@ -191,12 +191,12 @@ export function printVaccineCard({ patient, vaccineRows = [], extraApplied = [],
   const rowsHtml = vaccineRows.length
     ? vaccineRows.map(v => `
         <tr>
-          <td style="padding:5px 8px;border-bottom:1px solid #f0f0f0;font-size:12px;font-weight:600;color:${v.applied ? "#111" : "#555"};">${v.name}</td>
-          <td style="padding:5px 8px;border-bottom:1px solid #f0f0f0;font-size:11px;color:#666;">${v.doseLabel || ""}</td>
-          <td style="padding:5px 8px;border-bottom:1px solid #f0f0f0;font-size:11px;color:${v.applied ? "#16a34a" : "#aaa"};">${v.applied ? (v.date || "—") : "Não aplicada"}</td>
-          <td style="padding:5px 8px;border-bottom:1px solid #f0f0f0;font-size:11px;color:#666;">${v.by || ""}</td>
+          <td style="padding:5px 8px;border:1px solid #ccc;font-size:12px;font-weight:600;color:${v.applied ? "#111" : "#555"};">${v.name}</td>
+          <td style="padding:5px 8px;border:1px solid #ccc;font-size:11px;color:#444;">${v.doseLabel || ""}</td>
+          <td style="padding:5px 8px;border:1px solid #ccc;font-size:11px;color:${v.applied ? "#16a34a" : "#999"};">${v.applied ? (v.date || "—") : "Não aplicada"}</td>
+          <td style="padding:5px 8px;border:1px solid #ccc;font-size:11px;color:#444;">${v.by || ""}</td>
         </tr>`).join("")
-    : `<tr><td colspan="4" style="padding:12px;color:#aaa;text-align:center;font-size:12px;">Nenhuma vacina indicada para este paciente.</td></tr>`;
+    : `<tr><td colspan="4" style="padding:12px;border:1px solid #ccc;color:#aaa;text-align:center;font-size:12px;">Nenhuma vacina indicada para este paciente.</td></tr>`;
 
   const extraHtml = extraApplied.length
     ? `<div class="doc-section" style="margin-top:20px;">
@@ -215,13 +215,13 @@ export function printVaccineCard({ patient, vaccineRows = [], extraApplied = [],
     ${patientBlock(patient)}
     <div class="doc-section">
       <div class="doc-section__label">Calendário Nacional de Vacinação (PNI)</div>
-      <table style="width:100%;border-collapse:collapse;margin-top:8px;">
+      <table style="width:100%;border-collapse:collapse;margin-top:8px;border:1px solid #ccc;">
         <thead>
           <tr style="background:#f5f5f5;">
-            <th style="text-align:left;padding:6px 8px;font-size:10px;color:#666;font-weight:600;letter-spacing:.5px;border-bottom:1px solid #e5e5e5;">VACINA</th>
-            <th style="text-align:left;padding:6px 8px;font-size:10px;color:#666;font-weight:600;letter-spacing:.5px;border-bottom:1px solid #e5e5e5;">DOSE</th>
-            <th style="text-align:left;padding:6px 8px;font-size:10px;color:#666;font-weight:600;letter-spacing:.5px;border-bottom:1px solid #e5e5e5;">DATA</th>
-            <th style="text-align:left;padding:6px 8px;font-size:10px;color:#666;font-weight:600;letter-spacing:.5px;border-bottom:1px solid #e5e5e5;">PROFISSIONAL</th>
+            <th style="text-align:left;padding:6px 8px;font-size:10px;color:#333;font-weight:700;letter-spacing:.5px;border:1px solid #ccc;">VACINA</th>
+            <th style="text-align:left;padding:6px 8px;font-size:10px;color:#333;font-weight:700;letter-spacing:.5px;border:1px solid #ccc;">DOSE</th>
+            <th style="text-align:left;padding:6px 8px;font-size:10px;color:#333;font-weight:700;letter-spacing:.5px;border:1px solid #ccc;">DATA DE APLICAÇÃO</th>
+            <th style="text-align:left;padding:6px 8px;font-size:10px;color:#333;font-weight:700;letter-spacing:.5px;border:1px solid #ccc;">PROFISSIONAL</th>
           </tr>
         </thead>
         <tbody>${rowsHtml}</tbody>

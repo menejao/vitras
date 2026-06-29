@@ -187,6 +187,8 @@ export function getRosaHpvVaccines(ageMonths, sex) {
 function vaccineApplied(vaccine, appliedList, birthDate) {
   const norm = s => String(s || "").toLowerCase().replace(/[^a-z0-9]/g," ").replace(/\s+/g," ").trim();
   return appliedList.some(a => {
+    // Exact name match: covers explicit registrations including catch-up doses
+    if (norm(a.title) === norm(vaccine.name)) return true;
     const nameMatch = vaccine.aliases.some(alias => norm(a.title).includes(norm(alias)));
     if (!nameMatch) return false;
     if (vaccine.ageGroup !== "Criança" || !birthDate || !a.date) return true;

@@ -133,7 +133,14 @@
 .vg-badge__range { font-weight: 400; opacity: .8; }
 
 /* ── Vaccine card layout ───────────────────────────────────── */
-.vacc-main { flex: 1; min-width: 0; align-self: stretch; display: flex; flex-direction: column; }
+.vacc-main { flex: 1; min-width: 0; align-self: stretch; display: flex; flex-direction: column; min-height: 0; }
+
+.vacc-main > .card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
 
 .vacc-empty {
   flex: 1;
@@ -217,6 +224,9 @@
   display: flex;
   flex-direction: column;
   gap: var(--s-6);
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
 }
 
 /* ── Calendar section header ───────────────────────────────── */
