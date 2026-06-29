@@ -515,3 +515,16 @@
   background: var(--border-subtle);
   margin: var(--s-1) var(--s-2);
 }
+
+/* ── Topbar mobile ────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .topbar { padding: 0 var(--s-3); gap: var(--s-2); }
+  .topbar__right { gap: var(--s-1); }
+  .topbar__account-copy { display: none; }
+  .topbar__account-caret { display: none; }
+  .topbar__patient-pill { display: none; }
+  .topbar__divider { display: none; }
+}
+@media (max-width: 480px) {
+  .topbar__icon-btn { width: 32px; height: 32px; }
+}
