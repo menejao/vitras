@@ -1,39 +1,31 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { login } from "../services/authService.js";
+import { isValidCpf, formatCpf, rawCpf } from "../services/citizenIdentityService.js";
 
 export default function LoginPage({ onLogin }) {
-  const [cpf,    setCpf]    = useState("");
-  const [senha,  setSenha]  = useState("");
-  const [busy,   setBusy]   = useState(false);
-  const [erro,   setErro]   = useState("");
+  const navigate = useNavigate();
+
+  const [cpf,   setCpf]   = useState("");
+  const [senha, setSenha] = useState("");
+  const [busy,  setBusy]  = useState(false);
+  const [erro,  setErro]  = useState("");
 
   async function handleSubmit(e) {
     e.preventDefault();
     setErro("");
-    const digits = cpf.replace(/\D/g, "");
-    if (digits.length !== 11) { setErro("CPF inválido. Informe 11 dígitos."); return; }
-    if (!senha.trim())         { setErro("Informe sua senha."); return; }
+    const digits = rawCpf(cpf);
+    if (!isValidCpf(digits)) { setErro("CPF inválido. Verifique e tente novamente."); return; }
+    if (!senha.trim())        { setErro("Informe sua senha."); return; }
     setBusy(true);
     try {
-      await new Promise(r => setTimeout(r, 800));
-      onLogin({
-        nome:     "Maria Silva",
-        cpf:      digits,
-        unitId:   "test-unit",
-        token:    "portal-mock-token",
-      });
-    } catch {
-      setErro("Não foi possível entrar. Verifique CPF e senha.");
+      const result = await login(digits, senha);
+      onLogin({ ...result.cidadao, token: result.token });
+    } catch (err) {
+      setErro(err.message || "CPF ou senha incorretos.");
     } finally {
       setBusy(false);
     }
-  }
-
-  function fmtCpf(raw) {
-    const d = raw.replace(/\D/g, "").slice(0, 11);
-    if (d.length <= 3) return d;
-    if (d.length <= 6) return `${d.slice(0,3)}.${d.slice(3)}`;
-    if (d.length <= 9) return `${d.slice(0,3)}.${d.slice(3,6)}.${d.slice(6)}`;
-    return `${d.slice(0,3)}.${d.slice(3,6)}.${d.slice(6,9)}-${d.slice(9)}`;
   }
 
   return (
@@ -51,9 +43,7 @@ export default function LoginPage({ onLogin }) {
       <form className="portal-login-form" onSubmit={handleSubmit}>
         <div className="portal-login-form__title">Entrar</div>
 
-        {erro && (
-          <div className="alert alert--error" role="alert">{erro}</div>
-        )}
+        {erro && <div className="alert alert--error" role="alert" style={{ marginBottom: 16 }}>{erro}</div>}
 
         <div className="field">
           <label className="field__label" htmlFor="login-cpf">CPF</label>
@@ -62,7 +52,7 @@ export default function LoginPage({ onLogin }) {
             className="field__input"
             inputMode="numeric"
             placeholder="000.000.000-00"
-            value={fmtCpf(cpf)}
+            value={formatCpf(cpf)}
             onChange={e => setCpf(e.target.value)}
             autoComplete="username"
           />
@@ -89,9 +79,18 @@ export default function LoginPage({ onLogin }) {
           {busy ? "" : "Entrar"}
         </button>
 
-        <p style={{ textAlign: "center", fontSize: "var(--t-sm)", color: "var(--text-muted)" }}>
-          Novo no VITRAS? Procure sua UBS para se cadastrar.
-        </p>
+        <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 8, alignItems: "center" }}>
+          <button
+            type="button"
+            className="btn btn--ghost btn--full"
+            onClick={() => navigate("/primeiro-acesso")}
+          >
+            Criar meu acesso (primeiro acesso)
+          </button>
+          <p style={{ textAlign: "center", fontSize: "var(--t-sm)", color: "var(--text-muted)", margin: 0 }}>
+            Ainda sem cadastro? Procure sua UBS.
+          </p>
+        </div>
       </form>
     </div>
   );

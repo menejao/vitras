@@ -144,11 +144,11 @@ function ensurePortalShape(db) {
 router.use("/platform/citizen-portal", requireAuth, requireSupportAdmin);
 
 // GET /platform/citizen-portal/config — ler config municipal
-router.get("/platform/citizen-portal/config", (req, res) => {
+router.get("/platform/citizen-portal/config", async (req, res) => {
   if (!hasCapability(req.user, "platform.citizen_portal.read")) {
     return res.status(403).json({ error: "Sem permissão" });
   }
-  const db     = readDb();
+  const db     = await readDb();
   ensurePortalShape(db);
   const config = mergeWithDefaults(DEFAULT_PORTAL_CONFIG, db.citizenPortalConfig);
   return res.json({ config, isDefault: !db.citizenPortalConfig || Object.keys(db.citizenPortalConfig).length === 0 });
@@ -178,12 +178,12 @@ router.put("/platform/citizen-portal/config", async (req, res) => {
 });
 
 // GET /platform/citizen-portal/units/:unitId/config — config da UBS
-router.get("/platform/citizen-portal/units/:unitId/config", (req, res) => {
+router.get("/platform/citizen-portal/units/:unitId/config", async (req, res) => {
   if (!hasCapability(req.user, "platform.citizen_portal.read")) {
     return res.status(403).json({ error: "Sem permissão" });
   }
   const { unitId } = req.params;
-  const db = readDb();
+  const db = await readDb();
   ensurePortalShape(db);
   if (!Array.isArray(db.units)) return res.status(404).json({ error: "Unidade não encontrada" });
 
@@ -239,9 +239,9 @@ router.put("/platform/citizen-portal/units/:unitId/config", async (req, res) => 
 // GET /citizen-portal/config?unitId=xxx
 // Returns effective config for a unit. No sensitive internal data exposed.
 
-router.get("/citizen-portal/config", (req, res) => {
+router.get("/citizen-portal/config", async (req, res) => {
   const { unitId } = req.query;
-  const db = readDb();
+  const db = await readDb();
   ensurePortalShape(db);
 
   const municipal = mergeWithDefaults(DEFAULT_PORTAL_CONFIG, db.citizenPortalConfig);
