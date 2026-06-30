@@ -1,22 +1,30 @@
 /**
  * Territorial Service — TERRITORIAL-MAP-FOUNDATION-01 + TERRITORIAL-MICROAREA-AUTO-SUGGESTION-01
+ *                       + TERRITORIAL-MAP-PERSISTENCE-UBS-CENTERING-01
  *
  * Camada de abstração para dados territoriais.
- * Mock isolado: quando backend territorial for implementado, substituir
- * apenas getTerritorialAreas() por chamada real à API.
+ * Backend: /territorial/areas (CRUD) + /territorial/unit (localização da UBS).
  *
  * TerritorialArea shape:
- *   id, code, name, healthUnitId, polygonGeoJson, teamId, teamName,
- *   teamColor, acsId, acsName, streets[], notes, active, status,
+ *   id, unitId, code, name, teamName, teamColor, acsId, acsName,
+ *   streets[{name, numberFrom, numberTo, side}], neighborhood, notes,
+ *   active, status ("draft"|"active"), polygonGeoJson (GeoJSON Geometry|null),
  *   createdAt, updatedAt
  *
- * status values: "draft" | "active"
- *   draft  — polígono criado mas não confirmado pela equipe (borda tracejada)
- *   active — microárea confirmada, usada em consultas territoriais
+ * status:
+ *   draft  — rascunho — não oficial, borda tracejada
+ *   active — confirmado pela equipe UBS — used in territorial queries
+ *
+ * Arquitetura futura (não implementar agora):
+ *   Geração por lista de ruas, domicílios cadastrados, convex hull, concave hull,
+ *   importação GeoJSON/KML/Shapefile, ajuste de vértices, divisão/união de
+ *   microáreas, histórico de alterações, geocoding automático.
  */
 
+import { api } from "../api";
+
 // ── Status de microárea ────────────────────────────────────────────────────
-export const STATUS_DRAFT = "draft";
+export const STATUS_DRAFT  = "draft";
 export const STATUS_ACTIVE = "active";
 
 // ── Formulário vazio (reset) ───────────────────────────────────────────────
@@ -25,49 +33,13 @@ export const INIT_DRAFT = {
   code: "",
   teamName: "",
   acsName: "",
-  teamColor: "",  // populated after TEAM_COLORS is declared below
+  teamColor: "",
+  neighborhood: "",
   notes: "",
+  streets: [],
 };
-
-// ── Estilos de mapa ────────────────────────────────────────────────────────
-// Trocar provider = trocar estas constantes. Regras de negócio não mudam.
-
-export const MAP_STYLES = {
-  // Satélite ESRI: gratuito, sem API key, alta cobertura Brasil
-  satellite: {
-    version: 8,
-    glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
-    sources: {
-      satellite: {
-        type: "raster",
-        tiles: [
-          "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-        ],
-        tileSize: 256,
-        attribution: "© Esri, Maxar, Earthstar Geographics",
-        maxzoom: 19,
-      },
-    },
-    layers: [{ id: "satellite-layer", type: "raster", source: "satellite" }],
-  },
-
-  // Street OpenFreeMap: MIT, sem API key, vetorial, MapLibre nativo
-  street: "https://tiles.openfreemap.org/styles/liberty",
-};
-
-// Estilo padrão: satélite (conforme especificação)
-export const DEFAULT_MAP_STYLE = MAP_STYLES.satellite;
-
-// Centro padrão do Brasil — cada UBS configurará sua área futuramente
-export const DEFAULT_MAP_CENTER = [-51.9253, -14.235];
-export const DEFAULT_MAP_ZOOM = 4;
 
 // ── Paleta de cores por equipe ─────────────────────────────────────────────
-// Arquitetura futura: gerar por lista de ruas, domicílios cadastrados,
-// convex hull, concave hull, importação GeoJSON/KML/Shapefile, ajuste de
-// vértices, divisão/união de microáreas e histórico de alterações.
-// Hoje: polígono por pontos clicados no mapa + revisão humana obrigatória.
-
 export const TEAM_COLORS = [
   "#0ea5e9", // azul
   "#10b981", // verde
@@ -79,111 +51,106 @@ export const TEAM_COLORS = [
   "#14b8a6", // teal
 ];
 
-// Cor padrão do form inicial
 INIT_DRAFT.teamColor = TEAM_COLORS[0];
 
-// ── Mock de dados territoriais ─────────────────────────────────────────────
-// Vazio por default — estado vazio profissional é o comportamento esperado.
-// Para testar com dados, descomente MOCK_AREAS abaixo.
+// ── Configuração de mapa ───────────────────────────────────────────────────
 
-const EMPTY_AREAS = [];
+export const MAP_STYLES = {
+  // Street OpenFreeMap: MIT, sem API key, vetorial, MapLibre nativo
+  // Padrão: ruas (operacional para configuração territorial)
+  street: "https://tiles.openfreemap.org/styles/liberty",
 
-/*
-const MOCK_AREAS = [
-  {
-    id: "ta-001",
-    code: "001",
-    name: "Microárea 001",
-    healthUnitId: "ubs-1",
-    polygonGeoJson: null,
-    teamId: "team-1",
-    teamName: "Equipe Azul",
-    teamColor: TEAM_COLORS[0],
-    acsId: "acs-1",
-    acsName: "Maria Silva",
-    streets: ["Rua das Flores", "Av. Principal", "Beco do Laranjo"],
-    notes: "",
-    active: true,
-    createdAt: "2026-06-01T00:00:00Z",
-    updatedAt: "2026-06-01T00:00:00Z",
+  // Satélite ESRI: mantido para evolução futura (arquitetura preparada)
+  satellite: {
+    version: 8,
+    glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
+    sources: {
+      satellite: {
+        type: "raster",
+        tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],
+        tileSize: 256,
+        attribution: "© Esri, Maxar, Earthstar Geographics",
+        maxzoom: 19,
+      },
+    },
+    layers: [{ id: "satellite-layer", type: "raster", source: "satellite" }],
   },
-];
-*/
+};
 
-// ── Criação de polígono ────────────────────────────────────────────────────
+// Padrão operacional: ruas
+export const DEFAULT_MAP_STYLE = MAP_STYLES.street;
 
-/**
- * Constrói GeoJSON Feature Polygon a partir de pontos clicados no mapa.
- * Fecha o anel automaticamente (primeiro ponto = último ponto).
- * Retorna null se menos de 3 pontos.
- *
- * @param {Array<{lng: number, lat: number}>} points
- * @param {string} teamColor
- * @returns {GeoJSON.Feature<Polygon>|null}
- */
-export function buildPolygonGeoJSON(points, teamColor) {
-  if (!points || points.length < 3) return null;
-  const coords = points.map(p => [p.lng, p.lat]);
-  coords.push([coords[0][0], coords[0][1]]); // fechar anel
-  return {
-    type: "Feature",
-    geometry: { type: "Polygon", coordinates: [coords] },
-    properties: { teamColor: teamColor || TEAM_COLORS[0] },
-  };
-}
+// Centro do Brasil — fallback enquanto UBS não tiver localização configurada
+export const DEFAULT_MAP_CENTER = [-51.9253, -14.235];
+export const DEFAULT_MAP_ZOOM   = 4;
+
+// Zoom para quando a UBS tem localização configurada
+export const UBS_MAP_ZOOM = 14;
+
+// ── API calls ──────────────────────────────────────────────────────────────
 
 /**
- * Valida formulário de microárea antes de avançar para desenho.
- * Retorna objeto com chaves de campos inválidos e mensagens de erro.
+ * Retorna dados de localização da UBS atual.
+ * Future: quando UBS tiver lat/lng → centralizar mapa.
  */
-export function validateDraftForm(form) {
-  const errors = {};
-  if (!form.name || !form.name.trim()) errors.name = "Nome é obrigatório";
-  if (!form.teamColor) errors.teamColor = "Cor é obrigatória";
-  return errors;
-}
-
-/**
- * Valida pontos do polígono antes de salvar.
- * Retorna string com mensagem de erro, ou null se válido.
- */
-export function validateDrawingPoints(points) {
-  if (!points || points.length < 3) return "Adicione pelo menos 3 pontos no mapa";
-  for (const p of points) {
-    if (p.lat < -90 || p.lat > 90 || p.lng < -180 || p.lng > 180) {
-      return `Coordenadas inválidas: lat=${p.lat}, lng=${p.lng}`;
-    }
+export async function getUnitLocation(token) {
+  try {
+    return await api("/territorial/unit", { credentials: "include" }, token);
+  } catch {
+    return null;
   }
-  return null;
 }
 
-// ── API ────────────────────────────────────────────────────────────────────
-
 /**
- * Retorna áreas territoriais da unidade.
- * Future: GET /api/territorial/areas
+ * Retorna todas as microáreas da UBS atual.
+ * GET /territorial/areas
  */
-export async function getTerritorialAreas(_token) {
-  // TODO: substituir por chamada real quando backend territorial for implementado
-  // const res = await fetch(`${API_URL}/territorial/areas`, {
-  //   headers: { Authorization: `Bearer ${_token}` },
-  // });
-  // if (!res.ok) throw new Error("Erro ao carregar áreas territoriais");
-  // return res.json();
-  return EMPTY_AREAS;
+export async function getTerritorialAreas(token) {
+  const data = await api("/territorial/areas", { credentials: "include" }, token);
+  return data?.areas || [];
 }
 
 /**
- * Retorna área territorial por id.
- * Future: GET /api/territorial/areas/:id
+ * Cria nova microárea (status: draft ou active).
+ * POST /territorial/areas
  */
-export async function getTerritorialArea(_token, _id) {
-  const areas = await getTerritorialAreas(_token);
-  return areas.find(a => a.id === _id) || null;
+export async function createTerritorialArea(token, payload) {
+  const data = await api("/territorial/areas", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    credentials: "include",
+  }, token);
+  return data?.area;
 }
 
 /**
- * Busca áreas por termo (rua, equipe, ACS, nome, código).
+ * Atualiza microárea existente.
+ * PATCH /territorial/areas/:id
+ */
+export async function updateTerritorialArea(token, id, payload) {
+  const data = await api(`/territorial/areas/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+    credentials: "include",
+  }, token);
+  return data?.area;
+}
+
+/**
+ * Soft delete de microárea.
+ * DELETE /territorial/areas/:id
+ */
+export async function deleteTerritorialArea(token, id) {
+  await api(`/territorial/areas/${id}`, {
+    method: "DELETE",
+    credentials: "include",
+  }, token);
+}
+
+// ── Utilitários ────────────────────────────────────────────────────────────
+
+/**
+ * Busca áreas por termo (rua, equipe, ACS, nome, código, bairro).
  */
 export function searchAreas(areas, query) {
   if (!query || !query.trim()) return areas;
@@ -193,20 +160,21 @@ export function searchAreas(areas, query) {
     a.code?.toLowerCase().includes(q) ||
     a.acsName?.toLowerCase().includes(q) ||
     a.teamName?.toLowerCase().includes(q) ||
-    a.streets?.some(s => s.toLowerCase().includes(q))
+    a.neighborhood?.toLowerCase().includes(q) ||
+    a.streets?.some(s => (s.name || s).toLowerCase?.().includes(q))
   );
 }
 
 /**
  * Converte lista de áreas em FeatureCollection GeoJSON.
  * Usado para alimentar a camada MapLibre.
+ * Inclui DRAFT para visualização (com isDraft=true nas properties).
  */
 export function areasToGeoJSON(areas) {
-  const features = areas
-    .filter(a => a.polygonGeoJson && (a.active || a.status === STATUS_DRAFT))
+  const features = (areas || [])
+    .filter(a => a.polygonGeoJson && !a.deletedAt && (a.active || a.status === STATUS_DRAFT))
     .map(area => {
-      const geometry =
-        area.polygonGeoJson?.geometry || area.polygonGeoJson;
+      const geometry = area.polygonGeoJson?.geometry || area.polygonGeoJson;
       return {
         type: "Feature",
         geometry,
@@ -222,6 +190,44 @@ export function areasToGeoJSON(areas) {
         },
       };
     });
-
   return { type: "FeatureCollection", features };
+}
+
+/**
+ * Constrói GeoJSON Feature Polygon a partir de pontos clicados no mapa.
+ * Fecha o anel automaticamente. Retorna null se menos de 3 pontos.
+ */
+export function buildPolygonGeoJSON(points, teamColor) {
+  if (!points || points.length < 3) return null;
+  const coords = points.map(p => [p.lng, p.lat]);
+  coords.push([coords[0][0], coords[0][1]]);
+  return {
+    type: "Feature",
+    geometry: { type: "Polygon", coordinates: [coords] },
+    properties: { teamColor: teamColor || TEAM_COLORS[0] },
+  };
+}
+
+/**
+ * Valida formulário antes de avançar para desenho.
+ */
+export function validateDraftForm(form) {
+  const errors = {};
+  if (!form.name || !form.name.trim()) errors.name = "Nome é obrigatório";
+  if (!form.teamColor) errors.teamColor = "Cor é obrigatória";
+  return errors;
+}
+
+/**
+ * Valida pontos do polígono antes de salvar.
+ * Retorna string de erro ou null se válido.
+ */
+export function validateDrawingPoints(points) {
+  if (!points || points.length < 3) return "Adicione pelo menos 3 pontos no mapa";
+  for (const p of points) {
+    if (p.lat < -90 || p.lat > 90 || p.lng < -180 || p.lng > 180) {
+      return `Coordenadas inválidas: lat=${p.lat}, lng=${p.lng}`;
+    }
+  }
+  return null;
 }

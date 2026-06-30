@@ -478,6 +478,26 @@
   color: var(--text-muted);
 }
 
+/* ── btn--danger variant (territorial only) ──────────────────── */
+
+.territorial-page .btn--danger {
+  background: var(--danger-soft);
+  color: var(--danger);
+  border-color: var(--danger-bd);
+}
+
+.territorial-page .btn--danger:hover {
+  background: var(--danger);
+  color: #fff;
+}
+
+.territorial-page .btn--icon-only {
+  padding: 0;
+  width: 30px;
+  min-width: 30px;
+  justify-content: center;
+}
+
 /* ── Header new-area button ──────────────────────────────────── */
 
 .territorial-header__controls {
@@ -733,6 +753,63 @@
   flex-shrink: 0;
 }
 
+/* ── Detail actions row ──────────────────────────────────────── */
+
+.territorial-detail__actions-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+}
+
+/* ── Street rows ─────────────────────────────────────────────── */
+
+.territorial-streets-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  margin-bottom: var(--s-2);
+}
+
+.territorial-street-row {
+  display: grid;
+  grid-template-columns: 1fr 68px 68px 80px 28px;
+  gap: var(--s-1);
+  align-items: center;
+}
+
+.territorial-street-row__name,
+.territorial-street-row__num,
+.territorial-street-row__side {
+  min-width: 0;
+  width: 100%;
+  font-size: var(--t-xs);
+}
+
+.territorial-street-row__remove {
+  width: 24px;
+  height: 24px;
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+
+.territorial-add-street {
+  width: 100%;
+  justify-content: center;
+}
+
+/* ── Review streets ──────────────────────────────────────────── */
+
+.territorial-creator__review-streets {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.territorial-creator__review-street {
+  font: 400 var(--t-xs) var(--font-sans);
+  color: var(--text-muted);
+}
+
 /* ── Actions ─────────────────────────────────────────────────── */
 
 .territorial-creator__actions {
@@ -788,6 +865,11 @@
     padding: var(--s-3);
   }
 
+  .territorial-street-row {
+    grid-template-columns: 1fr 54px 54px 70px 24px;
+    gap: 4px;
+  }
+
   .territorial-creator__actions {
     flex-direction: column;
   }
@@ -831,5 +913,10 @@
     width: 100%;
     min-height: 44px;
     justify-content: center;
+  }
+
+  .territorial-street-row {
+    grid-template-columns: 1fr 48px 48px 64px 24px;
+    gap: 3px;
   }
 }

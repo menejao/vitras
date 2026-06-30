@@ -66,23 +66,23 @@
       "name": "João Pedro",
       "email": "joaoomenegucci@gmail.com",
       "role": "support_admin",
-      "password": "s1$99f3877d26d4c666e4697ed82be5136c$e93dc2d321d9a1fd05c5fa7c767bdae0dd3dcc62d09c2c30a41d1169ed27732e96975fa58f6f880e69ec441f2f6499461f01741719fdc93702dfc637d887e35d",
+      "password": "s1$0d4587e0ef63db2ddb0b391c848f9d4a$9e85d0122ba35562fcc8f3d1d111a4d8f6b44506a3663213904bcbfddc63c2656b3383c896a2302fdcc58d8e251974db2569f00e642cf920159c3f2ef7c67650",
       "unitId": "",
       "teamId": "",
       "municipalityId": "",
       "forcePasswordChange": true,
       "passwordUpdatedAt": null,
-      "temporaryPasswordIssuedAt": "2026-06-22T13:49:53.997Z",
+      "temporaryPasswordIssuedAt": "2026-06-24T17:13:53.421Z",
       "createdBySupport": true,
       "createdByUserId": "system-bootstrap",
-      "lastPasswordResetAt": null,
-      "passwordResetBy": null,
+      "lastPasswordResetAt": "2026-06-24T17:13:53.421Z",
+      "passwordResetBy": "system-reset-cli",
       "twoFactorEnabled": false,
       "twoFactorSecret": "",
       "twoFactorPendingSecret": "",
       "twoFactorPendingCreatedAt": "",
       "createdAt": "2026-06-22T13:49:53.997Z",
-      "updatedAt": "2026-06-24T13:28:11.892Z",
+      "updatedAt": "2026-06-24T17:13:53.421Z",
       "vitrasId": "101391569"
     }
   ],
@@ -312,6 +312,26 @@
         "outcome": "success"
       },
       "createdAt": "2026-06-22T13:49:53.997Z"
+    },
+    {
+      "id": "11f2e48a-4770-4a22-9458-843ccd7a76ed",
+      "action": "SUPPORT_ADMIN_PASSWORD_RESET",
+      "entity": "user",
+      "entityId": "beb297a9-0b8a-44ad-8c8e-7dd14305d6ee",
+      "category": "iam",
+      "severity": "high",
+      "userId": "system-reset-cli",
+      "userName": "system",
+      "userRole": "system",
+      "teamId": "",
+      "unitId": "",
+      "details": {
+        "email": "joaoomenegucci@gmail.com",
+        "revokedSessions": 0,
+        "method": "reset-cli",
+        "outcome": "success"
+      },
+      "createdAt": "2026-06-24T17:13:53.421Z"
     }
   ],
   "clinicalRecords": [],
@@ -1208,5 +1228,6 @@
       "createdAt": "2026-06-23T22:18:21.448Z",
       "updatedAt": "2026-06-23T22:18:21.448Z"
     }
-  ]
+  ],
+  "microAreas": []
 }

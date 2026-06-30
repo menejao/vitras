@@ -294,13 +294,22 @@ router.post("/platform/units", async (req, res) => {
   const uf               = String(payload.uf || "").trim().toUpperCase();
   const municipalityId   = String(payload.municipalityId || "").trim();
   const address          = String(payload.address || "").trim();
+  const street           = String(payload.street || "").trim();
+  const streetNumber     = String(payload.streetNumber || "").trim();
+  const neighborhood     = String(payload.neighborhood || "").trim();
+  const cep              = String(payload.cep || "").replace(/\D/g, "");
   const contactEmail     = String(payload.contactEmail || "").trim().toLowerCase();
   const phone            = String(payload.phone || "").trim();
   const status           = VALID_STATUSES.includes(payload.status) ? payload.status : "draft";
+  // Location — stored as-is; geocoding future sprint
+  const lat              = payload.lat  != null ? Number(payload.lat)  : null;
+  const lng              = payload.lng  != null ? Number(payload.lng)  : null;
 
   if (!name || !cnes || !municipalityName || !uf) {
     return res.status(400).json({ error: "name, cnes, municipalityName e uf são obrigatórios" });
   }
+  if (lat !== null && (isNaN(lat) || lat < -90  || lat > 90))  return res.status(400).json({ error: "lat inválido" });
+  if (lng !== null && (isNaN(lng) || lng < -180 || lng > 180)) return res.status(400).json({ error: "lng inválido" });
   if (!/^\d{7}$/.test(municipalityId)) {
     return res.status(400).json({ error: "municipalityId deve ter exatamente 7 dígitos (código IBGE)" });
   }
@@ -326,6 +335,14 @@ router.post("/platform/units", async (req, res) => {
       uf,
       municipalityId,
       address,
+      street,
+      streetNumber,
+      neighborhood,
+      cep: cep || null,
+      lat: lat !== null ? lat : null,
+      lng: lng !== null ? lng : null,
+      geocodingStatus: (lat !== null && lng !== null) ? "manual" : "none",
+      geocodedAt: (lat !== null && lng !== null) ? new Date().toISOString() : null,
       contactEmail,
       phone,
       status,
@@ -371,6 +388,28 @@ router.patch("/platform/units/:unitId", async (req, res) => {
 
     if (payload.name !== undefined)         next.name = String(payload.name || "").trim();
     if (payload.address !== undefined)      next.address = String(payload.address || "").trim();
+    if (payload.street !== undefined)       next.street = String(payload.street || "").trim();
+    if (payload.streetNumber !== undefined) next.streetNumber = String(payload.streetNumber || "").trim();
+    if (payload.neighborhood !== undefined) next.neighborhood = String(payload.neighborhood || "").trim();
+    if (payload.cep !== undefined)          next.cep = String(payload.cep || "").replace(/\D/g, "") || null;
+    if (payload.lat !== undefined) {
+      const latVal = payload.lat != null ? Number(payload.lat) : null;
+      if (latVal !== null && (isNaN(latVal) || latVal < -90 || latVal > 90)) {
+        return { error: { status: 400, message: "lat inválido" } };
+      }
+      next.lat = latVal;
+    }
+    if (payload.lng !== undefined) {
+      const lngVal = payload.lng != null ? Number(payload.lng) : null;
+      if (lngVal !== null && (isNaN(lngVal) || lngVal < -180 || lngVal > 180)) {
+        return { error: { status: 400, message: "lng inválido" } };
+      }
+      next.lng = lngVal;
+    }
+    if (next.lat != null && next.lng != null && !next.geocodingStatus) {
+      next.geocodingStatus = "manual";
+      next.geocodedAt = next.geocodedAt || nowIso;
+    }
     if (payload.contactEmail !== undefined) next.contactEmail = String(payload.contactEmail || "").trim().toLowerCase();
     if (payload.phone !== undefined)        next.phone = String(payload.phone || "").trim();
 

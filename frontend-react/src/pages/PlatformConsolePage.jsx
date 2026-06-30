@@ -356,7 +356,9 @@ function UnitTable({ token, onSelect }) {
 function UnitForm({ token, onDone, onBack }) {
   const [form, setForm] = useState({
     name: "", cnes: "", municipalityName: "", uf: "",
-    municipalityId: "", address: "", contactEmail: "", phone: "", status: "draft"
+    municipalityId: "", address: "", contactEmail: "", phone: "", status: "draft",
+    street: "", streetNumber: "", neighborhood: "", cep: "",
+    lat: "", lng: "",
   });
   const [busy, setBusy]   = useState(false);
   const [error, setError] = useState("");
@@ -372,7 +374,12 @@ function UnitForm({ token, onDone, onBack }) {
     if (!form.uf)                     { setError("UF é obrigatória."); return; }
     setBusy(true);
     try {
-      await apiFetch("/platform/units", token, { method: "POST", body: JSON.stringify(form) });
+      const payload = {
+        ...form,
+        lat: form.lat !== "" ? parseFloat(form.lat) : null,
+        lng: form.lng !== "" ? parseFloat(form.lng) : null,
+      };
+      await apiFetch("/platform/units", token, { method: "POST", body: JSON.stringify(payload) });
       onDone();
     } catch (err) {
       setError(err.message);
@@ -397,7 +404,11 @@ function UnitForm({ token, onDone, onBack }) {
           <Input label="Nome da UBS *" value={form.name} onChange={set("name")} placeholder="UBS Francisca Lima de Lira" />
           <Input label="CNES (7 dígitos) *" value={form.cnes} onChange={set("cnes")} placeholder="1234567" />
           <Input label="Código IBGE (7 dígitos)" value={form.municipalityId} onChange={set("municipalityId")} placeholder="2611606" />
-          <Input label="Endereço" value={form.address} onChange={set("address")} placeholder="Rua das Flores, 123 — Centro" />
+          <Input label="Logradouro" value={form.street} onChange={set("street")} placeholder="Rua das Flores" />
+          <Input label="Número" value={form.streetNumber} onChange={set("streetNumber")} placeholder="123" />
+          <Input label="Bairro" value={form.neighborhood} onChange={set("neighborhood")} placeholder="Centro" />
+          <Input label="CEP" value={form.cep} onChange={set("cep")} placeholder="50000-000" />
+          <Input label="Endereço completo (legado)" value={form.address} onChange={set("address")} placeholder="Rua das Flores, 123 — Centro" />
           <Input label="E-mail institucional" value={form.contactEmail} onChange={set("contactEmail")} placeholder="ubs@municipio.gov.br" />
           <Input label="Telefone" value={form.phone} onChange={set("phone")} placeholder="(81) 3000-0000" />
         </div>
@@ -421,6 +432,18 @@ function UnitForm({ token, onDone, onBack }) {
             </select>
           </div>
         </div>
+      </div>
+
+      <div className="console-section" style={{ marginBottom: "var(--s-4)" }}>
+        <div className="console-section__header">Coordenadas Geográficas <span style={{ fontWeight: 400, fontSize: "0.8em", opacity: 0.7 }}>(opcional — para centralizar o Mapa Territorial)</span></div>
+        <div className="field-grid">
+          <Input label="Latitude" value={form.lat} onChange={set("lat")} placeholder="-8.0476" type="number" step="any" />
+          <Input label="Longitude" value={form.lng} onChange={set("lng")} placeholder="-34.8770" type="number" step="any" />
+        </div>
+        <p style={{ margin: "var(--s-2) 0 0", fontSize: "var(--t-xs)", color: "var(--text-dim)" }}>
+          Insira as coordenadas do endereço da UBS para que o Mapa Territorial abra automaticamente na localização correta.
+          Use Google Maps ou similar para obter as coordenadas — cole as coordenadas no formato decimal (ex: -8.0476, -34.8770).
+        </p>
       </div>
 
       <div style={{ display: "flex", gap: "var(--s-3)" }}>

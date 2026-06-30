@@ -38,6 +38,7 @@ import productionRouter from "./routes/production.js";
 import swaggerRouter from "./routes/swagger.js";
 import platformRouter from "./routes/platform.js";
 import importRouter from "./routes/import.js";
+import territorialRouter from "./routes/territorial.js";
 
 const app = express();
 
@@ -65,6 +66,7 @@ app.use(usersRouter);
 // middleware. Admin routes retain their own inline requireAuth calls for
 // defense-in-depth.
 app.use(platformRouter);
+app.use(territorialRouter);
 app.use(requireAuth);
 app.use(importRouter);  // MIG-01: before blockSupportAdminFromClinical — import is support_admin territory
 app.use(blockSupportAdminFromClinical);  // IAM-01
