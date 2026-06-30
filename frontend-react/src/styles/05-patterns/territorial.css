@@ -478,6 +478,283 @@
   color: var(--text-muted);
 }
 
+/* ── Header new-area button ──────────────────────────────────── */
+
+.territorial-header__controls {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex-shrink: 0;
+}
+
+.territorial-header__new-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+/* ── Draft pill (inline badge) ───────────────────────────────── */
+
+.territorial-draft-pill {
+  display: inline-flex;
+  align-items: center;
+  height: 16px;
+  padding: 0 var(--s-1);
+  margin-left: var(--s-1);
+  border-radius: var(--r-sm);
+  font: 700 9px var(--font-sans);
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  background: var(--warning-soft);
+  color: var(--warning);
+  border: 1px solid var(--warning-bd);
+  vertical-align: middle;
+}
+
+/* ── Draft area item ─────────────────────────────────────────── */
+
+.territorial-area-item--draft {
+  opacity: 0.75;
+}
+
+.territorial-area-item--draft .territorial-area-item__color {
+  background: repeating-linear-gradient(
+    45deg,
+    currentColor 0 2px,
+    transparent 2px 5px
+  );
+}
+
+/* ── Map overlay hint ────────────────────────────────────────── */
+
+.territorial-map-overlay-hint {
+  position: absolute;
+  bottom: var(--s-4);
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.72);
+  color: #fff;
+  font: 500 var(--t-sm) var(--font-sans);
+  padding: var(--s-2) var(--s-4);
+  border-radius: var(--r-pill);
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 10;
+}
+
+/* ── Creation wizard ─────────────────────────────────────────── */
+
+.territorial-creator {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding: var(--s-4);
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.territorial-creator__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+  flex-shrink: 0;
+}
+
+.territorial-creator__step-label {
+  font: 600 var(--t-xs) var(--font-sans);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+
+.territorial-creator__title {
+  margin: 0;
+  font: 700 var(--t-md) var(--font-sans);
+  color: var(--text);
+}
+
+.territorial-creator__subtitle {
+  margin: calc(-1 * var(--s-2)) 0 0;
+  font: 400 var(--t-sm) var(--font-sans);
+  color: var(--text-muted);
+}
+
+.territorial-creator__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+/* ── Color picker ────────────────────────────────────────────── */
+
+.territorial-color-picker {
+  display: flex;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+  margin-top: var(--s-1);
+}
+
+.territorial-color-swatch {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-pill);
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform var(--d-fast), border-color var(--d-fast);
+  flex-shrink: 0;
+}
+
+.territorial-color-swatch:hover {
+  transform: scale(1.15);
+}
+
+.territorial-color-swatch.is-active {
+  border-color: var(--text);
+  transform: scale(1.1);
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px currentColor;
+}
+
+/* ── Drawing step ────────────────────────────────────────────── */
+
+.territorial-creator__hint {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-3);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  font: 400 var(--t-sm) var(--font-sans);
+  color: var(--text-muted);
+}
+
+.territorial-creator__hint-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--r-pill);
+  flex-shrink: 0;
+}
+
+.territorial-creator__points-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.territorial-creator__point-item {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.territorial-creator__point-num {
+  width: 20px;
+  height: 20px;
+  border-radius: var(--r-pill);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font: 700 10px var(--font-sans);
+  flex-shrink: 0;
+}
+
+.territorial-creator__point-coords {
+  font: 400 var(--t-xs) var(--font-sans);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.territorial-creator__draw-actions {
+  display: flex;
+  gap: var(--s-2);
+}
+
+/* ── Review step ─────────────────────────────────────────────── */
+
+.territorial-creator__warning {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-3);
+  border-radius: var(--r-md);
+  background: var(--warning-soft);
+  border: 1px solid var(--warning-bd);
+  color: var(--warning);
+  font: 500 var(--t-sm) var(--font-sans);
+}
+
+.territorial-creator__review-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-3);
+  background: var(--surface-2);
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+}
+
+.territorial-creator__review-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-2);
+}
+
+.territorial-creator__review-row--col {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-1);
+}
+
+.territorial-creator__review-label {
+  font: 500 var(--t-xs) var(--font-sans);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  white-space: nowrap;
+}
+
+.territorial-creator__review-value {
+  font: 500 var(--t-sm) var(--font-sans);
+  color: var(--text);
+  text-align: right;
+}
+
+.territorial-creator__review-color {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border-radius: var(--r-pill);
+  flex-shrink: 0;
+}
+
+/* ── Actions ─────────────────────────────────────────────────── */
+
+.territorial-creator__actions {
+  display: flex;
+  gap: var(--s-2);
+  margin-top: auto;
+  flex-shrink: 0;
+  padding-top: var(--s-2);
+  border-top: 1px solid var(--border-subtle);
+  justify-content: flex-end;
+}
+
+.territorial-creator__actions--col {
+  flex-direction: column;
+  justify-content: flex-start;
+}
+
+.territorial-creator__actions--col .btn {
+  width: 100%;
+  justify-content: center;
+}
+
 /* ── Responsive ──────────────────────────────────────────────── */
 
 @media (max-width: 768px) {
@@ -506,6 +783,35 @@
   .territorial-header__h1 {
     font-size: var(--t-base);
   }
+
+  .territorial-creator {
+    padding: var(--s-3);
+  }
+
+  .territorial-creator__actions {
+    flex-direction: column;
+  }
+
+  .territorial-creator__actions .btn {
+    width: 100%;
+    min-height: 44px;
+    justify-content: center;
+  }
+
+  .territorial-creator__actions--col .btn {
+    min-height: 44px;
+  }
+
+  .territorial-color-swatch {
+    width: 36px;
+    height: 36px;
+  }
+
+  .territorial-map-overlay-hint {
+    bottom: var(--s-2);
+    font-size: 12px;
+    padding: var(--s-2) var(--s-3);
+  }
 }
 
 @media (max-width: 480px) {
@@ -515,5 +821,15 @@
 
   .territorial-map-wrap {
     flex: 0 0 50vmin;
+  }
+
+  .territorial-creator__draw-actions {
+    flex-direction: column;
+  }
+
+  .territorial-creator__draw-actions .btn {
+    width: 100%;
+    min-height: 44px;
+    justify-content: center;
   }
 }

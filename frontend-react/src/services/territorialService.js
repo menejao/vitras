@@ -1,5 +1,5 @@
 /**
- * Territorial Service — TERRITORIAL-MAP-FOUNDATION-01
+ * Territorial Service — TERRITORIAL-MAP-FOUNDATION-01 + TERRITORIAL-MICROAREA-AUTO-SUGGESTION-01
  *
  * Camada de abstração para dados territoriais.
  * Mock isolado: quando backend territorial for implementado, substituir
@@ -7,9 +7,27 @@
  *
  * TerritorialArea shape:
  *   id, code, name, healthUnitId, polygonGeoJson, teamId, teamName,
- *   teamColor, acsId, acsName, streets[], notes, active,
+ *   teamColor, acsId, acsName, streets[], notes, active, status,
  *   createdAt, updatedAt
+ *
+ * status values: "draft" | "active"
+ *   draft  — polígono criado mas não confirmado pela equipe (borda tracejada)
+ *   active — microárea confirmada, usada em consultas territoriais
  */
+
+// ── Status de microárea ────────────────────────────────────────────────────
+export const STATUS_DRAFT = "draft";
+export const STATUS_ACTIVE = "active";
+
+// ── Formulário vazio (reset) ───────────────────────────────────────────────
+export const INIT_DRAFT = {
+  name: "",
+  code: "",
+  teamName: "",
+  acsName: "",
+  teamColor: "",  // populated after TEAM_COLORS is declared below
+  notes: "",
+};
 
 // ── Estilos de mapa ────────────────────────────────────────────────────────
 // Trocar provider = trocar estas constantes. Regras de negócio não mudam.
@@ -45,6 +63,11 @@ export const DEFAULT_MAP_CENTER = [-51.9253, -14.235];
 export const DEFAULT_MAP_ZOOM = 4;
 
 // ── Paleta de cores por equipe ─────────────────────────────────────────────
+// Arquitetura futura: gerar por lista de ruas, domicílios cadastrados,
+// convex hull, concave hull, importação GeoJSON/KML/Shapefile, ajuste de
+// vértices, divisão/união de microáreas e histórico de alterações.
+// Hoje: polígono por pontos clicados no mapa + revisão humana obrigatória.
+
 export const TEAM_COLORS = [
   "#0ea5e9", // azul
   "#10b981", // verde
@@ -55,6 +78,9 @@ export const TEAM_COLORS = [
   "#ec4899", // rosa
   "#14b8a6", // teal
 ];
+
+// Cor padrão do form inicial
+INIT_DRAFT.teamColor = TEAM_COLORS[0];
 
 // ── Mock de dados territoriais ─────────────────────────────────────────────
 // Vazio por default — estado vazio profissional é o comportamento esperado.
@@ -83,6 +109,53 @@ const MOCK_AREAS = [
   },
 ];
 */
+
+// ── Criação de polígono ────────────────────────────────────────────────────
+
+/**
+ * Constrói GeoJSON Feature Polygon a partir de pontos clicados no mapa.
+ * Fecha o anel automaticamente (primeiro ponto = último ponto).
+ * Retorna null se menos de 3 pontos.
+ *
+ * @param {Array<{lng: number, lat: number}>} points
+ * @param {string} teamColor
+ * @returns {GeoJSON.Feature<Polygon>|null}
+ */
+export function buildPolygonGeoJSON(points, teamColor) {
+  if (!points || points.length < 3) return null;
+  const coords = points.map(p => [p.lng, p.lat]);
+  coords.push([coords[0][0], coords[0][1]]); // fechar anel
+  return {
+    type: "Feature",
+    geometry: { type: "Polygon", coordinates: [coords] },
+    properties: { teamColor: teamColor || TEAM_COLORS[0] },
+  };
+}
+
+/**
+ * Valida formulário de microárea antes de avançar para desenho.
+ * Retorna objeto com chaves de campos inválidos e mensagens de erro.
+ */
+export function validateDraftForm(form) {
+  const errors = {};
+  if (!form.name || !form.name.trim()) errors.name = "Nome é obrigatório";
+  if (!form.teamColor) errors.teamColor = "Cor é obrigatória";
+  return errors;
+}
+
+/**
+ * Valida pontos do polígono antes de salvar.
+ * Retorna string com mensagem de erro, ou null se válido.
+ */
+export function validateDrawingPoints(points) {
+  if (!points || points.length < 3) return "Adicione pelo menos 3 pontos no mapa";
+  for (const p of points) {
+    if (p.lat < -90 || p.lat > 90 || p.lng < -180 || p.lng > 180) {
+      return `Coordenadas inválidas: lat=${p.lat}, lng=${p.lng}`;
+    }
+  }
+  return null;
+}
 
 // ── API ────────────────────────────────────────────────────────────────────
 
@@ -130,7 +203,7 @@ export function searchAreas(areas, query) {
  */
 export function areasToGeoJSON(areas) {
   const features = areas
-    .filter(a => a.active && a.polygonGeoJson)
+    .filter(a => a.polygonGeoJson && (a.active || a.status === STATUS_DRAFT))
     .map(area => {
       const geometry =
         area.polygonGeoJson?.geometry || area.polygonGeoJson;
@@ -144,6 +217,8 @@ export function areasToGeoJSON(areas) {
           teamColor: area.teamColor || TEAM_COLORS[0],
           teamName: area.teamName || "",
           acsName: area.acsName || "",
+          status: area.status || STATUS_ACTIVE,
+          isDraft: area.status === STATUS_DRAFT,
         },
       };
     });
