@@ -203,6 +203,11 @@ body {
 .btn--ghost   { color: var(--text-muted); }
 .btn--ghost:hover { background: var(--surface-3); color: var(--text); }
 
+.btn--danger       { background: var(--red-500); color: #fff; border: none; }
+.btn--danger:hover { background: var(--red-600); }
+.btn--danger-ghost { color: var(--red-500); border: 1.5px solid var(--red-500); background: none; }
+.btn--danger-ghost:hover { background: var(--red-50); }
+
 .btn--full    { width: 100%; }
 .btn--sm      { height: 32px; min-height: 40px; padding: 0 var(--s-4); font-size: var(--t-sm); }
 

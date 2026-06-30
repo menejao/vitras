@@ -5,6 +5,7 @@ import LoginPage          from "./pages/LoginPage.jsx";
 import FirstAccessPage    from "./pages/FirstAccessPage.jsx";
 import HomePage           from "./pages/HomePage.jsx";
 import AgendamentosPage   from "./pages/AgendamentosPage.jsx";
+import AgendarPage        from "./pages/AgendarPage.jsx";
 import MinhaSaudePage     from "./pages/MinhaSaudePage.jsx";
 import MinhaUbsPage       from "./pages/MinhaUbsPage.jsx";
 import NotificacoesPage   from "./pages/NotificacoesPage.jsx";
@@ -49,7 +50,8 @@ export default function App() {
         >
           <Route index element={<Navigate to="/home" replace />} />
           <Route path="/home"          element={<HomePage cidadao={cidadao} />} />
-          <Route path="/agendamentos"  element={<AgendamentosPage />} />
+          <Route path="/agendamentos"      element={<AgendamentosPage />} />
+          <Route path="/agendamentos/novo" element={<AgendarPage />} />
           <Route path="/minha-saude"   element={<MinhaSaudePage />} />
           <Route path="/minha-ubs"     element={<MinhaUbsPage cidadao={cidadao} />} />
           <Route path="/notificacoes"  element={<NotificacoesPage />} />

@@ -387,4 +387,5 @@ router.get("/citizen-portal/me", requireCitizenAuth, async (req, res) => {
   });
 });
 
+export { requireCitizenAuth };
 export default router;
