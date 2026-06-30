@@ -4,6 +4,7 @@ import ProtocolsTab from "./ProtocolsTab";
 import { isAdmin, isGestor } from "../utils/roles";
 
 const EquipePage = lazy(() => import("../pages/EquipePage"));
+const TerritorialMapPage = lazy(() => import("../pages/TerritorialMapPage"));
 
 const AuditLogPanel      = lazy(() => import("../pages/AuditLogPanel"));
 const AcsTasksPage       = lazy(() => import("../pages/AcsTasksPage"));
@@ -150,6 +151,10 @@ export function TabContent({
 
       {tab === "equipe" && (
         <EquipePage users={allUsers && allUsers.length ? allUsers : users} user={user} onOpenProfile={openProfile} token={token} canManageUser={canManageUser} />
+      )}
+
+      {tab === "territorial_map" && (
+        <TerritorialMapPage user={user} token={token} />
       )}
 
       {tab === "vaccines" && (

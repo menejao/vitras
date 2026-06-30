@@ -1,0 +1,519 @@
+/* 05-patterns/territorial.css
+   TERRITORIAL-MAP-FOUNDATION-01 — Mapa Territorial APS
+*/
+
+/* ── Page layout ─────────────────────────────────────────────── */
+
+.territorial-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.territorial-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-5);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.territorial-header__title {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-width: 0;
+}
+
+.territorial-header__h1 {
+  margin: 0;
+  font: 700 var(--t-lg)/1.2 var(--font-sans);
+  color: var(--text);
+  letter-spacing: var(--ls-tight);
+  white-space: nowrap;
+}
+
+.territorial-header__badge {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 var(--s-2);
+  border-radius: var(--r-pill);
+  font: 600 var(--t-xs) var(--font-sans);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* ── Main layout: map + sidebar ─────────────────────────────── */
+
+.territorial-layout {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* ── Map ─────────────────────────────────────────────────────── */
+
+.territorial-map-wrap {
+  flex: 1;
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+}
+
+.territorial-map-container {
+  width: 100%;
+  height: 100%;
+}
+
+/* MapLibre overrides — integração visual com o design system */
+.territorial-map-container .maplibregl-canvas-container,
+.territorial-map-container .maplibregl-canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.territorial-map-container .maplibregl-ctrl-group {
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.territorial-map-container .maplibregl-ctrl-group button {
+  background: var(--surface);
+  color: var(--text-muted);
+  border: none;
+  border-bottom: 1px solid var(--border);
+  width: 30px;
+  height: 30px;
+  transition: background var(--d-fast);
+}
+
+.territorial-map-container .maplibregl-ctrl-group button:last-child {
+  border-bottom: none;
+}
+
+.territorial-map-container .maplibregl-ctrl-group button:hover {
+  background: var(--surface-2);
+}
+
+.territorial-map-container .maplibregl-ctrl-bottom-right {
+  bottom: var(--s-3);
+  right: var(--s-3);
+}
+
+.territorial-map-container .maplibregl-ctrl-attrib {
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: var(--r-sm);
+  font: 400 9px var(--font-sans);
+  color: var(--text-dim);
+}
+
+.territorial-map-error {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font: 400 var(--t-sm) var(--font-sans);
+  text-align: center;
+  padding: var(--s-6);
+}
+
+/* ── Style toggle button ─────────────────────────────────────── */
+
+.territorial-style-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  height: 32px;
+  padding: 0 var(--s-3);
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  font: 500 var(--t-sm) var(--font-sans);
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background var(--d-fast), border-color var(--d-fast), color var(--d-fast);
+}
+
+.territorial-style-toggle:hover {
+  background: var(--surface-2);
+  border-color: var(--border-subtle);
+  color: var(--text);
+}
+
+/* ── Sidebar ─────────────────────────────────────────────────── */
+
+.territorial-sidebar {
+  width: 320px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--border);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+/* ── Search ─────────────────────────────────────────────────── */
+
+.territorial-search {
+  padding: var(--s-3);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.territorial-search__input {
+  width: 100%;
+  gap: var(--s-2);
+}
+
+.territorial-search__field {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font: 400 var(--t-sm) var(--font-sans);
+  outline: none;
+  padding: 0;
+}
+
+.territorial-search__field::placeholder {
+  color: var(--text-dim);
+}
+
+.territorial-search__clear {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  color: var(--text-dim);
+}
+
+/* ── Sidebar body ─────────────────────────────────────────────── */
+
+.territorial-sidebar__body {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+/* ── Empty state ─────────────────────────────────────────────── */
+
+.territorial-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-6) var(--s-4);
+  text-align: center;
+}
+
+.territorial-empty__icon {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--r-pill);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  flex-shrink: 0;
+}
+
+.territorial-empty__title {
+  margin: 0;
+  font: 600 var(--t-base) var(--font-sans);
+  color: var(--text);
+}
+
+.territorial-empty__desc {
+  margin: 0;
+  font: 400 var(--t-sm) var(--font-sans);
+  color: var(--text-muted);
+  line-height: var(--lh-relaxed);
+}
+
+.territorial-empty__steps {
+  width: 100%;
+  text-align: left;
+  padding: var(--s-3);
+  background: var(--surface-2);
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+}
+
+.territorial-empty__steps-label {
+  margin: 0 0 var(--s-2);
+  font: 600 var(--t-xs) var(--font-sans);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+
+.territorial-empty__list {
+  margin: 0;
+  padding-left: var(--s-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+.territorial-empty__list li {
+  font: 400 var(--t-sm) var(--font-sans);
+  color: var(--text-muted);
+}
+
+/* ── Area list ───────────────────────────────────────────────── */
+
+.territorial-area-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.territorial-area-item {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  border: none;
+  border-bottom: 1px solid var(--border-subtle);
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  color: var(--text);
+  width: 100%;
+  transition: background var(--d-fast);
+  min-height: 44px;
+}
+
+.territorial-area-item:hover {
+  background: var(--surface-2);
+}
+
+.territorial-area-item__color {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--r-pill);
+  flex-shrink: 0;
+}
+
+.territorial-area-item__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.territorial-area-item__name {
+  font: 600 var(--t-sm) var(--font-sans);
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.territorial-area-item__meta {
+  font: 400 var(--t-xs) var(--font-sans);
+  color: var(--text-dim);
+  display: flex;
+  gap: var(--s-1);
+  flex-wrap: wrap;
+}
+
+/* ── Area detail ─────────────────────────────────────────────── */
+
+.territorial-detail {
+  padding: var(--s-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.territorial-detail__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s-2);
+}
+
+.territorial-detail__badge {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 var(--s-2);
+  border-radius: var(--r-pill);
+  border: 1px solid;
+  font: 700 var(--t-xs) var(--font-sans);
+  letter-spacing: .04em;
+}
+
+.territorial-detail__close {
+  width: 24px;
+  height: 24px;
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+
+.territorial-detail__name {
+  margin: 0;
+  font: 700 var(--t-md) var(--font-sans);
+  color: var(--text);
+}
+
+.territorial-detail__rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding-top: var(--s-2);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.territorial-detail__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-2);
+}
+
+.territorial-detail__row--col {
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.territorial-detail__label {
+  font: 500 var(--t-xs) var(--font-sans);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  white-space: nowrap;
+}
+
+.territorial-detail__value {
+  font: 500 var(--t-sm) var(--font-sans);
+  color: var(--text);
+}
+
+.territorial-detail__streets {
+  list-style: none;
+  margin: var(--s-1) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.territorial-detail__street {
+  font: 400 var(--t-sm) var(--font-sans);
+  color: var(--text-muted);
+  padding: 2px 0;
+}
+
+/* ── No results ──────────────────────────────────────────────── */
+
+.territorial-no-results {
+  padding: var(--s-6) var(--s-4);
+  text-align: center;
+  color: var(--text-muted);
+  font: 400 var(--t-sm) var(--font-sans);
+}
+
+/* ── Legend ──────────────────────────────────────────────────── */
+
+.territorial-legend {
+  padding: var(--s-3) var(--s-4);
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+  background: var(--surface-2);
+}
+
+.territorial-legend__label {
+  display: block;
+  font: 600 var(--t-xs) var(--font-sans);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  margin-bottom: var(--s-2);
+}
+
+.territorial-legend__items {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+.territorial-legend__item {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.territorial-legend__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--r-pill);
+  flex-shrink: 0;
+}
+
+.territorial-legend__name {
+  font: 400 var(--t-sm) var(--font-sans);
+  color: var(--text-muted);
+}
+
+/* ── Responsive ──────────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  .territorial-layout {
+    flex-direction: column;
+  }
+
+  .territorial-map-wrap {
+    flex: 0 0 55vmin;
+    min-height: 240px;
+  }
+
+  .territorial-sidebar {
+    width: 100%;
+    border-left: none;
+    border-top: 1px solid var(--border);
+    flex: 1;
+    min-height: 0;
+  }
+
+  .territorial-header {
+    padding: var(--s-2) var(--s-4);
+    gap: var(--s-2);
+  }
+
+  .territorial-header__h1 {
+    font-size: var(--t-base);
+  }
+}
+
+@media (max-width: 480px) {
+  .territorial-header {
+    padding: var(--s-2) var(--s-3);
+  }
+
+  .territorial-map-wrap {
+    flex: 0 0 50vmin;
+  }
+}

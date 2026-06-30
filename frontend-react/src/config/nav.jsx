@@ -30,6 +30,7 @@ export const NAV_ICON = {
   diagnostics: <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M2 2h12v12H2z" stroke="currentColor" strokeWidth="1.4"/><path d="M4.5 11V8.5M8 11V5M11.5 11V7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><path d="M4 4h8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>,
   acs_tasks: <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M3 3h10v10H3z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/><path d="M5.5 8l2 2 3-3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>,
   audit_log: <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="12" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.4"/><path d="M5 5.5h6M5 8h6M5 10.5h4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>,
+  territorial_map: <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M1 3l4 1.5L9.5 3l5.5 2v8l-5.5-2L5 12.5 1 11V3z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/><path d="M5 4.5v8M9.5 3v8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>,
   equipe: <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><circle cx="5.5" cy="5" r="2.5" stroke="currentColor" strokeWidth="1.4"/><path d="M1 14c0-2.761 2.239-5 4.5-5S10 11.239 10 14" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><circle cx="12" cy="5" r="2" stroke="currentColor" strokeWidth="1.3"/><path d="M10.5 14c0-2 .9-3.5 2.5-3.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>,
   nutricao: <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M8 2c0 3-2 6-2 9h4c0-3-2-6-2-9z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/><path d="M5 11h6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>,
   psicologia: <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="7" r="4" stroke="currentColor" strokeWidth="1.3"/><path d="M8 3v4l2 2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/><path d="M5 13c0-1 1.3-2 3-2s3 1 3 2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>,
@@ -101,6 +102,7 @@ export function buildNavItems(user, canManageUser, enabledModules) {
   }
 
   items.push({ id: "equipe", label: "Equipe", section: "Equipe" });
+  items.push({ id: "territorial_map", label: "Mapa Territorial", section: "" });
 
   if (canManageUser || admin) items.push({ id: "gestor", label: "Gestão à Vista", section: "Gestão" });
   if (canReadReports) items.push({ id: "reports", label: "Relatórios", section: "" });
