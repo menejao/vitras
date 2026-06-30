@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { api } from "../api";
+import { lookupCep, formatCep } from "../services/cepService";
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
 import Alert from "../components/ui/Alert";
@@ -351,34 +352,176 @@ function UnitTable({ token, onSelect }) {
   );
 }
 
-// ── Unit Form ──────────────────────────────────────────────────────────────
+// ── CEP field with autocomplete ────────────────────────────────────────────
+
+function CepField({ value, onChange, onAutoFill }) {
+  const [cepLoading, setCepLoading] = useState(false);
+  const [cepError,   setCepError]   = useState("");
+  const [autoFilled, setAutoFilled] = useState(false);
+
+  async function handleCepChange(e) {
+    const raw = e.target.value;
+    setCepError(""); setAutoFilled(false);
+    onChange(raw);
+    const digits = raw.replace(/\D/g, "");
+    if (digits.length !== 8) return;
+    setCepLoading(true);
+    try {
+      const addr = await lookupCep(digits);
+      onAutoFill(addr);
+      setAutoFilled(true);
+    } catch (err) {
+      setCepError(err.message);
+    } finally {
+      setCepLoading(false);
+    }
+  }
+
+  return (
+    <div className="field">
+      <label className="field__label">
+        CEP *
+        {cepLoading && <span className="console-cep-loading"> consultando...</span>}
+        {autoFilled && !cepLoading && <span className="console-cep-ok"> ✓ preenchido</span>}
+      </label>
+      <div className="input">
+        <input
+          value={formatCep(value)}
+          onChange={handleCepChange}
+          placeholder="00000-000"
+          maxLength={9}
+        />
+      </div>
+      {cepError && <span className="field__error">{cepError} — preencha manualmente.</span>}
+    </div>
+  );
+}
+
+// ── Shared unit form fields ─────────────────────────────────────────────────
+
+function UnitFormFields({ form, setField, autoFilledFields, showStatus }) {
+  function set(key) { return (e) => setField(key, e.target.value); }
+
+  function handleAutoFill(addr) {
+    setField("street",           addr.street);
+    setField("neighborhood",     addr.neighborhood);
+    setField("municipalityName", addr.municipalityName);
+    setField("uf",               addr.uf);
+    if (addr.municipalityId) setField("municipalityId", addr.municipalityId);
+  }
+
+  const hl = (k) => autoFilledFields?.includes(k) ? { background: "var(--success-soft, #f0fdf4)" } : {};
+
+  return (
+    <>
+      <div className="console-section" style={{ marginBottom: "var(--s-4)" }}>
+        <div className="console-section__header">Dados Institucionais</div>
+        <div className="field-grid">
+          <Input label="Nome da UBS *" value={form.name} onChange={set("name")} placeholder="UBS Francisca Lima de Lira" />
+          <Input label="CNES (7 dígitos) *" value={form.cnes} onChange={set("cnes")} placeholder="1234567" />
+          <Input label="E-mail institucional" value={form.contactEmail} onChange={set("contactEmail")} placeholder="ubs@municipio.gov.br" />
+          <Input label="Telefone" value={form.phone} onChange={set("phone")} placeholder="(81) 3000-0000" />
+        </div>
+      </div>
+
+      <div className="console-section" style={{ marginBottom: "var(--s-4)" }}>
+        <div className="console-section__header">Endereço</div>
+        <div className="field-grid">
+          <CepField value={form.cep} onChange={(v) => setField("cep", v)} onAutoFill={handleAutoFill} />
+          <div style={hl("street")}>
+            <Input label="Logradouro *" value={form.street} onChange={set("street")} placeholder="Rua das Flores" />
+          </div>
+          <Input label="Número *" value={form.streetNumber} onChange={set("streetNumber")} placeholder="123" />
+          <div style={hl("neighborhood")}>
+            <Input label="Bairro *" value={form.neighborhood} onChange={set("neighborhood")} placeholder="Centro" />
+          </div>
+          <div style={hl("municipalityName")}>
+            <Input label="Município *" value={form.municipalityName} onChange={set("municipalityName")} placeholder="Recife" />
+          </div>
+          <div className="field" style={hl("uf")}>
+            <label className="field__label">UF *</label>
+            <select className="console-filter-select" style={{ height: 34, width: "100%" }} value={form.uf} onChange={set("uf")}>
+              <option value="">Selecionar UF</option>
+              {UF_OPTIONS.map(uf => <option key={uf} value={uf}>{uf}</option>)}
+            </select>
+          </div>
+          <div style={hl("municipalityId")}>
+            <Input label="Código IBGE (7 dígitos)" value={form.municipalityId} onChange={set("municipalityId")} placeholder="2611606" />
+          </div>
+          <Input label="Complemento" value={form.complement || ""} onChange={set("complement")} placeholder="Ap. 10, Bloco B" />
+          <Input label="Referência" value={form.reference || ""} onChange={set("reference")} placeholder="Próximo à Praça Central" />
+        </div>
+      </div>
+
+      <div className="console-section" style={{ marginBottom: "var(--s-4)" }}>
+        <div className="console-section__header">
+          Coordenadas Geográficas
+          <span style={{ fontWeight: 400, fontSize: "0.8em", opacity: 0.7, marginLeft: 6 }}>(opcional)</span>
+        </div>
+        <div className="field-grid">
+          <Input label="Latitude" value={form.lat} onChange={set("lat")} placeholder="-8.0476" type="number" step="any" />
+          <Input label="Longitude" value={form.lng} onChange={set("lng")} placeholder="-34.8770" type="number" step="any" />
+        </div>
+        <p style={{ margin: "var(--s-2) 0 0", fontSize: "var(--t-xs)", color: "var(--text-dim)" }}>
+          Informe as coordenadas para centralizar o Mapa Territorial nesta UBS. Use Google Maps ou similar — formato decimal (ex: -8.0476, -34.8770).
+        </p>
+      </div>
+
+      {showStatus && (
+        <div className="console-section" style={{ marginBottom: "var(--s-4)" }}>
+          <div className="console-section__header">Status</div>
+          <div className="field-grid">
+            <div className="field">
+              <label className="field__label">Status inicial</label>
+              <select className="console-filter-select" style={{ height: 34, width: "100%" }} value={form.status} onChange={set("status")}>
+                {STATUS_OPTIONS.map(s => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}
+              </select>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+function validateUnitForm(form) {
+  if (!form.name?.trim())             return "Nome da UBS é obrigatório.";
+  if (!/^\d{7}$/.test(form.cnes))    return "CNES deve ter exatamente 7 dígitos.";
+  if (!form.cep?.replace(/\D/g,""))  return "CEP é obrigatório.";
+  if (!form.street?.trim())          return "Logradouro é obrigatório.";
+  if (!form.streetNumber?.trim())    return "Número é obrigatório.";
+  if (!form.neighborhood?.trim())    return "Bairro é obrigatório.";
+  if (!form.municipalityName?.trim())return "Município é obrigatório.";
+  if (!form.uf)                      return "UF é obrigatória.";
+  return null;
+}
+
+// ── Unit Form (Create) ─────────────────────────────────────────────────────
+
+const EMPTY_UNIT_FORM = {
+  name: "", cnes: "", municipalityName: "", uf: "",
+  municipalityId: "", address: "", contactEmail: "", phone: "", status: "draft",
+  street: "", streetNumber: "", neighborhood: "", cep: "",
+  complement: "", reference: "", lat: "", lng: "",
+};
 
 function UnitForm({ token, onDone, onBack }) {
-  const [form, setForm] = useState({
-    name: "", cnes: "", municipalityName: "", uf: "",
-    municipalityId: "", address: "", contactEmail: "", phone: "", status: "draft",
-    street: "", streetNumber: "", neighborhood: "", cep: "",
-    lat: "", lng: "",
-  });
+  const [form, setForm] = useState({ ...EMPTY_UNIT_FORM });
   const [busy, setBusy]   = useState(false);
   const [error, setError] = useState("");
 
-  function set(key) { return (e) => setForm((f) => ({ ...f, [key]: e.target.value })); }
+  function setField(key, value) { setForm(f => ({ ...f, [key]: value })); }
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
-    if (!form.name.trim())             { setError("Nome da UBS é obrigatório."); return; }
-    if (!/^\d{7}$/.test(form.cnes))   { setError("CNES deve ter exatamente 7 dígitos."); return; }
-    if (!form.municipalityName.trim()) { setError("Município é obrigatório."); return; }
-    if (!form.uf)                      { setError("UF é obrigatória."); return; }
-    if (!form.street.trim())           { setError("Logradouro é obrigatório."); return; }
-    if (!form.streetNumber.trim())     { setError("Número é obrigatório."); return; }
-    if (!form.neighborhood.trim())     { setError("Bairro é obrigatório."); return; }
+    const err = validateUnitForm(form);
+    if (err) { setError(err); return; }
     setBusy(true);
     try {
       const payload = {
         ...form,
+        cep: form.cep.replace(/\D/g, ""),
         lat: form.lat !== "" ? parseFloat(form.lat) : null,
         lng: form.lng !== "" ? parseFloat(form.lng) : null,
       };
@@ -398,59 +541,75 @@ function UnitForm({ token, onDone, onBack }) {
         <span className="console-breadcrumb__sep">/</span>
         <span className="console-breadcrumb__current">Nova UBS</span>
       </div>
-
       {error && <Alert type="error" style={{ marginBottom: "var(--s-4)" }}>{error}</Alert>}
-
-      <div className="console-section" style={{ marginBottom: "var(--s-4)" }}>
-        <div className="console-section__header">Dados Institucionais</div>
-        <div className="field-grid">
-          <Input label="Nome da UBS *" value={form.name} onChange={set("name")} placeholder="UBS Francisca Lima de Lira" />
-          <Input label="CNES (7 dígitos) *" value={form.cnes} onChange={set("cnes")} placeholder="1234567" />
-          <Input label="Código IBGE (7 dígitos)" value={form.municipalityId} onChange={set("municipalityId")} placeholder="2611606" />
-          <Input label="Logradouro *" value={form.street} onChange={set("street")} placeholder="Rua das Flores" />
-          <Input label="Número *" value={form.streetNumber} onChange={set("streetNumber")} placeholder="123" />
-          <Input label="Bairro *" value={form.neighborhood} onChange={set("neighborhood")} placeholder="Centro" />
-          <Input label="CEP" value={form.cep} onChange={set("cep")} placeholder="50000-000" />
-          <Input label="Endereço completo (legado)" value={form.address} onChange={set("address")} placeholder="Rua das Flores, 123 — Centro" />
-          <Input label="E-mail institucional" value={form.contactEmail} onChange={set("contactEmail")} placeholder="ubs@municipio.gov.br" />
-          <Input label="Telefone" value={form.phone} onChange={set("phone")} placeholder="(81) 3000-0000" />
-        </div>
-      </div>
-
-      <div className="console-section" style={{ marginBottom: "var(--s-4)" }}>
-        <div className="console-section__header">Localização e Status</div>
-        <div className="field-grid">
-          <Input label="Município *" value={form.municipalityName} onChange={set("municipalityName")} placeholder="Recife" />
-          <div className="field">
-            <label className="field__label">UF *</label>
-            <select className="console-filter-select" style={{ height: 34, width: "100%" }} value={form.uf} onChange={set("uf")}>
-              <option value="">Selecionar UF</option>
-              {UF_OPTIONS.map(uf => <option key={uf} value={uf}>{uf}</option>)}
-            </select>
-          </div>
-          <div className="field">
-            <label className="field__label">Status inicial</label>
-            <select className="console-filter-select" style={{ height: 34, width: "100%" }} value={form.status} onChange={set("status")}>
-              {STATUS_OPTIONS.map(s => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}
-            </select>
-          </div>
-        </div>
-      </div>
-
-      <div className="console-section" style={{ marginBottom: "var(--s-4)" }}>
-        <div className="console-section__header">Coordenadas Geográficas <span style={{ fontWeight: 400, fontSize: "0.8em", opacity: 0.7 }}>(opcional — para centralizar o Mapa Territorial)</span></div>
-        <div className="field-grid">
-          <Input label="Latitude" value={form.lat} onChange={set("lat")} placeholder="-8.0476" type="number" step="any" />
-          <Input label="Longitude" value={form.lng} onChange={set("lng")} placeholder="-34.8770" type="number" step="any" />
-        </div>
-        <p style={{ margin: "var(--s-2) 0 0", fontSize: "var(--t-xs)", color: "var(--text-dim)" }}>
-          Insira as coordenadas do endereço da UBS para que o Mapa Territorial abra automaticamente na localização correta.
-          Use Google Maps ou similar para obter as coordenadas — cole as coordenadas no formato decimal (ex: -8.0476, -34.8770).
-        </p>
-      </div>
-
+      <UnitFormFields form={form} setField={setField} showStatus />
       <div style={{ display: "flex", gap: "var(--s-3)" }}>
         <Button type="submit" loading={busy}>Criar UBS</Button>
+        <Button type="button" variant="ghost" onClick={onBack}>Cancelar</Button>
+      </div>
+    </form>
+  );
+}
+
+// ── Unit Edit Form ──────────────────────────────────────────────────────────
+
+function UnitEditForm({ token, unit, onDone, onBack }) {
+  const [form, setForm] = useState({
+    name:             unit.name             || "",
+    cnes:             unit.cnes             || "",
+    municipalityName: unit.municipalityName || "",
+    uf:               unit.uf               || "",
+    municipalityId:   unit.municipalityId   || "",
+    address:          unit.address          || "",
+    contactEmail:     unit.contactEmail     || "",
+    phone:            unit.phone            || "",
+    street:           unit.street           || "",
+    streetNumber:     unit.streetNumber     || "",
+    neighborhood:     unit.neighborhood     || "",
+    cep:              unit.cep              || "",
+    complement:       unit.complement       || "",
+    reference:        unit.reference        || "",
+    lat:              unit.lat != null ? String(unit.lat) : "",
+    lng:              unit.lng != null ? String(unit.lng) : "",
+  });
+  const [busy, setBusy]   = useState(false);
+  const [error, setError] = useState("");
+
+  function setField(key, value) { setForm(f => ({ ...f, [key]: value })); }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setError("");
+    const err = validateUnitForm(form);
+    if (err) { setError(err); return; }
+    setBusy(true);
+    try {
+      const payload = {
+        ...form,
+        cep: form.cep.replace(/\D/g, ""),
+        lat: form.lat !== "" ? parseFloat(form.lat) : null,
+        lng: form.lng !== "" ? parseFloat(form.lng) : null,
+      };
+      await apiFetch(`/platform/units/${unit.id}`, token, { method: "PATCH", body: JSON.stringify(payload) });
+      onDone();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <div className="console-breadcrumb">
+        <Button type="button" variant="ghost" size="sm" onClick={onBack}>← {unit.name}</Button>
+        <span className="console-breadcrumb__sep">/</span>
+        <span className="console-breadcrumb__current">Editar UBS</span>
+      </div>
+      {error && <Alert type="error" style={{ marginBottom: "var(--s-4)" }}>{error}</Alert>}
+      <UnitFormFields form={form} setField={setField} showStatus={false} />
+      <div style={{ display: "flex", gap: "var(--s-3)" }}>
+        <Button type="submit" loading={busy}>Salvar Alterações</Button>
         <Button type="button" variant="ghost" onClick={onBack}>Cancelar</Button>
       </div>
     </form>
@@ -545,6 +704,51 @@ function OnboardingActions({ gestors, teams, onAddTeam, onAddManager }) {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+// ── Address display helper ─────────────────────────────────────────────────
+
+function AddressRows({ unit }) {
+  const line1Parts = [unit.street, unit.streetNumber].filter(Boolean).join(", ");
+  const line2Parts = [unit.complement, unit.reference].filter(Boolean).join(" — ");
+  const cityLine   = [unit.neighborhood, unit.municipalityName, unit.uf].filter(Boolean).join(" · ");
+
+  return (
+    <div className="console-address-rows">
+      {unit.cep && (
+        <div className="console-data-row">
+          <span className="console-data-row__label">CEP</span>
+          <span className="num">{formatCep(unit.cep)}</span>
+        </div>
+      )}
+      {line1Parts && (
+        <div className="console-data-row">
+          <span className="console-data-row__label">Logradouro</span>
+          <span>{line1Parts}</span>
+        </div>
+      )}
+      {line2Parts && (
+        <div className="console-data-row">
+          <span className="console-data-row__label">Complemento</span>
+          <span>{line2Parts}</span>
+        </div>
+      )}
+      {cityLine && (
+        <div className="console-data-row">
+          <span className="console-data-row__label">Cidade</span>
+          <span>{cityLine}</span>
+        </div>
+      )}
+      {unit.lat != null && unit.lng != null && (
+        <div className="console-data-row">
+          <span className="console-data-row__label">Coordenadas</span>
+          <span className="num" style={{ fontSize: "var(--t-xs)", color: "var(--text-muted)" }}>
+            {unit.lat.toFixed(6)}, {unit.lng.toFixed(6)}
+          </span>
+        </div>
+      )}
     </div>
   );
 }
@@ -672,7 +876,8 @@ function UnitDetail({ token, unitId, onBack }) {
           <StatusBadge status={unit.status} />
         </div>
         {view === "detail" && (
-          <div style={{ display: "flex", gap: "var(--s-2)" }}>
+          <div style={{ display: "flex", gap: "var(--s-2)", flexWrap: "wrap" }}>
+            <Button variant="secondary" size="sm" onClick={() => { setFormError(""); setView("edit-unit"); }}>Editar Unidade</Button>
             <Button variant="secondary" size="sm" onClick={() => { setFormError(""); setView("new-team"); }}>+ Equipe</Button>
             <Button variant="secondary" size="sm" onClick={() => { setFormError(""); setTempPwd(""); setView("new-manager"); }}>+ Gestor</Button>
           </div>
@@ -692,6 +897,38 @@ function UnitDetail({ token, unitId, onBack }) {
             onAddManager={() => { setFormError(""); setTempPwd(""); setView("new-manager"); }}
             onAddTeam={() => { setFormError(""); setView("new-team"); }}
           />
+
+          {/* Address card */}
+          {(() => {
+            const addressComplete = unit.street && unit.streetNumber && unit.neighborhood && unit.municipalityName && unit.uf;
+            const addressPresent  = unit.street || unit.neighborhood || unit.cep;
+            return (
+              <div className="console-section" style={{ marginBottom: "var(--s-4)" }}>
+                <div className="console-section__header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span>Endereço</span>
+                  <Button variant="ghost" size="sm" onClick={() => { setFormError(""); setView("edit-unit"); }}>Editar</Button>
+                </div>
+                <div className="console-section__body">
+                  {!addressPresent ? (
+                    <div className="console-address-alert">
+                      Endereço não cadastrado. Cadastre o endereço da UBS para habilitar o Mapa Territorial.
+                      <Button variant="warn" size="sm" style={{ marginLeft: "var(--s-3)" }} onClick={() => { setFormError(""); setView("edit-unit"); }}>Cadastrar agora</Button>
+                    </div>
+                  ) : !addressComplete ? (
+                    <>
+                      <div className="console-address-alert" style={{ marginBottom: "var(--s-3)" }}>
+                        Endereço incompleto — campos obrigatórios faltando (logradouro, número, bairro, município ou UF).
+                        <Button variant="warn" size="sm" style={{ marginLeft: "var(--s-3)" }} onClick={() => { setFormError(""); setView("edit-unit"); }}>Completar</Button>
+                      </div>
+                      <AddressRows unit={unit} />
+                    </>
+                  ) : (
+                    <AddressRows unit={unit} />
+                  )}
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Info cards grid */}
           <div className="console-detail-grid">
@@ -914,6 +1151,16 @@ function UnitDetail({ token, unitId, onBack }) {
             </div>
           </form>
         </div>
+      )}
+
+      {/* Edit unit form */}
+      {view === "edit-unit" && (
+        <UnitEditForm
+          token={token}
+          unit={unit}
+          onDone={() => { setView("detail"); loadUnit(); }}
+          onBack={() => setView("detail")}
+        />
       )}
 
       {/* New manager form */}

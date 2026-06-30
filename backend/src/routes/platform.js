@@ -389,12 +389,27 @@ router.patch("/platform/units/:unitId", async (req, res) => {
     const nowIso = new Date().toISOString();
     const next = { ...current, updatedAt: nowIso };
 
-    if (payload.name !== undefined)         next.name = String(payload.name || "").trim();
-    if (payload.address !== undefined)      next.address = String(payload.address || "").trim();
-    if (payload.street !== undefined)       next.street = String(payload.street || "").trim();
-    if (payload.streetNumber !== undefined) next.streetNumber = String(payload.streetNumber || "").trim();
-    if (payload.neighborhood !== undefined) next.neighborhood = String(payload.neighborhood || "").trim();
-    if (payload.cep !== undefined)          next.cep = String(payload.cep || "").replace(/\D/g, "") || null;
+    if (payload.name !== undefined)             next.name             = String(payload.name || "").trim();
+    if (payload.cnes !== undefined) {
+      const cnesVal = String(payload.cnes || "").trim();
+      if (!/^\d{7}$/.test(cnesVal)) return { error: { status: 400, message: "cnes deve ter exatamente 7 dígitos" } };
+      if (db.units.some((u, i) => u.cnes === cnesVal && i !== idx)) return { error: { status: 409, message: "CNES já cadastrado para outra UBS" } };
+      next.cnes = cnesVal;
+    }
+    if (payload.municipalityName !== undefined) next.municipalityName = String(payload.municipalityName || "").trim();
+    if (payload.uf !== undefined)               next.uf               = String(payload.uf || "").trim().toUpperCase();
+    if (payload.municipalityId !== undefined) {
+      const ibge = String(payload.municipalityId || "").trim();
+      if (ibge && !/^\d{7}$/.test(ibge)) return { error: { status: 400, message: "municipalityId deve ter 7 dígitos" } };
+      next.municipalityId = ibge || null;
+    }
+    if (payload.address !== undefined)          next.address          = String(payload.address || "").trim();
+    if (payload.street !== undefined)           next.street           = String(payload.street || "").trim();
+    if (payload.streetNumber !== undefined)     next.streetNumber     = String(payload.streetNumber || "").trim();
+    if (payload.neighborhood !== undefined)     next.neighborhood     = String(payload.neighborhood || "").trim();
+    if (payload.complement !== undefined)       next.complement       = String(payload.complement || "").trim() || null;
+    if (payload.reference !== undefined)        next.reference        = String(payload.reference || "").trim() || null;
+    if (payload.cep !== undefined)              next.cep              = String(payload.cep || "").replace(/\D/g, "") || null;
     if (payload.lat !== undefined) {
       const latVal = payload.lat != null ? Number(payload.lat) : null;
       if (latVal !== null && (isNaN(latVal) || latVal < -90 || latVal > 90)) {
