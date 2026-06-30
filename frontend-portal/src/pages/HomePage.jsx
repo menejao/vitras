@@ -1,171 +1,470 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { getHomeData } from "../services/portalService.js";
+import { useState, useEffect } from "react";
+import { useNavigate }         from "react-router-dom";
+import { loadDashboard, getProximaConsulta } from "../services/dashboardService.js";
+import { isModuloAtivo }                     from "../services/configService.js";
 
-const MESES_PT = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
-function fmtData(iso) {
-  if (!iso) return "";
-  const [, m, d] = iso.split("-");
-  return `${d} de ${MESES_PT[parseInt(m,10)-1]}`;
+function saudacao() {
+  const h = new Date().getHours();
+  if (h < 12) return "Bom dia";
+  if (h < 18) return "Boa tarde";
+  return "Boa noite";
 }
 
-export default function HomePage({ cidadao }) {
-  const [data, setData]   = useState(null);
-  const [loading, setLoading] = useState(true);
-  const nav = useNavigate();
+function formatDate() {
+  return new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" });
+}
 
-  useEffect(() => {
-    getHomeData()
-      .then(setData)
-      .finally(() => setLoading(false));
-  }, []);
+function primeiroNome(nome) {
+  return (nome || "").split(" ")[0] || "Cidadão";
+}
 
-  const primeiroNome = (cidadao?.nome || "").split(" ")[0];
+// ── Skeleton ──────────────────────────────────────────────────────────────────
 
-  if (loading) {
+function Sk({ style }) {
+  return <div className="portal-skeleton" style={style} />;
+}
+
+function CardSkeleton() {
+  return (
+    <div className="portal-dash-card">
+      <div className="portal-dash-card__header">
+        <Sk style={{ width: 32, height: 32, borderRadius: 8, flexShrink: 0 }} />
+        <Sk style={{ flex: 1, height: 16 }} />
+      </div>
+      <div className="portal-dash-card__body">
+        <Sk style={{ height: 13, marginBottom: 8 }} />
+        <Sk style={{ height: 13, width: "70%" }} />
+      </div>
+    </div>
+  );
+}
+
+// ── Generic card wrappers ─────────────────────────────────────────────────────
+
+function CardError({ titulo, icone }) {
+  return (
+    <div className="portal-dash-card">
+      <div className="portal-dash-card__header">
+        <div className="portal-dash-card__icon">{icone}</div>
+        <span className="portal-dash-card__title">{titulo}</span>
+      </div>
+      <div className="portal-card-state">
+        <span className="portal-card-state__icon">⚠️</span>
+        <span className="portal-card-state__text">Não foi possível carregar. Tente novamente mais tarde.</span>
+      </div>
+    </div>
+  );
+}
+
+function CardEmpty({ titulo, icone, mensagem }) {
+  return (
+    <div className="portal-dash-card">
+      <div className="portal-dash-card__header">
+        <div className="portal-dash-card__icon">{icone}</div>
+        <span className="portal-dash-card__title">{titulo}</span>
+      </div>
+      <div className="portal-card-state">
+        <span className="portal-card-state__text">{mensagem}</span>
+      </div>
+    </div>
+  );
+}
+
+// ── Card: Próxima Consulta ────────────────────────────────────────────────────
+function CardProximaConsulta({ result }) {
+  const navigate = useNavigate();
+  if (!result) return <CardSkeleton />;
+  if (!result.ok) return <CardError titulo="Próxima Consulta" icone="📅" />;
+
+  const consulta = getProximaConsulta(result.data);
+  if (!consulta) return <CardEmpty titulo="Próxima Consulta" icone="📅" mensagem="Nenhuma consulta agendada." />;
+
+  // Parse date parts from ISO or DD/MM
+  let dia = "—", mesLabel = "";
+  try {
+    const d = new Date(consulta.data);
+    if (!isNaN(d)) {
+      dia = d.getDate();
+      mesLabel = d.toLocaleString("pt-BR", { month: "short" });
+    }
+  } catch { /* ignore */ }
+
+  return (
+    <div className="portal-dash-card" style={{ cursor: "pointer" }} onClick={() => navigate("/agendamentos")}>
+      <div style={{ display: "flex" }}>
+        <div className="portal-appt-card__date-col">
+          <div className="portal-appt-card__day">{dia}</div>
+          <div className="portal-appt-card__month">{mesLabel}</div>
+        </div>
+        <div className="portal-appt-card__info">
+          <div className="portal-appt-card__type">{consulta.tipo}</div>
+          <div className="portal-appt-card__time">{consulta.hora}</div>
+          <div className="portal-appt-card__prof">{consulta.profissional}</div>
+          <div className="portal-appt-card__prof" style={{ marginTop: 2 }}>{consulta.local}</div>
+        </div>
+      </div>
+      <div className="portal-dash-card__footer">
+        <button className="btn btn--ghost btn--sm" onClick={e => { e.stopPropagation(); navigate("/agendamentos"); }}>
+          Ver todos os agendamentos →
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Card: Vacinação ───────────────────────────────────────────────────────────
+function CardVacinacao({ result }) {
+  const navigate = useNavigate();
+  if (!result) return <CardSkeleton />;
+  if (!result.ok) return <CardError titulo="Vacinação" icone="💉" />;
+
+  const { vacinas = [] } = result.data || {};
+  const pendentes = vacinas.filter(v => v.status === "pendente");
+  const aplicadas = vacinas.filter(v => v.status === "aplicada");
+
+  return (
+    <div className="portal-dash-card">
+      <div className="portal-dash-card__header">
+        <div className="portal-dash-card__icon">💉</div>
+        <span className="portal-dash-card__title">Vacinação</span>
+        {pendentes.length > 0 && <span className="portal-dash-card__badge">{pendentes.length} pendente(s)</span>}
+      </div>
+      <div className="portal-dash-card__body">
+        {vacinas.length === 0
+          ? <p style={{ fontSize: "var(--t-sm)", color: "var(--text-muted)", margin: 0 }}>Nenhuma vacina registrada.</p>
+          : <>
+              {pendentes.slice(0, 3).map((v, i) => (
+                <div key={i} className="portal-mini-stat">
+                  <div className="portal-mini-stat__dot portal-mini-stat__dot--amber" />
+                  <span className="portal-mini-stat__label">{v.nome}</span>
+                  <span className="portal-mini-stat__value">Pendente</span>
+                </div>
+              ))}
+              {aplicadas.slice(0, 2).map((v, i) => (
+                <div key={i} className="portal-mini-stat">
+                  <div className="portal-mini-stat__dot portal-mini-stat__dot--green" />
+                  <span className="portal-mini-stat__label">{v.nome}</span>
+                  <span className="portal-mini-stat__value">{v.data}</span>
+                </div>
+              ))}
+            </>
+        }
+      </div>
+      <div className="portal-dash-card__footer">
+        <button className="btn btn--ghost btn--sm" onClick={() => navigate("/minha-saude")}>Ver calendário vacinal →</button>
+      </div>
+    </div>
+  );
+}
+
+// ── Card: Medicamentos ────────────────────────────────────────────────────────
+function CardMedicamentos({ result }) {
+  const navigate = useNavigate();
+  if (!result) return <CardSkeleton />;
+  if (!result.ok) return <CardError titulo="Medicamentos" icone="💊" />;
+
+  const { medicamentos = [], receitas = [] } = result.data || {};
+
+  return (
+    <div className="portal-dash-card">
+      <div className="portal-dash-card__header">
+        <div className="portal-dash-card__icon">💊</div>
+        <span className="portal-dash-card__title">Medicamentos</span>
+        {receitas.length > 0 && <span className="portal-dash-card__badge">{receitas.length} receita(s)</span>}
+      </div>
+      <div className="portal-dash-card__body">
+        {medicamentos.length === 0
+          ? <p style={{ fontSize: "var(--t-sm)", color: "var(--text-muted)", margin: 0 }}>Nenhum medicamento ativo.</p>
+          : medicamentos.slice(0, 4).map((m, i) => (
+              <div key={i} className="portal-mini-stat">
+                <div className="portal-mini-stat__dot portal-mini-stat__dot--green" />
+                <span className="portal-mini-stat__label">{m.nome}</span>
+                <span className="portal-mini-stat__value" style={{ fontSize: "var(--t-xs)" }}>{m.retirada || "—"}</span>
+              </div>
+            ))
+        }
+      </div>
+      <div className="portal-dash-card__footer">
+        <button className="btn btn--ghost btn--sm" onClick={() => navigate("/minha-saude")}>Ver receitas →</button>
+      </div>
+    </div>
+  );
+}
+
+// ── Card: Exames ──────────────────────────────────────────────────────────────
+function CardExames({ result }) {
+  const navigate = useNavigate();
+  if (!result) return <CardSkeleton />;
+  if (!result.ok) return <CardError titulo="Exames" icone="🔬" />;
+
+  const { exames = [] } = result.data || {};
+  const comResultado = exames.filter(e => e.resultado);
+  const pendentes    = exames.filter(e => !e.resultado);
+
+  return (
+    <div className="portal-dash-card">
+      <div className="portal-dash-card__header">
+        <div className="portal-dash-card__icon">🔬</div>
+        <span className="portal-dash-card__title">Exames</span>
+        {comResultado.length > 0 && <span className="portal-dash-card__badge">{comResultado.length} disponível(is)</span>}
+      </div>
+      <div className="portal-dash-card__body">
+        {exames.length === 0
+          ? <p style={{ fontSize: "var(--t-sm)", color: "var(--text-muted)", margin: 0 }}>Nenhum exame registrado.</p>
+          : <>
+              {comResultado.slice(0, 3).map((e, i) => (
+                <div key={i} className="portal-mini-stat">
+                  <div className="portal-mini-stat__dot portal-mini-stat__dot--green" />
+                  <span className="portal-mini-stat__label">{e.tipo}</span>
+                  <span className="portal-mini-stat__value">Disponível</span>
+                </div>
+              ))}
+              {pendentes.slice(0, 2).map((e, i) => (
+                <div key={i} className="portal-mini-stat">
+                  <div className="portal-mini-stat__dot portal-mini-stat__dot--muted" />
+                  <span className="portal-mini-stat__label">{e.tipo}</span>
+                  <span className="portal-mini-stat__value">Pendente</span>
+                </div>
+              ))}
+            </>
+        }
+      </div>
+      <div className="portal-dash-card__footer">
+        <button className="btn btn--ghost btn--sm" onClick={() => navigate("/minha-saude")}>Ver resultados →</button>
+      </div>
+    </div>
+  );
+}
+
+// ── Card: Notificações ────────────────────────────────────────────────────────
+function CardNotificacoes({ result }) {
+  const navigate = useNavigate();
+  if (!result) return <CardSkeleton />;
+  if (!result.ok) return <CardError titulo="Avisos" icone="🔔" />;
+
+  const notifs   = result.data || [];
+  const naoLidas = notifs.filter(n => !n.lida);
+
+  return (
+    <div className="portal-dash-card">
+      <div className="portal-dash-card__header">
+        <div className="portal-dash-card__icon">🔔</div>
+        <span className="portal-dash-card__title">Avisos</span>
+        {naoLidas.length > 0 && <span className="portal-dash-card__badge">{naoLidas.length} novo(s)</span>}
+      </div>
+      <div className="portal-dash-card__body">
+        {notifs.length === 0
+          ? <p style={{ fontSize: "var(--t-sm)", color: "var(--text-muted)", margin: 0 }}>Nenhum aviso no momento.</p>
+          : notifs.slice(0, 3).map(n => (
+              <div key={n.id}
+                className={`portal-notif-item${n.lida ? "" : " portal-notif-item--unread"}`}
+                style={{ marginBottom: 8, padding: "10px 12px" }}
+              >
+                <div className="portal-notif-item__body">
+                  <div className="portal-notif-item__title">{n.titulo}</div>
+                  <div className="portal-notif-item__text">{n.texto}</div>
+                </div>
+              </div>
+            ))
+        }
+      </div>
+      <div className="portal-dash-card__footer">
+        <button className="btn btn--ghost btn--sm" onClick={() => navigate("/notificacoes")}>Ver todos os avisos →</button>
+      </div>
+    </div>
+  );
+}
+
+// ── Card: Minha UBS ───────────────────────────────────────────────────────────
+function CardMinhaUbs({ result }) {
+  const navigate = useNavigate();
+  if (!result) return <CardSkeleton />;
+  if (!result.ok) return <CardError titulo="Minha UBS" icone="🏥" />;
+  if (!result.data) return <CardEmpty titulo="Minha UBS" icone="🏥" mensagem="UBS não identificada." />;
+
+  const u = result.data;
+  return (
+    <div className="portal-dash-card">
+      <div className="portal-dash-card__header">
+        <div className="portal-dash-card__icon">🏥</div>
+        <span className="portal-dash-card__title">Minha UBS</span>
+      </div>
+      <div className="portal-dash-card__body" style={{ padding: 0 }}>
+        {[
+          u.nome     && { icone: "🏥", label: "Unidade", valor: u.nome     },
+          u.equipe   && { icone: "👥", label: "Equipe",  valor: u.equipe   },
+          u.acs      && { icone: "🧑‍⚕️", label: "ACS",     valor: u.acs      },
+          u.telefone && { icone: "📞", label: "Telefone", valor: u.telefone },
+        ].filter(Boolean).map((row, i, arr) => (
+          <div key={i} className="portal-ubs-info-row" style={i === arr.length - 1 ? { borderBottom: "none" } : {}}>
+            <div className="portal-ubs-info-row__icon">{row.icone}</div>
+            <div>
+              <div className="portal-ubs-info-row__label">{row.label}</div>
+              <div className="portal-ubs-info-row__value">{row.valor}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="portal-dash-card__footer">
+        <button className="btn btn--ghost btn--sm" onClick={() => navigate("/minha-ubs")}>Ver detalhes →</button>
+      </div>
+    </div>
+  );
+}
+
+// ── Pendências ────────────────────────────────────────────────────────────────
+function Pendencias({ pendencias }) {
+  const navigate = useNavigate();
+  if (!pendencias) {
     return (
-      <div>
-        <div className="portal-greeting">
-          <div className="portal-greeting__label">Olá,</div>
-          <div className="skeleton" style={{ height: 36, width: 180, borderRadius: 8, marginTop: 4 }} />
-        </div>
-        <div className="skeleton" style={{ height: 130, borderRadius: 16, marginBottom: 20 }} />
-        <div className="portal-quick-grid">
-          {[1,2,3,4].map(i => (
-            <div key={i} className="skeleton" style={{ height: 100, borderRadius: 16 }} />
-          ))}
-        </div>
+      <div className="portal-pendencias">
+        <Sk style={{ height: 52, borderRadius: 10 }} />
+        <Sk style={{ height: 52, borderRadius: 10 }} />
       </div>
     );
   }
+  if (pendencias.length === 0) {
+    return (
+      <div className="portal-info-banner" style={{ marginBottom: "var(--s-5)" }}>
+        ✅ Tudo em dia! Nenhuma pendência no momento.
+      </div>
+    );
+  }
+  return (
+    <div className="portal-pendencias">
+      {pendencias.map(p => (
+        <button
+          key={p.id}
+          className={`portal-pendencia-item portal-pendencia-item--${p.prioridade}`}
+          onClick={() => navigate(p.rota)}
+        >
+          <span className="portal-pendencia-item__icone">{p.icone}</span>
+          <span className="portal-pendencia-item__descricao">{p.descricao}</span>
+          <span className="portal-pendencia-item__seta">›</span>
+        </button>
+      ))}
+    </div>
+  );
+}
 
-  const { proximaConsulta, vacinasPendentes, receitasAtivas, examesDisponiveis, avisos } = data || {};
+// ── Atalhos rápidos ───────────────────────────────────────────────────────────
+const QUICK_ICONS = { agendamentos: "📅", "minha-saude": "❤️", "minha-ubs": "🏥", notificacoes: "🔔", perfil: "👤" };
+
+function QuickLinks({ links }) {
+  const navigate = useNavigate();
+  return (
+    <div className="portal-quick-grid">
+      {links.map(l => (
+        <button key={l.id} className="portal-quick-card" onClick={() => navigate(l.rota)}>
+          <div className="portal-quick-card__icon" style={{ fontSize: 22 }}>{QUICK_ICONS[l.id] || "→"}</div>
+          <div className="portal-quick-card__label">{l.label}</div>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ── Main ──────────────────────────────────────────────────────────────────────
+export default function HomePage({ cidadao }) {
+  const [loading,   setLoading]   = useState(true);
+  const [dashboard, setDashboard] = useState(null);
+
+  useEffect(() => {
+    setLoading(true);
+    loadDashboard(cidadao).then(d => { setDashboard(d); setLoading(false); });
+  }, [cidadao?.unitId]); // eslint-disable-line
+
+  const config     = dashboard?.config  || null;
+  const modulos    = dashboard?.modulos || null;
+  const pendencias = loading ? null : (dashboard?.pendencias || []);
+  const quickLinks = loading ? null : (dashboard?.quickLinks || []);
+
+  // Respeita configuração do município — defaulta true se config ausente (dev-friendly)
+  const show = m => !config || isModuloAtivo(config, m);
 
   return (
-    <div>
+    <div className="portal-content">
+
       {/* Saudação */}
-      <div className="portal-greeting">
-        <div className="portal-greeting__label">Olá,</div>
-        <div className="portal-greeting__name">{primeiroNome} 👋</div>
-      </div>
-
-      {/* Próxima consulta hero */}
-      <div className="portal-next-appt" onClick={() => nav("/agendamentos")} role="button" tabIndex={0} style={{ cursor: "pointer" }}>
-        <div className="portal-next-appt__label">Próxima consulta</div>
-        {proximaConsulta ? (
-          <>
-            <div className="portal-next-appt__title">{proximaConsulta.tipo}</div>
-            <div className="portal-next-appt__sub">
-              {proximaConsulta.profissional} · {fmtData(proximaConsulta.data)} às {proximaConsulta.hora}
-            </div>
-          </>
-        ) : (
-          <div className="portal-next-appt__empty">Nenhuma consulta agendada.</div>
-        )}
-        <button className="btn btn--secondary btn--sm" style={{ color: "white", borderColor: "rgba(255,255,255,.3)", background: "rgba(255,255,255,.12)" }}>
-          Ver agendamentos →
-        </button>
-      </div>
-
-      {/* Quick cards */}
-      <div className="portal-section">
-        <div className="portal-section__title">Acesso rápido</div>
-        <div className="portal-quick-grid">
-          <div
-            className="portal-quick-card portal-quick-card--teal"
-            onClick={() => nav("/agendamentos")}
-            role="button" tabIndex={0}
-          >
-            <div className="portal-quick-card__icon">
-              <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-            </div>
-            <div className="portal-quick-card__label">Agendamentos</div>
-            <div className="portal-quick-card__value">Ver consultas</div>
-          </div>
-
-          <div
-            className={"portal-quick-card " + (vacinasPendentes > 0 ? "portal-quick-card--amber" : "portal-quick-card--green")}
-            onClick={() => nav("/minha-saude")}
-            role="button" tabIndex={0}
-          >
-            <div className="portal-quick-card__icon">
-              <svg viewBox="0 0 24 24"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>
-            </div>
-            <div className="portal-quick-card__label">Vacinas</div>
-            <div className="portal-quick-card__value">
-              {vacinasPendentes > 0 ? `${vacinasPendentes} pendente${vacinasPendentes > 1 ? "s" : ""}` : "Em dia"}
-            </div>
-          </div>
-
-          <div
-            className="portal-quick-card portal-quick-card--blue"
-            onClick={() => nav("/minha-saude")}
-            role="button" tabIndex={0}
-          >
-            <div className="portal-quick-card__icon">
-              <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-            </div>
-            <div className="portal-quick-card__label">Receitas</div>
-            <div className="portal-quick-card__value">
-              {receitasAtivas > 0 ? `${receitasAtivas} ativa${receitasAtivas > 1 ? "s" : ""}` : "Nenhuma"}
-            </div>
-          </div>
-
-          <div
-            className="portal-quick-card portal-quick-card--slate"
-            onClick={() => nav("/minha-ubs")}
-            role="button" tabIndex={0}
-          >
-            <div className="portal-quick-card__icon">
-              <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-            </div>
-            <div className="portal-quick-card__label">Minha UBS</div>
-            <div className="portal-quick-card__value">Ver informações</div>
-          </div>
-
-          <div
-            className={"portal-quick-card " + (examesDisponiveis > 0 ? "portal-quick-card--teal" : "portal-quick-card--slate")}
-            onClick={() => nav("/minha-saude")}
-            role="button" tabIndex={0}
-          >
-            <div className="portal-quick-card__icon">
-              <svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
-            </div>
-            <div className="portal-quick-card__label">Exames</div>
-            <div className="portal-quick-card__value">
-              {examesDisponiveis > 0 ? `${examesDisponiveis} disponível` : "Nenhum"}
-            </div>
-          </div>
-
-          <div
-            className="portal-quick-card portal-quick-card--red"
-            onClick={() => nav("/notificacoes")}
-            role="button" tabIndex={0}
-          >
-            <div className="portal-quick-card__icon">
-              <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-            </div>
-            <div className="portal-quick-card__label">Avisos</div>
-            <div className="portal-quick-card__value">{avisos?.length > 0 ? `${avisos.length} novo${avisos.length > 1 ? "s" : ""}` : "Nenhum"}</div>
-          </div>
+      <div className="portal-greeting-block">
+        <div className="portal-greeting-block__avatar">
+          {primeiroNome(cidadao?.nome)[0]?.toUpperCase() || "C"}
         </div>
+        <div className="portal-greeting-block__text">
+          <div className="portal-greeting-block__saudacao">{saudacao()}</div>
+          <div className="portal-greeting-block__nome">{primeiroNome(cidadao?.nome)}</div>
+        </div>
+        <div className="portal-greeting-block__data">{formatDate()}</div>
       </div>
 
-      {/* Avisos da UBS */}
-      {avisos?.length > 0 && (
+      {/* Central de Pendências */}
+      <div className="portal-section">
+        <div className="portal-section__title">Pendências</div>
+        <Pendencias pendencias={pendencias} />
+      </div>
+
+      {/* Próxima Consulta */}
+      {show("agendamentos") && (
         <div className="portal-section">
-          <div className="portal-section__title">Avisos da UBS</div>
-          <div className="portal-list">
-            {avisos.map(av => (
-              <div key={av.id} className="portal-info-banner">
-                <strong>{av.titulo}</strong><br />
-                {av.texto}
-              </div>
-            ))}
-          </div>
+          <div className="portal-section__title">Próxima Consulta</div>
+          <CardProximaConsulta result={loading ? null : modulos?.agendamentos} />
         </div>
       )}
+
+      {/* Minha UBS */}
+      {show("minhaUbs") && (
+        <div className="portal-section">
+          <div className="portal-section__title">Minha UBS</div>
+          <CardMinhaUbs result={loading ? null : modulos?.ubs} />
+        </div>
+      )}
+
+      {/* Vacinação */}
+      {show("vacinas") && (
+        <div className="portal-section">
+          <div className="portal-section__title">Vacinação</div>
+          <CardVacinacao result={loading ? null : modulos?.saude} />
+        </div>
+      )}
+
+      {/* Medicamentos */}
+      {show("medicamentos") && (
+        <div className="portal-section">
+          <div className="portal-section__title">Medicamentos</div>
+          <CardMedicamentos result={loading ? null : modulos?.saude} />
+        </div>
+      )}
+
+      {/* Exames */}
+      {show("exames") && (
+        <div className="portal-section">
+          <div className="portal-section__title">Exames</div>
+          <CardExames result={loading ? null : modulos?.saude} />
+        </div>
+      )}
+
+      {/* Avisos */}
+      {show("notificacoes") && (
+        <div className="portal-section">
+          <div className="portal-section__title">Avisos</div>
+          <CardNotificacoes result={loading ? null : modulos?.notificacoes} />
+        </div>
+      )}
+
+      {/* Atalhos rápidos */}
+      <div className="portal-section">
+        <div className="portal-section__title">Acesso rápido</div>
+        {loading ? (
+          <div className="portal-quick-grid">
+            {[1, 2, 3, 4].map(i => <Sk key={i} style={{ height: 100, borderRadius: 14 }} />)}
+          </div>
+        ) : (
+          <QuickLinks links={quickLinks} />
+        )}
+      </div>
+
     </div>
   );
 }
