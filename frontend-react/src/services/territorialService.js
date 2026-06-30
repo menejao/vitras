@@ -80,25 +80,62 @@ export const MAP_STYLES = {
 // Padrão operacional: ruas
 export const DEFAULT_MAP_STYLE = MAP_STYLES.street;
 
-// Centro do Brasil — fallback enquanto UBS não tiver localização configurada
+// Centro do Brasil — fallback quando UBS sem município conhecido
 export const DEFAULT_MAP_CENTER = [-51.9253, -14.235];
 export const DEFAULT_MAP_ZOOM   = 4;
 
 // Zoom para quando a UBS tem localização configurada
-export const UBS_MAP_ZOOM = 14;
+export const UBS_MAP_ZOOM      = 14;
+export const MUNICIPALITY_ZOOM = 12; // zoom para fallback por município
+
+// Fallback por código IBGE → [lng, lat] aproximado do centro do município
+const MUNICIPALITY_CENTERS = {
+  // SP
+  "3534401": [-46.5320, -23.6636], // Santo André
+  "3550308": [-46.6333, -23.5489], // São Paulo
+  "3509502": [-46.8000, -23.7170], // Campinas
+  "3548500": [-47.9292, -22.9068], // Ribeirão Preto
+  // PE
+  "2611606": [-34.8813, -8.0539],  // Recife
+  "2604106": [-35.7353, -8.8799],  // Caruaru
+  "2607901": [-35.0394, -7.9172],  // Olinda
+  // CE
+  "2304400": [-38.5247, -3.7178],  // Fortaleza
+  // BA
+  "2927408": [-38.5014, -12.9714], // Salvador
+  // RJ
+  "3304557": [-43.1964, -22.9068], // Rio de Janeiro
+  // MG
+  "3106200": [-43.9375, -19.9208], // Belo Horizonte
+  // RS
+  "4314902": [-51.2177, -30.0346], // Porto Alegre
+  // PR
+  "4106902": [-49.2648, -25.4284], // Curitiba
+  // DF
+  "5300108": [-47.9292, -15.7801], // Brasília
+  // AM
+  "1302603": [-60.0217, -3.1190],  // Manaus
+};
+
+/**
+ * Retorna [lng, lat] aproximado de município por código IBGE.
+ * Null se não encontrado no lookup.
+ */
+export function getMunicipalityCenter(municipalityId) {
+  return MUNICIPALITY_CENTERS[String(municipalityId)] || null;
+}
 
 // ── API calls ──────────────────────────────────────────────────────────────
 
 /**
  * Retorna dados de localização da UBS atual.
- * Future: quando UBS tiver lat/lng → centralizar mapa.
+ * Lança erro se o backend falhar — não silencia.
  */
 export async function getUnitLocation(token) {
-  try {
-    return await api("/territorial/unit", { credentials: "include" }, token);
-  } catch {
-    return null;
-  }
+  console.debug("[Territorial] getUnitLocation → GET /territorial/unit");
+  const data = await api("/territorial/unit", { credentials: "include" }, token);
+  console.debug("[Territorial] unitLocation recebida:", JSON.stringify(data));
+  return data;
 }
 
 /**
@@ -106,7 +143,9 @@ export async function getUnitLocation(token) {
  * GET /territorial/areas
  */
 export async function getTerritorialAreas(token) {
+  console.debug("[Territorial] getTerritorialAreas → GET /territorial/areas");
   const data = await api("/territorial/areas", { credentials: "include" }, token);
+  console.debug(`[Territorial] microáreas recebidas: ${data?.areas?.length ?? 0}`);
   return data?.areas || [];
 }
 

@@ -13,15 +13,20 @@ import {
   areasToGeoJSON,
   buildPolygonGeoJSON,
   validateDraftForm,
+  getMunicipalityCenter,
   DEFAULT_MAP_CENTER,
   DEFAULT_MAP_ZOOM,
   DEFAULT_MAP_STYLE,
   UBS_MAP_ZOOM,
+  MUNICIPALITY_ZOOM,
   TEAM_COLORS,
   INIT_DRAFT,
   STATUS_DRAFT,
   STATUS_ACTIVE,
 } from "../services/territorialService";
+
+// Data load states
+const DS = { IDLE: "idle", LOADING: "loading", READY: "ready", ERROR: "error" };
 
 // ── Ícones ─────────────────────────────────────────────────────────────────
 
@@ -430,7 +435,9 @@ export default function TerritorialMapPage({ token }) {
   const [search,        setSearch]        = useState("");
   const [mapLoaded,     setMapLoaded]     = useState(false);
   const [mapError,      setMapError]      = useState(false);
-  const [loadError,     setLoadError]     = useState(null);
+  const [dataState,     setDataState]     = useState(DS.IDLE); // IDLE → LOADING → READY | ERROR
+  const [dataError,     setDataError]     = useState(null);    // error message string
+  const [unitError,     setUnitError]     = useState(null);    // separate: UBS location error
   const [saving,        setSaving]        = useState(false);
 
   // Creation/edit state machine
@@ -448,20 +455,55 @@ export default function TerritorialMapPage({ token }) {
 
   // ── Load areas + unit location ──────────────────────────────────────────
 
-  const loadAreas = useCallback(async () => {
-    try {
-      const [data, unit] = await Promise.all([
-        getTerritorialAreas(token),
-        getUnitLocation(token),
-      ]);
-      setAreas(data || []);
+  const loadData = useCallback(async () => {
+    setDataState(DS.LOADING);
+    setDataError(null);
+    setUnitError(null);
+    console.debug("[Territorial] loadData start");
+
+    // Load unit location and areas in parallel; treat failures independently
+    const [unitResult, areasResult] = await Promise.allSettled([
+      getUnitLocation(token),
+      getTerritorialAreas(token),
+    ]);
+
+    // Unit location
+    if (unitResult.status === "fulfilled") {
+      const unit = unitResult.value;
+      console.debug("[Territorial] UBS:", unit?.name, "lat:", unit?.lat, "lng:", unit?.lng);
       setUnitLocation(unit);
-    } catch (e) {
-      setLoadError(e?.message || "Erro ao carregar áreas territoriais");
+      if (!unit?.lat || !unit?.lng) {
+        const fallback = getMunicipalityCenter(unit?.municipalityId);
+        if (fallback) {
+          console.debug("[Territorial] sem lat/lng — fallback município:", unit?.municipalityId, fallback);
+        } else {
+          console.debug("[Territorial] sem lat/lng e sem fallback de município");
+          setUnitError("Esta UBS ainda não possui localização configurada. Configure no Console Nacional para centralizar o mapa.");
+        }
+      }
+    } else {
+      const msg = unitResult.reason?.message || "Erro ao buscar localização da UBS";
+      console.warn("[Territorial] getUnitLocation falhou:", msg);
+      setUnitError(msg);
     }
+
+    // Areas
+    if (areasResult.status === "fulfilled") {
+      const areas = areasResult.value || [];
+      console.debug(`[Territorial] microáreas carregadas: ${areas.length}`);
+      setAreas(areas);
+      setDataState(DS.READY);
+    } else {
+      const msg = areasResult.reason?.message || "Erro ao carregar microáreas";
+      console.warn("[Territorial] getTerritorialAreas falhou:", msg);
+      setDataError(msg);
+      setDataState(DS.ERROR);
+    }
+
+    console.debug("[Territorial] loadData concluído");
   }, [token]);
 
-  useEffect(() => { loadAreas(); }, [loadAreas]);
+  useEffect(() => { loadData(); }, [loadData]);
 
   // ── Initialize MapLibre ─────────────────────────────────────────────────
 
@@ -529,8 +571,23 @@ export default function TerritorialMapPage({ token }) {
   // ── Center map on UBS when location loads ───────────────────────────────
 
   useEffect(() => {
-    if (!mapLoaded || !unitLocation || unitLocation.lat == null || unitLocation.lng == null) return;
-    mapRef.current?.flyTo({ center: [unitLocation.lng, unitLocation.lat], zoom: UBS_MAP_ZOOM, duration: 1200 });
+    if (!mapLoaded || !unitLocation) return;
+    const map = mapRef.current;
+    if (!map) return;
+
+    if (unitLocation.lat != null && unitLocation.lng != null) {
+      console.debug("[Territorial] flyTo UBS:", unitLocation.lat, unitLocation.lng);
+      map.flyTo({ center: [unitLocation.lng, unitLocation.lat], zoom: UBS_MAP_ZOOM, duration: 1200 });
+    } else {
+      // Fallback: zoom to municipality center
+      const fallback = getMunicipalityCenter(unitLocation.municipalityId);
+      if (fallback) {
+        console.debug("[Territorial] flyTo município fallback:", unitLocation.municipalityId, fallback);
+        map.flyTo({ center: fallback, zoom: MUNICIPALITY_ZOOM, duration: 1200 });
+      } else {
+        console.debug("[Territorial] sem localização — mapa permanece no Brasil");
+      }
+    }
   }, [unitLocation, mapLoaded]);
 
   // ── Sync isDrawingRef ───────────────────────────────────────────────────
@@ -727,9 +784,10 @@ export default function TerritorialMapPage({ token }) {
 
   // ── Render ──────────────────────────────────────────────────────────────
 
-  const filteredAreas = searchAreas(areas, search);
-  const hasAreas      = areas.length > 0;
-  const ubsMissing    = unitLocation && unitLocation.lat == null;
+  const filteredAreas   = searchAreas(areas, search);
+  const hasAreas        = areas.length > 0;
+  const isLoadingData   = dataState === DS.LOADING;
+  const hasDataError    = dataState === DS.ERROR;
 
   return (
     <div className="territorial-page">
@@ -807,14 +865,30 @@ export default function TerritorialMapPage({ token }) {
                 </div>
               </div>
 
-              {loadError && (
-                <div className="territorial-creator__warning" style={{ margin: "12px" }}>
-                  <IconWarning /><span>{loadError}</span>
+              {unitError && (
+                <div className="territorial-creator__warning territorial-unit-warning" style={{ margin: "12px 12px 0" }}>
+                  <IconLocation /><span>{unitError}</span>
                 </div>
               )}
 
               <div className="territorial-sidebar__body">
-                {selectedArea ? (
+                {isLoadingData ? (
+                  <div className="territorial-loading">
+                    <div className="territorial-loading__spinner" />
+                    <span>Carregando microáreas…</span>
+                  </div>
+                ) : hasDataError ? (
+                  <div className="territorial-error">
+                    <IconWarning />
+                    <p className="territorial-error__msg">{dataError}</p>
+                    <p className="territorial-error__hint">
+                      Verifique sua conexão. Se o problema persistir, o backend pode precisar de atualização.
+                    </p>
+                    <button className="btn btn--secondary btn--sm" onClick={loadData}>
+                      Tentar novamente
+                    </button>
+                  </div>
+                ) : selectedArea ? (
                   <AreaDetail area={selectedArea} onClose={() => setSelectedArea(null)}
                     onEdit={() => startEdit(selectedArea)}
                     onDelete={() => startDelete(selectedArea)}
@@ -824,7 +898,7 @@ export default function TerritorialMapPage({ token }) {
                     ? <div className="territorial-area-list">{filteredAreas.map(a => <AreaListItem key={a.id} area={a} onSelect={setSelectedArea} />)}</div>
                     : <div className="territorial-no-results"><p>Nenhum resultado para <strong>"{search}"</strong></p></div>
                 ) : (
-                  <TerritorialEmptyState onNew={startCreate} ubsMissing={ubsMissing} />
+                  <TerritorialEmptyState onNew={startCreate} ubsMissing={!!unitError && !unitLocation} />
                 )}
               </div>
 

@@ -163,12 +163,20 @@ export async function api(path, options = {}, token = "") {
         continue;
       }
       const body = await response.json().catch(() => ({}));
-      let message = body?.error || "Erro na API";
+      let message = body?.error;
+      if (!message) {
+        if (response.status === 404)       message = `Rota não encontrada: ${path} — backend pode estar desatualizado`;
+        else if (response.status === 403)  message = "Permissão insuficiente";
+        else if (response.status === 401)  message = "Sessão inválida ou expirada";
+        else if (response.status >= 500)   message = `Erro interno do servidor (${response.status})`;
+        else                               message = `Erro na API (${response.status})`;
+      }
       // Translate generic validation error to actionable message; log technical details only
       if (message === "Dados inválidos" && response.status === 400) {
         if (body?.details?.length) console.warn("[API] Validation details:", body.details);
         message = "Não foi possível salvar. Verifique os dados e tente novamente.";
       }
+      console.warn(`[API] ${response.status} ${path}`, message, body);
       const err = new Error(message);
       err.status = response.status;
       err.details = body?.details;

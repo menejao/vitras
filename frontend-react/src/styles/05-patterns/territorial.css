@@ -478,6 +478,69 @@
   color: var(--text-muted);
 }
 
+/* ── Loading state ───────────────────────────────────────────── */
+
+.territorial-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-8) var(--s-4);
+  color: var(--text-dim);
+  font: 400 var(--t-sm) var(--font-sans);
+}
+
+.territorial-loading__spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: territorial-spin 0.8s linear infinite;
+}
+
+@keyframes territorial-spin { to { transform: rotate(360deg); } }
+
+/* ── Error state ─────────────────────────────────────────────── */
+
+.territorial-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-6) var(--s-4);
+  text-align: center;
+}
+
+.territorial-error svg {
+  color: var(--warning);
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.territorial-error__msg {
+  font: 500 var(--t-sm) var(--font-sans);
+  color: var(--text);
+  margin: 0;
+}
+
+.territorial-error__hint {
+  font: 400 var(--t-xs) var(--font-sans);
+  color: var(--text-dim);
+  margin: 0;
+}
+
+.territorial-error .btn {
+  margin-top: var(--s-2);
+}
+
+/* ── Unit warning banner ─────────────────────────────────────── */
+
+.territorial-unit-warning {
+  font-size: var(--t-xs);
+}
+
 /* ── btn--danger variant (territorial only) ──────────────────── */
 
 .territorial-page .btn--danger {

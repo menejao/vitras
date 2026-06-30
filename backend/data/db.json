@@ -494,11 +494,19 @@
       "municipalityName": "Ambiente de Teste",
       "uf": "SP",
       "status": "test",
+      "street": "Rua VITRAS de Teste",
+      "streetNumber": "1",
+      "neighborhood": "Centro",
+      "cep": "09000001",
+      "lat": -23.6636,
+      "lng": -46.5320,
+      "geocodingStatus": "manual",
+      "geocodedAt": "2026-06-30T00:00:00.000Z",
       "contactEmail": null,
       "phone": null,
       "createdBy": "system",
       "createdAt": "2026-06-22T12:26:42.544Z",
-      "updatedAt": "2026-06-22T12:26:42.545Z"
+      "updatedAt": "2026-06-30T00:00:00.000Z"
     }
   ],
   "auditLogChainAnchors": [],
