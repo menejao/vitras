@@ -308,6 +308,9 @@ router.post("/platform/units", async (req, res) => {
   if (!name || !cnes || !municipalityName || !uf) {
     return res.status(400).json({ error: "name, cnes, municipalityName e uf são obrigatórios" });
   }
+  if (!street)       return res.status(400).json({ error: "logradouro (street) é obrigatório" });
+  if (!streetNumber) return res.status(400).json({ error: "número (streetNumber) é obrigatório" });
+  if (!neighborhood) return res.status(400).json({ error: "bairro (neighborhood) é obrigatório" });
   if (lat !== null && (isNaN(lat) || lat < -90  || lat > 90))  return res.status(400).json({ error: "lat inválido" });
   if (lng !== null && (isNaN(lng) || lng < -180 || lng > 180)) return res.status(400).json({ error: "lng inválido" });
   if (!/^\d{7}$/.test(municipalityId)) {

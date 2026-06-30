@@ -368,10 +368,13 @@ function UnitForm({ token, onDone, onBack }) {
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
-    if (!form.name.trim())            { setError("Nome da UBS é obrigatório."); return; }
-    if (!/^\d{7}$/.test(form.cnes))  { setError("CNES deve ter exatamente 7 dígitos."); return; }
+    if (!form.name.trim())             { setError("Nome da UBS é obrigatório."); return; }
+    if (!/^\d{7}$/.test(form.cnes))   { setError("CNES deve ter exatamente 7 dígitos."); return; }
     if (!form.municipalityName.trim()) { setError("Município é obrigatório."); return; }
-    if (!form.uf)                     { setError("UF é obrigatória."); return; }
+    if (!form.uf)                      { setError("UF é obrigatória."); return; }
+    if (!form.street.trim())           { setError("Logradouro é obrigatório."); return; }
+    if (!form.streetNumber.trim())     { setError("Número é obrigatório."); return; }
+    if (!form.neighborhood.trim())     { setError("Bairro é obrigatório."); return; }
     setBusy(true);
     try {
       const payload = {
@@ -404,9 +407,9 @@ function UnitForm({ token, onDone, onBack }) {
           <Input label="Nome da UBS *" value={form.name} onChange={set("name")} placeholder="UBS Francisca Lima de Lira" />
           <Input label="CNES (7 dígitos) *" value={form.cnes} onChange={set("cnes")} placeholder="1234567" />
           <Input label="Código IBGE (7 dígitos)" value={form.municipalityId} onChange={set("municipalityId")} placeholder="2611606" />
-          <Input label="Logradouro" value={form.street} onChange={set("street")} placeholder="Rua das Flores" />
-          <Input label="Número" value={form.streetNumber} onChange={set("streetNumber")} placeholder="123" />
-          <Input label="Bairro" value={form.neighborhood} onChange={set("neighborhood")} placeholder="Centro" />
+          <Input label="Logradouro *" value={form.street} onChange={set("street")} placeholder="Rua das Flores" />
+          <Input label="Número *" value={form.streetNumber} onChange={set("streetNumber")} placeholder="123" />
+          <Input label="Bairro *" value={form.neighborhood} onChange={set("neighborhood")} placeholder="Centro" />
           <Input label="CEP" value={form.cep} onChange={set("cep")} placeholder="50000-000" />
           <Input label="Endereço completo (legado)" value={form.address} onChange={set("address")} placeholder="Rua das Flores, 123 — Centro" />
           <Input label="E-mail institucional" value={form.contactEmail} onChange={set("contactEmail")} placeholder="ubs@municipio.gov.br" />
