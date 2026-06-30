@@ -355,7 +355,9 @@ const ROLE_CAPABILITIES = {
     "platform.initial_manager.create",
     "platform.password.reset",
     "platform.audit.read",
-    "platform.health.read"
+    "platform.health.read",
+    "platform.citizen_portal.read",
+    "platform.citizen_portal.update"
   ]
 };
 

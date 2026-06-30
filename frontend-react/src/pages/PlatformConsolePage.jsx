@@ -84,6 +84,14 @@ const IcoImport = () => (
   </svg>
 );
 
+const IcoPortal = () => (
+  <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden>
+    <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.3"/>
+    <path d="M5 8h6M8 5v6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+    <path d="M5.5 5.5C6.5 6.5 6.5 9.5 5.5 10.5M10.5 5.5C9.5 6.5 9.5 9.5 10.5 10.5" stroke="currentColor" strokeWidth="1.1"/>
+  </svg>
+);
+
 const IcoCheck = () => (
   <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden>
     <path d="M2 6l3 3 5-5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
@@ -1187,6 +1195,409 @@ function UnitDetail({ token, unitId, onBack }) {
   );
 }
 
+// ── Citizen Portal Governance ──────────────────────────────────────────────
+
+const PORTAL_SECTIONS = [
+  {
+    id: "portal",
+    label: "Status do Portal",
+    desc: "Controle de disponibilidade e mensagens institucionais",
+    fields: [
+      { key: "ativo",                 label: "Portal ativo",                   desc: "Libera o acesso dos cidadãos ao Portal",                    type: "toggle" },
+      { key: "manutencao",            label: "Modo manutenção",                desc: "Exibe aviso de manutenção, bloqueia acesso",                 type: "toggle" },
+      { key: "bannerAtivo",           label: "Banner institucional",           desc: "Exibe banner informativo na tela inicial",                   type: "toggle" },
+      { key: "mensagemInstitucional", label: "Mensagem institucional",         desc: "Texto exibido no Portal (máx. 300 caracteres)",              type: "text"   },
+      { key: "bannerTexto",           label: "Texto do banner",                desc: "Mensagem exibida no banner (máx. 200 caracteres)",           type: "text"   },
+    ]
+  },
+  {
+    id: "modulos",
+    label: "Módulos do Portal",
+    desc: "Ative ou desative seções disponíveis ao cidadão",
+    fields: [
+      { key: "agendamentos",  label: "Agendamentos",  desc: "Seção de consultas e agendamentos online",   type: "toggle" },
+      { key: "vacinas",       label: "Vacinas",       desc: "Calendário vacinal e vacinas pendentes",      type: "toggle" },
+      { key: "medicamentos",  label: "Medicamentos",  desc: "Receitas e medicamentos disponíveis",         type: "toggle" },
+      { key: "exames",        label: "Exames",        desc: "Pedidos e resultados de exames",              type: "toggle" },
+      { key: "minhaUbs",      label: "Minha UBS",     desc: "Dados e informações da UBS de referência",   type: "toggle" },
+      { key: "notificacoes",  label: "Notificações",  desc: "Avisos e comunicados da UBS",                 type: "toggle" },
+      { key: "perfil",        label: "Perfil",        desc: "Dados pessoais do cidadão",                   type: "toggle" },
+      { key: "dependentes",   label: "Dependentes",   desc: "Gerenciamento de dependentes (futuro)",       type: "toggle" },
+      { key: "documentos",    label: "Documentos",    desc: "Documentos e declarações (futuro)",           type: "toggle" },
+    ]
+  },
+  {
+    id: "agendamentos",
+    label: "Agendamentos Online",
+    desc: "Regras para agendamento digital de consultas",
+    fields: [
+      { key: "onlineAtivo",         label: "Agendamento online",      desc: "Permite que o cidadão agende consultas pelo Portal",       type: "toggle" },
+      { key: "cancelamentoAtivo",   label: "Cancelamento online",     desc: "Permite cancelamento de consultas pelo Portal",            type: "toggle" },
+      { key: "remarcacaoAtivo",     label: "Remarcação online",       desc: "Permite remarcar consultas sem precisar ir à UBS",         type: "toggle" },
+      { key: "confirmacaoAtiva",    label: "Confirmação de presença", desc: "Cidadão confirma presença pelo Portal antes da consulta",  type: "toggle" },
+      { key: "listaEspera",         label: "Lista de espera",         desc: "Cidadão pode entrar em lista de espera por desistência",   type: "toggle" },
+      { key: "antecedenciaMinDias", label: "Antecedência mínima (dias)", desc: "Mínimo de dias de antecedência para agendamento",      type: "number", min: 0, max: 30  },
+      { key: "antecedenciaMaxDias", label: "Antecedência máxima (dias)", desc: "Máximo de dias futuros para agendamento",              type: "number", min: 1, max: 365 },
+      { key: "vagasDigitaisPerc",   label: "% vagas digitais",         desc: "Percentual máximo de vagas liberadas para o Portal",     type: "number", min: 0, max: 100 },
+    ]
+  },
+  {
+    id: "vacinacao",
+    label: "Vacinação",
+    desc: "Configurações de vacinação disponíveis no Portal",
+    fields: [
+      { key: "agendamentoOnline", label: "Agendamento de vacina",  desc: "Permite agendar vacinas pelo Portal",                    type: "toggle" },
+      { key: "campanhas",         label: "Campanhas de vacinação", desc: "Exibe campanhas ativas no Portal",                       type: "toggle" },
+      { key: "confirmacao",       label: "Confirmação de vacina",  desc: "Cidadão confirma presença antes da vacinação",           type: "toggle" },
+      { key: "calendarioVacinal", label: "Calendário vacinal",     desc: "Exibe o calendário de vacinas recomendadas por faixa",   type: "toggle" },
+    ]
+  },
+  {
+    id: "medicamentos",
+    label: "Medicamentos",
+    desc: "Dados de medicamentos exibidos ao cidadão",
+    fields: [
+      { key: "mostrarEstoque",         label: "Mostrar estoque",          desc: "Exibe quantidade em estoque na UBS",                    type: "toggle" },
+      { key: "mostrarDisponibilidade", label: "Mostrar disponibilidade",  desc: "Informa se o medicamento está disponível",             type: "toggle" },
+      { key: "mostrarOutrasUbs",       label: "Mostrar outras UBS",       desc: "Indica disponibilidade em outras unidades do município", type: "toggle" },
+      { key: "retiradaOutraUbs",       label: "Retirada em outra UBS",    desc: "Permite solicitar retirada em UBS diferente",           type: "toggle" },
+      { key: "previsaoReposicao",      label: "Previsão de reposição",    desc: "Informa data prevista de reposição do estoque",         type: "toggle" },
+    ]
+  },
+  {
+    id: "exames",
+    label: "Exames",
+    desc: "Acesso a pedidos e resultados de exames",
+    fields: [
+      { key: "mostrarPedidos",           label: "Mostrar pedidos",            desc: "Exibe pedidos de exame solicitados",                    type: "toggle" },
+      { key: "mostrarResultados",        label: "Mostrar resultados",          desc: "Exibe resultados disponíveis no Portal",                type: "toggle" },
+      { key: "permitirDownload",         label: "Permitir download",           desc: "Permite que o cidadão baixe resultados em PDF",         type: "toggle" },
+      { key: "notificarDisponibilidade", label: "Notificar disponibilidade",   desc: "Avisa o cidadão quando resultado estiver disponível",   type: "toggle" },
+    ]
+  },
+  {
+    id: "comunicacao",
+    label: "Comunicação",
+    desc: "Canais de comunicação com o cidadão",
+    fields: [
+      { key: "portalAtivo",        label: "Notificações no Portal",   desc: "Avisos e comunicados exibidos no Portal",          type: "toggle" },
+      { key: "whatsappAtivo",      label: "WhatsApp",                  desc: "Envio de mensagens via WhatsApp (futuro)",         type: "toggle" },
+      { key: "emailAtivo",         label: "E-mail",                    desc: "Envio de notificações por e-mail",                 type: "toggle" },
+      { key: "smsAtivo",           label: "SMS",                       desc: "Envio de SMS para o cidadão",                     type: "toggle" },
+      { key: "campanhasMunicipais", label: "Campanhas municipais",     desc: "Permite envio de campanhas para toda a rede",      type: "toggle" },
+    ]
+  },
+  {
+    id: "compartilhamento",
+    label: "Compartilhamento entre UBS",
+    desc: "Regras de compartilhamento de recursos entre unidades do município",
+    fields: [
+      { key: "estoquesMedicamentos", label: "Compartilhar estoque",     desc: "Estoques de medicamentos visíveis entre UBS",       type: "toggle" },
+      { key: "vagas",                label: "Compartilhar vagas",        desc: "Vagas disponíveis em qualquer UBS do município",    type: "toggle" },
+      { key: "campanhas",            label: "Compartilhar campanhas",    desc: "Campanhas ativas em todas as UBS do município",     type: "toggle" },
+      { key: "vacinas",              label: "Compartilhar vacinas",      desc: "Disponibilidade de vacinas entre UBS",              type: "toggle" },
+      { key: "exames",               label: "Compartilhar exames",       desc: "Resultados acessíveis em qualquer UBS do município", type: "toggle" },
+    ]
+  },
+];
+
+function PortalToggle({ checked, onChange, disabled }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      disabled={disabled}
+      onClick={() => onChange(!checked)}
+      style={{
+        width: 40, height: 22, borderRadius: 11,
+        background: checked ? "var(--accent)" : "var(--border-strong)",
+        border: "none", cursor: disabled ? "not-allowed" : "pointer",
+        position: "relative", flexShrink: 0,
+        transition: "background var(--d-fast)",
+        opacity: disabled ? .5 : 1,
+      }}
+    >
+      <span style={{
+        position: "absolute",
+        top: 2, left: checked ? 20 : 2,
+        width: 18, height: 18, borderRadius: "50%",
+        background: "#fff",
+        boxShadow: "0 1px 3px rgba(0,0,0,.25)",
+        transition: "left 150ms",
+      }} />
+    </button>
+  );
+}
+
+function PortalConfigSection({ section, config, onChange, unitMode, municipalConfig }) {
+  return (
+    <div className="console-section" style={{ marginBottom: "var(--s-4)" }}>
+      <div className="console-section__header">
+        <span>{section.label}</span>
+        <span style={{ fontWeight: 400, fontSize: "var(--t-sm)", color: "var(--text-muted)", textTransform: "none", letterSpacing: 0 }}>
+          {section.desc}
+        </span>
+      </div>
+      <div className="console-section__body">
+        {section.fields.map(field => {
+          const sectionConfig = config?.[section.id] || {};
+          const muniSectionConfig = municipalConfig?.[section.id] || {};
+          const value = sectionConfig[field.key];
+          const muniValue = muniSectionConfig[field.key];
+
+          // In unit mode: if municipality disabled a boolean, unit cannot enable it
+          const blocked = unitMode && field.type === "toggle" && muniValue === false;
+
+          return (
+            <div key={field.key} style={{
+              display: "flex", alignItems: "flex-start", gap: "var(--s-4)",
+              padding: "var(--s-3) 0",
+              borderBottom: "1px solid var(--border-subtle)",
+            }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "var(--s-2)" }}>
+                  <span style={{ fontSize: "var(--t-md)", fontWeight: 500, color: "var(--text)" }}>
+                    {field.label}
+                  </span>
+                  {blocked && (
+                    <span className="chip" style={{ fontSize: 10, background: "var(--surface-3)", color: "var(--text-muted)" }}>
+                      bloqueado pelo município
+                    </span>
+                  )}
+                </div>
+                <div style={{ fontSize: "var(--t-sm)", color: "var(--text-muted)", marginTop: 2 }}>
+                  {field.desc}
+                </div>
+              </div>
+              {field.type === "toggle" && (
+                <PortalToggle
+                  checked={!!value}
+                  onChange={v => onChange(section.id, field.key, v)}
+                  disabled={blocked}
+                />
+              )}
+              {field.type === "number" && (
+                <input
+                  type="number"
+                  min={field.min ?? 0}
+                  max={field.max ?? 999}
+                  value={value ?? 0}
+                  onChange={e => onChange(section.id, field.key, parseInt(e.target.value, 10) || 0)}
+                  style={{
+                    width: 72, height: 32, padding: "0 var(--s-2)",
+                    border: "1px solid var(--border)", borderRadius: "var(--r-md)",
+                    background: "var(--surface)", color: "var(--text)",
+                    font: "var(--t-md)/1 var(--font-sans)", textAlign: "center",
+                    flexShrink: 0,
+                  }}
+                />
+              )}
+              {field.type === "text" && (
+                <input
+                  type="text"
+                  value={value || ""}
+                  maxLength={300}
+                  onChange={e => onChange(section.id, field.key, e.target.value)}
+                  style={{
+                    width: 240, height: 32, padding: "0 var(--s-3)",
+                    border: "1px solid var(--border)", borderRadius: "var(--r-md)",
+                    background: "var(--surface)", color: "var(--text)",
+                    font: "var(--t-md)/1 var(--font-sans)", flexShrink: 0,
+                  }}
+                />
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function CitizenPortalConfig({ token }) {
+  const [municipalConfig, setMunicipalConfig]   = useState(null);
+  const [unitsList, setUnitsList]               = useState([]);
+  const [selectedUnitId, setSelectedUnitId]     = useState("");
+  const [unitConfigData, setUnitConfigData]     = useState(null);
+  const [activePanel, setActivePanel]           = useState("municipal"); // "municipal" | "unit"
+  const [saving, setSaving]                     = useState(false);
+  const [loading, setLoading]                   = useState(true);
+  const [error, setError]                       = useState("");
+  const [saved, setSaved]                       = useState(false);
+
+  async function loadMunicipal() {
+    setLoading(true); setError("");
+    try {
+      const data = await apiFetch("/platform/citizen-portal/config", token);
+      setMunicipalConfig(data.config);
+    } catch(e) { setError(e.message); }
+    finally { setLoading(false); }
+  }
+
+  async function loadUnits() {
+    try {
+      const data = await apiFetch("/platform/units", token);
+      setUnitsList(Array.isArray(data) ? data : (data.units || []));
+    } catch { /* silent */ }
+  }
+
+  async function loadUnitConfig(unitId) {
+    if (!unitId) { setUnitConfigData(null); return; }
+    try {
+      const data = await apiFetch(`/platform/citizen-portal/units/${unitId}/config`, token);
+      setUnitConfigData(data);
+    } catch(e) { setError(e.message); }
+  }
+
+  useEffect(() => { loadMunicipal(); loadUnits(); }, []); // eslint-disable-line
+  useEffect(() => { loadUnitConfig(selectedUnitId); }, [selectedUnitId]); // eslint-disable-line
+
+  function handleMunicipalChange(sectionId, key, value) {
+    setMunicipalConfig(prev => ({
+      ...prev,
+      [sectionId]: { ...prev[sectionId], [key]: value },
+    }));
+    setSaved(false);
+  }
+
+  function handleUnitChange(sectionId, key, value) {
+    setUnitConfigData(prev => {
+      const overrides = { ...(prev?.unitOverrides || {}), [sectionId]: { ...(prev?.unitOverrides?.[sectionId] || {}), [key]: value } };
+      return { ...prev, unitOverrides: overrides };
+    });
+    setSaved(false);
+  }
+
+  async function saveMunicipal() {
+    setSaving(true); setError(""); setSaved(false);
+    try {
+      await apiFetch("/platform/citizen-portal/config", token, {
+        method: "PUT",
+        body: JSON.stringify(municipalConfig),
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch(e) { setError(e.message); }
+    finally { setSaving(false); }
+  }
+
+  async function saveUnit() {
+    if (!selectedUnitId) return;
+    setSaving(true); setError(""); setSaved(false);
+    try {
+      await apiFetch(`/platform/citizen-portal/units/${selectedUnitId}/config`, token, {
+        method: "PUT",
+        body: JSON.stringify(unitConfigData?.unitOverrides || {}),
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+      loadUnitConfig(selectedUnitId);
+    } catch(e) { setError(e.message); }
+    finally { setSaving(false); }
+  }
+
+  if (loading) return <div className="console-loading">Carregando configurações do Portal...</div>;
+
+  const isUnit = activePanel === "unit";
+  const displayConfig = isUnit ? (unitConfigData?.effective || municipalConfig) : municipalConfig;
+
+  return (
+    <>
+      <div className="console-page-header">
+        <div>
+          <h1 className="console-page-header__title">Portal do Cidadão</h1>
+          <p className="console-page-header__sub">Governança e configurações do Portal — toda regra é configurável</p>
+        </div>
+      </div>
+
+      {error && <Alert type="error" style={{ marginBottom: "var(--s-4)" }}>{error}</Alert>}
+
+      {/* Panel selector */}
+      <div style={{ display: "flex", gap: "var(--s-2)", marginBottom: "var(--s-5)", flexWrap: "wrap", alignItems: "center" }}>
+        <div className="btn-group">
+          <button
+            type="button"
+            className={"btn btn--sm" + (activePanel === "municipal" ? " is-active" : "")}
+            onClick={() => setActivePanel("municipal")}
+          >
+            Configuração Municipal
+          </button>
+          <button
+            type="button"
+            className={"btn btn--sm" + (activePanel === "unit" ? " is-active" : "")}
+            onClick={() => setActivePanel("unit")}
+          >
+            Configuração por UBS
+          </button>
+        </div>
+
+        {isUnit && (
+          <select
+            className="console-filter-select"
+            value={selectedUnitId}
+            onChange={e => setSelectedUnitId(e.target.value)}
+            style={{ height: 34 }}
+          >
+            <option value="">Selecionar UBS...</option>
+            {unitsList.map(u => (
+              <option key={u.id} value={u.id}>{u.name}</option>
+            ))}
+          </select>
+        )}
+      </div>
+
+      {/* Info banner — unit mode */}
+      {isUnit && selectedUnitId && (
+        <div className="console-section" style={{ marginBottom: "var(--s-4)", background: "var(--accent-soft)", borderColor: "var(--accent-bd)" }}>
+          <div className="console-section__body" style={{ color: "var(--teal-800)", fontSize: "var(--t-sm)" }}>
+            Configurações da UBS complementam as regras municipais. Uma UBS <strong>nunca pode habilitar</strong> algo desabilitado pelo município. Ela pode apenas restringir mais.
+            Itens bloqueados pelo município aparecem com indicador visual e são ignorados ao salvar.
+          </div>
+        </div>
+      )}
+
+      {isUnit && !selectedUnitId && (
+        <div className="console-section" style={{ marginBottom: "var(--s-5)" }}>
+          <div className="console-section__body" style={{ color: "var(--text-muted)", fontSize: "var(--t-sm)" }}>
+            Selecione uma UBS acima para configurar suas regras específicas.
+          </div>
+        </div>
+      )}
+
+      {/* Config sections */}
+      {(!isUnit || selectedUnitId) && PORTAL_SECTIONS.map(section => (
+        <PortalConfigSection
+          key={section.id}
+          section={section}
+          config={isUnit ? (unitConfigData?.unitOverrides ? { [section.id]: { ...(unitConfigData?.municipal?.[section.id] || {}), ...(unitConfigData?.unitOverrides?.[section.id] || {}) } } : municipalConfig) : municipalConfig}
+          onChange={isUnit ? handleUnitChange : handleMunicipalChange}
+          unitMode={isUnit}
+          municipalConfig={municipalConfig}
+        />
+      ))}
+
+      {/* Save */}
+      {(!isUnit || selectedUnitId) && (
+        <div style={{ display: "flex", alignItems: "center", gap: "var(--s-3)", marginTop: "var(--s-2)", marginBottom: "var(--s-8)" }}>
+          <Button
+            loading={saving}
+            onClick={isUnit ? saveUnit : saveMunicipal}
+            disabled={saving}
+          >
+            {isUnit ? "Salvar configuração da UBS" : "Salvar configuração municipal"}
+          </Button>
+          {saved && (
+            <span style={{ fontSize: "var(--t-sm)", color: "var(--success)" }}>
+              ✓ Salvo com sucesso
+            </span>
+          )}
+        </div>
+      )}
+    </>
+  );
+}
+
 // ── Main Console ───────────────────────────────────────────────────────────
 
 export default function PlatformConsolePage({ token, user, onLogout }) {
@@ -1253,6 +1664,15 @@ export default function PlatformConsolePage({ token, user, onLogout }) {
             <IcoBuilding /> Unidades de Saúde
           </button>
 
+          <span className="console-nav__section">Portal</span>
+          <button
+            type="button"
+            className={`console-nav__item${tab === "portal" ? " is-active" : ""}`}
+            onClick={() => switchTab("portal")}
+          >
+            <IcoPortal /> Portal do Cidadão
+          </button>
+
           <span className="console-nav__section">Sistema</span>
           <button
             type="button"
@@ -1315,6 +1735,11 @@ export default function PlatformConsolePage({ token, user, onLogout }) {
                 <UnitDetail token={token} unitId={selectedUnitId} onBack={goToList} />
               )}
             </>
+          )}
+
+          {/* Portal do Cidadão */}
+          {tab === "portal" && (
+            <CitizenPortalConfig token={token} />
           )}
 
           {/* Migrações */}

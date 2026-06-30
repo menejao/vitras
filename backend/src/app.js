@@ -39,6 +39,7 @@ import swaggerRouter from "./routes/swagger.js";
 import platformRouter from "./routes/platform.js";
 import importRouter from "./routes/import.js";
 import territorialRouter from "./routes/territorial.js";
+import citizenPortalRouter from "./routes/citizen-portal.js";
 
 const app = express();
 
@@ -67,6 +68,7 @@ app.use(usersRouter);
 // defense-in-depth.
 app.use(platformRouter);
 app.use(territorialRouter);
+app.use(citizenPortalRouter);
 app.use(requireAuth);
 app.use(importRouter);  // MIG-01: before blockSupportAdminFromClinical — import is support_admin territory
 app.use(blockSupportAdminFromClinical);  // IAM-01
