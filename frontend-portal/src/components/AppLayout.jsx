@@ -31,17 +31,18 @@ const IcoBell = () => (
   </svg>
 );
 
-const IcoUser = () => (
-  <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-    <circle cx="12" cy="7" r="4" />
-  </svg>
-);
-
 const IcoBuilding = () => (
   <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
     <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
     <polyline points="9 22 9 12 15 12 15 22" />
+  </svg>
+);
+
+const IcoGrid = () => (
+  <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="12" cy="12" r="1" />
+    <circle cx="19" cy="12" r="1" />
+    <circle cx="5"  cy="12" r="1" />
   </svg>
 );
 
@@ -61,13 +62,23 @@ const LogoMark = () => (
 
 // ── Nav items ─────────────────────────────────────────────────────────────────
 
-const NAV_ITEMS = [
+// Sidebar desktop: mostra Avisos explicitamente + Mais
+const SIDEBAR_ITEMS = [
   { to: "/home",         label: "Início",    Icon: IcoHome     },
   { to: "/agendamentos", label: "Consultas", Icon: IcoCalendar },
   { to: "/minha-saude",  label: "Saúde",     Icon: IcoHeart    },
   { to: "/minha-ubs",    label: "Minha UBS", Icon: IcoBuilding },
   { to: "/notificacoes", label: "Avisos",    Icon: IcoBell     },
-  { to: "/perfil",       label: "Perfil",    Icon: IcoUser     },
+  { to: "/mais",         label: "Mais",      Icon: IcoGrid     },
+];
+
+// Bottom nav mobile: Avisos acessível pelo sino, foca em Mais para conta
+const BOTTOM_ITEMS = [
+  { to: "/home",         label: "Início",    Icon: IcoHome     },
+  { to: "/agendamentos", label: "Consultas", Icon: IcoCalendar },
+  { to: "/minha-saude",  label: "Saúde",     Icon: IcoHeart    },
+  { to: "/minha-ubs",    label: "Minha UBS", Icon: IcoBuilding },
+  { to: "/mais",         label: "Mais",      Icon: IcoGrid     },
 ];
 
 function primeiroNome(nome) {
@@ -77,6 +88,7 @@ function primeiroNome(nome) {
 // ── Sidebar (desktop only) ────────────────────────────────────────────────────
 
 function Sidebar({ cidadao, onLogout }) {
+  const nav = useNavigate();
   return (
     <aside className="portal-sidebar" aria-label="Navegação lateral">
       {/* Brand */}
@@ -92,7 +104,7 @@ function Sidebar({ cidadao, onLogout }) {
 
       {/* Nav links */}
       <nav className="portal-sidebar__nav">
-        {NAV_ITEMS.map(({ to, label, Icon }) => (
+        {SIDEBAR_ITEMS.map(({ to, label, Icon }) => (
           <NavLink
             key={to}
             to={to}
@@ -106,14 +118,18 @@ function Sidebar({ cidadao, onLogout }) {
         ))}
       </nav>
 
-      {/* Footer: user + logout */}
+      {/* Footer: user (clicável → /mais) + logout */}
       <div className="portal-sidebar__footer">
-        <div className="portal-sidebar__user">
+        <button
+          className="portal-sidebar__user portal-sidebar__user--btn"
+          onClick={() => nav("/mais")}
+          aria-label="Minha conta"
+        >
           <div className="portal-sidebar__user-avatar">
             {primeiroNome(cidadao?.nome)[0]?.toUpperCase() || "C"}
           </div>
           <div className="portal-sidebar__user-name">{primeiroNome(cidadao?.nome)}</div>
-        </div>
+        </button>
         <button
           className="portal-sidebar__logout"
           onClick={onLogout}
@@ -152,24 +168,16 @@ export default function AppLayout({ cidadao, onLogout }) {
             <span className="portal-header__wordmark">VITRAS</span>
           </div>
 
-          {/* Desktop: citizen name + logout */}
+          {/* Desktop: citizen name only (Sair fica na sidebar) */}
           <div className="portal-header__desktop-user">
             <span className="portal-header__desktop-name">{primeiroNome(cidadao?.nome)}</span>
-            <button
-              className="portal-header__logout-btn"
-              onClick={onLogout}
-              aria-label="Sair"
-            >
-              <IcoLogout />
-              <span>Sair</span>
-            </button>
           </div>
 
           <div className="portal-header__action">
             <button
               className="portal-header__icon-btn"
               onClick={() => nav("/notificacoes")}
-              aria-label="Notificações"
+              aria-label="Avisos"
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
@@ -194,7 +202,7 @@ export default function AppLayout({ cidadao, onLogout }) {
 
         {/* Bottom nav — hidden on ≥900px */}
         <nav className="portal-bottom-nav" aria-label="Navegação principal">
-          {NAV_ITEMS.slice(0, 5).map(({ to, label, Icon }) => (
+          {BOTTOM_ITEMS.map(({ to, label, Icon }) => (
             <NavLink
               key={to}
               to={to}
@@ -204,9 +212,6 @@ export default function AppLayout({ cidadao, onLogout }) {
             >
               <Icon />
               <span>{label}</span>
-              {to === "/notificacoes" && (
-                <span className="portal-nav-item__dot" aria-hidden="true" />
-              )}
             </NavLink>
           ))}
         </nav>

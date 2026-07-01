@@ -11,6 +11,7 @@ import MinhaSaudePage     from "./pages/MinhaSaudePage.jsx";
 import MinhaUbsPage       from "./pages/MinhaUbsPage.jsx";
 import NotificacoesPage   from "./pages/NotificacoesPage.jsx";
 import PerfilPage         from "./pages/PerfilPage.jsx";
+import MaisPage           from "./pages/MaisPage.jsx";
 import { saveSession, loadSession, clearSession } from "./services/citizenSessionService.js";
 import { logout as apiLogout } from "./services/authService.js";
 
@@ -57,6 +58,7 @@ export default function App() {
           <Route path="/minha-saude"   element={<MinhaSaudePage />} />
           <Route path="/minha-ubs"     element={<MinhaUbsPage cidadao={cidadao} />} />
           <Route path="/notificacoes"  element={<NotificacoesPage />} />
+          <Route path="/mais"          element={<MaisPage onLogout={handleLogout} />} />
           <Route path="/perfil"        element={<PerfilPage cidadao={cidadao} onLogout={handleLogout} />} />
           <Route path="*"              element={<Navigate to="/home" replace />} />
         </Route>

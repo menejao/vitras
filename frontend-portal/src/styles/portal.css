@@ -209,10 +209,10 @@
 .portal-header__desktop-user {
   display: none;
   align-items: center;
-  gap: var(--s-3);
+  gap: var(--s-2);
   flex: 1;
   justify-content: flex-end;
-  padding-right: var(--s-3);
+  padding-right: var(--s-2);
 }
 
 .portal-header__desktop-name {
@@ -1168,13 +1168,14 @@
 
 /* ── Demo banner (app shell) ──────────────────────────── */
 .portal-demo-banner {
-  background: #fef3c7;
-  color: #92400e;
+  background: var(--surface-2);
+  color: var(--text-muted);
   font-size: var(--t-xs);
-  font-weight: 600;
+  font-weight: 500;
   text-align: center;
-  padding: var(--s-2) var(--s-4);
+  padding: var(--s-1) var(--s-4);
   letter-spacing: .02em;
+  border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
 
@@ -1420,10 +1421,26 @@
 }
 
 .portal-pendencia-item__icone {
-  font-size: 20px;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-md);
+  background: var(--accent-soft);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
-  line-height: 1;
 }
+.portal-pendencia-item__icone svg {
+  width: 14px;
+  height: 14px;
+  stroke: currentColor;
+  stroke-width: 2;
+  fill: none;
+}
+.portal-pendencia-item--alta   .portal-pendencia-item__icone { background: var(--danger-soft);  color: var(--danger); }
+.portal-pendencia-item--media  .portal-pendencia-item__icone { background: var(--warning-soft); color: var(--warning); }
+.portal-pendencia-item--baixa  .portal-pendencia-item__icone { background: var(--accent-soft);  color: var(--accent); }
 
 .portal-pendencia-item__descricao {
   flex: 1;
@@ -1547,3 +1564,61 @@
 .portal-mini-stat__dot--amber  { background: var(--warning, #f59e0b); }
 .portal-mini-stat__dot--red    { background: var(--danger,  #dc2626); }
 .portal-mini-stat__dot--muted  { background: var(--text-dim); }
+
+/* ── MaisPage header ──────────────────────────────────────────────────────── */
+
+.portal-mais-header {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  padding: var(--s-4) 0 var(--s-6);
+  margin-bottom: var(--s-2);
+}
+
+.portal-mais-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--teal-600);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--t-xl);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.portal-mais-header__text { flex: 1; min-width: 0; }
+
+.portal-mais-header__name {
+  font-size: var(--t-lg);
+  font-weight: 700;
+  color: var(--text);
+  line-height: var(--lh-tight);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.portal-mais-header__sub {
+  font-size: var(--t-sm);
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* ── Sidebar user button ──────────────────────────────────────────────────── */
+
+.portal-sidebar__user--btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  border-radius: var(--r-md);
+  transition: background var(--d-fast);
+  width: 100%;
+  text-align: left;
+}
+.portal-sidebar__user--btn:hover {
+  background: var(--surface-2);
+}
+

@@ -43,12 +43,12 @@ export default function PerfilPage({ onLogout }) {
     return (
       <div>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, padding: "var(--s-8) 0" }}>
-          <div className="skeleton" style={{ width: 72, height: 72, borderRadius: "50%" }} />
-          <div className="skeleton" style={{ width: 160, height: 24, borderRadius: 8 }} />
-          <div className="skeleton" style={{ width: 120, height: 16, borderRadius: 8 }} />
+          <div className="portal-skeleton" style={{ width: 72, height: 72, borderRadius: "50%" }} />
+          <div className="portal-skeleton" style={{ width: 160, height: 24, borderRadius: 8 }} />
+          <div className="portal-skeleton" style={{ width: 120, height: 16, borderRadius: 8 }} />
         </div>
         {[1,2,3].map(i => (
-          <div key={i} className="skeleton" style={{ height: 56, borderRadius: 12, marginBottom: 8 }} />
+          <div key={i} className="portal-skeleton" style={{ height: 56, borderRadius: 12, marginBottom: 8 }} />
         ))}
       </div>
     );
@@ -73,7 +73,7 @@ export default function PerfilPage({ onLogout }) {
       {/* Dados pessoais */}
       <div className="portal-section">
         <div className="portal-section__title">Dados pessoais</div>
-        <div className="card">
+        <div className="portal-dash-card" style={{ marginBottom: 0 }}>
           <div className="portal-menu-list">
             <MenuItem icon={<IcoUser />}  label="Meu Cadastro" onClick={() => navigate("/meu-cadastro")} />
             <MenuItem icon={<IcoPhone />} label={`Telefone: ${perfil?.telefone || "—"}`} onClick={() => navigate("/meu-cadastro")} />
@@ -85,7 +85,7 @@ export default function PerfilPage({ onLogout }) {
       {/* Dependentes */}
       <div className="portal-section">
         <div className="portal-section__title">Dependentes</div>
-        <div className="card">
+        <div className="portal-dash-card" style={{ marginBottom: 0 }}>
           <div className="portal-menu-list">
             <MenuItem icon={<IcoUsers />} label={perfil?.dependentes?.length > 0 ? `${perfil.dependentes.length} dependente(s)` : "Nenhum dependente cadastrado"} onClick={() => {}} />
           </div>
@@ -95,7 +95,7 @@ export default function PerfilPage({ onLogout }) {
       {/* Preferências */}
       <div className="portal-section">
         <div className="portal-section__title">Preferências</div>
-        <div className="card">
+        <div className="portal-dash-card" style={{ marginBottom: 0 }}>
           <div className="portal-menu-list">
             <MenuItem icon={<IcoBell />} label="Notificações e comunicação" onClick={() => navigate("/meu-cadastro")} />
           </div>
@@ -105,7 +105,7 @@ export default function PerfilPage({ onLogout }) {
       {/* Segurança */}
       <div className="portal-section">
         <div className="portal-section__title">Conta</div>
-        <div className="card">
+        <div className="portal-dash-card" style={{ marginBottom: 0 }}>
           <div className="portal-menu-list">
             <MenuItem icon={<IcoShield />} label="Segurança e senha"  onClick={() => navigate("/meu-cadastro")} />
             <MenuItem icon={<IcoLogout />} label="Sair"               onClick={handleLogout} danger />

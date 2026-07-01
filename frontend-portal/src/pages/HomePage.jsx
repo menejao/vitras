@@ -19,6 +19,15 @@ const IcoUsers     = () => <svg width="18" height="18" viewBox="0 0 24 24" fill=
 const IcoChevron   = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>;
 const IcoCheck     = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>;
 
+// ── Pendência icon map (por id, sem emoji) ────────────────────────────────────
+const PENDENCIA_ICONS = {
+  "consulta-urgente": <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>,
+  "exame-resultado":  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 3h6v10l3 6H6l3-6V3z"/></svg>,
+  "vacina-pendente":  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>,
+  "receita-ativa":    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.5 20H4a2 2 0 0 1-2-2V5c0-1.1.9-2 2-2h3.93a2 2 0 0 1 1.66.9l.82 1.2a2 2 0 0 0 1.66.9H20a2 2 0 0 1 2 2v2"/><circle cx="17" cy="17" r="5"/><line x1="14" y1="17" x2="20" y2="17"/></svg>,
+  "notif-nao-lida":   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>,
+};
+
 // ── Quick link icon map ────────────────────────────────────────────────────────
 
 const QUICK_LINK_ICONS = {
@@ -27,6 +36,7 @@ const QUICK_LINK_ICONS = {
   "minha-ubs":    <IcoBuilding />,
   notificacoes:   <IcoBell />,
   perfil:         <IcoUser />,
+  mais:           <IcoUser />,
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -369,7 +379,7 @@ function Pendencias({ pendencias }) {
           className={`portal-pendencia-item portal-pendencia-item--${p.prioridade}`}
           onClick={() => navigate(p.rota)}
         >
-          <span className="portal-pendencia-item__icone">{p.icone}</span>
+          <span className="portal-pendencia-item__icone">{PENDENCIA_ICONS[p.id] || <IcoChevron />}</span>
           <span className="portal-pendencia-item__descricao">{p.descricao}</span>
           <span className="portal-pendencia-item__seta"><IcoChevron /></span>
         </button>

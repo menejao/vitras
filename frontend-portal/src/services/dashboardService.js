@@ -36,7 +36,6 @@ function buildPendencias(agend, saude, notifs) {
         list.push({
           id:        "consulta-urgente",
           prioridade: "alta",
-          icone:     "📅",
           descricao: diff === 0
             ? `Consulta hoje: ${futura.tipo}`
             : `Consulta amanhã: ${futura.tipo}`,
@@ -49,24 +48,24 @@ function buildPendencias(agend, saude, notifs) {
   // Resultado de exame disponível → ALTA
   if (saude?.exames?.some(e => e.resultado)) {
     const n = saude.exames.filter(e => e.resultado).length;
-    list.push({ id: "exame-resultado", prioridade: "alta", icone: "🔬", descricao: `${n} resultado(s) de exame disponível(is)`, rota: "/minha-saude" });
+    list.push({ id: "exame-resultado", prioridade: "alta", descricao: `${n} resultado(s) de exame disponível(is)`, rota: "/minha-saude" });
   }
 
   // Vacinas pendentes → MÉDIA
   if (saude?.vacinas) {
     const n = saude.vacinas.filter(v => v.status === "pendente").length;
-    if (n > 0) list.push({ id: "vacina-pendente", prioridade: "media", icone: "💉", descricao: `${n} vacina(s) pendente(s)`, rota: "/minha-saude" });
+    if (n > 0) list.push({ id: "vacina-pendente", prioridade: "media", descricao: `${n} vacina(s) pendente(s)`, rota: "/minha-saude" });
   }
 
   // Receitas ativas → MÉDIA
   if (saude?.receitas?.length > 0) {
-    list.push({ id: "receita-ativa", prioridade: "media", icone: "💊", descricao: `${saude.receitas.length} receita(s) ativa(s)`, rota: "/minha-saude" });
+    list.push({ id: "receita-ativa", prioridade: "media", descricao: `${saude.receitas.length} receita(s) ativa(s)`, rota: "/minha-saude" });
   }
 
   // Avisos não lidos → BAIXA
   if (notifs) {
     const n = countUnread(notifs);
-    if (n > 0) list.push({ id: "notif-nao-lida", prioridade: "baixa", icone: "🔔", descricao: `${n} aviso(s) não lido(s)`, rota: "/notificacoes" });
+    if (n > 0) list.push({ id: "notif-nao-lida", prioridade: "baixa", descricao: `${n} aviso(s) não lido(s)`, rota: "/notificacoes" });
   }
 
   return list.sort((a, b) => PRIORITY_ORDER[a.prioridade] - PRIORITY_ORDER[b.prioridade]);
@@ -99,7 +98,7 @@ export async function loadDashboard(cidadao) {
     { id: "minha-saude",  label: "Minha Saúde", rota: "/minha-saude",  modulo: null },
     { id: "minha-ubs",    label: "Minha UBS",   rota: "/minha-ubs",    modulo: "minhaUbs"     },
     { id: "notificacoes", label: "Avisos",       rota: "/notificacoes", modulo: "notificacoes" },
-    { id: "perfil",       label: "Perfil",       rota: "/perfil",       modulo: null           },
+    { id: "mais",         label: "Mais",         rota: "/mais",         modulo: null           },
   ].filter(l => !l.modulo || isModuloAtivo(config, l.modulo));
 
   return {
