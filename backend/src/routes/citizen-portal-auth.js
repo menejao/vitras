@@ -93,6 +93,7 @@ function createCitizenToken(citizenUser) {
       role:      "citizen",
       unitId:    citizenUser.unitId || null,
       nome:      citizenUser.nome   || "",
+      isDemo:    citizenUser.isDemo  || false,
     },
     JWT_SECRET,
     { expiresIn: CITIZEN_EXPIRES, issuer: JWT_ISSUER, audience: CITIZEN_AUDIENCE, algorithm: "HS256" }
@@ -282,7 +283,7 @@ router.post("/citizen-portal/auth/first-access/create", async (req, res) => {
 
   return res.status(201).json({
     token,
-    cidadao: { id: citizenUser.id, nome: citizenUser.nome, unitId: citizenUser.unitId }
+    cidadao: { id: citizenUser.id, nome: citizenUser.nome, unitId: citizenUser.unitId, isDemo: citizenUser.isDemo || false }
   });
 });
 

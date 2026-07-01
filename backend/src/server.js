@@ -12,6 +12,7 @@ import {
   DATABASE_URL
 } from "./config.js";
 import { migrateLegacyPlaintextPasswords, validateProductionConfig, checkRdsBackupHealth } from "./services/startup.js";
+import { initDemoCitizen } from "./services/seedDemoCitizen.js";
 import { runMigrations } from "./migrations/runner.js";
 import { closeDbPool, pool } from "./db.js";
 import {
@@ -198,6 +199,15 @@ async function runStartupTasks() {
   } catch (err) {
     tasks.push({ name: "migrateLegacyPlaintextPasswords", status: "failed", message: err.message });
     logWarn("startup.password_migration.failed_non_fatal", { message: err.message });
+  }
+
+  // Dev-only: seed demo citizen (idempotent, non-fatal)
+  try {
+    await initDemoCitizen();
+    tasks.push({ name: "initDemoCitizen", status: "ok" });
+  } catch (err) {
+    tasks.push({ name: "initDemoCitizen", status: "failed", message: err.message });
+    logWarn("startup.demo_citizen.failed_non_fatal", { message: err.message });
   }
 
   setStartupTasks(tasks);

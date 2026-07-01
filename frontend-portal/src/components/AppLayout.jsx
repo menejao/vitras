@@ -66,6 +66,13 @@ export default function AppLayout({ cidadao, onLogout }) {
         </div>
       </header>
 
+      {/* Demo mode banner */}
+      {cidadao?.isDemo && (
+        <div className="portal-demo-banner" role="status">
+          Conta de demonstração — dados fictícios
+        </div>
+      )}
+
       {/* Page content */}
       <main className="portal-content">
         <Outlet />

@@ -593,7 +593,7 @@
   align-items: center;
   justify-content: center;
   gap: var(--s-4);
-  padding: var(--s-12) var(--s-6) var(--s-8);
+  padding: var(--s-8) var(--s-6) var(--s-6);
   color: #fff;
   text-align: center;
 }
@@ -633,6 +633,71 @@
   color: var(--text);
   text-align: center;
   margin-bottom: var(--s-2);
+}
+
+/* Tablet 600px+: centered card */
+@media (min-width: 600px) {
+  .portal-login-shell {
+    justify-content: center;
+    padding: var(--s-12) var(--s-4) calc(var(--s-12) + env(safe-area-inset-bottom, 0px));
+  }
+  .portal-login-art {
+    flex: none;
+    padding: var(--s-6) var(--s-6) var(--s-2);
+  }
+  .portal-login-form {
+    border-radius: var(--r-xl);
+    max-width: 420px;
+    padding: var(--s-8) var(--s-7);
+    box-shadow: 0 8px 40px rgba(0,0,0,.25);
+  }
+}
+
+/* Desktop 1024px+: side-by-side */
+@media (min-width: 1024px) {
+  .portal-login-shell {
+    flex-direction: row;
+    justify-content: center;
+    align-items: stretch;
+    padding: 0;
+  }
+  .portal-login-art {
+    flex: 1;
+    max-width: 560px;
+    padding: var(--s-12);
+    align-items: flex-start;
+    text-align: left;
+    justify-content: center;
+  }
+  .portal-login-logo {
+    width: 80px; height: 80px;
+    border-radius: 24px;
+  }
+  .portal-login-logo svg { width: 44px; height: 44px; }
+  .portal-login-title { font-size: 3.5rem; letter-spacing: -.04em; }
+  .portal-login-subtitle { font-size: var(--t-xl); max-width: 380px; }
+  .portal-login-form {
+    border-radius: 0;
+    width: 440px;
+    max-width: 440px;
+    flex: none;
+    padding: var(--s-12) var(--s-10);
+    box-shadow: -4px 0 40px rgba(0,0,0,.1);
+    min-height: 100dvh;
+    justify-content: center;
+  }
+}
+
+/* ── Demo banner ─────────────────────────────────────── */
+.portal-demo-banner {
+  background: #fef3c7;
+  color: #92400e;
+  font-size: var(--t-xs);
+  font-weight: 600;
+  text-align: center;
+  padding: var(--s-2) var(--s-4);
+  letter-spacing: .02em;
+  flex-shrink: 0;
 }
 
 /* ── Aviso clínico / info banner ──────────────────────── */
