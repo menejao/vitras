@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 // Build backend.zip with POSIX path separators for EB (Linux)
-import archiver from "archiver";
+import { createRequire } from "module";
+const require = createRequire(import.meta.url);
+const { ZipArchive } = require("archiver");
 import fs from "fs";
 import path from "path";
 
@@ -19,7 +21,7 @@ const EXCLUDE = new Set([
 if (fs.existsSync(OUT_FILE)) fs.unlinkSync(OUT_FILE);
 
 const output  = fs.createWriteStream(OUT_FILE);
-const archive = archiver("zip", { zlib: { level: 6 } });
+const archive = new ZipArchive({ zlib: { level: 6 } });
 
 archive.pipe(output);
 

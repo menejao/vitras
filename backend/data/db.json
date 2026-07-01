@@ -499,7 +499,7 @@
       "neighborhood": "Centro",
       "cep": "09000001",
       "lat": -23.6636,
-      "lng": -46.5320,
+      "lng": -46.532,
       "geocodingStatus": "manual",
       "geocodedAt": "2026-06-30T00:00:00.000Z",
       "contactEmail": null,
@@ -1237,5 +1237,42 @@
       "updatedAt": "2026-06-23T22:18:21.448Z"
     }
   ],
-  "microAreas": []
+  "microAreas": [],
+  "citizenPortalNotices": [],
+  "citizenPortalCampaigns": [
+    {
+      "id": "camp-1",
+      "titulo": "Vacinação contra Influenza",
+      "descricao": "Campanha de vacinação anual. Compareça à sua UBS. Público-alvo: crianças, idosos e gestantes.",
+      "icone": "💉",
+      "cor": "#2563eb",
+      "ativa": true,
+      "ordem": 1,
+      "expiresAt": null,
+      "createdAt": "2026-07-01T12:26:33.514Z"
+    },
+    {
+      "id": "camp-2",
+      "titulo": "Outubro Rosa",
+      "descricao": "Mês de conscientização sobre o câncer de mama. Agende sua mamografia e preventivo na UBS.",
+      "icone": "🎀",
+      "cor": "#db2777",
+      "ativa": true,
+      "ordem": 2,
+      "expiresAt": null,
+      "createdAt": "2026-07-01T12:26:33.516Z"
+    },
+    {
+      "id": "camp-3",
+      "titulo": "Combate à Dengue",
+      "descricao": "Elimine os focos do mosquito Aedes aegypti. Verifique sua residência e vizinhança.",
+      "icone": "🦟",
+      "cor": "#d97706",
+      "ativa": true,
+      "ordem": 3,
+      "expiresAt": null,
+      "createdAt": "2026-07-01T12:26:33.516Z"
+    }
+  ],
+  "citizenPortalUnitProfiles": []
 }
