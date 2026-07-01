@@ -8,6 +8,10 @@ export default defineConfig({
   server: {
     port: 5174,
     proxy: {
+      "/citizen-portal": {
+        target: API_BASE,
+        changeOrigin: true,
+      },
       "/api": {
         target: API_BASE,
         changeOrigin: true,

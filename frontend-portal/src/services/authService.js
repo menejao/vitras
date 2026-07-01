@@ -5,23 +5,41 @@
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "";
 
+function statusMessage(status, serverMsg) {
+  if (status === 401) return "CPF ou senha inválidos.";
+  if (status === 404) return "Serviço de login não encontrado. Verifique a configuração da API.";
+  if (status === 429) return "Muitas tentativas. Aguarde alguns segundos e tente novamente.";
+  if (status >= 500)  return "Não foi possível entrar agora. Tente novamente em instantes.";
+  return serverMsg || `Erro ${status}`;
+}
+
 async function apiPost(path, body) {
-  const res = await fetch(`${API_BASE}${path}`, {
-    method:  "POST",
-    headers: { "Content-Type": "application/json", Accept: "application/json" },
-    body:    JSON.stringify(body),
-  });
+  let res;
+  try {
+    res = await fetch(`${API_BASE}${path}`, {
+      method:  "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body:    JSON.stringify(body),
+    });
+  } catch {
+    throw Object.assign(new Error("Não foi possível conectar ao servidor."), { type: "network" });
+  }
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || `Erro ${res.status}`);
+  if (!res.ok) throw Object.assign(new Error(statusMessage(res.status, data.error)), { status: res.status });
   return data;
 }
 
 async function apiGet(path, token) {
-  const res = await fetch(`${API_BASE}${path}`, {
-    headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
-  });
+  let res;
+  try {
+    res = await fetch(`${API_BASE}${path}`, {
+      headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+    });
+  } catch {
+    throw Object.assign(new Error("Não foi possível conectar ao servidor."), { type: "network" });
+  }
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || `Erro ${res.status}`);
+  if (!res.ok) throw Object.assign(new Error(statusMessage(res.status, data.error)), { status: res.status });
   return data;
 }
 

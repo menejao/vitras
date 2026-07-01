@@ -577,6 +577,7 @@
 @keyframes portal-spin { to { transform: rotate(360deg); } }
 
 /* ── Login ────────────────────────────────────────────── */
+/* Mobile-first: bottom-sheet. Art flex:1 fills gradient; form slides up from bottom. */
 .portal-login-shell {
   min-height: 100dvh;
   display: flex;
@@ -592,34 +593,34 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: var(--s-4);
-  padding: var(--s-8) var(--s-6) var(--s-6);
+  gap: var(--s-3);
+  padding: var(--s-6) var(--s-6) var(--s-4);
   color: #fff;
   text-align: center;
 }
 .portal-login-logo {
-  width: 64px; height: 64px;
+  width: 60px; height: 60px;
   background: var(--teal-600);
-  border-radius: 18px;
+  border-radius: 16px;
   display: flex; align-items: center; justify-content: center;
   box-shadow: 0 8px 24px rgba(13,148,136,.4);
 }
-.portal-login-logo svg { width: 36px; height: 36px; }
+.portal-login-logo svg { width: 32px; height: 32px; }
 .portal-login-title {
-  font-size: var(--t-3xl);
+  font-size: var(--t-2xl);
   font-weight: 700;
   letter-spacing: var(--ls-tight);
 }
 .portal-login-subtitle {
-  font-size: var(--t-lg);
+  font-size: var(--t-base);
   opacity: .75;
   line-height: var(--lh-relaxed);
-  max-width: 300px;
+  max-width: 260px;
 }
 .portal-login-form {
   background: var(--surface);
   border-radius: var(--r-xl) var(--r-xl) 0 0;
-  padding: var(--s-8) var(--s-6);
+  padding: var(--s-7) var(--s-5) calc(var(--s-7) + env(safe-area-inset-bottom, 0px));
   width: 100%;
   max-width: 480px;
   display: flex;
@@ -632,63 +633,90 @@
   font-weight: 700;
   color: var(--text);
   text-align: center;
-  margin-bottom: var(--s-2);
+  margin-bottom: var(--s-1);
 }
 
-/* Tablet 600px+: centered card */
+/* Tablet 600px+ and Desktop: centered card — NO split screen */
 @media (min-width: 600px) {
   .portal-login-shell {
     justify-content: center;
-    padding: var(--s-12) var(--s-4) calc(var(--s-12) + env(safe-area-inset-bottom, 0px));
+    padding: var(--s-10) var(--s-6);
   }
   .portal-login-art {
     flex: none;
-    padding: var(--s-6) var(--s-6) var(--s-2);
-  }
-  .portal-login-form {
-    border-radius: var(--r-xl);
-    max-width: 420px;
-    padding: var(--s-8) var(--s-7);
-    box-shadow: 0 8px 40px rgba(0,0,0,.25);
-  }
-}
-
-/* Desktop 1024px+: side-by-side */
-@media (min-width: 1024px) {
-  .portal-login-shell {
-    flex-direction: row;
-    justify-content: center;
-    align-items: stretch;
-    padding: 0;
-  }
-  .portal-login-art {
-    flex: 1;
-    max-width: 560px;
-    padding: var(--s-12);
-    align-items: flex-start;
-    text-align: left;
-    justify-content: center;
+    padding: var(--s-4) var(--s-4) var(--s-2);
+    max-width: 440px;
+    width: 100%;
   }
   .portal-login-logo {
-    width: 80px; height: 80px;
-    border-radius: 24px;
+    width: 68px; height: 68px;
+    border-radius: 18px;
   }
-  .portal-login-logo svg { width: 44px; height: 44px; }
-  .portal-login-title { font-size: 3.5rem; letter-spacing: -.04em; }
-  .portal-login-subtitle { font-size: var(--t-xl); max-width: 380px; }
+  .portal-login-logo svg { width: 36px; height: 36px; }
+  .portal-login-title { font-size: var(--t-3xl); }
+  .portal-login-subtitle { font-size: var(--t-base); }
   .portal-login-form {
-    border-radius: 0;
-    width: 440px;
+    border-radius: var(--r-xl);
     max-width: 440px;
-    flex: none;
-    padding: var(--s-12) var(--s-10);
-    box-shadow: -4px 0 40px rgba(0,0,0,.1);
-    min-height: 100dvh;
-    justify-content: center;
+    width: 100%;
+    padding: var(--s-8) var(--s-8);
+    box-shadow: 0 12px 56px rgba(0,0,0,.3);
   }
 }
 
-/* ── Demo banner ─────────────────────────────────────── */
+/* Large desktop 1280px+: a bit more breathing room */
+@media (min-width: 1280px) {
+  .portal-login-shell {
+    padding: var(--s-12) var(--s-8);
+  }
+  .portal-login-art {
+    padding: var(--s-6) var(--s-4) var(--s-3);
+  }
+  .portal-login-logo { width: 76px; height: 76px; border-radius: 20px; }
+  .portal-login-logo svg { width: 40px; height: 40px; }
+  .portal-login-title { font-size: 2.25rem; }
+  .portal-login-subtitle { font-size: var(--t-lg); }
+  .portal-login-form {
+    max-width: 460px;
+    padding: var(--s-10) var(--s-10);
+  }
+}
+
+/* ── Demo zone (dev only — hidden via conditional render in JS) ── */
+.portal-login-demo-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-1);
+  padding-top: var(--s-3);
+  border-top: 1px dashed var(--border);
+  margin-top: var(--s-2);
+}
+.portal-login-demo-btn {
+  font-size: var(--t-sm);
+  font-weight: 600;
+  color: var(--teal-700);
+  background: none;
+  border: 1.5px dashed var(--teal-400);
+  border-radius: var(--r-md);
+  padding: var(--s-2) var(--s-4);
+  cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.portal-login-demo-btn:hover:not(:disabled) {
+  background: var(--teal-50);
+}
+.portal-login-demo-btn:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+.portal-login-demo-hint {
+  font-size: var(--t-xs);
+  color: var(--text-dim);
+  text-align: center;
+}
+
+/* ── Demo banner (app shell) ──────────────────────────── */
 .portal-demo-banner {
   background: #fef3c7;
   color: #92400e;
