@@ -1,3 +1,4 @@
+import { useRef, useState, useEffect } from "react";
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
@@ -38,11 +39,24 @@ const IcoBuilding = () => (
   </svg>
 );
 
-const IcoGrid = () => (
-  <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="12" cy="12" r="1" />
-    <circle cx="19" cy="12" r="1" />
-    <circle cx="5"  cy="12" r="1" />
+const IcoUser = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+    <circle cx="12" cy="7" r="4" />
+  </svg>
+);
+
+const IcoShield = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+  </svg>
+);
+
+const IcoInfo = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10" />
+    <line x1="12" y1="8" x2="12" y2="12" />
+    <line x1="12" y1="16" x2="12.01" y2="16" />
   </svg>
 );
 
@@ -54,6 +68,18 @@ const IcoLogout = () => (
   </svg>
 );
 
+const IcoChevronUp = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="18 15 12 9 6 15" />
+  </svg>
+);
+
+const IcoChevronDown = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="6 9 12 15 18 9" />
+  </svg>
+);
+
 const LogoMark = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
     <path d="M5 5 L12 19 L19 5" />
@@ -62,40 +88,94 @@ const LogoMark = () => (
 
 // ── Nav items ─────────────────────────────────────────────────────────────────
 
-// Sidebar desktop: mostra Avisos explicitamente + Mais
+// "Mais" removido — conta fica no menu popup do footer da sidebar
 const SIDEBAR_ITEMS = [
   { to: "/home",         label: "Início",    Icon: IcoHome     },
   { to: "/agendamentos", label: "Consultas", Icon: IcoCalendar },
   { to: "/minha-saude",  label: "Saúde",     Icon: IcoHeart    },
   { to: "/minha-ubs",    label: "Minha UBS", Icon: IcoBuilding },
   { to: "/notificacoes", label: "Avisos",    Icon: IcoBell     },
-  { to: "/mais",         label: "Mais",      Icon: IcoGrid     },
 ];
 
-// Bottom nav mobile: Avisos acessível pelo sino, foca em Mais para conta
+// Bottom nav mobile: mesmo conjunto (conta via header avatar)
 const BOTTOM_ITEMS = [
   { to: "/home",         label: "Início",    Icon: IcoHome     },
   { to: "/agendamentos", label: "Consultas", Icon: IcoCalendar },
   { to: "/minha-saude",  label: "Saúde",     Icon: IcoHeart    },
   { to: "/minha-ubs",    label: "Minha UBS", Icon: IcoBuilding },
-  { to: "/mais",         label: "Mais",      Icon: IcoGrid     },
+  { to: "/notificacoes", label: "Avisos",    Icon: IcoBell     },
 ];
 
 function primeiroNome(nome) {
   return (nome || "").split(" ")[0] || "Cidadão";
 }
 
+function inicial(nome) {
+  return (nome || "C")[0].toUpperCase();
+}
+
+// ── User account menu popup ────────────────────────────────────────────────────
+
+function UserMenuPopup({ onClose, onLogout }) {
+  const nav = useNavigate();
+
+  function go(path) {
+    nav(path);
+    onClose();
+  }
+
+  const items = [
+    { icon: <IcoUser />,   label: "Meu Cadastro",    action: () => go("/meu-cadastro") },
+    { icon: <IcoShield />, label: "Segurança e senha", action: () => go("/meu-cadastro") },
+    { icon: <IcoBell />,   label: "Preferências",    action: () => go("/meu-cadastro") },
+  ];
+
+  return (
+    <div className="portal-sidebar__user-menu">
+      {items.map(({ icon, label, action }) => (
+        <button key={label} className="portal-sidebar__user-menu-item" onClick={action}>
+          <span className="portal-sidebar__user-menu-icon">{icon}</span>
+          {label}
+        </button>
+      ))}
+      <div className="portal-sidebar__user-menu-divider" />
+      <button className="portal-sidebar__user-menu-item" onClick={() => { go("/mais"); }}>
+        <span className="portal-sidebar__user-menu-icon"><IcoInfo /></span>
+        Sobre o VITRAS
+      </button>
+      <button
+        className="portal-sidebar__user-menu-item portal-sidebar__user-menu-item--danger"
+        onClick={() => { onClose(); onLogout(); }}
+      >
+        <span className="portal-sidebar__user-menu-icon"><IcoLogout /></span>
+        Sair
+      </button>
+    </div>
+  );
+}
+
 // ── Sidebar (desktop only) ────────────────────────────────────────────────────
 
 function Sidebar({ cidadao, onLogout }) {
-  const nav = useNavigate();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const footerRef = useRef(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    function handler(e) {
+      if (footerRef.current && !footerRef.current.contains(e.target)) {
+        setMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [menuOpen]);
+
   return (
     <aside className="portal-sidebar" aria-label="Navegação lateral">
       {/* Brand */}
       <div className="portal-sidebar__brand">
-        <div className="portal-sidebar__logo">
-          <LogoMark />
-        </div>
+        <div className="portal-sidebar__logo"><LogoMark /></div>
         <div>
           <div className="portal-sidebar__wordmark">VITRAS</div>
           <div className="portal-sidebar__tag">Portal do Cidadão</div>
@@ -118,25 +198,27 @@ function Sidebar({ cidadao, onLogout }) {
         ))}
       </nav>
 
-      {/* Footer: user (clicável → /mais) + logout */}
-      <div className="portal-sidebar__footer">
+      {/* Footer: user area + popup menu */}
+      <div className="portal-sidebar__footer" ref={footerRef}>
+        {menuOpen && (
+          <UserMenuPopup
+            onClose={() => setMenuOpen(false)}
+            onLogout={onLogout}
+          />
+        )}
         <button
           className="portal-sidebar__user portal-sidebar__user--btn"
-          onClick={() => nav("/mais")}
+          onClick={() => setMenuOpen(v => !v)}
           aria-label="Minha conta"
+          aria-expanded={menuOpen}
         >
           <div className="portal-sidebar__user-avatar">
-            {primeiroNome(cidadao?.nome)[0]?.toUpperCase() || "C"}
+            {inicial(cidadao?.nome)}
           </div>
           <div className="portal-sidebar__user-name">{primeiroNome(cidadao?.nome)}</div>
-        </button>
-        <button
-          className="portal-sidebar__logout"
-          onClick={onLogout}
-          aria-label="Sair"
-        >
-          <IcoLogout />
-          <span>Sair</span>
+          <div style={{ marginLeft: "auto", color: "var(--text-dim)", display: "flex", alignItems: "center" }}>
+            {menuOpen ? <IcoChevronUp /> : <IcoChevronDown />}
+          </div>
         </button>
       </div>
     </aside>
@@ -151,14 +233,15 @@ export default function AppLayout({ cidadao, onLogout }) {
   return (
     <div className="portal-shell">
 
-      {/* Sidebar — hidden on mobile, visible on ≥900px */}
+      {/* Sidebar — hidden on mobile, visible ≥900px */}
       <Sidebar cidadao={cidadao} onLogout={onLogout} />
 
-      {/* Main body */}
+      {/* Main body: header + content + bottom-nav */}
       <div className="portal-shell__body">
 
         {/* Header */}
         <header className="portal-header">
+          {/* Brand — visible only on mobile (sidebar has it on desktop) */}
           <div className="portal-header__brand">
             <div className="portal-header__logo">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -168,11 +251,12 @@ export default function AppLayout({ cidadao, onLogout }) {
             <span className="portal-header__wordmark">VITRAS</span>
           </div>
 
-          {/* Desktop: citizen name only (Sair fica na sidebar) */}
+          {/* Desktop: full name in center-right */}
           <div className="portal-header__desktop-user">
-            <span className="portal-header__desktop-name">{primeiroNome(cidadao?.nome)}</span>
+            <span className="portal-header__desktop-name">{cidadao?.nome || primeiroNome(cidadao?.nome)}</span>
           </div>
 
+          {/* Actions */}
           <div className="portal-header__action">
             <button
               className="portal-header__icon-btn"
@@ -184,6 +268,17 @@ export default function AppLayout({ cidadao, onLogout }) {
                 <path d="M13.73 21a2 2 0 0 1-3.46 0" />
               </svg>
               <span className="portal-header__badge" aria-hidden="true" />
+            </button>
+
+            {/* Mobile only: avatar → /mais account hub */}
+            <button
+              className="portal-header__avatar-btn"
+              onClick={() => nav("/mais")}
+              aria-label="Minha conta"
+            >
+              <div className="portal-header__avatar-circle">
+                {inicial(cidadao?.nome)}
+              </div>
             </button>
           </div>
         </header>

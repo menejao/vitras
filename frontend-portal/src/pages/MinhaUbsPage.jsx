@@ -387,7 +387,7 @@ export default function MinhaUbsPage() {
 
   if (loading) {
     return (
-      <div className="portal-content">
+      <div>
         <div className="portal-page-header">
           <div className="portal-page-header__title">Minha UBS</div>
         </div>
@@ -401,7 +401,7 @@ export default function MinhaUbsPage() {
 
   if (!info?.ubs) {
     return (
-      <div className="portal-content">
+      <div>
         <div className="portal-page-header">
           <div className="portal-page-header__title">Minha UBS</div>
         </div>
@@ -423,52 +423,67 @@ export default function MinhaUbsPage() {
   const temRede = rede?.permitido;
 
   return (
-    <div className="portal-content">
+    <div>
       <div className="portal-page-header">
         <div className="portal-page-header__title">Minha UBS</div>
+        <div className="portal-page-header__sub">{ubs.nome || "Sua unidade de saúde de referência"}</div>
       </div>
 
-      {/* 1. Cabeçalho */}
+      {/* Cabeçalho UBS — full width always */}
       <CabecalhoUbs ubs={ubs} contatos={contatos} />
 
-      {/* 2. Avisos — aparecem primeiro quando existem */}
+      {/* Avisos urgentes — full width */}
       {temAvisos && (
         <Section titulo="Avisos da UBS" icon={<IcoBell />}>
           <AvisosUbs avisos={avisos} />
         </Section>
       )}
 
-      {/* 3. Minha Equipe */}
-      <Section titulo="Minha Equipe" icon={<IcoUsers />}>
-        <MinhaEquipe equipe={equipe} profissionais={profissionais} />
-      </Section>
+      {/* Grid layout — 2-3 colunas no desktop */}
+      <div className="portal-ubs-layout">
 
-      {/* 4. Serviços Disponíveis */}
-      <Section titulo="Serviços Disponíveis" icon={<IcoBuilding />}>
-        <ServicosDisponiveis servicos={servicos} farmaciaBreve={farmaciaBreve} />
-      </Section>
+        {/* Equipe */}
+        <div>
+          <Section titulo="Minha Equipe" icon={<IcoUsers />}>
+            <MinhaEquipe equipe={equipe} profissionais={profissionais} />
+          </Section>
+        </div>
 
-      {/* 5. Campanhas Municipais */}
-      {temCampanhas && (
-        <Section titulo="Campanhas Municipais" icon={<IcoMegaphone />}>
-          <CampanhasMunicipais campanhas={campanhas} />
-        </Section>
-      )}
+        {/* Serviços */}
+        <div>
+          <Section titulo="Serviços Disponíveis" icon={<IcoBuilding />}>
+            <ServicosDisponiveis servicos={servicos} farmaciaBreve={farmaciaBreve} />
+          </Section>
+        </div>
 
-      {/* 6. Rede Municipal */}
-      {temRede && (
-        <Section titulo="Outras UBS da Rede" icon={<IcoMap />}>
-          <RedeMunicipal rede={rede} />
-        </Section>
-      )}
+        {/* Contatos */}
+        <div>
+          <Section titulo="Contatos" icon={<IcoContact />}>
+            <ContatosCompletos contatos={contatos} ubs={ubs} />
+          </Section>
+        </div>
 
-      {/* 7. Contatos Completos */}
-      <Section titulo="Contatos" icon={<IcoContact />}>
-        <ContatosCompletos contatos={contatos} ubs={ubs} />
-      </Section>
+        {/* Campanhas */}
+        {temCampanhas && (
+          <div>
+            <Section titulo="Campanhas Municipais" icon={<IcoMegaphone />}>
+              <CampanhasMunicipais campanhas={campanhas} />
+            </Section>
+          </div>
+        )}
 
-      {/* Rodapé institucional */}
-      <div className="portal-info-banner" style={{ marginTop: "var(--s-3)" }}>
+        {/* Rede */}
+        {temRede && (
+          <div>
+            <Section titulo="Outras UBS da Rede" icon={<IcoMap />}>
+              <RedeMunicipal rede={rede} />
+            </Section>
+          </div>
+        )}
+
+      </div>
+
+      <div className="portal-info-banner" style={{ marginTop: "var(--s-4)" }}>
         Para alterações no cadastro, vínculo de equipe ou outras solicitações, procure sua UBS pessoalmente ou entre em contato pelo telefone.
       </div>
     </div>

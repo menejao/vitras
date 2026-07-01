@@ -273,6 +273,42 @@ export default function AgendamentosPage() {
     );
   }
 
+  const emptyState = lista.length === 0 ? (
+    <div style={{ textAlign: "center", padding: "var(--s-12) var(--s-4)", color: "var(--text-muted)" }}>
+      <div style={{ marginBottom: "var(--s-4)", opacity: 0.4 }}><IcoClipboard /></div>
+      <div style={{ fontWeight: 700, marginBottom: "var(--s-2)", color: "var(--text)" }}>Nenhum agendamento</div>
+      <div style={{ fontSize: "var(--t-sm)", marginBottom: "var(--s-6)" }}>Você não tem consultas registradas.</div>
+      <button
+        onClick={() => nav("/agendamentos/novo")}
+        style={{ padding: "var(--s-3) var(--s-6)", borderRadius: "var(--r-md)", background: "var(--accent)", color: "#fff", border: "none", cursor: "pointer", fontWeight: 700, fontSize: "var(--t-sm)" }}
+      >
+        Agendar consulta
+      </button>
+    </div>
+  ) : null;
+
+  const timeline = grupos.map(([key, items]) => (
+    <div key={key} style={{ marginBottom: "var(--s-6)" }}>
+      <div style={{
+        fontSize: "var(--t-xs)", fontWeight: 700, textTransform: "uppercase",
+        letterSpacing: ".06em", color: "var(--text-muted)",
+        marginBottom: "var(--s-3)",
+      }}>
+        {labelMes(key)}
+      </div>
+      <div className="portal-timeline">
+        {items.map((item, idx) => (
+          <TimelineItem
+            key={item.id}
+            item={item}
+            onCancelar={handleCancelar}
+            isLast={idx === items.length - 1}
+          />
+        ))}
+      </div>
+    </div>
+  ));
+
   return (
     <div>
       {/* Header */}
@@ -292,46 +328,73 @@ export default function AgendamentosPage() {
         </button>
       </div>
 
-      {/* Hero próxima consulta */}
-      {proxima && <ProximaConsultaHero item={proxima} onCancelar={handleCancelar} />}
+      {/* Mobile: hero above timeline */}
+      <div className="portal-agend-hero-mobile">
+        {proxima && <ProximaConsultaHero item={proxima} onCancelar={handleCancelar} />}
+        {emptyState}
+      </div>
 
-      {/* Vazio */}
-      {lista.length === 0 && (
-        <div style={{ textAlign: "center", padding: "var(--s-12) var(--s-4)", color: "var(--text-muted)" }}>
-          <div style={{ marginBottom: "var(--s-4)", opacity: 0.4 }}><IcoClipboard /></div>
-          <div style={{ fontWeight: 700, marginBottom: "var(--s-2)", color: "var(--text)" }}>Nenhum agendamento</div>
-          <div style={{ fontSize: "var(--t-sm)", marginBottom: "var(--s-6)" }}>Você não tem consultas registradas.</div>
-          <button
-            onClick={() => nav("/agendamentos/novo")}
-            style={{ padding: "var(--s-3) var(--s-6)", borderRadius: "var(--r-md)", background: "var(--accent)", color: "#fff", border: "none", cursor: "pointer", fontWeight: 700, fontSize: "var(--t-sm)" }}
-          >
-            Agendar consulta
-          </button>
+      {/* Two-column layout */}
+      <div className="portal-agend-layout">
+        {/* Main: timeline history */}
+        <div className="portal-agend-main">
+          {emptyState && <div style={{ display: "none" }}>{/* empty only in aside on desktop */}</div>}
+          {timeline}
         </div>
-      )}
 
-      {/* Timeline por mês */}
-      {grupos.map(([key, items]) => (
-        <div key={key} style={{ marginBottom: "var(--s-6)" }}>
-          <div style={{
-            fontSize: "var(--t-xs)", fontWeight: 700, textTransform: "uppercase",
-            letterSpacing: ".06em", color: "var(--text-muted)",
-            marginBottom: "var(--s-3)",
-          }}>
-            {labelMes(key)}
-          </div>
-          <div className="portal-timeline">
-            {items.map((item, idx) => (
-              <TimelineItem
-                key={item.id}
-                item={item}
-                onCancelar={handleCancelar}
-                isLast={idx === items.length - 1}
-              />
+        {/* Aside: next appointment + quick actions (desktop only) */}
+        <div className="portal-agend-aside">
+          {proxima
+            ? <ProximaConsultaHero item={proxima} onCancelar={handleCancelar} />
+            : (
+              <div style={{
+                background: "var(--surface)", border: "1px solid var(--border)",
+                borderRadius: "var(--r-xl)", padding: "var(--s-5)",
+                marginBottom: "var(--s-4)", textAlign: "center", color: "var(--text-muted)",
+              }}>
+                <div style={{ marginBottom: "var(--s-3)", opacity: .5 }}><IcoClipboard /></div>
+                <div style={{ fontSize: "var(--t-sm)", fontWeight: 700, color: "var(--text)", marginBottom: "var(--s-1)" }}>Sem consultas agendadas</div>
+                <div style={{ fontSize: "var(--t-xs)", marginBottom: "var(--s-4)" }}>Agende sua próxima consulta.</div>
+                <button
+                  onClick={() => nav("/agendamentos/novo")}
+                  style={{ padding: "var(--s-2) var(--s-4)", borderRadius: "var(--r-md)", background: "var(--accent)", color: "#fff", border: "none", cursor: "pointer", fontWeight: 700, fontSize: "var(--t-sm)", width: "100%" }}
+                >
+                  Agendar consulta
+                </button>
+              </div>
+            )
+          }
+
+          {/* Atalhos rápidos */}
+          <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--r-xl)", overflow: "hidden" }}>
+            <div style={{ padding: "var(--s-3) var(--s-4)", borderBottom: "1px solid var(--border)", background: "var(--surface-2)", fontSize: "var(--t-xs)", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em", color: "var(--text-muted)" }}>
+              Atalhos
+            </div>
+            {[
+              { label: "Novo agendamento", action: () => nav("/agendamentos/novo") },
+              { label: "Minha saúde",      action: () => nav("/minha-saude") },
+              { label: "Minha UBS",        action: () => nav("/minha-ubs") },
+            ].map(({ label, action }) => (
+              <button
+                key={label}
+                onClick={action}
+                style={{
+                  display: "flex", alignItems: "center", justifyContent: "space-between",
+                  width: "100%", padding: "var(--s-3) var(--s-4)",
+                  border: "none", background: "none", cursor: "pointer",
+                  borderBottom: "1px solid var(--border)", fontSize: "var(--t-sm)", fontWeight: 500,
+                  color: "var(--text)", transition: "background var(--d-fast)",
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = "var(--surface-2)"}
+                onMouseLeave={e => e.currentTarget.style.background = "none"}
+              >
+                {label}
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+              </button>
             ))}
           </div>
         </div>
-      ))}
+      </div>
     </div>
   );
 }

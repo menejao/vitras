@@ -2328,3 +2328,656 @@
 
 .btn--full { width: 100%; }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   LAYOUT SYSTEM — CITIZEN-PORTAL-DESKTOP-RESPONSIVE-LAYOUT-SYSTEM-01
+   Breakpoints: mobile 320-599 | tablet 600-899 | notebook 900-1439
+                desktop 1440-1919 | ultrawide 1920+
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Sidebar user account popup menu ─────────────────────────────────────── */
+
+.portal-sidebar__footer {
+  position: relative; /* anchor for popup */
+}
+
+.portal-sidebar__user--btn {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-2);
+  border-radius: var(--r-md);
+  background: none;
+  border: none;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  transition: background var(--d-fast);
+}
+.portal-sidebar__user--btn:hover { background: var(--surface-2); }
+
+.portal-sidebar__user-menu {
+  position: absolute;
+  bottom: calc(100% + var(--s-2));
+  left: var(--s-2);
+  right: var(--s-2);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-xl);
+  box-shadow: 0 8px 32px rgba(0,0,0,.14), 0 2px 8px rgba(0,0,0,.08);
+  overflow: hidden;
+  z-index: 200;
+  padding: var(--s-1);
+}
+
+.portal-sidebar__user-menu-item {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  width: 100%;
+  padding: var(--s-2) var(--s-3);
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: var(--t-sm);
+  font-weight: 500;
+  color: var(--text);
+  border-radius: var(--r-md);
+  text-align: left;
+  transition: background var(--d-fast), color var(--d-fast);
+}
+.portal-sidebar__user-menu-item:hover { background: var(--surface-2); }
+.portal-sidebar__user-menu-item--danger { color: var(--danger); }
+.portal-sidebar__user-menu-item--danger:hover { background: var(--danger-soft); }
+
+.portal-sidebar__user-menu-icon {
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  opacity: .6;
+}
+.portal-sidebar__user-menu-icon svg {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+  stroke-width: 2;
+  fill: none;
+}
+
+.portal-sidebar__user-menu-divider {
+  height: 1px;
+  background: var(--border);
+  margin: var(--s-1) var(--s-2);
+}
+
+/* ── Header avatar button (mobile only account access) ───────────────────── */
+
+.portal-header__avatar-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  margin-left: var(--s-1);
+}
+
+.portal-header__avatar-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--teal-600);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* ── Tablet breakpoint (600px) ───────────────────────────────────────────── */
+
+@media (min-width: 600px) {
+  /* Content: slightly wider gutters */
+  .portal-content {
+    padding-left: var(--s-6);
+    padding-right: var(--s-6);
+  }
+
+  /* Page headers grow */
+  .portal-page-header__title { font-size: var(--t-3xl); }
+
+  /* Saúde sections 2-col */
+  .portal-saude-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--s-4);
+    align-items: start;
+  }
+
+  /* Notificações: 2-col cards */
+  .portal-notif-card-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* ── Notebook/desktop breakpoint (900px) — SHELL LAYOUT KICKS IN ─────────── */
+
+@media (min-width: 900px) {
+
+  /* Shell: sidebar left + body right, side by side */
+  .portal-shell {
+    flex-direction: row;
+  }
+
+  /* Sidebar: visible, fixed width, sticky full height */
+  .portal-sidebar {
+    display: flex;
+    flex-direction: column;
+    width: 220px;
+    min-width: 220px;
+    max-width: 220px;
+    height: 100dvh;
+    position: sticky;
+    top: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    border-right: 1px solid var(--border);
+    background: var(--surface);
+    flex-shrink: 0;
+  }
+
+  /* Body: takes remaining width */
+  .portal-shell__body {
+    flex: 1;
+    min-width: 0;
+    min-height: 100dvh;
+    overflow-y: auto;
+  }
+
+  /* Header brand hidden (sidebar has the logo) */
+  .portal-header__brand { display: none; }
+
+  /* Desktop user name visible */
+  .portal-header__desktop-user {
+    display: flex;
+    flex: 1;
+  }
+
+  /* Avatar btn hidden on desktop (account via sidebar menu) */
+  .portal-header__avatar-btn { display: none; }
+
+  /* Bottom nav hidden */
+  .portal-bottom-nav { display: none; }
+
+  /* Content: proper desktop gutters — remove legacy max-width */
+  .portal-content {
+    padding: var(--s-7) var(--s-10);
+    padding-bottom: var(--s-10);
+    max-width: none;
+    margin: 0;
+  }
+
+  /* Page headers */
+  .portal-page-header { margin-bottom: var(--s-6); }
+  .portal-page-header__title { font-size: var(--t-3xl); }
+
+  /* Agendamentos: 2-col layout */
+  .portal-agend-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 300px;
+    gap: var(--s-6);
+    align-items: start;
+  }
+
+  .portal-agend-aside {
+    position: sticky;
+    top: var(--s-4);
+  }
+
+  /* Saúde: 2-col dashboard */
+  .portal-saude-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--s-5);
+    align-items: start;
+  }
+
+  /* Saúde: full-width top strip */
+  .portal-saude-grid--full {
+    grid-column: 1 / -1;
+  }
+
+  /* UBS: 2-col grid */
+  .portal-ubs-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--s-5);
+    align-items: start;
+  }
+
+  /* Notificações: filter bar + card grid */
+  .portal-notif-layout {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    gap: var(--s-6);
+    align-items: start;
+  }
+
+  .portal-notif-filters {
+    position: sticky;
+    top: var(--s-4);
+  }
+
+  .portal-notif-card-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  /* Home layout override: wider aside */
+  .portal-home-layout {
+    grid-template-columns: 1fr 280px;
+  }
+
+  .portal-home-layout__aside {
+    display: block;
+    position: sticky;
+    top: var(--s-4);
+  }
+
+  .portal-aside-mobile { display: none; }
+
+  /* Hero title */
+  .portal-hero__title { font-size: var(--t-3xl); }
+
+  /* Health strip 3-col */
+  .portal-health-strip { grid-template-columns: repeat(3, 1fr); }
+
+  /* Quick strip wraps */
+  .portal-quick-strip { overflow-x: visible; flex-wrap: wrap; }
+
+  /* Greeting larger */
+  .portal-greeting-compact { padding: var(--s-3) 0 var(--s-6); }
+  .portal-greeting-compact__hi { font-size: var(--t-2xl); }
+}
+
+/* ── Desktop breakpoint (1440px) ─────────────────────────────────────────── */
+
+@media (min-width: 1440px) {
+
+  /* Sidebar slightly wider */
+  .portal-sidebar {
+    width: 240px;
+    min-width: 240px;
+    max-width: 240px;
+  }
+
+  /* More generous gutters */
+  .portal-content {
+    padding: var(--s-8) var(--s-14);
+    padding-bottom: var(--s-12);
+  }
+
+  /* Agendamentos aside wider */
+  .portal-agend-layout {
+    grid-template-columns: minmax(0, 1fr) 340px;
+    gap: var(--s-8);
+  }
+
+  /* Saúde: 3-col on large screens */
+  .portal-saude-grid {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+
+  /* UBS: 3-col */
+  .portal-ubs-layout {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+
+  /* Home layout: wider aside */
+  .portal-home-layout {
+    grid-template-columns: 1fr 340px;
+    gap: var(--s-8);
+  }
+
+  /* Notif: wider filter panel */
+  .portal-notif-layout {
+    grid-template-columns: 220px 1fr;
+    gap: var(--s-8);
+  }
+
+  .portal-notif-card-grid {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+}
+
+/* ── Ultrawide breakpoint (1920px) ───────────────────────────────────────── */
+
+@media (min-width: 1920px) {
+
+  /* Sidebar: max comfortable width */
+  .portal-sidebar {
+    width: 260px;
+    min-width: 260px;
+    max-width: 260px;
+  }
+
+  /* Content: generous gutters but not infinite */
+  .portal-content {
+    padding: var(--s-10) var(--s-16);
+    padding-bottom: var(--s-14);
+  }
+
+  /* Home: wider aside column */
+  .portal-home-layout {
+    grid-template-columns: 1fr 400px;
+    gap: var(--s-10);
+  }
+
+  /* Agendamentos aside */
+  .portal-agend-layout {
+    grid-template-columns: minmax(0, 1fr) 380px;
+    gap: var(--s-10);
+  }
+
+  /* UBS: 4-col on ultrawide */
+  .portal-ubs-layout {
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+  }
+
+  /* Notif: 3-col cards */
+  .portal-notif-card-grid {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+
+  /* Saúde: max 3 cols even on ultrawide for readability */
+  .portal-saude-grid {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+}
+
+/* ── Agendamentos page layout components ─────────────────────────────────── */
+
+/* Mobile: single column (default) */
+.portal-agend-layout { }
+.portal-agend-main  { min-width: 0; }
+.portal-agend-aside { display: none; } /* mobile: aside hidden (hero shown inline above) */
+.portal-agend-hero-mobile { } /* mobile: hero visible above grid */
+
+@media (min-width: 900px) {
+  .portal-agend-aside  { display: block; } /* desktop: aside column visible */
+  .portal-agend-hero-mobile { display: none; } /* desktop: hero in aside only */
+}
+
+/* ── MinhaSaúde dashboard components ─────────────────────────────────────── */
+
+/* Mobile: single column (default) */
+.portal-saude-grid { display: flex; flex-direction: column; gap: var(--s-4); }
+.portal-saude-section-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-xl);
+  overflow: hidden;
+}
+.portal-saude-section-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--s-4) var(--s-5);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-2);
+}
+.portal-saude-section-card__title {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--t-sm);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--text-muted);
+}
+.portal-saude-section-card__count {
+  font-size: var(--t-xs);
+  font-weight: 700;
+  background: var(--surface-3);
+  color: var(--text-muted);
+  padding: 2px 8px;
+  border-radius: 99px;
+}
+.portal-saude-section-card__body { padding: var(--s-1) 0; }
+.portal-saude-health-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-5);
+  border-bottom: 1px solid var(--border);
+  transition: background var(--d-fast);
+}
+.portal-saude-health-row:last-child { border-bottom: none; }
+.portal-saude-health-row:hover { background: var(--surface-2); }
+.portal-saude-health-row__info { flex: 1; min-width: 0; }
+.portal-saude-health-row__name {
+  font-size: var(--t-sm);
+  font-weight: 600;
+  color: var(--text);
+  line-height: var(--lh-snug);
+}
+.portal-saude-health-row__sub {
+  font-size: var(--t-xs);
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* ── Minha UBS grid components ───────────────────────────────────────────── */
+
+/* Mobile: single column (default) */
+.portal-ubs-layout { display: flex; flex-direction: column; gap: var(--s-4); }
+.portal-ubs-block {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-xl);
+  overflow: hidden;
+}
+.portal-ubs-block__header {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-3) var(--s-5);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-2);
+  font-size: var(--t-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--text-muted);
+}
+.portal-ubs-block__body { padding: var(--s-4) var(--s-5); }
+
+/* ── Notificações components ─────────────────────────────────────────────── */
+
+/* Mobile: full width (default) */
+.portal-notif-layout { }
+
+/* On mobile, sidebar filters hidden — use pill bar instead */
+.portal-notif-filters { display: none; }
+
+/* pill bar visible on mobile, hidden on desktop */
+.portal-notif-filter-bar { display: flex; }
+
+@media (min-width: 900px) {
+  .portal-notif-filters { display: block; }  /* show sidebar */
+  .portal-notif-filter-bar { display: none; } /* hide pill bar */
+}
+
+.portal-notif-filters {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-xl);
+  overflow: hidden;
+  margin-bottom: var(--s-4);
+}
+.portal-notif-filters__title {
+  padding: var(--s-3) var(--s-4);
+  border-bottom: 1px solid var(--border);
+  font-size: var(--t-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--text-muted);
+  background: var(--surface-2);
+}
+.portal-notif-filter-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  width: 100%;
+  padding: var(--s-2) var(--s-4);
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: var(--t-sm);
+  font-weight: 500;
+  color: var(--text-muted);
+  text-align: left;
+  transition: background var(--d-fast), color var(--d-fast);
+  border-radius: 0;
+}
+.portal-notif-filter-btn:hover { background: var(--surface-2); color: var(--text); }
+.portal-notif-filter-btn--active { background: var(--accent-soft); color: var(--accent); font-weight: 700; }
+.portal-notif-filter-count {
+  margin-left: auto;
+  font-size: var(--t-xs);
+  background: var(--surface-3);
+  color: var(--text-muted);
+  padding: 1px 6px;
+  border-radius: 99px;
+  font-weight: 700;
+}
+.portal-notif-filter-btn--active .portal-notif-filter-count {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* Mobile: filter bar horizontal scroll */
+.portal-notif-filter-bar {
+  display: flex;
+  gap: var(--s-2);
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-bottom: var(--s-2);
+  margin-bottom: var(--s-4);
+}
+.portal-notif-filter-bar::-webkit-scrollbar { display: none; }
+.portal-notif-filter-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  padding: var(--s-1) var(--s-3);
+  border-radius: 99px;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  font-size: var(--t-xs);
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all var(--d-fast);
+  flex-shrink: 0;
+}
+.portal-notif-filter-pill:hover { border-color: var(--accent); color: var(--accent); }
+.portal-notif-filter-pill--active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.portal-notif-card-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--s-3);
+}
+.portal-notif-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-xl);
+  padding: var(--s-4) var(--s-5);
+  display: flex;
+  gap: var(--s-3);
+  align-items: flex-start;
+  transition: box-shadow var(--d-fast);
+}
+.portal-notif-card:hover { box-shadow: var(--shadow-md); }
+.portal-notif-card--unread {
+  border-left: 3px solid var(--accent);
+  background: var(--accent-soft);
+}
+.portal-notif-card__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+  margin-top: 6px;
+}
+.portal-notif-card__dot--read { background: transparent; border: 1.5px solid var(--border); }
+.portal-notif-card__body { flex: 1; min-width: 0; }
+.portal-notif-card__header {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-2);
+  margin-bottom: var(--s-1);
+  flex-wrap: wrap;
+}
+.portal-notif-card__title {
+  font-size: var(--t-sm);
+  font-weight: 700;
+  color: var(--text);
+  line-height: var(--lh-snug);
+  flex: 1;
+  min-width: 0;
+}
+.portal-notif-card__text {
+  font-size: var(--t-sm);
+  color: var(--text-muted);
+  line-height: var(--lh-relaxed);
+  margin-bottom: var(--s-2);
+}
+.portal-notif-card__time {
+  font-size: var(--t-xs);
+  color: var(--text-dim);
+}
+
+/* ── UBS info row (existing, cleaned up) ─────────────────────────────────── */
+
+.portal-ubs-info-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+  padding: var(--s-3) 0;
+  border-bottom: 1px solid var(--border);
+}
+.portal-ubs-info-row:last-child { border-bottom: none; }
+.portal-ubs-info-row__icon {
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  padding-top: 2px;
+  flex-shrink: 0;
+}
+.portal-ubs-info-row__label {
+  font-size: var(--t-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--text-dim);
+  margin-bottom: 2px;
+}
+.portal-ubs-info-row__value {
+  font-size: var(--t-sm);
+  color: var(--text);
+  line-height: var(--lh-snug);
+}
+
