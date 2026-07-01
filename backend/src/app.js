@@ -43,6 +43,7 @@ import citizenPortalRouter     from "./routes/citizen-portal.js";
 import citizenPortalAuthRouter         from "./routes/citizen-portal-auth.js";
 import citizenPortalAppointmentsRouter from "./routes/citizen-portal-appointments.js";
 import citizenPortalUnitRouter         from "./routes/citizen-portal-unit.js";
+import citizenPortalProfileRouter      from "./routes/citizen-portal-profile.js";
 
 const app = express();
 
@@ -75,6 +76,7 @@ app.use(citizenPortalRouter);
 app.use(citizenPortalAuthRouter);
 app.use(citizenPortalAppointmentsRouter);
 app.use(citizenPortalUnitRouter);
+app.use(citizenPortalProfileRouter);
 app.use(requireAuth);
 app.use(importRouter);  // MIG-01: before blockSupportAdminFromClinical — import is support_admin territory
 app.use(blockSupportAdminFromClinical);  // IAM-01

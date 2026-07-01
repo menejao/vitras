@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { getPerfil, getInitials } from "../services/perfilService.js";
 
 const IcoUser    = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>;
@@ -24,6 +25,7 @@ function MenuItem({ icon, label, onClick, danger = false }) {
 }
 
 export default function PerfilPage({ onLogout }) {
+  const navigate = useNavigate();
   const [perfil,  setPerfil]  = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -73,9 +75,9 @@ export default function PerfilPage({ onLogout }) {
         <div className="portal-section__title">Dados pessoais</div>
         <div className="card">
           <div className="portal-menu-list">
-            <MenuItem icon={<IcoUser />}  label="Nome e documentos" onClick={() => {}} />
-            <MenuItem icon={<IcoPhone />} label={`Telefone: ${perfil?.telefone || "—"}`} onClick={() => {}} />
-            <MenuItem icon={<IcoMail />}  label={perfil?.email || "E-mail não cadastrado"} onClick={() => {}} />
+            <MenuItem icon={<IcoUser />}  label="Meu Cadastro" onClick={() => navigate("/meu-cadastro")} />
+            <MenuItem icon={<IcoPhone />} label={`Telefone: ${perfil?.telefone || "—"}`} onClick={() => navigate("/meu-cadastro")} />
+            <MenuItem icon={<IcoMail />}  label={perfil?.email || "E-mail não cadastrado"} onClick={() => navigate("/meu-cadastro")} />
           </div>
         </div>
       </div>
@@ -95,7 +97,7 @@ export default function PerfilPage({ onLogout }) {
         <div className="portal-section__title">Preferências</div>
         <div className="card">
           <div className="portal-menu-list">
-            <MenuItem icon={<IcoBell />} label="Notificações e comunicação" onClick={() => {}} />
+            <MenuItem icon={<IcoBell />} label="Notificações e comunicação" onClick={() => navigate("/meu-cadastro")} />
           </div>
         </div>
       </div>
@@ -105,7 +107,7 @@ export default function PerfilPage({ onLogout }) {
         <div className="portal-section__title">Conta</div>
         <div className="card">
           <div className="portal-menu-list">
-            <MenuItem icon={<IcoShield />} label="Segurança e senha"  onClick={() => {}} />
+            <MenuItem icon={<IcoShield />} label="Segurança e senha"  onClick={() => navigate("/meu-cadastro")} />
             <MenuItem icon={<IcoLogout />} label="Sair"               onClick={handleLogout} danger />
           </div>
         </div>
