@@ -68,8 +68,13 @@ export default function MinhaSaudePage() {
         <div className="portal-page-header">
           <div className="portal-page-header__title">Minha Saúde</div>
         </div>
+        <div className="portal-saude-summary" style={{ marginBottom: "var(--s-5)" }}>
+          {[1, 2, 3].map(i => (
+            <div key={i} className="portal-skeleton" style={{ height: 56, borderRadius: 12 }} />
+          ))}
+        </div>
         {[1,2,3].map(i => (
-          <div key={i} className="skeleton" style={{ height: 120, borderRadius: 16, marginBottom: 16 }} />
+          <div key={i} className="portal-skeleton" style={{ height: 120, borderRadius: 16, marginBottom: 16 }} />
         ))}
       </div>
     );
@@ -77,11 +82,43 @@ export default function MinhaSaudePage() {
 
   const { vacinas = [], receitas = [], medicamentos = [], exames = [], alergias = [] } = saude || {};
 
+  const vacinasPend = vacinas.filter(v => v.status !== "aplicada").length;
+  const examesDisp  = exames.filter(e => e.resultado).length;
+
   return (
     <div>
       <div className="portal-page-header">
         <div className="portal-page-header__title">Minha Saúde</div>
         <div className="portal-page-header__sub">Resumo atualizado pela sua equipe</div>
+      </div>
+
+      {/* Summary strip */}
+      <div className="portal-saude-summary" style={{ marginBottom: "var(--s-5)" }}>
+        <div className="portal-saude-summary__item">
+          <div className="portal-saude-summary__dot" style={{ background: "var(--teal-600)" }} />
+          <span className="portal-saude-summary__count">{vacinas.length}</span>
+          vacina{vacinas.length !== 1 ? "s" : ""}
+          {vacinasPend > 0 && (
+            <span style={{ fontSize: "var(--t-xs)", color: "var(--warning)", fontWeight: 700, marginLeft: 4 }}>
+              ({vacinasPend} pend.)
+            </span>
+          )}
+        </div>
+        <div className="portal-saude-summary__item">
+          <div className="portal-saude-summary__dot" style={{ background: "var(--accent)" }} />
+          <span className="portal-saude-summary__count">{exames.length}</span>
+          exame{exames.length !== 1 ? "s" : ""}
+          {examesDisp > 0 && (
+            <span style={{ fontSize: "var(--t-xs)", color: "var(--success)", fontWeight: 700, marginLeft: 4 }}>
+              ({examesDisp} disp.)
+            </span>
+          )}
+        </div>
+        <div className="portal-saude-summary__item">
+          <div className="portal-saude-summary__dot" style={{ background: "var(--navy)" }} />
+          <span className="portal-saude-summary__count">{receitas.length + medicamentos.length}</span>
+          medicamento{(receitas.length + medicamentos.length) !== 1 ? "s" : ""}
+        </div>
       </div>
 
       <div className="portal-info-banner" style={{ marginBottom: "var(--s-5)" }}>
