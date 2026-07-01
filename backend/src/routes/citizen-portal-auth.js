@@ -339,6 +339,7 @@ router.post("/citizen-portal/auth/login", async (req, res) => {
       nome:     citizenUser.nome,
       unitId:   citizenUser.unitId,
       unitName: unit?.name || null,
+      isDemo:   citizenUser.isDemo || false,
     }
   });
 });

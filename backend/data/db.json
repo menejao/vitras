@@ -278,6 +278,22 @@
       "updatedAt": "2026-06-23T19:38:17.596Z",
       "cnsResponsavel": "",
       "nis": ""
+    },
+    {
+      "id": "ce28ded0-dec1-4bf2-b253-73f340177e2b",
+      "name": "Paciente Demonstração",
+      "birthDate": "1990-01-01",
+      "motherName": "Mãe Demonstração",
+      "cpf": "00000000191",
+      "cns": null,
+      "unitId": "unit-default",
+      "municipalityId": null,
+      "gender": "M",
+      "phone": null,
+      "email": null,
+      "address": {},
+      "createdAt": "2026-07-01T14:21:40.769Z",
+      "_isDemo": true
     }
   ],
   "queueEntries": [],
@@ -1274,5 +1290,18 @@
       "createdAt": "2026-07-01T12:26:33.516Z"
     }
   ],
-  "citizenPortalUnitProfiles": []
+  "citizenPortalUnitProfiles": [],
+  "citizenUsers": [
+    {
+      "id": "82d37da3-bb8d-4c13-a420-c3f49a219188",
+      "patientId": "ce28ded0-dec1-4bf2-b253-73f340177e2b",
+      "nome": "Paciente Demonstração",
+      "cpfHash": "5aedd0ef7d5c559a5fa467472d61c4addc76a67b09be9534333312411c9bcd78",
+      "passwordHash": "s1$e4f9dc7dd9e19db47ef34d6fbdc57ffe$443f87d2fe30ac097357fb107c5b7edeb292c62732ace0f6694bd7dd5432fff9d83097769410ba888dc4c546892ea36c21aab6869cc83a46032aaa969c21858b",
+      "unitId": "unit-default",
+      "status": "ACTIVE",
+      "isDemo": true,
+      "createdAt": "2026-07-01T14:21:40.772Z"
+    }
+  ]
 }
