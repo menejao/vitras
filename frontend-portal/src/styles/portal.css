@@ -2981,3 +2981,322 @@
   line-height: var(--lh-snug);
 }
 
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   CITIZEN-PORTAL-HOME-INFORMATION-ARCHITECTURE-01
+   Alert Cards, Resumo Saude, Acoes Rapidas, Avisos Recentes
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* -- Section helpers -------------------------------------------------------- */
+
+.portal-section__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--s-3);
+}
+.portal-section__title {
+  font-size: var(--t-sm);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--text-dim);
+  margin-bottom: var(--s-3);
+}
+.portal-section__header .portal-section__title {
+  margin-bottom: 0;
+}
+.portal-section__link {
+  font-size: var(--t-sm);
+  font-weight: 600;
+  color: var(--accent);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+.portal-section__link:hover { text-decoration: underline; }
+
+/* -- Alert Cards ------------------------------------------------------------ */
+
+.portal-alert-cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.portal-alert-card {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  border-left-width: 3px;
+}
+
+.portal-alert-card--alta   { border-left-color: var(--danger); }
+.portal-alert-card--media  { border-left-color: var(--warning); }
+.portal-alert-card--baixa  { border-left-color: var(--accent); }
+.portal-alert-card--ok     { border-left-color: var(--success); }
+
+.portal-alert-card__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--r-md);
+  flex-shrink: 0;
+}
+.portal-alert-card__icon--alta   { background: #fef2f2; color: var(--danger);  }
+.portal-alert-card__icon--media  { background: #fffbeb; color: var(--warning); }
+.portal-alert-card__icon--baixa  { background: #eff6ff; color: var(--accent);  }
+.portal-alert-card__icon--ok     { background: #f0fdf4; color: var(--success); }
+
+.portal-alert-card__body {
+  flex: 1;
+  min-width: 0;
+}
+.portal-alert-card__title {
+  font-size: var(--t-sm);
+  font-weight: 700;
+  color: var(--text);
+  line-height: var(--lh-snug);
+}
+.portal-alert-card__desc {
+  font-size: var(--t-xs);
+  color: var(--text-muted);
+  line-height: var(--lh-normal);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.portal-alert-card__action {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  font-size: var(--t-xs);
+  font-weight: 600;
+  color: var(--accent);
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+  padding: var(--s-1) var(--s-3);
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background .15s, border-color .15s;
+}
+.portal-alert-card__action:hover {
+  background: #eff6ff;
+  border-color: var(--accent);
+}
+
+/* -- Resumo da Saude ------------------------------------------------------- */
+
+.portal-resumo-saude {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.portal-resumo-card {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+}
+
+.portal-resumo-card__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--r-md);
+  flex-shrink: 0;
+}
+.portal-resumo-card__icon--teal  { background: #f0fdfa; color: #0f766e; }
+.portal-resumo-card__icon--blue  { background: #eff6ff; color: var(--accent); }
+.portal-resumo-card__icon--green { background: #f0fdf4; color: #16a34a; }
+
+.portal-resumo-card__content {
+  flex: 1;
+  min-width: 0;
+}
+.portal-resumo-card__title {
+  font-size: var(--t-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--text-dim);
+  margin-bottom: 2px;
+}
+.portal-resumo-card__main {
+  font-size: var(--t-sm);
+  font-weight: 600;
+  color: var(--text);
+  line-height: var(--lh-snug);
+}
+.portal-resumo-card__main--alert { color: var(--warning); }
+.portal-resumo-card__secondary {
+  font-size: var(--t-xs);
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.portal-resumo-card__cta {
+  font-size: var(--t-xs);
+  font-weight: 600;
+  color: var(--accent);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.portal-resumo-card__cta:hover { text-decoration: underline; }
+
+/* -- Acoes Rapidas --------------------------------------------------------- */
+
+.portal-acoes-rapidas {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+.portal-acao {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  cursor: pointer;
+  text-align: left;
+  transition: background .15s, border-color .15s;
+  width: 100%;
+}
+.portal-acao:hover {
+  border-color: var(--accent);
+}
+
+.portal-acao__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--r-md);
+  flex-shrink: 0;
+}
+.portal-acao__icon--accent  { background: #eff6ff; color: var(--accent);  }
+.portal-acao__icon--danger  { background: #fef2f2; color: var(--danger);  }
+.portal-acao__icon--navy    { background: #f1f5f9; color: var(--navy);    }
+.portal-acao__icon--teal    { background: #f0fdfa; color: #0f766e; }
+.portal-acao__icon--green   { background: #f0fdf4; color: #16a34a; }
+.portal-acao__icon--warning { background: #fffbeb; color: var(--warning); }
+.portal-acao__icon--slate   { background: #f8fafc; color: var(--text-muted); }
+
+.portal-acao__label {
+  flex: 1;
+  font-size: var(--t-sm);
+  font-weight: 500;
+  color: var(--text);
+}
+.portal-acao__arrow {
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+}
+
+@media (min-width: 600px) {
+  .portal-acoes-rapidas {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--s-2);
+  }
+}
+
+/* -- Avisos Recentes ------------------------------------------------------- */
+
+.portal-avisos-recentes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+.portal-aviso-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+}
+.portal-aviso-item--unread {
+  border-left: 3px solid var(--accent);
+}
+
+.portal-aviso-item__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+  margin-top: 5px;
+}
+.portal-aviso-item__dot--read {
+  background: var(--border);
+}
+
+.portal-aviso-item__body {
+  flex: 1;
+  min-width: 0;
+}
+.portal-aviso-item__header {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+}
+.portal-aviso-item__title {
+  font-size: var(--t-sm);
+  font-weight: 600;
+  color: var(--text);
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.portal-aviso-item__date {
+  font-size: var(--t-xs);
+  color: var(--text-muted);
+  margin-top: 3px;
+}
+
+/* Resumo Saude - grid em tablet/desktop */
+@media (min-width: 600px) {
+  .portal-resumo-saude {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--s-3);
+  }
+}
+@media (min-width: 900px) {
+  .portal-resumo-saude {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
