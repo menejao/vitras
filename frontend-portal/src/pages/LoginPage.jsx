@@ -7,9 +7,14 @@ const IS_DEV = import.meta.env.DEV;
 const DEMO_CPF  = "000.000.001-91";
 const DEMO_PASS = "Demo@123";
 
+const LogoMark = () => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M5 5 L12 19 L19 5" />
+  </svg>
+);
+
 export default function LoginPage({ onLogin }) {
   const navigate = useNavigate();
-
   const [cpf,   setCpf]   = useState("");
   const [senha, setSenha] = useState("");
   const [busy,  setBusy]  = useState(false);
@@ -40,93 +45,153 @@ export default function LoginPage({ onLogin }) {
   }
 
   return (
-    <div className="portal-login-shell">
-      {/* Hero institucional */}
-      <div className="portal-login-art">
-        <div className="portal-login-logo">
-          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M5 5 L12 19 L19 5" />
-          </svg>
-        </div>
-        <div className="portal-login-title">VITRAS</div>
-        <div className="portal-login-subtitle">Sua saúde na palma da mão.</div>
-      </div>
+    <main className="portal-auth">
 
-      {/* Card de login */}
-      <form className="portal-login-form" onSubmit={handleSubmit}>
-        <div className="portal-login-form__title">Entrar</div>
+      {/* ── Esquerda: institucional ── */}
+      <section className="portal-auth__left">
 
-        {erro && (
-          <div className="alert alert--error" role="alert">
-            {erro}
+        {/* Brand */}
+        <div className="portal-auth__brand">
+          <div className="portal-auth__logo-mark">
+            <LogoMark />
           </div>
-        )}
-
-        <div className="field">
-          <label className="field__label" htmlFor="login-cpf">CPF</label>
-          <input
-            id="login-cpf"
-            className="field__input"
-            inputMode="numeric"
-            placeholder="000.000.000-00"
-            value={formatCpf(cpf)}
-            onChange={e => setCpf(e.target.value)}
-            autoComplete="username"
-            disabled={busy}
-          />
-        </div>
-
-        <div className="field">
-          <label className="field__label" htmlFor="login-senha">Senha</label>
-          <input
-            id="login-senha"
-            type="password"
-            className="field__input"
-            placeholder="••••••••"
-            value={senha}
-            onChange={e => setSenha(e.target.value)}
-            autoComplete="current-password"
-            disabled={busy}
-          />
-        </div>
-
-        <button
-          type="submit"
-          className={"btn btn--primary btn--full" + (busy ? " btn--loading" : "")}
-          disabled={busy}
-        >
-          {busy ? "" : "Entrar"}
-        </button>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "center", marginTop: 8 }}>
-          <button
-            type="button"
-            className="btn btn--ghost btn--full"
-            onClick={() => navigate("/primeiro-acesso")}
-            disabled={busy}
-          >
-            Criar meu acesso (primeiro acesso)
-          </button>
-          <p style={{ textAlign: "center", fontSize: "var(--t-sm)", color: "var(--text-muted)", margin: 0 }}>
-            Ainda sem cadastro? Procure sua UBS.
-          </p>
-        </div>
-
-        {/* Acesso demo — visível apenas em desenvolvimento */}
-        {IS_DEV && (
-          <div className="portal-login-demo-zone">
-            <button
-              type="button"
-              className="portal-login-demo-btn"
-              onClick={handleDemoLogin}
-              disabled={busy}
-            >
-              Entrar com conta demo
-            </button>
-            <span className="portal-login-demo-hint">CPF 000.000.001-91 · Demo@123</span>
+          <div>
+            <div className="portal-auth__logo-name">VITRAS</div>
+            <div className="portal-auth__logo-tag">Portal do Cidadão</div>
           </div>
-        )}
-      </form>
-    </div>
+        </div>
+
+        {/* Hero */}
+        <div className="portal-auth__hero">
+          <span className="portal-auth-eyebrow">Atenção Primária à Saúde</span>
+          <h1>Sua saúde na palma da mão.</h1>
+          <p>Portal digital para acessar serviços da Atenção Primária à Saúde com segurança, praticidade e cuidado.</p>
+        </div>
+
+        {/* Cards de valor */}
+        <div className="portal-auth-kpi-grid">
+          <div className="portal-auth-info-card">
+            <strong className="portal-auth-info-card__title">Consultas</strong>
+            <span className="portal-auth-info-card__desc">Agende e acompanhe seus atendimentos.</span>
+          </div>
+          <div className="portal-auth-info-card">
+            <strong className="portal-auth-info-card__title">UBS</strong>
+            <span className="portal-auth-info-card__desc">Veja sua unidade de referência e avisos.</span>
+          </div>
+          <div className="portal-auth-info-card">
+            <strong className="portal-auth-info-card__title">Saúde</strong>
+            <span className="portal-auth-info-card__desc">Acompanhe vacinas, exames e medicamentos.</span>
+          </div>
+        </div>
+
+      </section>
+
+      {/* ── Direita: formulário ── */}
+      <section className="portal-auth__right">
+        <div className="portal-auth__right-inner">
+
+          {/* Brand mobile (visível apenas ≤768px) */}
+          <div className="portal-auth__brand-mobile">
+            <div className="portal-auth__logo-mark">
+              <LogoMark />
+            </div>
+            <div>
+              <div className="portal-auth__logo-name">VITRAS</div>
+              <div className="portal-auth__logo-tag">Portal do Cidadão</div>
+            </div>
+          </div>
+
+          {/* Card de login */}
+          <div className="portal-auth-card">
+            <div className="portal-auth-card__header">
+              <h2>Entrar no Portal</h2>
+              <p>Acesse com seu CPF e senha.</p>
+            </div>
+
+            <form className="portal-auth-form" onSubmit={handleSubmit}>
+
+              {erro && (
+                <div className="alert alert--error" role="alert">{erro}</div>
+              )}
+
+              <div className="field">
+                <label className="field__label" htmlFor="login-cpf">CPF</label>
+                <input
+                  id="login-cpf"
+                  className="field__input"
+                  inputMode="numeric"
+                  placeholder="000.000.000-00"
+                  value={formatCpf(cpf)}
+                  onChange={e => setCpf(e.target.value)}
+                  autoComplete="username"
+                  disabled={busy}
+                />
+              </div>
+
+              <div className="field">
+                <label className="field__label" htmlFor="login-senha">Senha</label>
+                <input
+                  id="login-senha"
+                  type="password"
+                  className="field__input"
+                  placeholder="••••••••"
+                  value={senha}
+                  onChange={e => setSenha(e.target.value)}
+                  autoComplete="current-password"
+                  disabled={busy}
+                />
+              </div>
+
+              <button
+                type="submit"
+                className={"btn btn--primary btn--full" + (busy ? " btn--loading" : "")}
+                disabled={busy}
+              >
+                {busy ? (
+                  <>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true" style={{ animation: "spin 0.8s linear infinite", display: "inline-block", verticalAlign: "middle", marginRight: 6 }}>
+                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2.5" strokeDasharray="50 30" strokeLinecap="round" />
+                    </svg>
+                    Entrando…
+                  </>
+                ) : "Entrar"}
+              </button>
+
+              <div className="portal-auth-links">
+                <button
+                  type="button"
+                  className="portal-auth-link"
+                  onClick={() => navigate("/primeiro-acesso")}
+                  disabled={busy}
+                >
+                  Criar meu acesso
+                </button>
+                <span className="portal-auth-link portal-auth-link--hint">
+                  Ainda sem cadastro? Procure sua UBS.
+                </span>
+              </div>
+
+              {/* Zona demo — somente dev */}
+              {IS_DEV && (
+                <div className="portal-auth-demo-zone">
+                  <button
+                    type="button"
+                    className="portal-auth-demo-btn"
+                    onClick={handleDemoLogin}
+                    disabled={busy}
+                  >
+                    Entrar com conta demo
+                  </button>
+                  <span className="portal-auth-demo-hint">CPF 000.000.001-91 · Demo@123</span>
+                </div>
+              )}
+
+            </form>
+          </div>
+
+        </div>
+      </section>
+
+    </main>
   );
 }
