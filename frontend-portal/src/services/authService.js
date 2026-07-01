@@ -9,6 +9,8 @@ function statusMessage(status, serverMsg) {
   if (status === 401) return "CPF ou senha inválidos.";
   if (status === 404) return "Serviço de login não encontrado. Verifique a configuração da API.";
   if (status === 429) return "Muitas tentativas. Aguarde alguns segundos e tente novamente.";
+  if (status === 502 || status === 503 || status === 504)
+    return "Não foi possível conectar ao servidor. Verifique se o backend está ativo.";
   if (status >= 500)  return "Não foi possível entrar agora. Tente novamente em instantes.";
   return serverMsg || `Erro ${status}`;
 }
