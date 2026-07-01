@@ -7,6 +7,12 @@ import {
   formatarDataCurta,
 } from "../services/appointmentJourneyService.js";
 
+// ── Icons ──────────────────────────────────────────────────────────────────────
+const IcoStethoscope = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 0 0-2 2v5a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6V4a2 2 0 0 0-2-2h-1a.2.2 0 1 0 .3.3"/><path d="M8 15v1a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6v-4"/><circle cx="20" cy="10" r="2"/></svg>;
+const IcoCalendar    = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>;
+const IcoBuilding    = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>;
+const IcoClipboard   = () => <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>;
+
 // ── Chip de status ─────────────────────────────────────────────────────────────
 function StatusChip({ status }) {
   const map = {
@@ -40,7 +46,7 @@ function AppointmentCard({ item, onCancelar }) {
           cursor: "pointer", padding: "var(--s-4)",
         }}
       >
-        <div style={{ fontSize: 24, flexShrink: 0, lineHeight: 1 }}>🩺</div>
+        <div style={{ width: 24, flexShrink: 0, color: "var(--accent)" }}><IcoStethoscope /></div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "var(--s-2)", marginBottom: 4 }}>
             <div style={{ fontSize: "var(--t-md)", fontWeight: 600, color: "var(--text)" }}>
@@ -52,7 +58,7 @@ function AppointmentCard({ item, onCancelar }) {
             {item.unitName}
           </div>
           <div style={{ fontSize: "var(--t-sm)", color: "var(--text-muted)", marginTop: 2 }}>
-            📅 {formatarDataCurta(item.date)} às {item.hora}
+            {formatarDataCurta(item.date)} às {item.hora}
           </div>
         </div>
         <span style={{ color: "var(--text-dim)", fontSize: 16, flexShrink: 0, marginTop: 4 }}>
@@ -72,14 +78,14 @@ function AppointmentCard({ item, onCancelar }) {
 
           {/* Detalhes */}
           <div className="portal-ubs-info-row" style={{ borderTop: "none", paddingTop: 0 }}>
-            <div className="portal-ubs-info-row__icon">📅</div>
+            <div className="portal-ubs-info-row__icon"><IcoCalendar /></div>
             <div>
               <div className="portal-ubs-info-row__label">Data e horário</div>
               <div className="portal-ubs-info-row__value">{formatarData(item.date)} às {item.hora}</div>
             </div>
           </div>
           <div className="portal-ubs-info-row" style={{ borderTop: "none" }}>
-            <div className="portal-ubs-info-row__icon">🏥</div>
+            <div className="portal-ubs-info-row__icon"><IcoBuilding /></div>
             <div>
               <div className="portal-ubs-info-row__label">Unidade</div>
               <div className="portal-ubs-info-row__value">{item.unitName}</div>
@@ -168,11 +174,12 @@ function ModalCancelar({ item, onClose, onConfirm, loading }) {
 // ── Empty state ────────────────────────────────────────────────────────────────
 function EmptyState({ mensagem, onAgendar }) {
   return (
-    <div style={{ textAlign: "center", padding: "var(--s-6) 0" }}>
-      <div style={{ fontSize: 40, marginBottom: "var(--s-3)" }}>📋</div>
-      <p style={{ fontSize: "var(--t-sm)", color: "var(--text-muted)", margin: "0 0 var(--s-4)" }}>{mensagem}</p>
+    <div className="portal-empty">
+      <div className="portal-empty__icon"><IcoClipboard /></div>
+      <div className="portal-empty__title">Nenhum agendamento encontrado</div>
+      <div className="portal-empty__text">{mensagem}</div>
       {onAgendar && (
-        <button className="btn btn--primary" onClick={onAgendar}>Agendar Consulta</button>
+        <button className="btn btn--primary" style={{ marginTop: "var(--s-2)" }} onClick={onAgendar}>Agendar Atendimento</button>
       )}
     </div>
   );

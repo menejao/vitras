@@ -21,6 +21,17 @@ import { getPerfil, alterarSenha, salvarPreferencias, formatarDataNasc, getIniti
 import * as otpSvc from "../services/otpService.js";
 import { formatarTelefone, isValidEmail, isValidPhone } from "../services/contactVerificationService.js";
 
+// ── Icons ──────────────────────────────────────────────────────────────────────
+const IcoUser     = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>;
+const IcoPhone    = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 2.2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>;
+const IcoPin      = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>;
+const IcoBuilding = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>;
+const IcoBell     = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>;
+const IcoShield   = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>;
+const IcoKey      = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>;
+const IcoChevron  = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>;
+const IcoCheck    = () => <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>;
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function Sk({ h = 48, r = 10, mb = 8 }) {
   return <div className="portal-skeleton" style={{ height: h, borderRadius: r, marginBottom: mb }} />;
@@ -30,9 +41,9 @@ function Sk({ h = 48, r = 10, mb = 8 }) {
 function QualidadeBadge({ qualidade }) {
   if (!qualidade) return null;
   const map = {
-    verde:    { emoji: "🟢", bg: "var(--green-50, #f0fdf4)", color: "var(--green-700, #15803d)", border: "var(--green-200, #bbf7d0)" },
-    amarelo:  { emoji: "🟡", bg: "var(--yellow-50, #fefce8)", color: "var(--yellow-700, #a16207)", border: "var(--yellow-200, #fef08a)" },
-    vermelho: { emoji: "🔴", bg: "var(--red-50)",             color: "var(--red-600)",             border: "var(--red-200, #fecaca)"  },
+    verde:    { dot: "var(--green-600, #16a34a)", bg: "var(--green-50, #f0fdf4)", color: "var(--green-700, #15803d)", border: "var(--green-200, #bbf7d0)" },
+    amarelo:  { dot: "var(--yellow-500, #eab308)", bg: "var(--yellow-50, #fefce8)", color: "var(--yellow-700, #a16207)", border: "var(--yellow-200, #fef08a)" },
+    vermelho: { dot: "var(--red-500, #ef4444)",  bg: "var(--red-50)",              color: "var(--red-600)",             border: "var(--red-200, #fecaca)"  },
   };
   const s = map[qualidade.nivel] || map.amarelo;
   return (
@@ -41,7 +52,7 @@ function QualidadeBadge({ qualidade }) {
       borderRadius: "var(--r-lg)", padding: "var(--s-3) var(--s-4)",
       marginBottom: "var(--s-5)", display: "flex", gap: "var(--s-3)", alignItems: "flex-start",
     }}>
-      <span style={{ fontSize: 20, flexShrink: 0 }}>{s.emoji}</span>
+      <span style={{ width: 10, height: 10, borderRadius: "50%", background: s.dot, flexShrink: 0, marginTop: 4 }} />
       <div>
         <div style={{ fontSize: "var(--t-sm)", fontWeight: 700, color: s.color }}>{qualidade.texto}</div>
         {qualidade.problemas?.length > 0 && (
@@ -60,12 +71,12 @@ function QualidadeBadge({ qualidade }) {
 }
 
 // ── Seção com título ──────────────────────────────────────────────────────────
-function Section({ titulo, icone, children, acao, acaoLabel }) {
+function Section({ titulo, icon, children, acao, acaoLabel }) {
   return (
     <section style={{ marginBottom: "var(--s-5)" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "var(--s-3)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "var(--s-2)" }}>
-          <span style={{ fontSize: 16 }}>{icone}</span>
+          {icon && <span style={{ color: "var(--text-muted)", display: "flex" }}>{icon}</span>}
           <h2 style={{ fontSize: "var(--t-sm)", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.04em", margin: 0 }}>
             {titulo}
           </h2>
@@ -254,7 +265,7 @@ function ModalOtp({ tipo, onClose, onSuccess }) {
 
         {passo === 3 && (
           <div style={{ textAlign: "center", padding: "var(--s-3) 0" }}>
-            <div style={{ fontSize: 48, marginBottom: "var(--s-3)" }}>✅</div>
+            <div style={{ display: "flex", justifyContent: "center", marginBottom: "var(--s-3)", color: "var(--success)" }}><IcoCheck /></div>
             <h3 style={{ fontSize: "var(--t-lg)", fontWeight: 700, margin: "0 0 var(--s-2)" }}>{labelTipo} atualizado!</h3>
             <p style={{ fontSize: "var(--t-sm)", color: "var(--text-muted)", margin: "0 0 var(--s-4)" }}>
               Sua alteração foi confirmada e registrada com segurança.
@@ -429,7 +440,7 @@ export default function MeuCadastroPage() {
         <QualidadeBadge qualidade={qualidade} />
 
         {/* 2. Dados pessoais — somente leitura */}
-        <Section titulo="Dados Pessoais" icone="👤">
+        <Section titulo="Dados Pessoais" icon={<IcoUser />}>
           <Card>
             <Campo label="Nome completo"    value={oficial?.nome}     />
             <Campo label="CPF"              value={oficial?.cpf}      />
@@ -438,12 +449,12 @@ export default function MeuCadastroPage() {
             <Campo label="Nome da mãe"      value={oficial?.nomeMae}  />
           </Card>
           <div className="portal-info-banner" style={{ marginTop: "var(--s-2)", fontSize: "var(--t-xs)" }}>
-            🔒 Dados oficiais — alterações apenas na sua UBS
+            Dados oficiais — alterações apenas na sua UBS
           </div>
         </Section>
 
         {/* 3. Contato — editável */}
-        <Section titulo="Contato" icone="📞" acao={null}>
+        <Section titulo="Contato" icon={<IcoPhone />} acao={null}>
           <Card>
             <div style={{ padding: "var(--s-3) 0", borderBottom: "1px solid var(--border)" }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -472,7 +483,7 @@ export default function MeuCadastroPage() {
 
         {/* 4. Endereço — somente leitura */}
         {(oficial?.endereco || oficial?.municipio) && (
-          <Section titulo="Endereço" icone="📍">
+          <Section titulo="Endereço" icon={<IcoPin />}>
             <Card>
               <Campo label="Logradouro"  value={[oficial.endereco, oficial.numero].filter(Boolean).join(", ")} />
               <Campo label="Bairro"      value={oficial.bairro}    />
@@ -480,27 +491,27 @@ export default function MeuCadastroPage() {
               <Campo label="CEP"         value={oficial.cep}       />
             </Card>
             <div className="portal-info-banner" style={{ marginTop: "var(--s-2)", fontSize: "var(--t-xs)" }}>
-              📍 Para alterar seu endereço, procure sua UBS.
+              Para alterar seu endereço, procure sua UBS.
             </div>
           </Section>
         )}
 
         {/* 5. Dados da APS — somente leitura */}
         {(oficial?.ubsNome || oficial?.equipeNome || oficial?.acsNome) && (
-          <Section titulo="Dados da APS" icone="🏥">
+          <Section titulo="Dados da APS" icon={<IcoBuilding />}>
             <Card>
               <Campo label="UBS de referência" value={oficial.ubsNome}    />
               <Campo label="Equipe"             value={oficial.equipeNome} />
               <Campo label="ACS responsável"    value={oficial.acsNome}    />
             </Card>
             <div className="portal-info-banner" style={{ marginTop: "var(--s-2)", fontSize: "var(--t-xs)" }}>
-              🏥 Dados territoriais gerenciados pela Secretaria Municipal de Saúde.
+              Dados territoriais gerenciados pela Secretaria Municipal de Saúde.
             </div>
           </Section>
         )}
 
         {/* 6. Preferências */}
-        <Section titulo="Preferências" icone="🔔">
+        <Section titulo="Preferências" icon={<IcoBell />}>
           <Card>
             <PrefToggle
               label="Notificações"
@@ -539,20 +550,20 @@ export default function MeuCadastroPage() {
         </Section>
 
         {/* 7. Segurança */}
-        <Section titulo="Segurança" icone="🔒">
+        <Section titulo="Segurança" icon={<IcoShield />}>
           <div className="portal-dash-card">
             <button
               onClick={() => setModalSenha(true)}
               style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "var(--s-4)", background: "none", border: "none", cursor: "pointer", minHeight: 56 }}
             >
               <div style={{ display: "flex", alignItems: "center", gap: "var(--s-3)" }}>
-                <span style={{ fontSize: 20 }}>🔑</span>
+                <span style={{ display: "flex", color: "var(--accent)" }}><IcoKey /></span>
                 <div style={{ textAlign: "left" }}>
                   <div style={{ fontSize: "var(--t-md)", fontWeight: 600, color: "var(--text)" }}>Alterar senha</div>
                   <div style={{ fontSize: "var(--t-xs)", color: "var(--text-muted)" }}>Mantenha sua conta segura</div>
                 </div>
               </div>
-              <span style={{ color: "var(--text-dim)", fontSize: 18 }}>›</span>
+              <span style={{ display: "flex", color: "var(--text-dim)" }}><IcoChevron /></span>
             </button>
           </div>
         </Section>

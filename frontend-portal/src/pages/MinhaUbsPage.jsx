@@ -21,17 +21,37 @@ import {
   formatarEndereco,
 } from "../services/unitInformationService.js";
 
+// ── Icons ──────────────────────────────────────────────────────────────────────
+const IcoPhone    = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 2.2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>;
+const IcoPin      = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>;
+const IcoClock    = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>;
+const IcoMessage  = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>;
+const IcoMail     = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>;
+const IcoUsers    = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>;
+const IcoBuilding = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>;
+const IcoBell     = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>;
+const IcoUser     = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>;
+const IcoPill     = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.5 20H4a2 2 0 0 1-2-2V5c0-1.1.9-2 2-2h3.93a2 2 0 0 1 1.66.9l.82 1.2a2 2 0 0 0 1.66.9H20a2 2 0 0 1 2 2v2"/><circle cx="17" cy="17" r="5"/><line x1="14" y1="17" x2="20" y2="17"/></svg>;
+const IcoAlert    = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>;
+const IcoMegaphone= () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>;
+const IcoMap      = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>;
+const IcoContact  = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 2H7a5 5 0 0 0-5 5v10a5 5 0 0 0 5 5h10a5 5 0 0 0 5-5V7a5 5 0 0 0-5-5z"/><path d="M12 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M7 21v-2a5 5 0 0 1 10 0v2"/></svg>;
+const IcoEmptyBuilding = () => <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>;
+const IcoEmptyUsers    = () => <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>;
+
 // ── Skeleton ──────────────────────────────────────────────────────────────────
 function Sk({ h = 56, r = 12 }) {
   return <div className="portal-skeleton" style={{ height: h, borderRadius: r, marginBottom: 8 }} />;
 }
 
 // ── Section wrapper ───────────────────────────────────────────────────────────
-function Section({ titulo, icone, children, style }) {
+function Section({ titulo, icon, children, style }) {
   return (
     <section style={{ marginBottom: "var(--s-5)", ...style }}>
       <div style={{ display: "flex", alignItems: "center", gap: "var(--s-2)", marginBottom: "var(--s-3)" }}>
-        <span style={{ fontSize: 18 }}>{icone}</span>
+        {icon && (
+          <span style={{ color: "var(--text-muted)", display: "flex", alignItems: "center" }}>{icon}</span>
+        )}
         <h2 style={{ fontSize: "var(--t-sm)", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.04em", margin: 0 }}>
           {titulo}
         </h2>
@@ -53,11 +73,11 @@ function Card({ children, style }) {
 }
 
 // ── Info row ──────────────────────────────────────────────────────────────────
-function InfoRow({ icone, label, value, sub }) {
+function InfoRow({ icon, label, value, sub }) {
   if (!value) return null;
   return (
     <div className="portal-ubs-info-row">
-      <div className="portal-ubs-info-row__icon" style={{ fontSize: 18 }}>{icone}</div>
+      <div className="portal-ubs-info-row__icon">{icon}</div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div className="portal-ubs-info-row__label">{label}</div>
         <div className="portal-ubs-info-row__value">{value}</div>
@@ -98,11 +118,11 @@ function CabecalhoUbs({ ubs, contatos }) {
 
         {/* Infos rápidas */}
         <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-          <InfoRow icone="📍" label="Endereço" value={endereco || "Endereço não cadastrado"} />
-          <InfoRow icone="🕐" label="Funcionamento" value={horario} sub={ubs?.horarioExtra || null} />
-          <InfoRow icone="📞" label="Telefone" value={contatos?.telefone || null} />
+          <InfoRow icon={<IcoPin />}     label="Endereço"      value={endereco || "Endereço não cadastrado"} />
+          <InfoRow icon={<IcoClock />}   label="Funcionamento" value={horario} sub={ubs?.horarioExtra || null} />
+          <InfoRow icon={<IcoPhone />}   label="Telefone"      value={contatos?.telefone || null} />
           {contatos?.whatsapp && (
-            <InfoRow icone="💬" label="WhatsApp" value={contatos.whatsapp} />
+            <InfoRow icon={<IcoMessage />} label="WhatsApp" value={contatos.whatsapp} />
           )}
         </div>
 
@@ -114,7 +134,7 @@ function CabecalhoUbs({ ubs, contatos }) {
               className="btn btn--secondary"
               style={{ flex: 1, textAlign: "center", textDecoration: "none", fontSize: "var(--t-sm)" }}
             >
-              📞 Ligar
+              Ligar
             </a>
           )}
           {/* Como chegar — arquitetura preparada, integração futura com mapas */}
@@ -124,7 +144,7 @@ function CabecalhoUbs({ ubs, contatos }) {
             disabled={!contatos?.lat}
             title={contatos?.lat ? "Ver no mapa" : "Localização não disponível"}
           >
-            📍 Como chegar
+            Como chegar
           </button>
         </div>
       </div>
@@ -137,14 +157,10 @@ function MinhaEquipe({ equipe, profissionais }) {
   if (!equipe && profissionais.length === 0) {
     return (
       <Card>
-        <div style={{ textAlign: "center", padding: "var(--s-3) 0" }}>
-          <div style={{ fontSize: 32, marginBottom: 8 }}>👥</div>
-          <div style={{ fontSize: "var(--t-sm)", color: "var(--text-muted)" }}>
-            Equipe de referência não identificada.
-          </div>
-          <div style={{ fontSize: "var(--t-xs)", color: "var(--text-dim)", marginTop: 4 }}>
-            Procure sua UBS para vinculação de equipe.
-          </div>
+        <div className="portal-empty" style={{ padding: "var(--s-4) 0" }}>
+          <div className="portal-empty__icon"><IcoEmptyUsers /></div>
+          <div className="portal-empty__title">Equipe não identificada</div>
+          <div className="portal-empty__text">Procure sua UBS para vinculação de equipe.</div>
         </div>
       </Card>
     );
@@ -170,7 +186,7 @@ function MinhaEquipe({ equipe, profissionais }) {
               padding: "var(--s-2) 0",
               borderTop: i === 0 && equipe ? "1px solid var(--border)" : "none",
             }}>
-              <span style={{ fontSize: 22, width: 32, textAlign: "center", flexShrink: 0 }}>{p.icone}</span>
+              <span style={{ width: 32, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", flexShrink: 0 }}><IcoUser /></span>
               <div>
                 <div style={{ fontSize: "var(--t-sm)", fontWeight: 600, color: "var(--text)" }}>{p.nome}</div>
                 <div style={{ fontSize: "var(--t-xs)", color: "var(--text-muted)" }}>{p.cargo}</div>
@@ -204,7 +220,7 @@ function ServicosDisponiveis({ servicos, farmaciaBreve }) {
             borderRadius: "var(--r-lg)", padding: "var(--s-3)",
             display: "flex", flexDirection: "column", gap: 4,
           }}>
-            <span style={{ fontSize: 24 }}>{s.icone}</span>
+            <span style={{ color: "var(--accent)", display: "flex" }}><IcoBuilding /></span>
             <div style={{ fontSize: "var(--t-sm)", fontWeight: 600, color: "var(--text)" }}>{s.nome}</div>
             <div style={{ fontSize: "var(--t-xs)", color: "var(--text-muted)", lineHeight: 1.4 }}>{s.descricao}</div>
           </div>
@@ -213,7 +229,7 @@ function ServicosDisponiveis({ servicos, farmaciaBreve }) {
       {/* Farmácia — em breve */}
       {farmaciaBreve && (
         <div className="portal-info-banner" style={{ display: "flex", gap: "var(--s-2)", alignItems: "flex-start" }}>
-          <span style={{ fontSize: 20, flexShrink: 0 }}>💊</span>
+          <span style={{ flexShrink: 0, color: "var(--accent)", display: "flex" }}><IcoPill /></span>
           <div>
             <div style={{ fontWeight: 600, marginBottom: 2 }}>Farmácia disponível</div>
             <div style={{ fontSize: "var(--t-xs)", color: "var(--text-muted)" }}>
@@ -232,9 +248,9 @@ function AvisosUbs({ avisos }) {
   if (avisos.length === 0) return null; // sem avisos — não mostrar seção vazia
 
   const TIPO_STYLE = {
-    urgente: { bg: "var(--red-50)",      color: "var(--red-600)",     icone: "🚨" },
-    alerta:  { bg: "var(--yellow-50, #fefce8)", color: "var(--yellow-700, #a16207)", icone: "⚠️" },
-    info:    { bg: "var(--accent-soft)", color: "var(--accent)",      icone: "📢" },
+    urgente: { bg: "var(--red-50)",             color: "var(--red-600)",             icon: <IcoAlert /> },
+    alerta:  { bg: "var(--yellow-50, #fefce8)", color: "var(--yellow-700, #a16207)", icon: <IcoAlert /> },
+    info:    { bg: "var(--accent-soft)",         color: "var(--accent)",              icon: <IcoBell /> },
   };
 
   return (
@@ -248,7 +264,7 @@ function AvisosUbs({ avisos }) {
             borderRadius: "var(--r-md)", padding: "var(--s-3) var(--s-4)",
           }}>
             <div style={{ display: "flex", gap: "var(--s-2)", alignItems: "flex-start" }}>
-              <span style={{ fontSize: 18, flexShrink: 0 }}>{a.icone || s.icone}</span>
+              <span style={{ flexShrink: 0, color: s.color, display: "flex" }}>{s.icon}</span>
               <div>
                 <div style={{ fontSize: "var(--t-sm)", fontWeight: 700, color: s.color, marginBottom: 2 }}>
                   {a.titulo}
@@ -276,7 +292,7 @@ function CampanhasMunicipais({ campanhas }) {
           display: "flex", alignItems: "flex-start", gap: "var(--s-3)",
           borderLeft: `4px solid ${c.cor || "var(--accent)"}`,
         }}>
-          <span style={{ fontSize: 28, flexShrink: 0, lineHeight: 1 }}>{c.icone}</span>
+          <span style={{ flexShrink: 0, color: c.cor || "var(--accent)", display: "flex" }}><IcoMegaphone /></span>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: "var(--t-md)", fontWeight: 700, color: "var(--text)", marginBottom: 4 }}>{c.titulo}</div>
             <div style={{ fontSize: "var(--t-sm)", color: "var(--text-muted)", lineHeight: 1.5 }}>{c.descricao}</div>
@@ -308,16 +324,16 @@ function RedeMunicipal({ rede }) {
             <div style={{ fontSize: "var(--t-md)", fontWeight: 700, color: "var(--text)", marginBottom: 4 }}>{u.nome}</div>
             {u.bairro && (
               <div style={{ fontSize: "var(--t-sm)", color: "var(--text-muted)", marginBottom: 4 }}>
-                📍 {u.bairro}{u.municipio ? ` · ${u.municipio}` : ""}
+                {u.bairro}{u.municipio ? ` · ${u.municipio}` : ""}
               </div>
             )}
             {u.telefone && (
               <div style={{ fontSize: "var(--t-sm)", color: "var(--text-muted)", marginBottom: 4 }}>
-                📞 {u.telefone}
+                {u.telefone}
               </div>
             )}
             <div style={{ fontSize: "var(--t-sm)", color: "var(--text-muted)" }}>
-              🕐 {u.horario}
+              {u.horario}
             </div>
             {u.servicos?.length > 0 && (
               <div style={{ marginTop: "var(--s-2)", display: "flex", flexWrap: "wrap", gap: 6 }}>
@@ -332,7 +348,7 @@ function RedeMunicipal({ rede }) {
             {/* Distância — preparado para futura integração com geolocalização */}
             {u.distanciaKm !== null && (
               <div style={{ marginTop: 8, fontSize: "var(--t-xs)", color: "var(--accent)" }}>
-                📍 {u.distanciaKm.toFixed(1)} km
+                {u.distanciaKm.toFixed(1)} km
               </div>
             )}
           </div>
@@ -348,11 +364,11 @@ function ContatosCompletos({ contatos, ubs }) {
   return (
     <Card>
       <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-        <InfoRow icone="📞" label="Telefone"     value={contatos.telefone} />
-        <InfoRow icone="💬" label="WhatsApp"     value={contatos.whatsapp} />
-        <InfoRow icone="📧" label="E-mail"       value={contatos.email} />
-        <InfoRow icone="📍" label="Endereço"     value={formatarEndereco(contatos)} />
-        <InfoRow icone="🕐" label="Funcionamento" value={formatarHorario(ubs?.horario)} sub={ubs?.horarioExtra} />
+        <InfoRow icon={<IcoPhone />}   label="Telefone"      value={contatos.telefone} />
+        <InfoRow icon={<IcoMessage />} label="WhatsApp"      value={contatos.whatsapp} />
+        <InfoRow icon={<IcoMail />}    label="E-mail"        value={contatos.email} />
+        <InfoRow icon={<IcoPin />}     label="Endereço"      value={formatarEndereco(contatos)} />
+        <InfoRow icon={<IcoClock />}   label="Funcionamento" value={formatarHorario(ubs?.horario)} sub={ubs?.horarioExtra} />
       </div>
     </Card>
   );
@@ -390,7 +406,7 @@ export default function MinhaUbsPage() {
           <div className="portal-page-header__title">Minha UBS</div>
         </div>
         <div className="portal-empty">
-          <div style={{ fontSize: 48, marginBottom: "var(--s-3)" }}>🏥</div>
+          <div className="portal-empty__icon"><IcoEmptyBuilding /></div>
           <div className="portal-empty__title">UBS não encontrada</div>
           <div className="portal-empty__text">
             Seu cadastro ainda não está vinculado a uma unidade de saúde.
@@ -417,37 +433,37 @@ export default function MinhaUbsPage() {
 
       {/* 2. Avisos — aparecem primeiro quando existem */}
       {temAvisos && (
-        <Section titulo="Avisos da UBS" icone="📢">
+        <Section titulo="Avisos da UBS" icon={<IcoBell />}>
           <AvisosUbs avisos={avisos} />
         </Section>
       )}
 
       {/* 3. Minha Equipe */}
-      <Section titulo="Minha Equipe" icone="👥">
+      <Section titulo="Minha Equipe" icon={<IcoUsers />}>
         <MinhaEquipe equipe={equipe} profissionais={profissionais} />
       </Section>
 
       {/* 4. Serviços Disponíveis */}
-      <Section titulo="Serviços Disponíveis" icone="🏥">
+      <Section titulo="Serviços Disponíveis" icon={<IcoBuilding />}>
         <ServicosDisponiveis servicos={servicos} farmaciaBreve={farmaciaBreve} />
       </Section>
 
       {/* 5. Campanhas Municipais */}
       {temCampanhas && (
-        <Section titulo="Campanhas Municipais" icone="📣">
+        <Section titulo="Campanhas Municipais" icon={<IcoMegaphone />}>
           <CampanhasMunicipais campanhas={campanhas} />
         </Section>
       )}
 
       {/* 6. Rede Municipal */}
       {temRede && (
-        <Section titulo="Outras UBS da Rede" icone="🗺️">
+        <Section titulo="Outras UBS da Rede" icon={<IcoMap />}>
           <RedeMunicipal rede={rede} />
         </Section>
       )}
 
       {/* 7. Contatos Completos */}
-      <Section titulo="Contatos" icone="📇">
+      <Section titulo="Contatos" icon={<IcoContact />}>
         <ContatosCompletos contatos={contatos} ubs={ubs} />
       </Section>
 

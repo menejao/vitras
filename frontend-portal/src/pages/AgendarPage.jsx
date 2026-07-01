@@ -25,6 +25,13 @@ import {
   formatarData,
 } from "../services/appointmentJourneyService.js";
 
+// ── Icons ──────────────────────────────────────────────────────────────────────
+const IcoCheck    = () => <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>;
+const IcoBuilding = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>;
+const IcoCalendar = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>;
+const IcoActivity = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>;
+const IcoPin      = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>;
+
 // ── Progress bar ──────────────────────────────────────────────────────────────
 const TOTAL_STEPS = 6; // 1-6 (7 é confirmação final)
 
@@ -59,7 +66,7 @@ function LoadingList() {
 }
 
 // ── Option card ───────────────────────────────────────────────────────────────
-function OptionCard({ icone, titulo, sub, onClick, selected }) {
+function OptionCard({ icon, titulo, sub, onClick, selected }) {
   return (
     <button
       onClick={onClick}
@@ -72,12 +79,12 @@ function OptionCard({ icone, titulo, sub, onClick, selected }) {
         transition: "all var(--d-fast)",
       }}
     >
-      <span style={{ fontSize: 28, flexShrink: 0, lineHeight: 1 }}>{icone}</span>
+      <span style={{ width: 28, flexShrink: 0, color: "var(--accent)", display: "flex", alignItems: "center", justifyContent: "center" }}>{icon}</span>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: "var(--t-md)", fontWeight: 600, color: "var(--text)" }}>{titulo}</div>
         {sub && <div style={{ fontSize: "var(--t-xs)", color: "var(--text-muted)", marginTop: 2 }}>{sub}</div>}
       </div>
-      <span style={{ color: selected ? "var(--accent)" : "var(--text-dim)", fontSize: 18 }}>
+      <span style={{ color: selected ? "var(--accent)" : "var(--text-dim)", fontSize: 16, fontWeight: 700 }}>
         {selected ? "✓" : "›"}
       </span>
     </button>
@@ -131,9 +138,9 @@ function SlotChip({ slot, selected, onClick }) {
 function TelaConfirmacao({ protocolo, booking, navigate }) {
   return (
     <div style={{ textAlign: "center", padding: "var(--s-6) 0" }}>
-      <div style={{ fontSize: 56, marginBottom: "var(--s-4)" }}>✅</div>
+      <div style={{ display: "flex", justifyContent: "center", marginBottom: "var(--s-4)", color: "var(--success)" }}><IcoCheck /></div>
       <h2 style={{ fontSize: "var(--t-2xl)", fontWeight: 700, color: "var(--text)", margin: "0 0 var(--s-2)" }}>
-        Agendado!
+        Agendamento confirmado
       </h2>
       <p style={{ fontSize: "var(--t-sm)", color: "var(--text-muted)", margin: "0 0 var(--s-6)" }}>
         Seu atendimento foi confirmado com sucesso.
@@ -155,13 +162,13 @@ function TelaConfirmacao({ protocolo, booking, navigate }) {
       <div className="portal-dash-card" style={{ textAlign: "left", marginBottom: "var(--s-5)" }}>
         <div className="portal-dash-card__body" style={{ padding: 0 }}>
           {[
-            { icone: "🩺", label: "Serviço",  valor: booking.serviceName },
-            { icone: "🏥", label: "UBS",       valor: booking.unitName    },
-            { icone: "📅", label: "Data",      valor: formatarData(booking.date) },
-            { icone: "🕐", label: "Horário",   valor: booking.hora        },
+            { icon: <IcoActivity />, label: "Serviço",  valor: booking.serviceName },
+            { icon: <IcoBuilding />, label: "UBS",       valor: booking.unitName    },
+            { icon: <IcoCalendar />, label: "Data",      valor: formatarData(booking.date) },
+            { icon: <IcoCalendar />, label: "Horário",   valor: booking.hora        },
           ].map((row, i, arr) => (
             <div key={i} className="portal-ubs-info-row" style={i === arr.length - 1 ? { borderBottom: "none" } : {}}>
-              <div className="portal-ubs-info-row__icon">{row.icone}</div>
+              <div className="portal-ubs-info-row__icon">{row.icon}</div>
               <div>
                 <div className="portal-ubs-info-row__label">{row.label}</div>
                 <div className="portal-ubs-info-row__value">{row.valor}</div>
@@ -320,7 +327,7 @@ export default function AgendarPage() {
               {(servicos || []).map(s => (
                 <OptionCard
                   key={s.id}
-                  icone={s.icone} titulo={s.nome} sub={s.descricao}
+                  icon={<IcoActivity />} titulo={s.nome} sub={s.descricao}
                   selected={servico?.id === s.id}
                   onClick={() => { setServico(s); next(); }}
                 />
@@ -339,7 +346,7 @@ export default function AgendarPage() {
               {(unidades || []).map(u => (
                 <OptionCard
                   key={u.id}
-                  icone={u.isMinhaUbs ? "🏥" : "📍"}
+                  icon={u.isMinhaUbs ? <IcoBuilding /> : <IcoPin />}
                   titulo={u.isMinhaUbs ? `${u.nome} (Minha UBS)` : u.nome}
                   sub={[u.endereco, u.bairro].filter(Boolean).join(", ") || u.municipio || null}
                   selected={unidade?.id === u.id}
@@ -357,7 +364,7 @@ export default function AgendarPage() {
           <StepHeader titulo="Profissional" sub="Configuração do atendimento." />
           {loading ? <LoadingList /> : (
             <div className="portal-info-banner" style={{ marginBottom: "var(--s-5)" }}>
-              🧑‍⚕️ Você será atendido pelo profissional disponível da sua equipe de referência.
+              Você será atendido pelo profissional disponível da sua equipe de referência.
             </div>
           )}
           {!loading && (
@@ -434,13 +441,13 @@ export default function AgendarPage() {
           <div className="portal-dash-card" style={{ marginBottom: "var(--s-5)" }}>
             <div className="portal-dash-card__body" style={{ padding: 0 }}>
               {[
-                { icone: "🩺", label: "Serviço",  valor: servico?.nome   },
-                { icone: "🏥", label: "UBS",       valor: unidade?.nome   },
-                { icone: "📅", label: "Data",      valor: formatarData(dia) },
-                { icone: "🕐", label: "Horário",   valor: slot?.hora      },
+                { icon: <IcoActivity />, label: "Serviço",  valor: servico?.nome   },
+                { icon: <IcoBuilding />, label: "UBS",       valor: unidade?.nome   },
+                { icon: <IcoCalendar />, label: "Data",      valor: formatarData(dia) },
+                { icon: <IcoCalendar />, label: "Horário",   valor: slot?.hora      },
               ].map((row, i, arr) => (
                 <div key={i} className="portal-ubs-info-row" style={i === arr.length - 1 ? { borderBottom: "none" } : {}}>
-                  <div className="portal-ubs-info-row__icon">{row.icone}</div>
+                  <div className="portal-ubs-info-row__icon">{row.icon}</div>
                   <div>
                     <div className="portal-ubs-info-row__label">{row.label}</div>
                     <div className="portal-ubs-info-row__value">{row.valor || "—"}</div>
