@@ -280,7 +280,7 @@
       "nis": ""
     },
     {
-      "id": "ce28ded0-dec1-4bf2-b253-73f340177e2b",
+      "id": "a64ca1d4-b9e1-44ca-9b30-15f66d8d5b3b",
       "name": "Paciente Demonstração",
       "birthDate": "1990-01-01",
       "motherName": "Mãe Demonstração",
@@ -292,7 +292,7 @@
       "phone": null,
       "email": null,
       "address": {},
-      "createdAt": "2026-07-01T14:21:40.769Z",
+      "createdAt": "2026-07-01T14:41:43.257Z",
       "_isDemo": true
     }
   ],
@@ -1293,15 +1293,15 @@
   "citizenPortalUnitProfiles": [],
   "citizenUsers": [
     {
-      "id": "82d37da3-bb8d-4c13-a420-c3f49a219188",
-      "patientId": "ce28ded0-dec1-4bf2-b253-73f340177e2b",
+      "id": "dc1f5bae-73d0-4355-b89f-9fba80e4f689",
+      "patientId": "a64ca1d4-b9e1-44ca-9b30-15f66d8d5b3b",
       "nome": "Paciente Demonstração",
-      "cpfHash": "5aedd0ef7d5c559a5fa467472d61c4addc76a67b09be9534333312411c9bcd78",
-      "passwordHash": "s1$e4f9dc7dd9e19db47ef34d6fbdc57ffe$443f87d2fe30ac097357fb107c5b7edeb292c62732ace0f6694bd7dd5432fff9d83097769410ba888dc4c546892ea36c21aab6869cc83a46032aaa969c21858b",
+      "cpfHash": "dbd0a6615e92e3e3b9856ae347ed9d989f8db44af36717e63e6b396be0230cc7",
+      "passwordHash": "s1$b6c5a9386a446382856f60b441553d58$ee63fbdb57dbc1c3f3616f211c4cd0598ae549ee64ce061d3603899f5b6899549b6995daca6deb60f6ec2fce9bfa2facf140a63ce4cb4ad7b7bd8c63b31caaa2",
       "unitId": "unit-default",
       "status": "ACTIVE",
       "isDemo": true,
-      "createdAt": "2026-07-01T14:21:40.772Z"
+      "createdAt": "2026-07-01T14:41:43.258Z"
     }
   ]
 }
