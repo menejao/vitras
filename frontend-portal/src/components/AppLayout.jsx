@@ -1,11 +1,6 @@
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
 
-const IcoBell = () => (
-  <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-    <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-  </svg>
-);
+// ── Icons ─────────────────────────────────────────────────────────────────────
 
 const IcoHome = () => (
   <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -29,6 +24,13 @@ const IcoHeart = () => (
   </svg>
 );
 
+const IcoBell = () => (
+  <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+    <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+  </svg>
+);
+
 const IcoUser = () => (
   <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
@@ -36,72 +38,180 @@ const IcoUser = () => (
   </svg>
 );
 
+const IcoBuilding = () => (
+  <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+    <polyline points="9 22 9 12 15 12 15 22" />
+  </svg>
+);
+
+const IcoLogout = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+    <polyline points="16 17 21 12 16 7" />
+    <line x1="21" y1="12" x2="9" y2="12" />
+  </svg>
+);
+
+const LogoMark = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M5 5 L12 19 L19 5" />
+  </svg>
+);
+
+// ── Nav items ─────────────────────────────────────────────────────────────────
+
+const NAV_ITEMS = [
+  { to: "/home",         label: "Início",    Icon: IcoHome     },
+  { to: "/agendamentos", label: "Consultas", Icon: IcoCalendar },
+  { to: "/minha-saude",  label: "Saúde",     Icon: IcoHeart    },
+  { to: "/minha-ubs",    label: "Minha UBS", Icon: IcoBuilding },
+  { to: "/notificacoes", label: "Avisos",    Icon: IcoBell     },
+  { to: "/perfil",       label: "Perfil",    Icon: IcoUser     },
+];
+
+function primeiroNome(nome) {
+  return (nome || "").split(" ")[0] || "Cidadão";
+}
+
+// ── Sidebar (desktop only) ────────────────────────────────────────────────────
+
+function Sidebar({ cidadao, onLogout }) {
+  return (
+    <aside className="portal-sidebar" aria-label="Navegação lateral">
+      {/* Brand */}
+      <div className="portal-sidebar__brand">
+        <div className="portal-sidebar__logo">
+          <LogoMark />
+        </div>
+        <div>
+          <div className="portal-sidebar__wordmark">VITRAS</div>
+          <div className="portal-sidebar__tag">Portal do Cidadão</div>
+        </div>
+      </div>
+
+      {/* Nav links */}
+      <nav className="portal-sidebar__nav">
+        {NAV_ITEMS.map(({ to, label, Icon }) => (
+          <NavLink
+            key={to}
+            to={to}
+            className={({ isActive }) =>
+              "portal-sidebar__item" + (isActive ? " active" : "")
+            }
+          >
+            <span className="portal-sidebar__item-icon"><Icon /></span>
+            <span className="portal-sidebar__item-label">{label}</span>
+          </NavLink>
+        ))}
+      </nav>
+
+      {/* Footer: user + logout */}
+      <div className="portal-sidebar__footer">
+        <div className="portal-sidebar__user">
+          <div className="portal-sidebar__user-avatar">
+            {primeiroNome(cidadao?.nome)[0]?.toUpperCase() || "C"}
+          </div>
+          <div className="portal-sidebar__user-name">{primeiroNome(cidadao?.nome)}</div>
+        </div>
+        <button
+          className="portal-sidebar__logout"
+          onClick={onLogout}
+          aria-label="Sair"
+        >
+          <IcoLogout />
+          <span>Sair</span>
+        </button>
+      </div>
+    </aside>
+  );
+}
+
+// ── AppLayout ─────────────────────────────────────────────────────────────────
+
 export default function AppLayout({ cidadao, onLogout }) {
   const nav = useNavigate();
 
   return (
     <div className="portal-shell">
-      {/* Header */}
-      <header className="portal-header">
-        <div className="portal-header__brand">
-          <div className="portal-header__logo">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M5 5 L12 19 L19 5" />
-            </svg>
+
+      {/* Sidebar — hidden on mobile, visible on ≥900px */}
+      <Sidebar cidadao={cidadao} onLogout={onLogout} />
+
+      {/* Main body */}
+      <div className="portal-shell__body">
+
+        {/* Header */}
+        <header className="portal-header">
+          <div className="portal-header__brand">
+            <div className="portal-header__logo">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M5 5 L12 19 L19 5" />
+              </svg>
+            </div>
+            <span className="portal-header__wordmark">VITRAS</span>
           </div>
-          <span className="portal-header__wordmark">VITRAS</span>
-        </div>
-        <div className="portal-header__action">
-          <button
-            className="portal-header__icon-btn"
-            onClick={() => nav("/notificacoes")}
-            aria-label="Notificações"
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-              <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-            </svg>
-            <span className="portal-header__badge" aria-hidden="true" />
-          </button>
-        </div>
-      </header>
 
-      {/* Demo mode banner */}
-      {cidadao?.isDemo && (
-        <div className="portal-demo-banner" role="status">
-          Conta de demonstração — dados fictícios
-        </div>
-      )}
+          {/* Desktop: citizen name + logout */}
+          <div className="portal-header__desktop-user">
+            <span className="portal-header__desktop-name">{primeiroNome(cidadao?.nome)}</span>
+            <button
+              className="portal-header__logout-btn"
+              onClick={onLogout}
+              aria-label="Sair"
+            >
+              <IcoLogout />
+              <span>Sair</span>
+            </button>
+          </div>
 
-      {/* Page content */}
-      <main className="portal-content">
-        <Outlet />
-      </main>
+          <div className="portal-header__action">
+            <button
+              className="portal-header__icon-btn"
+              onClick={() => nav("/notificacoes")}
+              aria-label="Notificações"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+              </svg>
+              <span className="portal-header__badge" aria-hidden="true" />
+            </button>
+          </div>
+        </header>
 
-      {/* Bottom nav */}
-      <nav className="portal-bottom-nav" aria-label="Navegação principal">
-        <NavLink to="/home"         className={({ isActive }) => "portal-nav-item" + (isActive ? " active" : "")}>
-          <IcoHome />
-          <span>Início</span>
-        </NavLink>
-        <NavLink to="/agendamentos" className={({ isActive }) => "portal-nav-item" + (isActive ? " active" : "")}>
-          <IcoCalendar />
-          <span>Consultas</span>
-        </NavLink>
-        <NavLink to="/minha-saude"  className={({ isActive }) => "portal-nav-item" + (isActive ? " active" : "")}>
-          <IcoHeart />
-          <span>Saúde</span>
-        </NavLink>
-        <NavLink to="/notificacoes" className={({ isActive }) => "portal-nav-item" + (isActive ? " active" : "")}>
-          <IcoBell />
-          <span>Avisos</span>
-          <span className="portal-nav-item__dot" aria-hidden="true" />
-        </NavLink>
-        <NavLink to="/perfil"       className={({ isActive }) => "portal-nav-item" + (isActive ? " active" : "")}>
-          <IcoUser />
-          <span>Perfil</span>
-        </NavLink>
-      </nav>
+        {/* Demo banner */}
+        {cidadao?.isDemo && (
+          <div className="portal-demo-banner" role="status">
+            Conta de demonstração — dados fictícios
+          </div>
+        )}
+
+        {/* Page content */}
+        <main className="portal-content">
+          <Outlet />
+        </main>
+
+        {/* Bottom nav — hidden on ≥900px */}
+        <nav className="portal-bottom-nav" aria-label="Navegação principal">
+          {NAV_ITEMS.slice(0, 5).map(({ to, label, Icon }) => (
+            <NavLink
+              key={to}
+              to={to}
+              className={({ isActive }) =>
+                "portal-nav-item" + (isActive ? " active" : "")
+              }
+            >
+              <Icon />
+              <span>{label}</span>
+              {to === "/notificacoes" && (
+                <span className="portal-nav-item__dot" aria-hidden="true" />
+              )}
+            </NavLink>
+          ))}
+        </nav>
+
+      </div>
     </div>
   );
 }

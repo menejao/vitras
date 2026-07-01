@@ -405,53 +405,54 @@ export default function HomePage({ cidadao }) {
         <Pendencias pendencias={pendencias} />
       </div>
 
-      {/* Próxima Consulta */}
-      {show("agendamentos") && (
-        <div className="portal-section">
-          <div className="portal-section__title">Próxima Consulta</div>
-          <CardProximaConsulta result={loading ? null : modulos?.agendamentos} />
-        </div>
-      )}
+      {/* Cards em grid responsivo — 1 col mobile, 2 col desktop */}
+      <div className="portal-home-grid">
 
-      {/* Minha UBS */}
-      {show("minhaUbs") && (
-        <div className="portal-section">
-          <div className="portal-section__title">Minha UBS</div>
-          <CardMinhaUbs result={loading ? null : modulos?.ubs} />
+        {/* Coluna A */}
+        <div className="portal-home-grid__col">
+          {show("agendamentos") && (
+            <div className="portal-section">
+              <div className="portal-section__title">Próxima Consulta</div>
+              <CardProximaConsulta result={loading ? null : modulos?.agendamentos} />
+            </div>
+          )}
+          {show("vacinas") && (
+            <div className="portal-section">
+              <div className="portal-section__title">Vacinação</div>
+              <CardVacinacao result={loading ? null : modulos?.saude} />
+            </div>
+          )}
+          {show("exames") && (
+            <div className="portal-section">
+              <div className="portal-section__title">Exames</div>
+              <CardExames result={loading ? null : modulos?.saude} />
+            </div>
+          )}
         </div>
-      )}
 
-      {/* Vacinação */}
-      {show("vacinas") && (
-        <div className="portal-section">
-          <div className="portal-section__title">Vacinação</div>
-          <CardVacinacao result={loading ? null : modulos?.saude} />
+        {/* Coluna B */}
+        <div className="portal-home-grid__col">
+          {show("minhaUbs") && (
+            <div className="portal-section">
+              <div className="portal-section__title">Minha UBS</div>
+              <CardMinhaUbs result={loading ? null : modulos?.ubs} />
+            </div>
+          )}
+          {show("medicamentos") && (
+            <div className="portal-section">
+              <div className="portal-section__title">Medicamentos</div>
+              <CardMedicamentos result={loading ? null : modulos?.saude} />
+            </div>
+          )}
+          {show("notificacoes") && (
+            <div className="portal-section">
+              <div className="portal-section__title">Avisos</div>
+              <CardNotificacoes result={loading ? null : modulos?.notificacoes} />
+            </div>
+          )}
         </div>
-      )}
 
-      {/* Medicamentos */}
-      {show("medicamentos") && (
-        <div className="portal-section">
-          <div className="portal-section__title">Medicamentos</div>
-          <CardMedicamentos result={loading ? null : modulos?.saude} />
-        </div>
-      )}
-
-      {/* Exames */}
-      {show("exames") && (
-        <div className="portal-section">
-          <div className="portal-section__title">Exames</div>
-          <CardExames result={loading ? null : modulos?.saude} />
-        </div>
-      )}
-
-      {/* Avisos */}
-      {show("notificacoes") && (
-        <div className="portal-section">
-          <div className="portal-section__title">Avisos</div>
-          <CardNotificacoes result={loading ? null : modulos?.notificacoes} />
-        </div>
-      )}
+      </div>
 
       {/* Atalhos rápidos */}
       <div className="portal-section">

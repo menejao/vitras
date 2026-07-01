@@ -15,11 +15,178 @@
   display: flex;
   flex-direction: column;
   min-height: 100dvh;
-  max-width: 480px;     /* max width para UX mobile mesmo em desktop */
-  margin: 0 auto;
   width: 100%;
-  position: relative;
   background: var(--bg);
+}
+
+/* ── Shell body (header + content + bottom-nav) ───────── */
+.portal-shell__body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  min-width: 0;
+}
+
+/* ── Sidebar (desktop ≥900px) ─────────────────────────── */
+.portal-sidebar {
+  display: none; /* mobile: oculta */
+}
+
+.portal-sidebar__brand {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-5) var(--s-5) var(--s-3);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.portal-sidebar__logo {
+  width: 32px;
+  height: 32px;
+  background: var(--teal-600);
+  border-radius: var(--r-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.portal-sidebar__wordmark {
+  font-size: var(--t-md);
+  font-weight: 700;
+  letter-spacing: var(--ls-tight);
+  color: var(--text);
+  line-height: 1;
+}
+
+.portal-sidebar__tag {
+  font-size: var(--t-xs);
+  color: var(--text-dim);
+  margin-top: 2px;
+  letter-spacing: .04em;
+}
+
+.portal-sidebar__nav {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--s-3) var(--s-3);
+  overflow-y: auto;
+}
+
+.portal-sidebar__item {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-3);
+  border-radius: var(--r-lg);
+  color: var(--text-muted);
+  font-size: var(--t-sm);
+  font-weight: 500;
+  text-decoration: none;
+  transition: background var(--d-fast), color var(--d-fast);
+}
+
+.portal-sidebar__item:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.portal-sidebar__item.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.portal-sidebar__item-icon {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.portal-sidebar__item-icon svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  fill: none;
+}
+
+.portal-sidebar__item-label {
+  flex: 1;
+}
+
+.portal-sidebar__footer {
+  border-top: 1px solid var(--border);
+  padding: var(--s-4) var(--s-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  flex-shrink: 0;
+}
+
+.portal-sidebar__user {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-2);
+}
+
+.portal-sidebar__user-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--teal-600);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--t-xs);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.portal-sidebar__user-name {
+  font-size: var(--t-sm);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.portal-sidebar__logout {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  width: 100%;
+  padding: var(--s-2) var(--s-2);
+  border-radius: var(--r-md);
+  color: var(--text-muted);
+  font-size: var(--t-sm);
+  font-weight: 500;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: background var(--d-fast), color var(--d-fast);
+  text-align: left;
+}
+
+.portal-sidebar__logout:hover {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.portal-sidebar__logout svg {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+  stroke-width: 2;
+  fill: none;
+  flex-shrink: 0;
 }
 
 /* ── Header ───────────────────────────────────────────── */
@@ -35,6 +202,51 @@
   justify-content: space-between;
   min-height: 56px;
   box-shadow: 0 1px 0 rgba(255,255,255,.06);
+  flex-shrink: 0;
+}
+
+/* Desktop extras — ocultos no mobile */
+.portal-header__desktop-user {
+  display: none;
+  align-items: center;
+  gap: var(--s-3);
+  flex: 1;
+  justify-content: flex-end;
+  padding-right: var(--s-3);
+}
+
+.portal-header__desktop-name {
+  font-size: var(--t-sm);
+  font-weight: 600;
+  color: rgba(255,255,255,.75);
+}
+
+.portal-header__logout-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  color: rgba(255,255,255,.65);
+  font-size: var(--t-xs);
+  font-weight: 500;
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: var(--r-md);
+  padding: var(--s-1) var(--s-3);
+  cursor: pointer;
+  transition: background var(--d-fast), color var(--d-fast);
+}
+
+.portal-header__logout-btn:hover {
+  background: rgba(255,255,255,.14);
+  color: #fff;
+}
+
+.portal-header__logout-btn svg {
+  width: 14px;
+  height: 14px;
+  stroke: currentColor;
+  stroke-width: 2;
+  fill: none;
 }
 
 .portal-header__brand {
@@ -97,16 +309,16 @@
   padding: var(--s-5) var(--s-4);
   padding-bottom: calc(var(--s-16) + env(safe-area-inset-bottom, 0px));
   overflow-y: auto;
+  min-width: 0;
 }
 
-/* ── Bottom nav ───────────────────────────────────────── */
+/* ── Bottom nav (mobile only) ─────────────────────────── */
 .portal-bottom-nav {
   position: fixed;
   bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
+  left: 0;
+  right: 0;
   width: 100%;
-  max-width: 480px;
   background: var(--surface);
   border-top: 1px solid var(--border);
   display: flex;
@@ -977,17 +1189,108 @@
   line-height: var(--lh-relaxed);
 }
 
-/* ── Responsivo desktop (centraliza o app) ────────────── */
-@media (min-width: 481px) {
-  body {
-    background: var(--slate-100);
+/* ═══════════════════════════════════════════════════════
+   BREAKPOINTS RESPONSIVOS
+   mobile  : < 600px   — layout coluna única, bottom-nav
+   tablet  : 600–899px — largura expandida, 2 colunas opcionais
+   notebook: 900–1199px — sidebar lateral, sem bottom-nav
+   desktop : ≥ 1200px  — sidebar + conteúdo mais largo
+   ═══════════════════════════════════════════════════════ */
+
+/* ── Tablet (600px+) ──────────────────────────────────── */
+@media (min-width: 600px) {
+  .portal-content {
+    padding: var(--s-6) var(--s-6);
+    padding-bottom: calc(var(--s-16) + env(safe-area-inset-bottom, 0px));
   }
+
+  .portal-quick-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* ── Desktop/Notebook (900px+) ────────────────────────── */
+@media (min-width: 900px) {
+  /* Shell: linha em vez de coluna — sidebar + body */
   .portal-shell {
-    box-shadow: var(--shadow-md);
+    flex-direction: row;
+    align-items: stretch;
   }
-  .portal-bottom-nav {
-    border-radius: 0 0 var(--r-xl) var(--r-xl);
+
+  /* Sidebar visível */
+  .portal-sidebar {
+    display: flex;
+    flex-direction: column;
+    width: 240px;
+    flex-shrink: 0;
+    position: sticky;
+    top: 0;
+    height: 100dvh;
+    overflow-y: auto;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    z-index: 30;
   }
+
+  /* Body ocupa o restante */
+  .portal-shell__body {
+    flex: 1;
+    min-width: 0;
+    min-height: 100dvh;
+  }
+
+  /* Header: esconde logo/marca (sidebar tem), mostra nome + logout */
+  .portal-header__brand { display: none; }
+  .portal-header__desktop-user { display: flex; }
+
+  /* Bottom-nav desaparece */
+  .portal-bottom-nav { display: none; }
+
+  /* Sem padding-bottom gigante (não tem bottom-nav) */
+  .portal-content {
+    padding: var(--s-8);
+    padding-bottom: var(--s-10);
+    max-width: 1120px;
+  }
+
+  /* Home grid: 2 colunas */
+  .portal-home-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--s-6);
+    align-items: start;
+  }
+
+  /* Quick links: 3 cols no desktop */
+  .portal-quick-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  /* Pages internas: conteúdo max-width confortável */
+  .portal-page-inner {
+    max-width: 720px;
+  }
+}
+
+/* ── Large desktop (1200px+) ──────────────────────────── */
+@media (min-width: 1200px) {
+  .portal-sidebar { width: 260px; }
+
+  .portal-content { max-width: 1200px; }
+
+  .portal-home-grid { gap: var(--s-8); }
+}
+
+/* ── Home grid (responsivo) ───────────────────────────────────────────────── */
+
+.portal-home-grid {
+  /* mobile: coluna única — desktop override em breakpoints acima */
+  display: block;
+}
+
+.portal-home-grid__col {
+  /* cada coluna no desktop fica como um flex column para sections */
+  min-width: 0;
 }
 
 /* ── Dashboard Cards ──────────────────────────────────────────────────────── */
