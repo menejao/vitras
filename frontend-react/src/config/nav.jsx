@@ -90,12 +90,15 @@ export function buildNavItems(user, canManageUser, enabledModules) {
       servico_social: "Serviço Social", terapia_ocupacional: "Terapia Ocupacional", fonoaudiologia: "Fonoaudiologia"
     };
     const activeModules = Array.isArray(enabledModules) ? enabledModules : ALL_SPECIALTY_IDS;
-    let first = true;
+    const specItems = [];
     for (const id of ALL_SPECIALTY_IDS) {
       if (!activeModules.includes(id)) continue;
-      items.push({ id, label: SPECIALTY_LABELS[id], section: first ? "Especialidades" : "" });
-      first = false;
+      specItems.push({ id, label: SPECIALTY_LABELS[id] });
     }
+    if (admin || hasCapability(user, "dental.read") || hasCapability(user, "dental.write") || hasCapability(user, "dental.admin")) {
+      specItems.push({ id: "odontologia", label: "Odontologia" });
+    }
+    specItems.forEach((item, i) => items.push({ ...item, section: i === 0 ? "Especialidades" : "" }));
   }
 
   if (!isPharmacist(user) || admin) items.push({ id: "vaccines", label: "Vacinas", section: "Preventivo" });
@@ -104,7 +107,6 @@ export function buildNavItems(user, canManageUser, enabledModules) {
     items.push({ id: "insumos", label: "Insumos Enfermagem", section: "" });
   }
   if (admin || hasCapability(user, "dental.read") || hasCapability(user, "dental.write") || hasCapability(user, "dental.admin")) {
-    items.push({ id: "odontologia", label: "Odontologia", section: "" });
     items.push({ id: "dental", label: "Insumos Odonto", section: "" });
   }
   if (admin || hasCapability(user, "almoxarifado.read") || hasCapability(user, "almoxarifado.write")) {

@@ -53,9 +53,6 @@ router.get("/odontologia/chart/:patientId", (req, res) => {
   const db = readDb();
   ensureDbShape(db);
 
-  const patient = (db.patients || []).find(p => p.id === patientId);
-  if (!patient) return res.status(404).json({ error: "Paciente não encontrado" });
-
   const odontogram = (db.odontograms || []).find(o => o.patientId === patientId) || {
     patientId,
     teeth: {},
