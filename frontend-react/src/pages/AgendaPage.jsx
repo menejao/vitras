@@ -5,6 +5,8 @@ import { matchesPatientSearch, emptyPatientForm, isProfileIncomplete, ageInMonth
 import { inferQueuePriorityFromPatient } from "../utils/queue";
 import { isUnavailableDay, unavailableReason } from "../utils/dates";
 import { formatCpf, formatPhone, initials, maskCpf } from "../utils/formatting";
+import { hasCapability } from "../utils/roles";
+import { specialtyLabel } from "../utils/specialty";
 // NETWORK-OPTIMIZATION-01: useAgenda removido — dados recebidos via props do App.jsx
 // para evitar instância duplicada do hook com poll paralelo de 15s.
 import { AGENDA_HOURS, AGENDA_STATUS_LABELS, AGENDA_PROCEDURE_SUBTYPES, describeAgendaType } from "../utils/agenda";
@@ -76,12 +78,12 @@ function AgendaPage({
   const [checkingIn, setCheckingIn]     = useState({});
   const [editId, setEditId]             = useState(null);
   const [filterDoc, setFilterDoc]       = useState("");
+  const [apptSearch, setApptSearch]     = useState("");
   const [patSearch, setPatSearch]       = useState("");
   const [patSelected, setPatSelected]   = useState(null);
   const [showNewPat, setShowNewPat]     = useState(false);
   const [newPatForm, setNewPatForm]     = useState({ name: "", cpf: "", phone: "", careCategory: "general", birthDate: "", teamId: String(user?.teamId || "") });
   const [newPatErr, setNewPatErr]       = useState("");
-  const [blockedStatusMessage, setBlockedStatusMessage] = useState("");
 
   const patWrapRef = useRef(null);
 
@@ -110,12 +112,15 @@ function AgendaPage({
     setEditId(appt.id); setShowForm(true);
   }
 
+  const canDarEntrada = hasCapability(user, "queue.write") || user?.role === "receptionist";
+
   async function checkIn(appt) {
     const patient = patients.find(p => p.id === appt.patientId);
     const priority = patient ? inferQueuePriorityFromPatient(patient) : "normal";
     setCheckingIn(prev => ({ ...prev, [appt.id]: true }));
     try {
       await darEntradaAgenda(token, appt.id, { priority });
+      // Backend sets agenda status=arrived; refresh agenda
       await patchEntry(appt.id, { status: "arrived" });
     } catch (err) {
       setAgendaError(err.message || "Erro ao dar entrada.");
@@ -186,7 +191,17 @@ function AgendaPage({
   }
 
   const dayAppts = agenda
-    .filter(a => a.date === selectedDate && (!filterDoc || a.doctorId === filterDoc))
+    .filter(a => {
+      if (a.date !== selectedDate) return false;
+      if (filterDoc && a.doctorId !== filterDoc) return false;
+      if (apptSearch.trim().length >= 2) {
+        const q = apptSearch.trim().toLowerCase();
+        const name = (a.patientName || "").toLowerCase();
+        const patObj = patients.find(p => p.id === a.patientId);
+        if (!name.includes(q) && !matchesPatientSearch(patObj, apptSearch.trim())) return false;
+      }
+      return true;
+    })
     .sort((a, b) => a.time.localeCompare(b.time));
 
   const selD = new Date(selectedDate + "T12:00:00");
@@ -259,6 +274,12 @@ function AgendaPage({
       {/* Toolbar contextual */}
       <div className="agenda-toolbar">
         <div className="agenda-toolbar__filters">
+          <Input
+            value={apptSearch}
+            onChange={e => setApptSearch(e.target.value)}
+            placeholder="Buscar paciente por nome, CPF ou telefone..."
+            style={{ minWidth: 260 }}
+          />
           <Select value={filterDoc} onChange={e => setFilterDoc(e.target.value)}>
             <option value="">Todos os profissionais</option>
             {doctors.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
@@ -272,7 +293,6 @@ function AgendaPage({
       {/* Timeline */}
       <div className="agenda-timeline">
         {agendaError ? <div className="alert alert--danger">{agendaError}</div> : null}
-        {blockedStatusMessage ? <Alert tone="warning">{blockedStatusMessage}</Alert> : null}
 
         {isUnavailableDay(selectedDate) && (
           <div className="agenda-unavail-banner">
@@ -352,7 +372,7 @@ function AgendaPage({
                   </div>
 
                   <div className="agenda-appt__actions">
-                    {appt.date === todayStr && appt.status === "scheduled" && !incomplete && user?.role === "receptionist" && (
+                    {appt.date === todayStr && appt.status === "scheduled" && !incomplete && canDarEntrada && (
                       <Button
                         size="sm"
                         variant="secondary"
@@ -363,27 +383,14 @@ function AgendaPage({
                         {checkingIn[appt.id] ? "…" : "Dar entrada"}
                       </Button>
                     )}
-                    <Select
-                      className="agenda-status-sel"
-                      value={appt.status}
-                      onChange={e => {
-                        if (incomplete && (e.target.value === "attending" || e.target.value === "done")) {
-                          setBlockedStatusMessage("Cadastro incompleto. Complete perfil do paciente antes de iniciar consulta.");
-                          return;
-                        }
-                        setBlockedStatusMessage("");
-                        updateStatus(appt.id, e.target.value);
-                      }}
-                    >
-                        {Object.entries(AGENDA_STATUS_LABELS).map(([k, v]) => {
-                          const blocked = incomplete && (k === "attending" || k === "done");
-                          return (
-                            <option key={k} value={k} disabled={blocked}>
-                            {v}{blocked ? " (bloqueado)" : ""}
-                          </option>
-                        );
-                      })}
-                    </Select>
+                    {appt.status === "arrived" && (
+                      <span className="queue-badge queue-badge--scheduled" style={{ fontSize: ".7rem" }}>Na fila</span>
+                    )}
+                    {appt.status !== "arrived" && appt.status !== "scheduled" && (
+                      <span className="queue-badge" style={{ fontSize: ".7rem", background: "var(--color-surface-2)", color: "var(--text-2)" }}>
+                        {AGENDA_STATUS_LABELS[appt.status] || appt.status}
+                      </span>
+                    )}
 
                     <Button
                       variant="ghost"

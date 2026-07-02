@@ -6,6 +6,7 @@ import { createPatient } from "../api";
 import { useQueue } from "../hooks/useQueue";
 import { inferQueuePriorityFromPatient, QUEUE_PRIORITY_LABELS, formatQueueClock, formatQueueWait } from "../utils/queue";
 import { describeAgendaType } from "../utils/agenda";
+import { SPECIALTY_MAP, specialtyLabel } from "../utils/specialty";
 import PageHeader from "../components/layout/PageHeader";
 import PageShell from "../components/layout/PageShell";
 import PageToolbar from "../components/layout/PageToolbar";
@@ -52,8 +53,8 @@ function QueuePage({ patients, users, user, token, agenda = [], onNewPatient }) 
 
   const [showForm, setShowForm] = useState(false);
   const [step, setStep] = useState("select");
-  const [demandType, setDemandType] = useState("spontaneous");
-  const [destination, setDestination] = useState("doctor");
+  const [specialtyKey, setSpecialtyKey] = useState("");
+  const [needsTriage, setNeedsTriage] = useState(true);
   const [specialtyFilter, setSpecialtyFilter] = useState("");
   const [priority, setPriority] = useState("normal");
   const [reason, setReason] = useState("");
@@ -105,8 +106,8 @@ function QueuePage({ patients, users, user, token, agenda = [], onNewPatient }) 
     setStep("select");
     setSearchQ("");
     setSelectedPatient(null);
-    setDemandType("spontaneous");
-    setDestination("doctor");
+    setSpecialtyKey("");
+    setNeedsTriage(true);
     setPriority("normal");
     setReason("");
     setNewPat(emptyNew());
@@ -122,7 +123,8 @@ function QueuePage({ patients, users, user, token, agenda = [], onNewPatient }) 
         priority,
         reason,
         demandType: "spontaneous",
-        destination
+        specialty: specialtyKey,
+        needsTriage,
       });
       resetForm();
       setShowForm(false);
@@ -229,15 +231,9 @@ function QueuePage({ patients, users, user, token, agenda = [], onNewPatient }) 
       <PageToolbar>
         <Select value={specialtyFilter} onChange={e => setSpecialtyFilter(e.target.value)} style={{ minWidth: 180 }}>
           <option value="">Todas as especialidades</option>
-          <option value="Clínica Geral">Clínica Geral</option>
-          <option value="Enfermagem">Enfermagem</option>
-          <option value="Odontologia">Odontologia</option>
-          <option value="Ginecologia">Ginecologia</option>
-          <option value="Pediatria">Pediatria</option>
-          <option value="Saúde Mental">Saúde Mental</option>
-          <option value="Nutrição">Nutrição</option>
-          <option value="Fisioterapia">Fisioterapia</option>
-          <option value="Assistência Social">Assistência Social</option>
+          {SPECIALTY_MAP.map(s => (
+            <option key={s.key} value={s.key}>{s.label}</option>
+          ))}
         </Select>
         {queue.some((entry) => ["done", "atendido", "faltou", "cancelado"].includes(entry.status)) ? (
           <Button variant="ghost" size="sm" className="queue-kpis__clear-btn" onClick={clearCompleted}>
@@ -278,15 +274,16 @@ function QueuePage({ patients, users, user, token, agenda = [], onNewPatient }) 
                 <div className="queue-entry__badges">
                   <span className={`queue-badge ${isTerminal ? "" : priorityClass}`}>{QUEUE_PRIORITY_LABELS[entry.priority]}</span>
                   {entry.specialty && (
-                    <span className="queue-badge queue-badge--scheduled">Vai passar com: {entry.specialty}</span>
-                  )}
-                  {!entry.specialty && entry.demandType === "spontaneous" && (
-                    <span className="queue-badge queue-badge--spontaneous">
-                      Espontâneo{entry.destination ? ` → ${entry.destination === "nurse" ? "Enfermagem" : "Médico(a)"}` : ""}
-                    </span>
+                    <span className="queue-badge queue-badge--scheduled">Vai passar com: {specialtyLabel(entry.specialty)}</span>
                   )}
                   {entry.demandType === "scheduled" && (
                     <span className="queue-badge queue-badge--scheduled">Agendado</span>
+                  )}
+                  {entry.demandType === "spontaneous" && (
+                    <span className="queue-badge queue-badge--spontaneous">Espontâneo</span>
+                  )}
+                  {entry.needsTriage === false && (
+                    <span className="queue-badge" style={{ background: "var(--color-success-subtle)", color: "var(--color-success)" }}>Triagem dispensada</span>
                   )}
                 </div>
               </div>
@@ -298,14 +295,11 @@ function QueuePage({ patients, users, user, token, agenda = [], onNewPatient }) 
                       <Button size="sm" onClick={() => updateStatus(entry.id, "liberado")}>Liberar</Button>
                     </>
                   )}
-                  {entry.status === "triage" && (
-                    <span className="queue-badge queue-badge--triage">Em triagem</span>
-                  )}
                   {["ready", "liberado"].includes(entry.status) && (
-                    <Button size="sm" onClick={() => updateStatus(entry.id, "em_atendimento")}>Chamar</Button>
+                    <span className="queue-badge queue-badge--ready">Liberado para atendimento</span>
                   )}
-                  {["attending", "chamado", "em_atendimento"].includes(entry.status) && (
-                    <Button size="sm" variant="primary" onClick={() => updateStatus(entry.id, "atendido")}>Concluir</Button>
+                  {["attending", "em_atendimento"].includes(entry.status) && (
+                    <span className="queue-badge queue-badge--attending">Em atendimento</span>
                   )}
                   <Button
                     variant="ghost"
@@ -446,11 +440,18 @@ function QueuePage({ patients, users, user, token, agenda = [], onNewPatient }) 
 
               {selectedPatient && (
                 <>
+                  <Select label="Especialidade" value={specialtyKey} onChange={(e) => setSpecialtyKey(e.target.value)}>
+                    <option value="">Selecionar especialidade...</option>
+                    {SPECIALTY_MAP.map(s => (
+                      <option key={s.key} value={s.key}>{s.label}</option>
+                    ))}
+                  </Select>
+
                   <div className="field">
-                    <label className="field__label">Encaminhar para *</label>
+                    <label className="field__label">Necessita triagem?</label>
                     <div className="queue-toggle">
-                      {[["doctor", "Médico(a)"], ["nurse", "Enfermagem"]].map(([value, label]) => (
-                        <Button key={value} variant="ghost" className={`queue-toggle-btn${destination === value ? " is-active" : ""}`} onClick={() => setDestination(value)}>
+                      {[["true", "Sim"], ["false", "Não"]].map(([value, label]) => (
+                        <Button key={value} variant="ghost" className={`queue-toggle-btn${String(needsTriage) === value ? " is-active" : ""}`} onClick={() => setNeedsTriage(value === "true")}>
                           <div className="queue-toggle-btn__label">{label}</div>
                         </Button>
                       ))}

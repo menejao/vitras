@@ -1865,9 +1865,17 @@ export default function OdontologiaPage({ patients, user, token }) {
     setSelectedPatient(patient);
     setSelectedQueueEntry(entry);
     setShowSearch(false);
+    import("../api").then(({ updateQueueEntry }) => {
+      updateQueueEntry(token, entry.id, { status: "em_atendimento" }).catch(() => {});
+    });
   }
 
   function handleClose() {
+    if (selectedQueueEntry && ["em_atendimento", "attending"].includes(String(selectedQueueEntry.status || ""))) {
+      import("../api").then(({ updateQueueEntry }) => {
+        updateQueueEntry(token, selectedQueueEntry.id, { status: "atendido" }).catch(() => {});
+      });
+    }
     setSelectedPatient(null);
     setSelectedQueueEntry(null);
   }
