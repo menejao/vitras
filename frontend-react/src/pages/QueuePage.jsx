@@ -55,6 +55,7 @@ function QueuePage({ patients, users, user, token, agenda = [], onNewPatient }) 
   const [step, setStep] = useState("select");
   const [specialtyKey, setSpecialtyKey] = useState("");
   const [needsTriage, setNeedsTriage] = useState(true);
+  const [professionalId, setProfessionalId] = useState("");
   const [specialtyFilter, setSpecialtyFilter] = useState("");
   const [priority, setPriority] = useState("normal");
   const [reason, setReason] = useState("");
@@ -108,6 +109,7 @@ function QueuePage({ patients, users, user, token, agenda = [], onNewPatient }) 
     setSelectedPatient(null);
     setSpecialtyKey("");
     setNeedsTriage(true);
+    setProfessionalId("");
     setPriority("normal");
     setReason("");
     setNewPat(emptyNew());
@@ -118,6 +120,7 @@ function QueuePage({ patients, users, user, token, agenda = [], onNewPatient }) 
   async function addToQueue() {
     if (!selectedPatient) return;
     try {
+      const prof = professionalId ? users?.find(u => u.id === professionalId) : null;
       await createEntry({
         patientId: selectedPatient.id,
         priority,
@@ -125,6 +128,8 @@ function QueuePage({ patients, users, user, token, agenda = [], onNewPatient }) 
         demandType: "spontaneous",
         specialty: specialtyKey,
         needsTriage,
+        professionalId: professionalId || undefined,
+        professionalName: prof?.name || undefined,
       });
       resetForm();
       setShowForm(false);
@@ -444,6 +449,13 @@ function QueuePage({ patients, users, user, token, agenda = [], onNewPatient }) 
                     <option value="">Selecionar especialidade...</option>
                     {SPECIALTY_MAP.map(s => (
                       <option key={s.key} value={s.key}>{s.label}</option>
+                    ))}
+                  </Select>
+
+                  <Select label="Profissional (opcional)" value={professionalId} onChange={(e) => setProfessionalId(e.target.value)}>
+                    <option value="">Não informado</option>
+                    {(users || []).filter(u => u.role !== "receptionist" && u.role !== "admin").map(u => (
+                      <option key={u.id} value={u.id}>{u.name}</option>
                     ))}
                   </Select>
 

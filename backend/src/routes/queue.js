@@ -112,6 +112,8 @@ router.post("/queue", validate(QueueCreateSchema), async (req, res) => {
       specialty: String(payload.specialty || "").trim(),
       agendaRef: String(payload.agendaRef || "").trim(),
       needsTriage: payload.needsTriage !== false,
+      professionalId: String(payload.professionalId || "").trim() || null,
+      professionalName: String(payload.professionalName || "").trim() || null,
       status: initialStatus,
       arrivedAt: now,
       createdAt: now,

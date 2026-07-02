@@ -1732,22 +1732,21 @@ function DentalWorkspacePanel({ patient, user, token, onClose, queueEntry }) {
 
 // ── DentalQueueView ───────────────────────────────────────────────────────────
 const QUEUE_STATUS_CFG = {
-  agendado:         { label: "Agendado",           bg: "#f1f5f9", color: "#475569" },
-  aguardando:       { label: "Aguardando",          bg: "#fef9c3", color: "#854d0e" },
-  triagem:          { label: "Em triagem",          bg: "#fef3c7", color: "#92400e" },
-  aguardando_odonto:{ label: "Aguardando odonto",   bg: "#dbeafe", color: "#1d4ed8" },
-  em_atendimento:   { label: "Em atendimento",      bg: "#dcfce7", color: "#166534" },
-  atendido:         { label: "Atendido",            bg: "#f0fdf4", color: "#166534" },
-  faltou:           { label: "Faltou",              bg: "#f1f5f9", color: "#94a3b8" },
+  aguardando_triagem: { label: "Aguardando triagem", bg: "#fef9c3", color: "#854d0e" },
+  liberado:           { label: "Liberado",            bg: "#dbeafe", color: "#1d4ed8" },
+  em_atendimento:     { label: "Em atendimento",      bg: "#dcfce7", color: "#166534" },
+  atendido:           { label: "Atendido",            bg: "#f0fdf4", color: "#166534" },
+  faltou:             { label: "Faltou",              bg: "#f1f5f9", color: "#94a3b8" },
+  cancelado:          { label: "Cancelado",           bg: "#fee2e2", color: "#b91c1c" },
 };
 
 function DentalQueueView({ entries, loading, selectedId, onSelect, today }) {
   const [filter, setFilter] = useState("aguardando");
 
   const STATUS_GROUPS = {
-    aguardando:      ["agendado", "aguardando", "triagem", "aguardando_odonto"],
+    aguardando:      ["aguardando_triagem", "liberado"],
     em_atendimento:  ["em_atendimento"],
-    atendidos:       ["atendido", "faltou"],
+    atendidos:       ["atendido", "faltou", "cancelado"],
   };
 
   const counts = {
@@ -1859,12 +1858,17 @@ export default function OdontologiaPage({ patients, user, token }) {
       .finally(() => setQueueLoading(false));
   }, [token]);
 
+  function patchQueueLocal(id, patch) {
+    setQueueEntries(prev => prev.map(e => e.id === id ? { ...e, ...patch } : e));
+  }
+
   function handleQueueSelect(entry) {
     const patient = patients.find(p => p.id === entry.patientId);
     if (!patient) return;
     setSelectedPatient(patient);
-    setSelectedQueueEntry(entry);
+    setSelectedQueueEntry({ ...entry, status: "em_atendimento" });
     setShowSearch(false);
+    patchQueueLocal(entry.id, { status: "em_atendimento" });
     import("../api").then(({ updateQueueEntry }) => {
       updateQueueEntry(token, entry.id, { status: "em_atendimento" }).catch(() => {});
     });
@@ -1872,6 +1876,7 @@ export default function OdontologiaPage({ patients, user, token }) {
 
   function handleClose() {
     if (selectedQueueEntry && ["em_atendimento", "attending"].includes(String(selectedQueueEntry.status || ""))) {
+      patchQueueLocal(selectedQueueEntry.id, { status: "atendido" });
       import("../api").then(({ updateQueueEntry }) => {
         updateQueueEntry(token, selectedQueueEntry.id, { status: "atendido" }).catch(() => {});
       });

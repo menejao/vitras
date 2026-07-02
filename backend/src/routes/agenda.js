@@ -313,6 +313,7 @@ router.post("/agenda/:id/dar-entrada", async (req, res) => {
 
     const priority = String(req.body?.priority || "normal");
     const specialty = String(appt.specialty || req.body?.specialty || "").trim();
+    const needsTriage = req.body?.needsTriage !== false;
     const now = new Date().toISOString();
 
     const queueEntry = {
@@ -326,8 +327,10 @@ router.post("/agenda/:id/dar-entrada", async (req, res) => {
       destination: null,
       specialty,
       agendaRef: appt.id,
-      needsTriage: true,
-      status: "aguardando_triagem",
+      needsTriage,
+      status: needsTriage ? "aguardando_triagem" : "liberado",
+      professionalId: String(appt.doctorId || "").trim() || null,
+      professionalName: String(appt.doctorName || "").trim() || null,
       arrivedAt: now,
       createdAt: now,
       createdBy: req.user.id,

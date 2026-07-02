@@ -685,19 +685,23 @@ const QueueCreateSchema = z.object({
   destination: optionalShortString(100),
   specialty: optionalShortString(100),
   needsTriage: z.boolean().optional(),
-  agendaRef: optionalShortString(100)
+  agendaRef: optionalShortString(100),
+  professionalId: optionalShortString(100),
+  professionalName: optionalShortString(200)
 }).strict();
 
 const QueuePatchSchema = z.object({
   status: z.enum([
     "waiting", "triage", "ready", "attending", "done",
-    "aguardando_triagem", "liberado", "chamado", "em_atendimento", "atendido", "faltou", "cancelado"
+    "aguardando_triagem", "liberado", "em_atendimento", "atendido", "faltou", "cancelado"
   ]).optional(),
   priority: z.enum(["urgent", "elderly", "pregnant", "child", "normal"]).optional(),
   reason: optionalShortString(1000),
   demandType: z.enum(["scheduled", "spontaneous"]).optional(),
   destination: optionalShortString(100),
   specialty: optionalShortString(100),
+  professionalId: optionalShortString(100),
+  professionalName: optionalShortString(200),
   triageStart: optionalDateString(),
   triageDone: optionalDateString(),
   vitals: z.record(z.any()).optional()
