@@ -423,7 +423,7 @@ function FollowupTab({ patient, users, recordForm, setRecordForm, recordVaccines
         <Select label="Tipo de atendimento" value={recordForm.type || "consultation"} onChange={e => {
           const t = e.target.value;
           const defaultTitle = t === "consultation"
-            ? (userObj?.role === "doctor" ? "Consulta médica" : userObj?.role === "dentist" ? "Consulta odontológica" : "Consulta de enfermagem")
+            ? (userObj?.role === "doctor" ? "Consulta médica" : "Consulta de enfermagem")
             : "";
           setRecordForm(s => ({ ...s, type: t, title: defaultTitle, consultKind: "medica" }));
           setRecordVaccines([]);
@@ -437,20 +437,27 @@ function FollowupTab({ patient, users, recordForm, setRecordForm, recordVaccines
 
       <Input label="Data" type="date" value={recordForm.date || ""} max={new Date().toISOString().slice(0, 10)} onChange={e => setRecordForm(s => ({ ...s, date: e.target.value }))} />
 
-      {!acsMode && recordForm.type === "consultation" && (
+      {!acsMode && recordForm.type === "consultation" && userObj?.role === "dentist" && (
+        <div className="acs-visit-redirect-notice" style={{ gridColumn: "span 2" }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M12 5.5c-1.5-2-4-2.5-5.5-1C4.5 6 4 8 5 10.5c.7 1.8 1.5 5.5 2.5 7 .5 1 1.5 1 2 0 .3-.6.5-1.5.5-3 0-1.5 1-2 2-2s2 .5 2 2c0 1.5.2 2.4.5 3 .5 1 1.5 1 2 0 1-1.5 1.8-5.2 2.5-7 1-2.5.5-4.5-1.5-6-1.5-1.5-4-1-5.5 1z" stroke="currentColor" strokeWidth="1.5"/>
+          </svg>
+          Para registrar atendimento odontológico use <strong>Odontologia</strong> no menu lateral.
+        </div>
+      )}
+
+      {!acsMode && recordForm.type === "consultation" && userObj?.role !== "dentist" && (
         <>
           <Select className="field--span-2" label="Área clínica" value={recordForm.consultKind || "medica"} onChange={e => {
             const k = e.target.value;
             const titleMap = {
               medica: "Consulta médica",
               enfermagem: "Consulta de enfermagem",
-              dentista: "Consulta odontológica",
             };
             setRecordForm(s => ({ ...s, consultKind: k, title: titleMap[k] || "Consulta" }));
           }}>
             <option value="medica">Medicina</option>
             <option value="enfermagem">Enfermagem</option>
-            <option value="dentista">Odontologia</option>
           </Select>
         </>
       )}
