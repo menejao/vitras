@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useRef, useState } from "react";
 import { isPharmacist } from "../utils/roles";
 import { fetchPrescriptions } from "../api";
 import { printPrescription } from "../utils/printDoc";
@@ -295,6 +295,173 @@ function StockEditModal({ item, mode, categories, units, onConfirm, onClose }) {
   );
 }
 
+function PatientSearchAutocomplete({ patients, onSelect }) {
+  const [query, setQuery] = useState("");
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef(null);
+
+  const results = useMemo(() => {
+    const q = query.toLowerCase().trim();
+    if (q.length < 2) return [];
+    return patients.filter(p =>
+      String(p.name || "").toLowerCase().includes(q) ||
+      String(p.cpf || "").replace(/\D/g, "").includes(q.replace(/\D/g, "")) ||
+      String(p.cns || "").replace(/\D/g, "").includes(q.replace(/\D/g, ""))
+    ).slice(0, 8);
+  }, [patients, query]);
+
+  useEffect(() => {
+    function onOut(e) { if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false); }
+    document.addEventListener("mousedown", onOut);
+    return () => document.removeEventListener("mousedown", onOut);
+  }, []);
+
+  function initials(name) {
+    return String(name || "").split(" ").slice(0, 2).map(w => w[0] || "").join("").toUpperCase();
+  }
+
+  function maskDoc(cpf, cns) {
+    const d = String(cpf || "").replace(/\D/g, "");
+    if (d.length === 11) return `CPF ${d.slice(0, 3)}.***.***-${d.slice(9)}`;
+    const c = String(cns || "").replace(/\D/g, "");
+    if (c.length >= 15) return `CNS ${c.slice(0, 3)} ****.***.**** **`;
+    return "Sem documento";
+  }
+
+  function pick(p) {
+    setQuery(p.name);
+    setOpen(false);
+    onSelect(p);
+  }
+
+  return (
+    <div ref={wrapRef} style={{ position: "relative" }}>
+      <Input
+        value={query}
+        onChange={e => { setQuery(e.target.value); setOpen(e.target.value.length >= 2); }}
+        placeholder="Pesquisar paciente por nome, CPF ou CNS..."
+      />
+      {open && (
+        <div style={{
+          position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 9999,
+          background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 10,
+          maxHeight: 320, overflowY: "auto", boxShadow: "0 8px 24px rgba(0,0,0,.12)"
+        }}>
+          {results.length === 0 ? (
+            <div style={{ padding: "12px 14px", fontSize: "var(--t-sm)", color: "var(--text-2)" }}>
+              Nenhum paciente encontrado para &quot;{query}&quot;
+            </div>
+          ) : results.map(p => (
+            <div key={p.id} onClick={() => pick(p)}
+              style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", cursor: "pointer", borderBottom: "1px solid var(--border)" }}
+              onMouseEnter={e => e.currentTarget.style.background = "var(--surface-alt, #f8fafc)"}
+              onMouseLeave={e => e.currentTarget.style.background = ""}>
+              <div style={{ width: 36, height: 36, borderRadius: "50%", background: "var(--teal-100, #ccfbf1)", color: "var(--teal-700, #0f766e)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: "0.8rem", flexShrink: 0 }}>
+                {initials(p.name)}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 600, fontSize: "var(--t-sm)" }}>{p.name}</div>
+                <div style={{ fontSize: "var(--t-xs)", color: "var(--text-2)" }}>
+                  {maskDoc(p.cpf, p.cns)}
+                  {p.teamName ? ` · ${p.teamName}` : ""}
+                  {p.careCategory && p.careCategory !== "general" ? ` · ${p.careCategory}` : ""}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StockItemAutocomplete({ stock, onSelect, placeholder }) {
+  const [query, setQuery] = useState("");
+  const [open, setOpen] = useState(false);
+  const [selected, setSelected] = useState(null);
+  const wrapRef = useRef(null);
+
+  const results = useMemo(() => {
+    const q = query.toLowerCase().trim();
+    if (!q) return [];
+    return stock.filter(s => Number(s.qty || 0) > 0 && (
+      String(s.name || "").toLowerCase().includes(q) ||
+      String(s.category || "").toLowerCase().includes(q)
+    )).slice(0, 10);
+  }, [stock, query]);
+
+  useEffect(() => {
+    function onOut(e) { if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false); }
+    document.addEventListener("mousedown", onOut);
+    return () => document.removeEventListener("mousedown", onOut);
+  }, []);
+
+  function pick(item) {
+    setQuery(item.name);
+    setSelected(item);
+    setOpen(false);
+    onSelect(item);
+  }
+
+  function clear() {
+    setQuery(""); setSelected(null); setOpen(false); onSelect(null);
+  }
+
+  const status = selected ? stockStatusClass(selected) : null;
+
+  return (
+    <div ref={wrapRef} style={{ position: "relative" }}>
+      <div style={{ display: "flex", gap: 6 }}>
+        <Input
+          value={query}
+          onChange={e => { setQuery(e.target.value); setSelected(null); onSelect(null); setOpen(!!e.target.value); }}
+          placeholder={placeholder || "Pesquisar medicamento por nome ou categoria..."}
+          style={{ flex: 1 }}
+        />
+        {selected && (
+          <button type="button" onClick={clear} style={{ background: "none", border: "1px solid var(--border)", borderRadius: 6, padding: "0 8px", cursor: "pointer", color: "var(--text-2)", fontSize: 14 }}>
+            ✕
+          </button>
+        )}
+      </div>
+      {selected && (
+        <div style={{ marginTop: 4, fontSize: "var(--t-xs)", color: "var(--text-2)" }}>
+          Estoque: <span className={`pharma-stock-badge pharma-stock-badge--${status}`}>{selected.qty} {selected.unit}</span>
+        </div>
+      )}
+      {open && (
+        <div style={{
+          position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 9999,
+          background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 10,
+          maxHeight: 260, overflowY: "auto", boxShadow: "0 8px 24px rgba(0,0,0,.12)"
+        }}>
+          {results.length === 0 ? (
+            <div style={{ padding: "12px 14px", fontSize: "var(--t-sm)", color: "var(--text-2)" }}>
+              Nenhum medicamento em estoque para &quot;{query}&quot;
+            </div>
+          ) : results.map(s => {
+            const st = stockStatusClass(s);
+            return (
+              <div key={s.id} onClick={() => pick(s)}
+                style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", cursor: "pointer", borderBottom: "1px solid var(--border)" }}
+                onMouseEnter={e => e.currentTarget.style.background = "var(--surface-alt, #f8fafc)"}
+                onMouseLeave={e => e.currentTarget.style.background = ""}>
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: "var(--t-sm)" }}>{s.name}</div>
+                  <div style={{ fontSize: "var(--t-xs)", color: "var(--text-2)" }}>{s.category} · {s.unit}</div>
+                </div>
+                <span className={`pharma-stock-badge pharma-stock-badge--${st}`} style={{ fontSize: "0.75rem", marginLeft: 8, whiteSpace: "nowrap" }}>
+                  {s.qty} {s.unit}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function PharmacyPage({
   user,
   token,
@@ -317,7 +484,6 @@ function PharmacyPage({
   const [rxLoading, setRxLoading] = useState(false);
 
   // Patient-first dispensation state
-  const [dispPatientSearch, setDispPatientSearch] = useState("");
   const [dispPatient, setDispPatient] = useState(null);
   const [dispReceitas, setDispReceitas] = useState([]);
   const [dispReceitasLoading, setDispReceitasLoading] = useState(false);
@@ -328,19 +494,17 @@ function PharmacyPage({
   const [dispError, setDispError] = useState("");
   const [dispSuccess, setDispSuccess] = useState("");
 
-  // External dispensation state
-  const [extItemId, setExtItemId] = useState("");
-  const [extQty, setExtQty] = useState(1);
-  const [extPrescritorNome, setExtPrescritorNome] = useState("");
-  const [extCrm, setExtCrm] = useState("");
-  const [extUf, setExtUf] = useState("");
-  const [extNumReceita, setExtNumReceita] = useState("");
-  const [extDtReceita, setExtDtReceita] = useState("");
-  const [extPatientName, setExtPatientName] = useState("");
+  // External dispensation state — multi-item
+  const EXT_BLANK_ITEM = () => ({ _key: Math.random(), stockItem: null, qty: 1, lote: "" });
+  const [extPaciente, setExtPaciente] = useState({ nome: "", cpf: "", telefone: "" });
+  const [extReceita, setExtReceita] = useState({ numero: "", dtEmissao: "", validade: "" });
+  const [extPrescritor, setExtPrescritor] = useState({ nome: "", conselho: "CRM", numero: "", uf: "" });
+  const [extItems, setExtItems] = useState([EXT_BLANK_ITEM()]);
   const [extObs, setExtObs] = useState("");
   const [extBusy, setExtBusy] = useState(false);
   const [extError, setExtError] = useState("");
   const [extSuccess, setExtSuccess] = useState("");
+  const [extFieldErrors, setExtFieldErrors] = useState({});
 
   async function loadReceitasForPatient(patientId) {
     if (!token || !patientId) return;
@@ -469,32 +633,45 @@ function PharmacyPage({
   async function submitExtDispensacao() {
     setExtError("");
     setExtSuccess("");
-    if (!extItemId) return setExtError("Selecione o medicamento.");
-    if (Number(extQty) <= 0) return setExtError("Quantidade deve ser maior que zero.");
-    if (!extPrescritorNome.trim()) return setExtError("Nome do prescritor é obrigatório.");
-    if (!extNumReceita.trim()) return setExtError("Número da receita é obrigatório.");
-    if (!extDtReceita) return setExtError("Data da receita é obrigatória.");
-    const item = stock.find(s => s.id === extItemId);
-    if (!item) return setExtError("Medicamento não encontrado.");
-    if (Number(extQty) > Number(item.qty || 0)) return setExtError("Quantidade maior que o estoque disponível.");
+    const fe = {};
+    if (!extPrescritor.nome.trim()) fe.prescritorNome = "Nome do prescritor é obrigatório.";
+    if (!extPrescritor.numero.trim()) fe.prescritorNumero = "Número do registro é obrigatório.";
+    if (!extPrescritor.uf.trim()) fe.prescritorUf = "UF é obrigatória.";
+    if (!extReceita.numero.trim()) fe.receitaNumero = "Número da receita é obrigatório.";
+    if (!extReceita.dtEmissao) fe.receitaDt = "Data da receita é obrigatória.";
+    const validItems = extItems.filter(it => it.stockItem);
+    if (validItems.length === 0) fe.items = "Adicione ao menos um medicamento.";
+    for (const it of validItems) {
+      if (Number(it.qty) <= 0) fe.items = "Quantidade deve ser maior que zero.";
+      if (Number(it.qty) > Number(it.stockItem.qty || 0)) fe.items = `Estoque insuficiente: ${it.stockItem.name} (disponível: ${it.stockItem.qty}).`;
+    }
+    if (Object.keys(fe).length) { setExtFieldErrors(fe); return; }
+    setExtFieldErrors({});
     setExtBusy(true);
+    const council = `${extPrescritor.conselho} ${extPrescritor.numero}/${extPrescritor.uf}`.trim();
+    const patientLabel = extPaciente.nome.trim() || "Dispensação externa";
     try {
-      await onDispense?.({
-        itemId: extItemId,
-        qty: Number(extQty),
-        patient: extPatientName.trim() || "Dispensação externa",
-        patientId: "",
-        prescriber: extPrescritorNome.trim(),
-        prescriberId: "",
-        prescriberCouncil: extCrm ? `CRM ${extCrm}/${extUf}`.trim() : "",
-        numReceita: extNumReceita.trim(),
-        dtReceita: extDtReceita,
-        lote: "",
-        notes: extObs.trim(),
-      });
-      setExtSuccess("Dispensação registrada com sucesso.");
-      setExtItemId(""); setExtQty(1); setExtPrescritorNome(""); setExtCrm(""); setExtUf("");
-      setExtNumReceita(""); setExtDtReceita(""); setExtPatientName(""); setExtObs("");
+      for (const it of validItems) {
+        await onDispense?.({
+          itemId: it.stockItem.id,
+          qty: Number(it.qty),
+          patient: patientLabel,
+          patientId: "",
+          prescriber: extPrescritor.nome.trim(),
+          prescriberId: "",
+          prescriberCouncil: council,
+          numReceita: extReceita.numero.trim(),
+          dtReceita: extReceita.dtEmissao,
+          lote: it.lote.trim(),
+          notes: extObs.trim(),
+        });
+      }
+      setExtSuccess(`${validItems.length} medicamento(s) dispensado(s) com sucesso.`);
+      setExtPaciente({ nome: "", cpf: "", telefone: "" });
+      setExtReceita({ numero: "", dtEmissao: "", validade: "" });
+      setExtPrescritor({ nome: "", conselho: "CRM", numero: "", uf: "" });
+      setExtItems([EXT_BLANK_ITEM()]);
+      setExtObs("");
     } catch (e) {
       setExtError(e?.message || "Erro ao registrar dispensação.");
     } finally {
@@ -720,35 +897,18 @@ function PharmacyPage({
         {pharmaTab === "prescricoes" && (
           <div className="card" style={{ padding: "var(--space-5, 1.25rem)" }}>
             <div style={{ marginBottom: "var(--space-4, 1rem)" }}>
-              <strong>1. Buscar paciente</strong>
-              <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-                <Input
-                  value={dispPatientSearch}
-                  onChange={e => setDispPatientSearch(e.target.value)}
-                  placeholder="Nome, CPF ou CNS..."
-                  style={{ flex: 1 }}
-                />
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    const q = dispPatientSearch.toLowerCase();
-                    const found = patients.find(p =>
-                      String(p.name || "").toLowerCase().includes(q) ||
-                      String(p.cpf || "").replace(/\D/g, "").includes(q.replace(/\D/g, "")) ||
-                      String(p.cns || "").replace(/\D/g, "").includes(q.replace(/\D/g, ""))
-                    );
-                    if (!found) { setDispError("Paciente não encontrado."); setDispPatient(null); return; }
-                    setDispError("");
-                    setDispSuccess("");
-                    setDispPatient(found);
-                    setDispSelectedReceita(null);
-                    setDispItems([]);
-                    loadReceitasForPatient(found.id);
-                  }}
-                >
-                  Buscar
-                </Button>
-              </div>
+              <strong style={{ display: "block", marginBottom: 8 }}>1. Buscar paciente</strong>
+              <PatientSearchAutocomplete
+                patients={patients}
+                onSelect={p => {
+                  setDispError("");
+                  setDispSuccess("");
+                  setDispPatient(p);
+                  setDispSelectedReceita(null);
+                  setDispItems([]);
+                  loadReceitasForPatient(p.id);
+                }}
+              />
             </div>
 
             {dispError && <div className="error-banner" style={{ marginBottom: 12 }}>{dispError}</div>}
@@ -842,63 +1002,179 @@ function PharmacyPage({
         )}
 
         {pharmaTab === "dispensacao_externa" && canWrite && (
-          <div className="card" style={{ padding: "var(--space-5, 1.25rem)", maxWidth: 600 }}>
-            <p style={{ fontSize: "var(--t-sm)", color: "var(--text-2)", marginBottom: 16 }}>
-              Use este fluxo para dispensar medicamentos com prescrição de profissional externo à unidade.
-            </p>
-            {extError && <div className="error-banner" style={{ marginBottom: 12 }}>{extError}</div>}
-            {extSuccess && <div style={{ background: "var(--success-bg, #ecfdf5)", color: "var(--success, #059669)", border: "1px solid var(--success, #059669)", borderRadius: 8, padding: "8px 12px", marginBottom: 12 }}>{extSuccess}</div>}
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              <div>
-                <label className="field-label">Medicamento *</label>
-                <Select value={extItemId} onChange={e => setExtItemId(e.target.value)}>
-                  <option value="">Selecione o medicamento...</option>
-                  {stock.filter(s => Number(s.qty || 0) > 0).map(s => (
-                    <option key={s.id} value={s.id}>{s.name} ({s.qty} {s.unit})</option>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: "var(--s-5, 1.25rem)", alignItems: "start" }} className="ext-disp-grid">
+            {/* Main form */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "var(--s-5, 1.25rem)" }}>
+              {extError && <div className="error-banner">{extError}</div>}
+              {extSuccess && <div style={{ background: "var(--success-bg, #ecfdf5)", color: "var(--success, #059669)", border: "1px solid var(--success, #059669)", borderRadius: 8, padding: "10px 14px" }}>{extSuccess}</div>}
+
+              {/* Seção 1: Paciente */}
+              <div className="card" style={{ padding: "var(--s-5, 1.25rem)" }}>
+                <div style={{ fontWeight: 700, fontSize: "var(--t-sm)", marginBottom: 14, color: "var(--navy)" }}>1. Paciente</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+                  <div style={{ gridColumn: "1 / -1" }}>
+                    <label className="field-label">Nome</label>
+                    <Input value={extPaciente.nome} onChange={e => setExtPaciente(p => ({ ...p, nome: e.target.value }))} placeholder="Nome completo do paciente" />
+                  </div>
+                  <div>
+                    <label className="field-label">CPF</label>
+                    <Input value={extPaciente.cpf} onChange={e => setExtPaciente(p => ({ ...p, cpf: e.target.value }))} placeholder="000.000.000-00" />
+                  </div>
+                  <div>
+                    <label className="field-label">Telefone</label>
+                    <Input value={extPaciente.telefone} onChange={e => setExtPaciente(p => ({ ...p, telefone: e.target.value }))} placeholder="(00) 00000-0000" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Seção 2: Receita */}
+              <div className="card" style={{ padding: "var(--s-5, 1.25rem)" }}>
+                <div style={{ fontWeight: 700, fontSize: "var(--t-sm)", marginBottom: 14, color: "var(--navy)" }}>2. Receita</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+                  <div>
+                    <label className="field-label">Número da receita *</label>
+                    <Input value={extReceita.numero} onChange={e => setExtReceita(r => ({ ...r, numero: e.target.value }))} placeholder="Ex: 12345" />
+                    {extFieldErrors.receitaNumero && <div style={{ color: "var(--danger, #dc2626)", fontSize: "var(--t-xs)", marginTop: 4 }}>{extFieldErrors.receitaNumero}</div>}
+                  </div>
+                  <div>
+                    <label className="field-label">Data de emissão *</label>
+                    <Input type="date" value={extReceita.dtEmissao} onChange={e => setExtReceita(r => ({ ...r, dtEmissao: e.target.value }))} />
+                    {extFieldErrors.receitaDt && <div style={{ color: "var(--danger, #dc2626)", fontSize: "var(--t-xs)", marginTop: 4 }}>{extFieldErrors.receitaDt}</div>}
+                  </div>
+                  <div>
+                    <label className="field-label">Validade</label>
+                    <Input type="date" value={extReceita.validade} onChange={e => setExtReceita(r => ({ ...r, validade: e.target.value }))} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Seção 3: Prescritor */}
+              <div className="card" style={{ padding: "var(--s-5, 1.25rem)" }}>
+                <div style={{ fontWeight: 700, fontSize: "var(--t-sm)", marginBottom: 14, color: "var(--navy)" }}>3. Prescritor</div>
+                <div style={{ display: "grid", gridTemplateColumns: "2fr 90px 1fr 80px", gap: 12 }}>
+                  <div style={{ gridColumn: "1 / -1" }}>
+                    <label className="field-label">Nome completo *</label>
+                    <Input value={extPrescritor.nome} onChange={e => setExtPrescritor(p => ({ ...p, nome: e.target.value }))} placeholder="Dr. João da Silva" />
+                    {extFieldErrors.prescritorNome && <div style={{ color: "var(--danger, #dc2626)", fontSize: "var(--t-xs)", marginTop: 4 }}>{extFieldErrors.prescritorNome}</div>}
+                  </div>
+                  <div>
+                    <label className="field-label">Conselho</label>
+                    <Select value={extPrescritor.conselho} onChange={e => setExtPrescritor(p => ({ ...p, conselho: e.target.value }))}>
+                      <option value="CRM">CRM</option>
+                      <option value="CRO">CRO</option>
+                      <option value="COREN">COREN</option>
+                      <option value="CRF">CRF</option>
+                      <option value="CFM">CFM</option>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="field-label">Número *</label>
+                    <Input value={extPrescritor.numero} onChange={e => setExtPrescritor(p => ({ ...p, numero: e.target.value }))} placeholder="000000" />
+                    {extFieldErrors.prescritorNumero && <div style={{ color: "var(--danger, #dc2626)", fontSize: "var(--t-xs)", marginTop: 4 }}>{extFieldErrors.prescritorNumero}</div>}
+                  </div>
+                  <div>
+                    <label className="field-label">UF *</label>
+                    <Input value={extPrescritor.uf} onChange={e => setExtPrescritor(p => ({ ...p, uf: e.target.value.toUpperCase().slice(0, 2) }))} placeholder="SP" maxLength={2} />
+                    {extFieldErrors.prescritorUf && <div style={{ color: "var(--danger, #dc2626)", fontSize: "var(--t-xs)", marginTop: 4 }}>{extFieldErrors.prescritorUf}</div>}
+                  </div>
+                </div>
+              </div>
+
+              {/* Seção 4: Medicamentos */}
+              <div className="card" style={{ padding: "var(--s-5, 1.25rem)" }}>
+                <div style={{ fontWeight: 700, fontSize: "var(--t-sm)", marginBottom: 14, color: "var(--navy)" }}>4. Medicamentos</div>
+                {extFieldErrors.items && <div style={{ color: "var(--danger, #dc2626)", fontSize: "var(--t-xs)", marginBottom: 10 }}>{extFieldErrors.items}</div>}
+                <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                  {extItems.map((it, i) => (
+                    <div key={it._key} style={{ display: "grid", gridTemplateColumns: "1fr 100px 120px auto", gap: 10, alignItems: "start" }}>
+                      <div>
+                        {i === 0 && <label className="field-label">Medicamento *</label>}
+                        <StockItemAutocomplete
+                          stock={stock}
+                          placeholder="Buscar por nome ou categoria..."
+                          onSelect={item => setExtItems(prev => prev.map((x, j) => j === i ? { ...x, stockItem: item } : x))}
+                        />
+                      </div>
+                      <div>
+                        {i === 0 && <label className="field-label">Qtd *</label>}
+                        <Input
+                          type="number"
+                          min={1}
+                          max={it.stockItem ? it.stockItem.qty : undefined}
+                          value={it.qty}
+                          onChange={e => setExtItems(prev => prev.map((x, j) => j === i ? { ...x, qty: e.target.value } : x))}
+                        />
+                      </div>
+                      <div>
+                        {i === 0 && <label className="field-label">Lote</label>}
+                        <Input
+                          value={it.lote}
+                          onChange={e => setExtItems(prev => prev.map((x, j) => j === i ? { ...x, lote: e.target.value } : x))}
+                          placeholder="Opcional"
+                        />
+                      </div>
+                      <div style={{ paddingTop: i === 0 ? 22 : 0 }}>
+                        {extItems.length > 1 && (
+                          <button type="button" onClick={() => setExtItems(prev => prev.filter((_, j) => j !== i))}
+                            style={{ background: "none", border: "1px solid var(--border)", borderRadius: 6, padding: "6px 10px", cursor: "pointer", color: "var(--text-2)", fontSize: 13 }}>
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   ))}
-                </Select>
-              </div>
-              <div>
-                <label className="field-label">Quantidade *</label>
-                <Input type="number" min={1} value={extQty} onChange={e => setExtQty(e.target.value)} style={{ maxWidth: 120 }} />
-              </div>
-              <div>
-                <label className="field-label">Nome do paciente</label>
-                <Input value={extPatientName} onChange={e => setExtPatientName(e.target.value)} placeholder="Opcional" />
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 120px 80px", gap: 10 }}>
-                <div>
-                  <label className="field-label">Prescritor *</label>
-                  <Input value={extPrescritorNome} onChange={e => setExtPrescritorNome(e.target.value)} placeholder="Nome completo" />
-                </div>
-                <div>
-                  <label className="field-label">CRM</label>
-                  <Input value={extCrm} onChange={e => setExtCrm(e.target.value)} placeholder="000000" />
-                </div>
-                <div>
-                  <label className="field-label">UF</label>
-                  <Input value={extUf} onChange={e => setExtUf(e.target.value)} placeholder="SP" maxLength={2} />
+                  <Button variant="ghost" size="sm" onClick={() => setExtItems(prev => [...prev, EXT_BLANK_ITEM()])} style={{ alignSelf: "flex-start" }}>
+                    + Adicionar medicamento
+                  </Button>
                 </div>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                <div>
-                  <label className="field-label">Número da receita *</label>
-                  <Input value={extNumReceita} onChange={e => setExtNumReceita(e.target.value)} placeholder="Ex: 12345" />
+
+              {/* Seção 5: Observações */}
+              <div className="card" style={{ padding: "var(--s-5, 1.25rem)" }}>
+                <div style={{ fontWeight: 700, fontSize: "var(--t-sm)", marginBottom: 14, color: "var(--navy)" }}>5. Observações</div>
+                <Input value={extObs} onChange={e => setExtObs(e.target.value)} placeholder="Anotações adicionais (opcional)" />
+              </div>
+            </div>
+
+            {/* Sidebar: Resumo + Confirmar */}
+            <div style={{ position: "sticky", top: 20, display: "flex", flexDirection: "column", gap: "var(--s-4, 1rem)" }}>
+              <div className="card" style={{ padding: "var(--s-5, 1.25rem)" }}>
+                <div style={{ fontWeight: 700, fontSize: "var(--t-sm)", marginBottom: 14, color: "var(--navy)" }}>Resumo</div>
+                <div style={{ fontSize: "var(--t-xs)", color: "var(--text-2)", display: "flex", flexDirection: "column", gap: 8 }}>
+                  <div>
+                    <span style={{ fontWeight: 600 }}>Paciente:</span>{" "}
+                    {extPaciente.nome || <span style={{ fontStyle: "italic" }}>Não informado</span>}
+                  </div>
+                  <div>
+                    <span style={{ fontWeight: 600 }}>Prescritor:</span>{" "}
+                    {extPrescritor.nome ? `${extPrescritor.nome} (${extPrescritor.conselho} ${extPrescritor.numero}/${extPrescritor.uf})` : <span style={{ fontStyle: "italic" }}>Não informado</span>}
+                  </div>
+                  <div>
+                    <span style={{ fontWeight: 600 }}>Receita:</span>{" "}
+                    {extReceita.numero || <span style={{ fontStyle: "italic" }}>Não informado</span>}
+                    {extReceita.dtEmissao ? ` · ${new Date(`${extReceita.dtEmissao}T12:00:00`).toLocaleDateString("pt-BR")}` : ""}
+                  </div>
+                  <div style={{ borderTop: "1px solid var(--border)", paddingTop: 8, marginTop: 4 }}>
+                    <span style={{ fontWeight: 600 }}>Medicamentos:</span>
+                    {extItems.filter(it => it.stockItem).length === 0 ? (
+                      <div style={{ fontStyle: "italic", marginTop: 4 }}>Nenhum selecionado</div>
+                    ) : extItems.filter(it => it.stockItem).map((it, i) => (
+                      <div key={i} style={{ marginTop: 4 }}>
+                        {it.qty}x {it.stockItem.name}
+                        <span style={{ color: "var(--text-3, #94a3b8)" }}> ({it.stockItem.unit})</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <div>
-                  <label className="field-label">Data da receita *</label>
-                  <Input type="date" value={extDtReceita} onChange={e => setExtDtReceita(e.target.value)} />
-                </div>
               </div>
-              <div>
-                <label className="field-label">Observações</label>
-                <Input value={extObs} onChange={e => setExtObs(e.target.value)} placeholder="Opcional" />
-              </div>
-              <div>
-                <Button variant="primary" size="sm" onClick={submitExtDispensacao} disabled={extBusy}>
-                  {extBusy ? "Registrando..." : "Registrar Dispensação Externa"}
-                </Button>
-              </div>
+              <Button
+                variant="primary"
+                onClick={submitExtDispensacao}
+                disabled={extBusy}
+                style={{ width: "100%" }}
+              >
+                {extBusy ? "Registrando..." : "Confirmar Dispensação"}
+              </Button>
             </div>
           </div>
         )}
