@@ -491,6 +491,27 @@ export async function patchOdontoProcedure(token, id, payload) {
 export async function deleteOdontoProcedure(token, id) {
   return api(`/odontologia/procedures/${id}`, { method: "DELETE" }, token);
 }
+export async function getDentalEncounters(token, patientId) {
+  return api(`/odontologia/encounters?patientId=${encodeURIComponent(patientId)}`, { method: "GET" }, token);
+}
+export async function createDentalEncounter(token, payload) {
+  return api("/odontologia/encounters", { method: "POST", body: JSON.stringify(payload) }, token);
+}
+export async function patchDentalEncounter(token, id, payload) {
+  return api(`/odontologia/encounters/${id}`, { method: "PATCH", body: JSON.stringify(payload) }, token);
+}
+export async function getOdontoPlanItems(token, patientId) {
+  return api(`/odontologia/plan-items?patientId=${encodeURIComponent(patientId)}`, { method: "GET" }, token);
+}
+export async function createOdontoPlanItem(token, payload) {
+  return api("/odontologia/plan-items", { method: "POST", body: JSON.stringify(payload) }, token);
+}
+export async function patchOdontoPlanItem(token, id, payload) {
+  return api(`/odontologia/plan-items/${id}`, { method: "PATCH", body: JSON.stringify(payload) }, token);
+}
+export async function deleteOdontoPlanItem(token, id) {
+  return api(`/odontologia/plan-items/${id}`, { method: "DELETE" }, token);
+}
 
 export async function createRecord(token, patientId, payload) {
   return api(`/patients/${patientId}/records`, { method: "POST", body: JSON.stringify(payload) }, token);

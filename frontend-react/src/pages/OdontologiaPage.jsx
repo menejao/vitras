@@ -10,6 +10,13 @@ import {
   createOdontoProcedure,
   patchOdontoProcedure,
   deleteOdontoProcedure,
+  getDentalEncounters,
+  createDentalEncounter,
+  patchDentalEncounter,
+  getOdontoPlanItems,
+  createOdontoPlanItem,
+  patchOdontoPlanItem,
+  deleteOdontoPlanItem,
 } from "../api";
 import { matchesPatientSearch } from "../utils/clinical";
 import { fmtDate, initials } from "../utils/formatting";
@@ -816,12 +823,18 @@ function WorkspaceProcedimentos({ patient, user, token, onSaved, prefill }) {
 }
 
 // ── WorkspaceEvolucao ─────────────────────────────────────────────────────────
-function WorkspaceEvolucao({ patient, user, token, onSaved }) {
+function WorkspaceEvolucao({ patient, user, token, onSaved, history, encounter }) {
+  const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ date: new Date().toISOString().slice(0,10), queixa: "", exame: "", evolucao: "", conduta: "", orientacoes: "", proximo: "" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState(false);
   function upd(k) { return e => setForm(s => ({ ...s, [k]: e.target.value })); }
+
+  const evols = (history || [])
+    .filter(r => r.metadata?.consultKind === "odontologia" && r.metadata?.subtype === "evolucao" &&
+      (encounter ? r.metadata?.encounterId === encounter.id : true))
+    .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+
   async function handleSubmit(e) {
     e.preventDefault();
     if (!form.evolucao.trim()) { setError("Evolução obrigatória."); return; }
@@ -840,117 +853,221 @@ function WorkspaceEvolucao({ patient, user, token, onSaved }) {
         date: form.date, time: new Date().toTimeString().slice(0,5),
         type: "consultation", title: "Evolução odontológica",
         details, professionalName: user?.name || "", professionalCouncil: "",
-        immutable: true, metadata: { consultKind: "odontologia", subtype: "evolucao" },
+        immutable: true, metadata: { consultKind: "odontologia", subtype: "evolucao", encounterId: encounter?.id || null },
       });
-      setSuccess(true); setForm({ date: new Date().toISOString().slice(0,10), queixa: "", exame: "", evolucao: "", conduta: "", orientacoes: "", proximo: "" });
+      setShowForm(false);
+      setForm({ date: new Date().toISOString().slice(0,10), queixa: "", exame: "", evolucao: "", conduta: "", orientacoes: "", proximo: "" });
       onSaved?.();
     } catch (err) { setError(err.message || "Erro."); }
     finally { setBusy(false); }
   }
-  if (success) return (
-    <div style={{ padding: "var(--s-4)" }}><SuccessBanner msg="Evolução registrada." onNew={() => setSuccess(false)} newLabel="+ Nova evolução" /></div>
-  );
+
   return (
-    <form onSubmit={handleSubmit} style={{ padding: "var(--s-4)", display: "flex", flexDirection: "column", gap: "var(--s-3)" }}>
-      <div style={{ maxWidth: 180 }}>
-        <Input label="Data" type="date" value={form.date} max={new Date().toISOString().slice(0,10)} onChange={upd("date")} />
-      </div>
-      <div className="field">
-        <label className="field__label">Queixa principal</label>
-        <AutoTextarea value={form.queixa} onChange={upd("queixa")} placeholder="Motivo da consulta..." minRows={2} maxRows={4} />
-      </div>
-      <div className="field">
-        <label className="field__label">Exame clínico</label>
-        <AutoTextarea value={form.exame} onChange={upd("exame")} placeholder="Achados clínicos..." minRows={2} maxRows={5} />
-      </div>
-      <div className="field">
-        <label className="field__label">Evolução *</label>
-        <AutoTextarea value={form.evolucao} onChange={upd("evolucao")} placeholder="Evolução do caso..." minRows={3} maxRows={8} required />
-      </div>
-      <div className="field">
-        <label className="field__label">Conduta</label>
-        <AutoTextarea value={form.conduta} onChange={upd("conduta")} placeholder="Conduta adotada..." minRows={2} maxRows={5} />
-      </div>
-      <div className="field">
-        <label className="field__label">Orientações ao paciente</label>
-        <AutoTextarea value={form.orientacoes} onChange={upd("orientacoes")} placeholder="Orientações dadas..." minRows={2} maxRows={4} />
-      </div>
-      <div className="field">
-        <label className="field__label">Próximo passo</label>
-        <AutoTextarea value={form.proximo} onChange={upd("proximo")} placeholder="Próximo atendimento ou encaminhamento..." minRows={1} maxRows={3} />
-      </div>
-      <ErrorMsg msg={error} />
-      <div><Button type="submit" variant="primary" loading={busy}>Salvar evolução</Button></div>
-    </form>
+    <div style={{ padding: "var(--s-4)", display: "flex", flexDirection: "column", gap: "var(--s-3)" }}>
+      {evols.length > 0 && (
+        <div style={{ marginBottom: "var(--s-2)" }}>
+          {evols.map(r => (
+            <div key={r.id} className="odonto-evol-card">
+              <div className="odonto-evol-card__header">
+                <span className="odonto-evol-card__date">{fmtDate(r.date)}</span>
+                {r.professionalName && <span className="odonto-evol-card__prof">· {r.professionalName}</span>}
+              </div>
+              <div className="odonto-evol-card__body odonto-evol-card__body--pre">{r.details}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {!showForm ? (
+        <Button type="button" variant="secondary" onClick={() => setShowForm(true)}>+ Nova evolução</Button>
+      ) : (
+        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "var(--s-3)" }}>
+          <div style={{ maxWidth: 180 }}>
+            <Input label="Data" type="date" value={form.date} max={new Date().toISOString().slice(0,10)} onChange={upd("date")} />
+          </div>
+          <div className="field">
+            <label className="field__label">Queixa principal</label>
+            <AutoTextarea value={form.queixa} onChange={upd("queixa")} placeholder="Motivo da consulta..." minRows={2} maxRows={4} />
+          </div>
+          <div className="field">
+            <label className="field__label">Exame clínico</label>
+            <AutoTextarea value={form.exame} onChange={upd("exame")} placeholder="Achados clínicos..." minRows={2} maxRows={5} />
+          </div>
+          <div className="field">
+            <label className="field__label">Evolução *</label>
+            <AutoTextarea value={form.evolucao} onChange={upd("evolucao")} placeholder="Evolução do caso..." minRows={3} maxRows={8} required />
+          </div>
+          <div className="field">
+            <label className="field__label">Conduta</label>
+            <AutoTextarea value={form.conduta} onChange={upd("conduta")} placeholder="Conduta adotada..." minRows={2} maxRows={5} />
+          </div>
+          <div className="field">
+            <label className="field__label">Orientações ao paciente</label>
+            <AutoTextarea value={form.orientacoes} onChange={upd("orientacoes")} placeholder="Orientações dadas..." minRows={2} maxRows={4} />
+          </div>
+          <div className="field">
+            <label className="field__label">Próximo passo</label>
+            <AutoTextarea value={form.proximo} onChange={upd("proximo")} placeholder="Próximo atendimento ou encaminhamento..." minRows={1} maxRows={3} />
+          </div>
+          <ErrorMsg msg={error} />
+          <div style={{ display: "flex", gap: "var(--s-2)" }}>
+            <Button type="submit" variant="primary" loading={busy}>Salvar evolução</Button>
+            <Button type="button" variant="ghost" onClick={() => { setShowForm(false); setError(""); }}>Cancelar</Button>
+          </div>
+        </form>
+      )}
+    </div>
   );
 }
 
-// ── WorkspacePlano ────────────────────────────────────────────────────────────
-function WorkspacePlano({ patient, user, token, onSaved }) {
-  const [form, setForm] = useState({ date: new Date().toISOString().slice(0,10), prioridade: "media", objetivo: "", etapas: "", previsao: "", obs: "" });
+// ── WorkspacePlano (checklist) ────────────────────────────────────────────────
+function WorkspacePlano({ patient, user, token, onSaved, planItems, onPlanUpdated, encounter }) {
+  const [items, setItems] = useState(planItems || []);
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ descricao: "", dente: "", prioridade: "media", previsao: "" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState(false);
-  function upd(k) { return e => setForm(s => ({ ...s, [k]: e.target.value })); }
-  async function handleSubmit(e) {
+
+  useEffect(() => { setItems(planItems || []); }, [planItems]);
+
+  const PRIO_CFG = {
+    alta:  { bg: "#fee2e2", color: "#b91c1c" },
+    media: { bg: "#fef9c3", color: "#854d0e" },
+    baixa: { bg: "#f0fdf4", color: "#166534" },
+  };
+
+  async function addItem(e) {
     e.preventDefault();
-    if (!form.objetivo.trim()) { setError("Objetivo obrigatório."); return; }
+    if (!form.descricao.trim()) { setError("Descrição obrigatória."); return; }
     setBusy(true); setError("");
     try {
-      const { createRecord } = await import("../api");
-      const details = [
-        `Objetivo: ${form.objetivo}`,
-        form.etapas ? `Etapas: ${form.etapas}` : "",
-        `Prioridade: ${form.prioridade}`,
-        form.previsao ? `Previsão: ${form.previsao}` : "",
-        form.obs ? `Observações: ${form.obs}` : "",
-      ].filter(Boolean).join("\n");
-      await createRecord(token, patient.id, {
-        date: form.date, time: new Date().toTimeString().slice(0,5),
-        type: "consultation", title: "Plano de tratamento odontológico",
-        details, professionalName: user?.name || "", professionalCouncil: "",
-        immutable: true, metadata: { consultKind: "odontologia", subtype: "plano_tratamento", prioridade: form.prioridade },
+      const res = await createOdontoPlanItem(token, {
+        patientId: patient.id,
+        encounterId: encounter?.id || null,
+        descricao: form.descricao,
+        dente: form.dente || null,
+        prioridade: form.prioridade,
+        previsao: form.previsao || null,
       });
-      setSuccess(true); setForm({ date: new Date().toISOString().slice(0,10), prioridade: "media", objetivo: "", etapas: "", previsao: "", obs: "" });
-      onSaved?.();
+      setItems(s => [...s, res.data]);
+      setForm({ descricao: "", dente: "", prioridade: "media", previsao: "" });
+      setShowForm(false);
+      onPlanUpdated?.();
     } catch (err) { setError(err.message || "Erro."); }
     finally { setBusy(false); }
   }
-  if (success) return (
-    <div style={{ padding: "var(--s-4)" }}><SuccessBanner msg="Plano de tratamento registrado." onNew={() => setSuccess(false)} newLabel="+ Novo plano" /></div>
-  );
+
+  async function toggleDone(item) {
+    const next = item.status === "concluido" ? "pendente" : "concluido";
+    try {
+      const res = await patchOdontoPlanItem(token, item.id, { status: next });
+      setItems(s => s.map(i => i.id === item.id ? res.data : i));
+      onPlanUpdated?.();
+    } catch (err) { setError(err.message || "Erro."); }
+  }
+
+  async function removeItem(id) {
+    try {
+      await deleteOdontoPlanItem(token, id);
+      setItems(s => s.filter(i => i.id !== id));
+      onPlanUpdated?.();
+    } catch (err) { setError(err.message || "Erro."); }
+  }
+
+  const pending = items.filter(i => i.status !== "concluido" && i.status !== "cancelado");
+  const done    = items.filter(i => i.status === "concluido");
+
   return (
-    <form onSubmit={handleSubmit} style={{ padding: "var(--s-4)", display: "flex", flexDirection: "column", gap: "var(--s-3)" }}>
-      <div style={{ display: "flex", gap: "var(--s-3)", flexWrap: "wrap" }}>
-        <div style={{ width: 160 }}>
-          <Input label="Data" type="date" value={form.date} max={new Date().toISOString().slice(0,10)} onChange={upd("date")} />
-        </div>
-        <div style={{ width: 160 }}>
-          <Select label="Prioridade" value={form.prioridade} onChange={upd("prioridade")}>
-            <option value="alta">Alta</option>
-            <option value="media">Média</option>
-            <option value="baixa">Baixa</option>
-          </Select>
-        </div>
-        <div style={{ width: 160 }}>
-          <Input label="Previsão de conclusão" type="date" value={form.previsao} onChange={upd("previsao")} />
-        </div>
-      </div>
-      <div className="field">
-        <label className="field__label">Objetivo *</label>
-        <AutoTextarea value={form.objetivo} onChange={upd("objetivo")} placeholder="Objetivo do tratamento..." minRows={2} maxRows={5} required />
-      </div>
-      <div className="field">
-        <label className="field__label">Etapas planejadas</label>
-        <AutoTextarea value={form.etapas} onChange={upd("etapas")} placeholder="Descreva as etapas..." minRows={3} maxRows={8} />
-      </div>
-      <div className="field">
-        <label className="field__label">Observações</label>
-        <AutoTextarea value={form.obs} onChange={upd("obs")} placeholder="Observações gerais..." minRows={2} maxRows={4} />
-      </div>
+    <div style={{ padding: "var(--s-4)" }}>
       <ErrorMsg msg={error} />
-      <div><Button type="submit" variant="primary" loading={busy}>Salvar plano</Button></div>
-    </form>
+
+      {pending.length > 0 && (
+        <div style={{ marginBottom: "var(--s-4)" }}>
+          <div className="odonto-plan-section-label">Pendências ({pending.length})</div>
+          <div className="odonto-plan-list">
+            {pending.map(item => {
+              const pc = PRIO_CFG[item.prioridade] || PRIO_CFG.media;
+              return (
+                <div key={item.id} className="odonto-plan-item">
+                  <button type="button" className="odonto-plan-check" onClick={() => toggleDone(item)} aria-label="Marcar concluído">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="14" height="14" rx="3" stroke="#cbd5e1" strokeWidth="1.5"/></svg>
+                  </button>
+                  <div className="odonto-plan-item__body">
+                    <div className="odonto-plan-item__desc">{item.descricao}</div>
+                    <div className="odonto-plan-item__meta">
+                      {item.dente && <span>Dente {item.dente}</span>}
+                      {item.previsao && <span>{item.dente ? " · " : ""}{fmtDate(item.previsao)}</span>}
+                      <span className="odonto-plan-prio" style={{ background: pc.bg, color: pc.color }}>{item.prioridade}</span>
+                    </div>
+                  </div>
+                  <button type="button" className="odonto-proc-remove" onClick={() => removeItem(item.id)} aria-label="Remover">
+                    <svg width="10" height="10" viewBox="0 0 16 16" fill="none"><path d="M2 2l12 12M14 2L2 14" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {done.length > 0 && (
+        <div style={{ marginBottom: "var(--s-4)" }}>
+          <div className="odonto-plan-section-label">Concluídos ({done.length})</div>
+          <div className="odonto-plan-list">
+            {done.map(item => (
+              <div key={item.id} className="odonto-plan-item odonto-plan-item--done">
+                <button type="button" className="odonto-plan-check" onClick={() => toggleDone(item)} aria-label="Desfazer conclusão">
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                    <rect x="1" y="1" width="14" height="14" rx="3" fill="#10b981" stroke="#10b981" strokeWidth="1.5"/>
+                    <path d="M4 8l3 3 5-5" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+                <div className="odonto-plan-item__body" style={{ opacity: 0.55 }}>
+                  <div className="odonto-plan-item__desc" style={{ textDecoration: "line-through" }}>{item.descricao}</div>
+                  {item.concluidoEm && <div className="odonto-plan-item__meta">{fmtDate(item.concluidoEm.slice(0,10))} · {item.responsavel}</div>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {items.length === 0 && !showForm && (
+        <div style={{ fontSize: ".82rem", color: "var(--text-3)", marginBottom: "var(--s-3)" }}>Nenhuma etapa no plano de tratamento.</div>
+      )}
+
+      {showForm ? (
+        <form onSubmit={addItem} className="odonto-plan-form">
+          <div className="field">
+            <label className="field__label">Descrição *</label>
+            <input type="text" className="input" value={form.descricao}
+              onChange={e => setForm(s => ({ ...s, descricao: e.target.value }))}
+              placeholder="Ex: Restaurar dente 16 (face mesial)..." />
+          </div>
+          <div style={{ display: "flex", gap: "var(--s-2)", flexWrap: "wrap" }}>
+            <div style={{ flex: "1 1 90px" }}>
+              <Input label="Dente (FDI)" value={form.dente} onChange={e => setForm(s => ({ ...s, dente: e.target.value }))} placeholder="ex: 16" />
+            </div>
+            <div style={{ flex: "1 1 120px" }}>
+              <Select label="Prioridade" value={form.prioridade} onChange={e => setForm(s => ({ ...s, prioridade: e.target.value }))}>
+                <option value="alta">Alta</option>
+                <option value="media">Média</option>
+                <option value="baixa">Baixa</option>
+              </Select>
+            </div>
+            <div style={{ flex: "1 1 140px" }}>
+              <Input label="Previsão" type="date" value={form.previsao} onChange={e => setForm(s => ({ ...s, previsao: e.target.value }))} />
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: "var(--s-2)" }}>
+            <Button type="submit" variant="primary" size="sm" loading={busy}>Adicionar</Button>
+            <Button type="button" variant="ghost" size="sm" onClick={() => { setShowForm(false); setError(""); }}>Cancelar</Button>
+          </div>
+        </form>
+      ) : (
+        <Button type="button" variant="secondary" size="sm" onClick={() => setShowForm(true)}>+ Adicionar etapa ao plano</Button>
+      )}
+    </div>
   );
 }
 
@@ -1147,6 +1264,207 @@ function WorkspaceHistorico({ history, procedures }) {
   );
 }
 
+// ── ElapsedTimer ─────────────────────────────────────────────────────────────
+function ElapsedTimer({ startedAt }) {
+  const [elapsed, setElapsed] = useState(() => Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000));
+  useEffect(() => {
+    const iv = setInterval(() => setElapsed(Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000)), 1000);
+    return () => clearInterval(iv);
+  }, [startedAt]);
+  const m = Math.floor(Math.max(0, elapsed) / 60);
+  const s = Math.max(0, elapsed) % 60;
+  return <>{String(m).padStart(2, "0")}:{String(s).padStart(2, "0")}</>;
+}
+
+// ── EncounterStartScreen ──────────────────────────────────────────────────────
+function EncounterStartScreen({ patient, onStart, loading }) {
+  const [tipo, setTipo] = useState("demanda_espontanea");
+  const [motivo, setMotivo] = useState("");
+  const TIPOS = [
+    { value: "programado",       label: "Programada" },
+    { value: "demanda_espontanea", label: "Demanda espontânea" },
+    { value: "urgencia",         label: "Urgência" },
+  ];
+  return (
+    <div className="odonto-encounter-start">
+      <div className="odonto-encounter-start__card">
+        <div className="odonto-encounter-start__icon" aria-hidden="true">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 5.5c-1.5-2-4-2.5-5.5-1C4.5 6 4 8 5 10.5c.7 1.8 1.5 5.5 2.5 7 .5 1 1.5 1 2 0 .3-.6.5-1.5.5-3 0-1.5 1-2 2-2s2 .5 2 2c0 1.5.2 2.4.5 3 .5 1 1.5 1 2 0 1-1.5 1.8-5.2 2.5-7 1-2.5.5-4.5-1.5-6-1.5-1.5-4-1-5.5 1z"/>
+          </svg>
+        </div>
+        <div className="odonto-encounter-start__title">Iniciar atendimento odontológico</div>
+        <div className="odonto-encounter-start__patient">{patient.name}</div>
+        <div style={{ display: "flex", gap: "var(--s-2)", marginBottom: "var(--s-4)", flexWrap: "wrap" }}>
+          {TIPOS.map(t => (
+            <button key={t.value} type="button"
+              className={`odonto-encounter-tipo-btn${tipo === t.value ? " odonto-encounter-tipo-btn--active" : ""}`}
+              onClick={() => setTipo(t.value)}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+        <div className="field" style={{ marginBottom: "var(--s-4)" }}>
+          <label className="field__label">Motivo / queixa principal (opcional)</label>
+          <input type="text" className="input" value={motivo}
+            onChange={e => setMotivo(e.target.value)}
+            placeholder="Ex: Dor de dente, revisão, urgência..." />
+        </div>
+        <Button type="button" variant="primary" loading={loading}
+          onClick={() => onStart({ tipo, motivo })}>
+          Iniciar atendimento
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// ── EncounterHeader ───────────────────────────────────────────────────────────
+function EncounterHeader({ encounter, onClose, canWrite }) {
+  const TIPO_LABEL = { programado: "Programada", demanda_espontanea: "Demanda Espontânea", urgencia: "Urgência" };
+  const ST_CFG = {
+    em_atendimento: { bg: "#dcfce7", color: "#166534", label: "Em atendimento" },
+    aberto:         { bg: "#fef9c3", color: "#854d0e", label: "Aberto" },
+    encerrado:      { bg: "#f1f5f9", color: "#64748b", label: "Encerrado" },
+    cancelado:      { bg: "#fee2e2", color: "#b91c1c", label: "Cancelado" },
+  };
+  const st = ST_CFG[encounter.status] || ST_CFG.aberto;
+  return (
+    <div className="odonto-encounter-header">
+      <div className="odonto-encounter-header__info">
+        <span className="odonto-encounter-header__badge" style={{ background: st.bg, color: st.color }}>{st.label}</span>
+        <span className="odonto-encounter-header__tipo">{TIPO_LABEL[encounter.tipo] || encounter.tipo}</span>
+        {encounter.startedAt && (
+          <span className="odonto-encounter-header__time">Início {encounter.startedAt.slice(11, 16)}</span>
+        )}
+        {encounter.status === "em_atendimento" && encounter.startedAt && (
+          <span className="odonto-encounter-header__elapsed">
+            <ElapsedTimer startedAt={encounter.startedAt} />
+          </span>
+        )}
+      </div>
+      {canWrite && encounter.status === "em_atendimento" && (
+        <Button type="button" variant="secondary" size="sm" onClick={onClose}>Encerrar</Button>
+      )}
+    </div>
+  );
+}
+
+// ── CloseEncounterModal ───────────────────────────────────────────────────────
+function CloseEncounterModal({ encounter, patient, procedures, onConfirm, onCancel, busy }) {
+  const encProcs = (procedures || []).filter(p => p.encounterId === encounter?.id);
+  return (
+    <div className="odonto-modal-backdrop" role="dialog" aria-modal="true" onClick={onCancel}>
+      <div className="odonto-modal" onClick={e => e.stopPropagation()}>
+        <div className="odonto-modal__title">Encerrar atendimento</div>
+        <div className="odonto-modal__body">
+          <div className="odonto-modal__row"><span>Paciente</span><strong>{patient.name}</strong></div>
+          {encounter.startedAt && (
+            <div className="odonto-modal__row"><span>Tempo em atendimento</span><strong><ElapsedTimer startedAt={encounter.startedAt} /></strong></div>
+          )}
+          {encounter.motivo && <div className="odonto-modal__row"><span>Motivo</span><strong>{encounter.motivo}</strong></div>}
+          <div className="odonto-modal__row"><span>Procedimentos registrados</span><strong>{encProcs.length}</strong></div>
+        </div>
+        <div className="odonto-modal__footer">
+          <Button type="button" variant="secondary" onClick={onCancel}>Cancelar</Button>
+          <Button type="button" variant="primary" loading={busy} onClick={onConfirm}>Confirmar encerramento</Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── WorkspacePrescricao ───────────────────────────────────────────────────────
+function WorkspacePrescricao({ patient }) {
+  return (
+    <div style={{ padding: "var(--s-4)" }}>
+      <div style={{ background: "var(--surface-2,#f8fafc)", border: "1px solid var(--border)", borderRadius: "var(--r-md)", padding: "var(--s-4)", marginBottom: "var(--s-4)" }}>
+        <p style={{ fontSize: ".85rem", color: "var(--text-2)", marginBottom: "var(--s-2)", fontWeight: 600 }}>Prescrições odontológicas</p>
+        <p style={{ fontSize: ".82rem", color: "var(--text-3)", margin: 0 }}>As prescrições são gerenciadas no módulo de Prescrições. Prescrições emitidas para este paciente aparecerão automaticamente no histórico clínico.</p>
+      </div>
+      <p style={{ fontSize: ".75rem", color: "var(--text-3)", marginTop: "var(--s-3)" }}>
+        Integração direta nesta aba será implementada em fase posterior (prescrição ligada ao atendimento).
+      </p>
+    </div>
+  );
+}
+
+// ── WorkspaceDocumentos ───────────────────────────────────────────────────────
+function WorkspaceDocumentos({ patient, user, token, encounter, onSaved }) {
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ tipo: "radiografia", nome: "", descricao: "" });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  const DOC_TIPOS = [
+    { value: "radiografia",   label: "Radiografia" },
+    { value: "fotografia",    label: "Fotografia" },
+    { value: "laudo",         label: "Laudo" },
+    { value: "consentimento", label: "Consentimento" },
+    { value: "pdf",           label: "PDF / Documento" },
+    { value: "outro",         label: "Outro" },
+  ];
+
+  async function handleSave(e) {
+    e.preventDefault();
+    if (!form.nome.trim()) { setError("Nome obrigatório."); return; }
+    setBusy(true); setError("");
+    try {
+      const { createRecord } = await import("../api");
+      await createRecord(token, patient.id, {
+        date: new Date().toISOString().slice(0, 10),
+        time: new Date().toTimeString().slice(0, 5),
+        type: "consultation",
+        title: `Documento: ${form.nome}`,
+        details: form.descricao,
+        professionalName: user?.name || "",
+        immutable: true,
+        metadata: {
+          consultKind: "odontologia", subtype: "documento",
+          encounterId: encounter?.id || null, docTipo: form.tipo,
+        },
+      });
+      setShowForm(false);
+      setForm({ tipo: "radiografia", nome: "", descricao: "" });
+      onSaved?.();
+    } catch (err) { setError(err.message || "Erro."); }
+    finally { setBusy(false); }
+  }
+
+  return (
+    <div style={{ padding: "var(--s-4)" }}>
+      <div style={{ fontSize: ".78rem", color: "var(--text-3)", background: "var(--surface-2,#f8fafc)", border: "1px solid var(--border)", borderRadius: "var(--r-md)", padding: "var(--s-3)", marginBottom: "var(--s-4)" }}>
+        Upload de arquivos será habilitado em versão futura. Registre apenas metadados (tipo, nome, descrição) do documento.
+      </div>
+
+      {showForm ? (
+        <form onSubmit={handleSave} style={{ display: "flex", flexDirection: "column", gap: "var(--s-3)" }}>
+          <ErrorMsg msg={error} />
+          <Select label="Tipo de documento" value={form.tipo} onChange={e => setForm(s => ({ ...s, tipo: e.target.value }))}>
+            {DOC_TIPOS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+          </Select>
+          <Input label="Nome / Identificação *" value={form.nome}
+            onChange={e => setForm(s => ({ ...s, nome: e.target.value }))}
+            placeholder="Ex: Rx periapical dente 16, Carta de encaminhamento..." />
+          <div className="field">
+            <label className="field__label">Descrição / observações</label>
+            <AutoTextarea value={form.descricao}
+              onChange={e => setForm(s => ({ ...s, descricao: e.target.value }))}
+              minRows={2} maxRows={5}
+              placeholder="Achados, conclusões ou referências..." />
+          </div>
+          <div style={{ display: "flex", gap: "var(--s-2)" }}>
+            <Button type="submit" variant="primary" size="sm" loading={busy}>Registrar documento</Button>
+            <Button type="button" variant="ghost" size="sm" onClick={() => { setShowForm(false); setError(""); }}>Cancelar</Button>
+          </div>
+        </form>
+      ) : (
+        <Button type="button" variant="secondary" onClick={() => setShowForm(true)}>+ Registrar documento</Button>
+      )}
+    </div>
+  );
+}
+
 // ── DentalWorkspacePanel ──────────────────────────────────────────────────────
 const WORKSPACE_TABS = [
   { id: "resumo",        label: "Resumo" },
@@ -1154,6 +1472,8 @@ const WORKSPACE_TABS = [
   { id: "procedimentos", label: "Procedimentos", requiresWrite: true },
   { id: "evolucao",      label: "Evolução",      requiresWrite: true },
   { id: "plano",         label: "Plano",         requiresWrite: true },
+  { id: "prescricao",    label: "Prescrição",    requiresWrite: true },
+  { id: "documentos",    label: "Documentos" },
   { id: "historico",     label: "Histórico" },
 ];
 
@@ -1162,7 +1482,18 @@ function DentalWorkspacePanel({ patient, user, token, onClose }) {
   const [history, setHistory] = useState(null);
   const [procedures, setProcedures] = useState([]);
   const [chartTeeth, setChartTeeth] = useState({});
-  const [procPrefill, setProcPrefill] = useState(null); // { fdi, face }
+  const [procPrefill, setProcPrefill] = useState(null);
+
+  // Encounter
+  const [encounter, setEncounter] = useState(null);
+  const [encounterLoading, setEncounterLoading] = useState(true);
+  const [startingEncounter, setStartingEncounter] = useState(false);
+  const [showCloseModal, setShowCloseModal] = useState(false);
+  const [closingEncounter, setClosingEncounter] = useState(false);
+
+  // Plan checklist
+  const [planItems, setPlanItems] = useState([]);
+
   const canWrite = hasCapability(user, "dental.write") || hasCapability(user, "dental.admin");
 
   const loadHistory = useCallback(() => {
@@ -1182,7 +1513,27 @@ function DentalWorkspacePanel({ patient, user, token, onClose }) {
       .catch(() => {});
   }, [token, patient.id]);
 
-  useEffect(() => { loadHistory(); loadProcs(); }, [loadHistory, loadProcs]);
+  const loadEncounter = useCallback(async () => {
+    if (!canWrite) { setEncounterLoading(false); return; }
+    setEncounterLoading(true);
+    try {
+      const res = await getDentalEncounters(token, patient.id);
+      const open = (res.data || []).find(e => ["aberto", "em_atendimento"].includes(e.status));
+      setEncounter(open || null);
+    } catch { setEncounter(null); }
+    finally { setEncounterLoading(false); }
+  }, [token, patient.id, canWrite]);
+
+  const loadPlanItems = useCallback(async () => {
+    try {
+      const res = await getOdontoPlanItems(token, patient.id);
+      setPlanItems(res.data || []);
+    } catch {}
+  }, [token, patient.id]);
+
+  useEffect(() => {
+    loadHistory(); loadProcs(); loadEncounter(); loadPlanItems();
+  }, [loadHistory, loadProcs, loadEncounter, loadPlanItems]);
 
   function onSaved() { loadHistory(); loadProcs(); }
 
@@ -1196,14 +1547,48 @@ function DentalWorkspacePanel({ patient, user, token, onClose }) {
     setActiveTab("procedimentos");
   }, []);
 
+  async function handleStartEncounter({ tipo, motivo }) {
+    setStartingEncounter(true);
+    try {
+      const res = await createDentalEncounter(token, { patientId: patient.id, tipo, motivo });
+      setEncounter(res.data);
+    } catch { await loadEncounter(); }
+    finally { setStartingEncounter(false); }
+  }
+
+  async function handleCloseEncounter() {
+    if (!encounter) return;
+    setClosingEncounter(true);
+    try {
+      const res = await patchDentalEncounter(token, encounter.id, {
+        status: "encerrado", endedAt: new Date().toISOString(),
+      });
+      setEncounter(res.data);
+      setShowCloseModal(false);
+      onSaved();
+    } catch {}
+    finally { setClosingEncounter(false); }
+  }
+
   const age = patient.birthDate
     ? Math.floor((Date.now() - new Date(patient.birthDate + "T12:00:00").getTime()) / (365.25 * 86400000))
     : null;
 
   const visibleTabs = WORKSPACE_TABS.filter(t => !t.requiresWrite || canWrite);
+  const showStartScreen = canWrite && !encounter && !encounterLoading;
 
   return (
     <div className="specialty-panel" style={{ height: "100%", display: "flex", flexDirection: "column" }}>
+      {showCloseModal && encounter && (
+        <CloseEncounterModal
+          encounter={encounter} patient={patient}
+          procedures={procedures}
+          onConfirm={handleCloseEncounter}
+          onCancel={() => setShowCloseModal(false)}
+          busy={closingEncounter}
+        />
+      )}
+
       <div className="specialty-panel__header">
         <div style={{ display: "flex", alignItems: "center", gap: ".75rem" }}>
           <div className="specialty-panel__avatar">{initials(patient.name)}</div>
@@ -1217,25 +1602,37 @@ function DentalWorkspacePanel({ patient, user, token, onClose }) {
         </Button>
       </div>
 
-      <div className="odonto-workspace-tabs">
-        {visibleTabs.map(t => (
-          <button key={t.id} type="button"
-            className={`odonto-workspace-tab${activeTab === t.id ? " odonto-workspace-tab--active" : ""}`}
-            onClick={() => setActiveTab(t.id)}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      {encounter && <EncounterHeader encounter={encounter} onClose={() => setShowCloseModal(true)} canWrite={canWrite} />}
 
-      <div style={{ flex: 1, overflowY: activeTab === "odontograma" ? "hidden" : "auto", minHeight: 0 }}>
-        {activeTab === "resumo" && <WorkspaceResumo patient={patient} history={history} procedures={procedures} chartTeeth={chartTeeth} />}
-        {activeTab === "odontograma" && <WorkspaceOdontograma patient={patient} token={token} canWrite={canWrite} onChartUpdated={handleChartUpdated} onRegisterProc={handleRegisterProc} />}
-        {activeTab === "procedimentos" && canWrite && <WorkspaceProcedimentos patient={patient} user={user} token={token} onSaved={onSaved} prefill={procPrefill} />}
-        {activeTab === "evolucao" && canWrite && <WorkspaceEvolucao patient={patient} user={user} token={token} onSaved={onSaved} />}
-        {activeTab === "plano" && canWrite && <WorkspacePlano patient={patient} user={user} token={token} onSaved={onSaved} />}
-        {activeTab === "historico" && <WorkspaceHistorico history={history} procedures={procedures} />}
-      </div>
+      {canWrite && encounterLoading ? (
+        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-3)", fontSize: ".85rem" }}>
+          Carregando...
+        </div>
+      ) : showStartScreen ? (
+        <EncounterStartScreen patient={patient} onStart={handleStartEncounter} loading={startingEncounter} />
+      ) : (
+        <>
+          <div className="odonto-workspace-tabs">
+            {visibleTabs.map(t => (
+              <button key={t.id} type="button"
+                className={`odonto-workspace-tab${activeTab === t.id ? " odonto-workspace-tab--active" : ""}`}
+                onClick={() => setActiveTab(t.id)}>
+                {t.label}
+              </button>
+            ))}
+          </div>
+          <div style={{ flex: 1, overflowY: activeTab === "odontograma" ? "hidden" : "auto", minHeight: 0 }}>
+            {activeTab === "resumo" && <WorkspaceResumo patient={patient} history={history} procedures={procedures} chartTeeth={chartTeeth} />}
+            {activeTab === "odontograma" && <WorkspaceOdontograma patient={patient} token={token} canWrite={canWrite} onChartUpdated={handleChartUpdated} onRegisterProc={handleRegisterProc} />}
+            {activeTab === "procedimentos" && canWrite && <WorkspaceProcedimentos patient={patient} user={user} token={token} onSaved={onSaved} prefill={procPrefill} />}
+            {activeTab === "evolucao" && canWrite && <WorkspaceEvolucao patient={patient} user={user} token={token} onSaved={onSaved} history={history} encounter={encounter} />}
+            {activeTab === "plano" && canWrite && <WorkspacePlano patient={patient} user={user} token={token} onSaved={onSaved} planItems={planItems} onPlanUpdated={loadPlanItems} encounter={encounter} />}
+            {activeTab === "prescricao" && canWrite && <WorkspacePrescricao patient={patient} encounter={encounter} />}
+            {activeTab === "documentos" && <WorkspaceDocumentos patient={patient} user={user} token={token} encounter={encounter} onSaved={onSaved} />}
+            {activeTab === "historico" && <WorkspaceHistorico history={history} procedures={procedures} />}
+          </div>
+        </>
+      )}
     </div>
   );
 }
