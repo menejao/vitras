@@ -211,28 +211,38 @@ function ToothSVG({ fdi, toothData, isSelected, onClick }) {
 }
 
 // ── FaceSelector ──────────────────────────────────────────────────────────────
-function FaceSelector({ faces, selectedFace, onFaceClick }) {
+function FaceSelector({ faces, selectedFace, onFaceClick, readOnly = false }) {
   function fc(face) { const c = CONDITION_COLOR[faces[face]]; return c && c !== "transparent" ? c : "transparent"; }
-  const S = 80, t = 20;
+  const S = 120, t = 30;
   const faceProps = (face) => ({
     fill: selectedFace === face ? "#ccfbf1" : (fc(face) || "#f8fafc"),
     stroke: selectedFace === face ? "#0d9488" : "#cbd5e1",
-    strokeWidth: selectedFace === face ? 1.5 : 0.8,
-    onClick: () => onFaceClick(face),
-    style: { cursor: "pointer" },
+    strokeWidth: selectedFace === face ? 2 : 1,
+    onClick: readOnly ? undefined : () => onFaceClick(face),
+    style: { cursor: readOnly ? "default" : "pointer" },
   });
+  const labelStyle = { fontSize: "10", fill: "#64748b", fontWeight: "600", pointerEvents: "none" };
   return (
-    <svg width={S} height={S} viewBox={`0 0 ${S} ${S}`} style={{ cursor: "pointer", flexShrink: 0 }} aria-label="Selecionar face">
+    <svg
+      width={S} height={S} viewBox={`0 0 ${S} ${S}`}
+      style={{ cursor: readOnly ? "default" : "pointer", flexShrink: 0, display: "block" }}
+      role="img"
+      aria-label={`Seletor de faces. Face selecionada: ${selectedFace || "nenhuma"}`}
+    >
+      {/* Outer tooth boundary */}
+      <rect x="0.5" y="0.5" width={S-1} height={S-1} rx="14" fill="white" stroke="#e2e8f0" strokeWidth="1"/>
+      {/* Faces */}
       <polygon points={`0,0 ${S},0 ${S-t},${t} ${t},${t}`} {...faceProps("vestibular")} />
       <polygon points={`0,${S} ${S},${S} ${S-t},${S-t} ${t},${S-t}`} {...faceProps("lingual")} />
       <polygon points={`0,0 0,${S} ${t},${S-t} ${t},${t}`} {...faceProps("mesial")} />
       <polygon points={`${S},0 ${S},${S} ${S-t},${S-t} ${S-t},${t}`} {...faceProps("distal")} />
-      <rect x={t} y={t} width={S-2*t} height={S-2*t} {...faceProps("oclusal")} />
-      <text x={S/2} y={10} textAnchor="middle" fontSize="7" fill="#64748b">V</text>
-      <text x={S/2} y={S-3} textAnchor="middle" fontSize="7" fill="#64748b">L</text>
-      <text x={6} y={S/2+3} textAnchor="middle" fontSize="7" fill="#64748b">M</text>
-      <text x={S-6} y={S/2+3} textAnchor="middle" fontSize="7" fill="#64748b">D</text>
-      <text x={S/2} y={S/2+3} textAnchor="middle" fontSize="7" fill="#64748b">O</text>
+      <rect x={t} y={t} width={S-2*t} height={S-2*t} rx="6" {...faceProps("oclusal")} />
+      {/* Labels */}
+      <text x={S/2} y={16} textAnchor="middle" {...labelStyle}>V</text>
+      <text x={S/2} y={S-6} textAnchor="middle" {...labelStyle}>L</text>
+      <text x={11} y={S/2+4} textAnchor="middle" {...labelStyle}>M</text>
+      <text x={S-11} y={S/2+4} textAnchor="middle" {...labelStyle}>D</text>
+      <text x={S/2} y={S/2+4} textAnchor="middle" {...labelStyle}>O</text>
     </svg>
   );
 }
@@ -507,7 +517,7 @@ function ToothPanel({ fdi, toothData, procedures, patientId, token, canWrite, on
 }
 
 // ── WorkspaceOdontograma ──────────────────────────────────────────────────────
-function WorkspaceOdontograma({ patient, token, canWrite }) {
+function WorkspaceOdontograma({ patient, token, canWrite, onChartUpdated }) {
   const [chartData, setChartData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -518,10 +528,11 @@ function WorkspaceOdontograma({ patient, token, canWrite }) {
     try {
       const res = await getOdontogramChart(token, patient.id);
       setChartData(res.data);
+      onChartUpdated?.(res.data);
     } catch (e) {
       setError(e.message || "Erro ao carregar odontograma");
     } finally { setLoading(false); }
-  }, [token, patient.id]);
+  }, [token, patient.id, onChartUpdated]);
 
   useEffect(() => { loadChart(); }, [loadChart]);
 
@@ -541,13 +552,24 @@ function WorkspaceOdontograma({ patient, token, canWrite }) {
   const teeth = chartData?.odontogram?.teeth || {};
   const procedures = chartData?.procedures || [];
 
+  function handleToothClick(fdi) {
+    setSelectedFdi(prev => prev === fdi ? null : fdi);
+  }
+
+  function closeDrawer() { setSelectedFdi(null); }
+
   return (
-    <div className="odonto-workspace">
-      <div className="odonto-workspace__chart">
-        <OdontogramChart teeth={teeth} onToothClick={fdi => setSelectedFdi(fdi === selectedFdi ? null : fdi)} selectedFdi={selectedFdi} />
+    <div className="odonto-workspace-outer">
+      <div className="odonto-chart-scroll">
+        <OdontogramChart teeth={teeth} onToothClick={handleToothClick} selectedFdi={selectedFdi} />
       </div>
-      {selectedFdi && (
-        <div className="odonto-workspace__panel">
+
+      {/* Backdrop on mobile */}
+      {selectedFdi && <div className="odonto-drawer-backdrop" onClick={closeDrawer} aria-hidden="true" />}
+
+      {/* Slide-over drawer */}
+      <div className={`odonto-drawer${selectedFdi ? " odonto-drawer--open" : ""}`} aria-hidden={!selectedFdi}>
+        {selectedFdi && (
           <ToothPanel
             fdi={selectedFdi}
             toothData={teeth[selectedFdi]}
@@ -555,17 +577,17 @@ function WorkspaceOdontograma({ patient, token, canWrite }) {
             patientId={patient.id}
             token={token}
             canWrite={canWrite}
-            onClose={() => setSelectedFdi(null)}
+            onClose={closeDrawer}
             onUpdate={loadChart}
           />
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
 
 // ── WorkspaceResumo ───────────────────────────────────────────────────────────
-function WorkspaceResumo({ patient, history, procedures }) {
+function WorkspaceResumo({ patient, history, procedures, chartTeeth }) {
   const age = patient.birthDate
     ? Math.floor((Date.now() - new Date(patient.birthDate + "T12:00:00").getTime()) / (365.25 * 86400000))
     : null;
@@ -581,6 +603,14 @@ function WorkspaceResumo({ patient, history, procedures }) {
   const planos = dentalHistory.filter(r => r.metadata?.subtype === "plano_tratamento");
   const lastPlano = planos[0];
 
+  // Computed from odontogram teeth
+  const teeth = chartTeeth || {};
+  const teethEntries = Object.entries(teeth);
+  const cariesCount = teethEntries.filter(([_, t]) => t.condition === "carie").length;
+  const restoredCount = teethEntries.filter(([_, t]) => t.condition === "restauracao").length;
+  const absentCount = teethEntries.filter(([_, t]) => ["ausente", "extraido"].includes(t.condition)).length;
+  const urgencyCount = teethEntries.filter(([_, t]) => ["carie", "fratura", "lesao"].includes(t.condition)).length;
+
   const Card = ({ label, value, note, accent }) => (
     <div className="odonto-resumo-card" style={accent ? { borderLeft: `3px solid ${accent}` } : {}}>
       <div className="odonto-resumo-card__label">{label}</div>
@@ -591,12 +621,25 @@ function WorkspaceResumo({ patient, history, procedures }) {
 
   return (
     <div style={{ padding: "var(--s-4)" }}>
+      <div style={{ fontSize: ".7rem", fontWeight: 700, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: ".07em", marginBottom: "var(--s-2)" }}>
+        Situação clínica — Odontograma
+      </div>
+      <div className="odonto-resumo-grid" style={{ marginBottom: "var(--s-3)" }}>
+        <Card label="Cáries ativas" value={cariesCount || "—"} accent={cariesCount > 0 ? "#ef4444" : undefined} />
+        <Card label="Restaurações" value={restoredCount || "—"} accent={restoredCount > 0 ? "#3b82f6" : undefined} />
+        <Card label="Dentes ausentes" value={absentCount || "—"} accent={absentCount > 0 ? "#94a3b8" : undefined} />
+        <Card label="Necessita tratamento" value={urgencyCount || "—"} accent={urgencyCount > 0 ? "#f97316" : undefined} />
+        <Card label="Procedimentos realizados" value={procDone} accent="#10b981" />
+        <Card label="Pendências / Planejados" value={procPending} accent={procPending > 0 ? "#f59e0b" : undefined} />
+      </div>
+
+      <div style={{ fontSize: ".7rem", fontWeight: 700, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: ".07em", marginBottom: "var(--s-2)", marginTop: "var(--s-4)" }}>
+        Histórico de atendimento
+      </div>
       <div className="odonto-resumo-grid">
         <Card label="Idade" value={age !== null ? `${age} anos` : "—"} />
         <Card label="Última consulta odonto" value={lastVisit ? fmtDate(lastVisit.date) : "—"} note={lastVisit?.title} />
         <Card label="Total de consultas" value={totalVisits} />
-        <Card label="Procedimentos realizados" value={procDone} accent="#10b981" />
-        <Card label="Pendências / Planejados" value={procPending} accent={procPending > 0 ? "#f59e0b" : undefined} />
         <Card label="Plano de tratamento" value={lastPlano ? fmtDate(lastPlano.date) : "Sem plano ativo"} note={lastPlano ? "Último registrado" : undefined} />
       </div>
 
@@ -937,6 +980,84 @@ function WorkspacePlano({ patient, user, token, onSaved }) {
   );
 }
 
+// ── WorkspaceTimeline ─────────────────────────────────────────────────────────
+function WorkspaceTimeline({ history, procedures }) {
+  const events = [];
+
+  (history || []).filter(r => r.metadata?.consultKind === "odontologia").forEach(r => {
+    events.push({
+      id: "h-" + r.id,
+      date: r.date,
+      type: r.metadata?.subtype || "consulta",
+      title: r.title,
+      tooth: r.metadata?.dente,
+      prof: r.professionalName,
+    });
+  });
+
+  (procedures || []).forEach(p => {
+    const procName = ODONTO_CATALOG.find(c => c.code === p.type)?.name || p.type;
+    events.push({
+      id: "p-" + p.id,
+      date: p.date,
+      type: "proc_dente",
+      title: procName,
+      tooth: p.toothFdi,
+      face: p.face,
+      status: p.status,
+      prof: p.professionalName,
+    });
+  });
+
+  events.sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+
+  if (!events.length) return (
+    <div className="vacc-empty" style={{ padding: "var(--s-6)" }}>
+      <div className="vacc-empty__icon" style={{ opacity: .2 }}>
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.3">
+          <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>
+        </svg>
+      </div>
+      <p className="vacc-empty__label">Sem eventos odontológicos registrados.</p>
+    </div>
+  );
+
+  const TYPE_CFG = {
+    evolucao:       { bg: "#f0f9ff", color: "#0369a1", label: "Evolução" },
+    plano_tratamento: { bg: "#fef3c7", color: "#92400e", label: "Plano" },
+    procedimento:   { bg: "#f0fdf4", color: "#166534", label: "Proc." },
+    proc_dente:     { bg: "#f0fdf4", color: "#166534", label: "Proc. Dente" },
+    consulta:       { bg: "#f5f3ff", color: "#6d28d9", label: "Consulta" },
+  };
+
+  return (
+    <div className="odonto-timeline">
+      {events.map(ev => {
+        const cfg = TYPE_CFG[ev.type] || TYPE_CFG.consulta;
+        const sc = ev.status ? STATUS_COLORS[ev.status] : null;
+        return (
+          <div key={ev.id} className="odonto-timeline__item">
+            <div className="odonto-timeline__dot" style={{ background: cfg.color }} />
+            <div className="odonto-timeline__body">
+              <div className="odonto-timeline__top">
+                <span className="odonto-timeline__title">{ev.title}</span>
+                <span className="odonto-timeline__badge" style={{ background: cfg.bg, color: cfg.color }}>{cfg.label}</span>
+                {sc && <span className="odonto-timeline__badge" style={{ background: sc.bg, color: sc.text }}>{PROC_STATUS.find(s => s.value === ev.status)?.label}</span>}
+              </div>
+              <div className="odonto-timeline__meta">
+                {ev.date ? fmtDate(ev.date) : "—"}
+                {ev.tooth ? ` · Dente ${ev.tooth}` : ""}
+                {ev.face ? ` — ${FACES.find(f => f.key === ev.face)?.label || ev.face}` : ""}
+                {ev.prof ? ` · ${ev.prof}` : ""}
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── WorkspaceHistorico ────────────────────────────────────────────────────────
 function WorkspaceHistorico({ history }) {
   if (history === null) return <div style={{ padding: "var(--s-4)", color: "var(--text-3)", fontSize: ".85rem" }}>Carregando...</div>;
@@ -975,6 +1096,7 @@ const WORKSPACE_TABS = [
   { id: "procedimentos", label: "Procedimentos", requiresWrite: true },
   { id: "evolucao",      label: "Evolução",      requiresWrite: true },
   { id: "plano",         label: "Plano",         requiresWrite: true },
+  { id: "timeline",      label: "Timeline" },
   { id: "historico",     label: "Histórico" },
 ];
 
@@ -982,6 +1104,7 @@ function DentalWorkspacePanel({ patient, user, token, onClose }) {
   const [activeTab, setActiveTab] = useState("odontograma");
   const [history, setHistory] = useState(null);
   const [procedures, setProcedures] = useState([]);
+  const [chartTeeth, setChartTeeth] = useState({});
   const canWrite = hasCapability(user, "dental.write") || hasCapability(user, "dental.admin");
 
   const loadHistory = useCallback(() => {
@@ -994,13 +1117,21 @@ function DentalWorkspacePanel({ patient, user, token, onClose }) {
 
   const loadProcs = useCallback(() => {
     getOdontogramChart(token, patient.id)
-      .then(r => setProcedures(r?.data?.procedures || []))
+      .then(r => {
+        setProcedures(r?.data?.procedures || []);
+        setChartTeeth(r?.data?.odontogram?.teeth || {});
+      })
       .catch(() => {});
   }, [token, patient.id]);
 
   useEffect(() => { loadHistory(); loadProcs(); }, [loadHistory, loadProcs]);
 
   function onSaved() { loadHistory(); loadProcs(); }
+
+  function handleChartUpdated(chartData) {
+    setProcedures(chartData?.procedures || []);
+    setChartTeeth(chartData?.odontogram?.teeth || {});
+  }
 
   const age = patient.birthDate
     ? Math.floor((Date.now() - new Date(patient.birthDate + "T12:00:00").getTime()) / (365.25 * 86400000))
@@ -1034,12 +1165,13 @@ function DentalWorkspacePanel({ patient, user, token, onClose }) {
         ))}
       </div>
 
-      <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
-        {activeTab === "resumo" && <WorkspaceResumo patient={patient} history={history} procedures={procedures} />}
-        {activeTab === "odontograma" && <WorkspaceOdontograma patient={patient} token={token} canWrite={canWrite} />}
+      <div style={{ flex: 1, overflowY: activeTab === "odontograma" ? "hidden" : "auto", minHeight: 0 }}>
+        {activeTab === "resumo" && <WorkspaceResumo patient={patient} history={history} procedures={procedures} chartTeeth={chartTeeth} />}
+        {activeTab === "odontograma" && <WorkspaceOdontograma patient={patient} token={token} canWrite={canWrite} onChartUpdated={handleChartUpdated} />}
         {activeTab === "procedimentos" && canWrite && <WorkspaceProcedimentos patient={patient} user={user} token={token} onSaved={onSaved} />}
         {activeTab === "evolucao" && canWrite && <WorkspaceEvolucao patient={patient} user={user} token={token} onSaved={onSaved} />}
         {activeTab === "plano" && canWrite && <WorkspacePlano patient={patient} user={user} token={token} onSaved={onSaved} />}
+        {activeTab === "timeline" && <WorkspaceTimeline history={history} procedures={procedures} />}
         {activeTab === "historico" && <WorkspaceHistorico history={history} />}
       </div>
     </div>
