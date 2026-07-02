@@ -31,6 +31,7 @@ const FisioterapiaPage   = lazy(() => import("../pages/FisioterapiaPage"));
 const ServicoSocialPage  = lazy(() => import("../pages/ServicoSocialPage"));
 const TerapiaOcupacionalPage = lazy(() => import("../pages/TerapiaOcupacionalPage"));
 const FonoaudiologiaPage = lazy(() => import("../pages/FonoaudiologiaPage"));
+const OdontologiaPage    = lazy(() => import("../pages/OdontologiaPage"));
 
 export function TabContent({
   tab, error, setError, busy,
@@ -171,6 +172,10 @@ export function TabContent({
           onCreateStockItem={createPharmacyItem} onUpdateStockItem={updatePharmacyItem}
           onAdjustStockItem={adjustPharmacyItem} onDispense={dispensePharmacyItem}
         />
+      )}
+
+      {tab === "odontologia" && (
+        <OdontologiaPage patients={patients} user={user} token={token} />
       )}
 
       {tab === "dental" && (
