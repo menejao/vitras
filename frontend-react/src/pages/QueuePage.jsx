@@ -52,8 +52,9 @@ function QueuePage({ patients, users, user, token, agenda = [], onNewPatient }) 
 
   const [showForm, setShowForm] = useState(false);
   const [step, setStep] = useState("select");
-  const [demandType, setDemandType] = useState("scheduled");
+  const [demandType, setDemandType] = useState("spontaneous");
   const [destination, setDestination] = useState("doctor");
+  const [specialtyFilter, setSpecialtyFilter] = useState("");
   const [priority, setPriority] = useState("normal");
   const [reason, setReason] = useState("");
   const [searchQ, setSearchQ] = useState("");
@@ -104,7 +105,7 @@ function QueuePage({ patients, users, user, token, agenda = [], onNewPatient }) 
     setStep("select");
     setSearchQ("");
     setSelectedPatient(null);
-    setDemandType("scheduled");
+    setDemandType("spontaneous");
     setDestination("doctor");
     setPriority("normal");
     setReason("");
@@ -120,8 +121,8 @@ function QueuePage({ patients, users, user, token, agenda = [], onNewPatient }) 
         patientId: selectedPatient.id,
         priority,
         reason,
-        demandType,
-        destination: demandType === "spontaneous" ? destination : undefined
+        demandType: "spontaneous",
+        destination
       });
       resetForm();
       setShowForm(false);
@@ -226,7 +227,19 @@ function QueuePage({ patients, users, user, token, agenda = [], onNewPatient }) 
       </KpiGrid>
 
       <PageToolbar>
-        {queue.some((entry) => entry.status === "done") ? (
+        <Select value={specialtyFilter} onChange={e => setSpecialtyFilter(e.target.value)} style={{ minWidth: 180 }}>
+          <option value="">Todas as especialidades</option>
+          <option value="Clínica Geral">Clínica Geral</option>
+          <option value="Enfermagem">Enfermagem</option>
+          <option value="Odontologia">Odontologia</option>
+          <option value="Ginecologia">Ginecologia</option>
+          <option value="Pediatria">Pediatria</option>
+          <option value="Saúde Mental">Saúde Mental</option>
+          <option value="Nutrição">Nutrição</option>
+          <option value="Fisioterapia">Fisioterapia</option>
+          <option value="Assistência Social">Assistência Social</option>
+        </Select>
+        {queue.some((entry) => ["done", "atendido", "faltou", "cancelado"].includes(entry.status)) ? (
           <Button variant="ghost" size="sm" className="queue-kpis__clear-btn" onClick={clearCompleted}>
             Limpar concluídos
           </Button>
@@ -236,74 +249,102 @@ function QueuePage({ patients, users, user, token, agenda = [], onNewPatient }) 
       <MainContent>
         {queueError ? <div className="error error-banner">{queueError}</div> : null}
 
-      <div className="queue-list">
-        {loading && !queue.length ? (
-          <EmptyState
-            title="Carregando fila"
-            description="Buscando entradas ativas do servidor."
-          />
-        ) : !queue.length ? (
-          <EmptyState
-            title="Nenhum paciente na fila"
-            description="Clique em «Dar entrada» para registrar a chegada de um paciente."
-          />
-        ) : (
-          queue.map((entry, index) => {
-            const isDone = entry.status === "done";
-            const priorityClass = `queue-entry--${entry.priority || "normal"}`;
-            return (
-              <div key={entry.id} className={`queue-entry ${isDone ? "queue-entry--done" : priorityClass}`}>
-                <div className="queue-entry__rank">{index + 1}</div>
-                <div className="queue-entry__copy">
-                  <div className="queue-entry__name">{entry.patientName}</div>
-                  <div className="queue-entry__meta">
-                    Entrada: {formatQueueClock(entry.arrivedAt)} · Aguardando: {formatQueueWait(entry.arrivedAt)}{entry.reason ? ` · ${entry.reason}` : ""}
-                  </div>
-                  <div className="queue-entry__badges">
-                    <span className={`queue-badge ${isDone ? "" : priorityClass}`}>{QUEUE_PRIORITY_LABELS[entry.priority]}</span>
-                    {entry.demandType === "spontaneous" && (
-                      <span className="queue-badge queue-badge--spontaneous">
-                        Espontâneo → {entry.destination === "nurse" ? "Enfermagem" : "Médico(a)"}
-                      </span>
-                    )}
-                    {entry.demandType === "scheduled" && (
-                      <span className="queue-badge queue-badge--scheduled">Agendado</span>
-                    )}
-                  </div>
+      {(() => {
+        const TERMINAL = ["done", "atendido", "faltou", "cancelado"];
+        const STATUS_LABEL = {
+          waiting: "Aguardando triagem", triage: "Em triagem", ready: "Liberado",
+          attending: "Em atendimento", done: "Atendido",
+          aguardando_triagem: "Aguardando triagem", liberado: "Liberado para atendimento",
+          chamado: "Chamado", em_atendimento: "Em atendimento",
+          atendido: "Atendido", faltou: "Faltou", cancelado: "Cancelado"
+        };
+        const filtered = specialtyFilter
+          ? queue.filter(e => (e.specialty || "") === specialtyFilter)
+          : queue;
+        const active = filtered.filter(e => !TERMINAL.includes(e.status));
+        const done = filtered.filter(e => TERMINAL.includes(e.status));
+
+        const renderEntry = (entry, index) => {
+          const isTerminal = TERMINAL.includes(entry.status);
+          const priorityClass = `queue-entry--${entry.priority || "normal"}`;
+          return (
+            <div key={entry.id} className={`queue-entry ${isTerminal ? "queue-entry--done" : priorityClass}`}>
+              <div className="queue-entry__rank">{index + 1}</div>
+              <div className="queue-entry__copy">
+                <div className="queue-entry__name">{entry.patientName}</div>
+                <div className="queue-entry__meta">
+                  Entrada: {formatQueueClock(entry.arrivedAt)} · {formatQueueWait(entry.arrivedAt)}{entry.reason ? ` · ${entry.reason}` : ""}
                 </div>
-                {!isDone && (
-                  <div className="queue-entry__actions">
-                    {entry.status === "waiting" && (
-                      <span className="queue-badge queue-badge--waiting">Aguardando triagem</span>
-                    )}
-                    {entry.status === "triage" && (
-                      <span className="queue-badge queue-badge--triage">Em triagem</span>
-                    )}
-                    {entry.status === "ready" && (
-                      <Button size="sm" onClick={() => updateStatus(entry.id, "attending")}>Chamar</Button>
-                    )}
-                    {entry.status === "attending" && (
-                      <Button size="sm" variant="primary" onClick={() => updateStatus(entry.id, "done")}>Concluir</Button>
-                    )}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      iconOnly
-                      className="agenda-appt__remove-btn"
-                      onClick={() => removeFromQueue(entry.id)}
-                      title="Remover da fila"
-                    >
-                      <svg width="10" height="10" viewBox="0 0 16 16" fill="none">
-                        <path d="M2 2l12 12M14 2L2 14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
-                      </svg>
-                    </Button>
-                  </div>
-                )}
+                <div className="queue-entry__badges">
+                  <span className={`queue-badge ${isTerminal ? "" : priorityClass}`}>{QUEUE_PRIORITY_LABELS[entry.priority]}</span>
+                  {entry.specialty && (
+                    <span className="queue-badge queue-badge--scheduled">Vai passar com: {entry.specialty}</span>
+                  )}
+                  {!entry.specialty && entry.demandType === "spontaneous" && (
+                    <span className="queue-badge queue-badge--spontaneous">
+                      Espontâneo{entry.destination ? ` → ${entry.destination === "nurse" ? "Enfermagem" : "Médico(a)"}` : ""}
+                    </span>
+                  )}
+                  {entry.demandType === "scheduled" && (
+                    <span className="queue-badge queue-badge--scheduled">Agendado</span>
+                  )}
+                </div>
               </div>
-            );
-          })
-        )}
-      </div>
+              {!isTerminal && (
+                <div className="queue-entry__actions">
+                  {["waiting", "aguardando_triagem"].includes(entry.status) && (
+                    <>
+                      <span className="queue-badge queue-badge--waiting">{STATUS_LABEL[entry.status] || "Aguardando"}</span>
+                      <Button size="sm" onClick={() => updateStatus(entry.id, "liberado")}>Liberar</Button>
+                    </>
+                  )}
+                  {entry.status === "triage" && (
+                    <span className="queue-badge queue-badge--triage">Em triagem</span>
+                  )}
+                  {["ready", "liberado"].includes(entry.status) && (
+                    <Button size="sm" onClick={() => updateStatus(entry.id, "em_atendimento")}>Chamar</Button>
+                  )}
+                  {["attending", "chamado", "em_atendimento"].includes(entry.status) && (
+                    <Button size="sm" variant="primary" onClick={() => updateStatus(entry.id, "atendido")}>Concluir</Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    iconOnly
+                    className="agenda-appt__remove-btn"
+                    onClick={() => removeFromQueue(entry.id)}
+                    title="Remover da fila"
+                  >
+                    <svg width="10" height="10" viewBox="0 0 16 16" fill="none">
+                      <path d="M2 2l12 12M14 2L2 14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+                    </svg>
+                  </Button>
+                </div>
+              )}
+            </div>
+          );
+        };
+
+        if (loading && !queue.length) {
+          return <EmptyState title="Carregando fila" description="Buscando entradas ativas do servidor." />;
+        }
+        if (!filtered.length) {
+          return <EmptyState title="Nenhum paciente na fila" description={specialtyFilter ? `Nenhum paciente em ${specialtyFilter}.` : "Clique em «Dar entrada» para registrar demanda espontânea."} />;
+        }
+        return (
+          <div className="queue-list">
+            {active.length > 0 && active.map((e, i) => renderEntry(e, i + 1))}
+            {done.length > 0 && (
+              <>
+                <div className="queue-section-divider" style={{ padding: "var(--s-3) 0 var(--s-1)", color: "var(--color-muted)", fontSize: "var(--text-xs)", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>
+                  Atendidos / Concluídos
+                </div>
+                {done.map((e, i) => renderEntry(e, i + 1))}
+              </>
+            )}
+          </div>
+        );
+      })()}
       </MainContent>
 
       {showForm && (
@@ -406,29 +447,15 @@ function QueuePage({ patients, users, user, token, agenda = [], onNewPatient }) 
               {selectedPatient && (
                 <>
                   <div className="field">
-                    <label className="field__label">Tipo de demanda *</label>
+                    <label className="field__label">Encaminhar para *</label>
                     <div className="queue-toggle">
-                      {[["scheduled", "Agendado", "Consulta marcada"], ["spontaneous", "Espontâneo", "Sem agendamento"]].map(([value, label, description]) => (
-                        <Button key={value} variant="ghost" className={`queue-toggle-btn${demandType === value ? " is-active" : ""}`} onClick={() => setDemandType(value)}>
+                      {[["doctor", "Médico(a)"], ["nurse", "Enfermagem"]].map(([value, label]) => (
+                        <Button key={value} variant="ghost" className={`queue-toggle-btn${destination === value ? " is-active" : ""}`} onClick={() => setDestination(value)}>
                           <div className="queue-toggle-btn__label">{label}</div>
-                          <div className="queue-toggle-btn__desc">{description}</div>
                         </Button>
                       ))}
                     </div>
                   </div>
-
-                  {demandType === "spontaneous" && (
-                    <div className="field">
-                      <label className="field__label">Encaminhar para *</label>
-                      <div className="queue-toggle">
-                        {[["doctor", "Médico(a)"], ["nurse", "Enfermagem"]].map(([value, label]) => (
-                          <Button key={value} variant="ghost" className={`queue-toggle-btn${destination === value ? " is-active" : ""}`} onClick={() => setDestination(value)}>
-                            <div className="queue-toggle-btn__label">{label}</div>
-                          </Button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
 
                   <Select label="Prioridade" value={priority} onChange={(e) => setPriority(e.target.value)}>
                     {Object.entries(QUEUE_PRIORITY_LABELS).map(([key, value]) => (
@@ -443,13 +470,11 @@ function QueuePage({ patients, users, user, token, agenda = [], onNewPatient }) 
                     placeholder="Dor, retorno, renovação de receita..."
                   />
 
-                  <div className={`queue-demand-notice queue-demand-notice--${demandType}`}>
+                  <div className="queue-demand-notice queue-demand-notice--spontaneous">
                     <IconWarning />
                     <span>
-                      <strong>Aviso:</strong>{" "}
-                      {demandType === "scheduled"
-                        ? `Profissional será notificado que ${selectedPatient.name} chegou.`
-                        : `${destination === "doctor" ? "Médico(a)" : "Enfermagem"} receberá aviso de paciente espontâneo.`}
+                      <strong>Demanda espontânea.</strong>{" "}
+                      Paciente agendado deve dar entrada pela Agenda.
                     </span>
                   </div>
 

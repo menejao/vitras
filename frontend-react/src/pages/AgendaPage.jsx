@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
-import { createPatient, createQueueEntry } from "../api";
+import { createPatient, darEntradaAgenda } from "../api";
 import { matchesPatientSearch, emptyPatientForm, isProfileIncomplete, ageInMonths } from "../utils/clinical";
 import { inferQueuePriorityFromPatient } from "../utils/queue";
 import { isUnavailableDay, unavailableReason } from "../utils/dates";
@@ -71,7 +71,7 @@ function AgendaPage({
 }) {
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [showForm, setShowForm]         = useState(false);
-  const [form, setForm]                 = useState({ patientId: "", doctorId: "", date: "", time: "", type: "consultation", notes: "", status: "scheduled" });
+  const [form, setForm]                 = useState({ patientId: "", doctorId: "", specialty: "", date: "", time: "", type: "consultation", notes: "", status: "scheduled" });
   const [procedureSubtype, setProcedureSubtype] = useState("");
   const [checkingIn, setCheckingIn]     = useState({});
   const [editId, setEditId]             = useState(null);
@@ -96,7 +96,7 @@ function AgendaPage({
   const todayStr = new Date().toISOString().slice(0, 10);
 
   function openNew(time = "", date = selectedDate) {
-    setForm({ patientId: "", doctorId: "", date, time, type: "consultation", notes: "", status: "scheduled" });
+    setForm({ patientId: "", doctorId: "", specialty: "", date, time, type: "consultation", notes: "", status: "scheduled" });
     setPatSearch(""); setPatSelected(null);
     setProcedureSubtype("");
     setEditId(null); setShowForm(true);
@@ -104,7 +104,7 @@ function AgendaPage({
 
   function openEdit(appt) {
     const pat = patients.find(p => p.id === appt.patientId) || null;
-    setForm({ patientId: appt.patientId, doctorId: appt.doctorId, date: appt.date, time: appt.time, type: appt.type, notes: appt.notes || "", status: appt.status });
+    setForm({ patientId: appt.patientId, doctorId: appt.doctorId, specialty: appt.specialty || "", date: appt.date, time: appt.time, type: appt.type, notes: appt.notes || "", status: appt.status });
     setPatSearch(pat?.name || ""); setPatSelected(pat);
     setProcedureSubtype("");
     setEditId(appt.id); setShowForm(true);
@@ -115,12 +115,7 @@ function AgendaPage({
     const priority = patient ? inferQueuePriorityFromPatient(patient) : "normal";
     setCheckingIn(prev => ({ ...prev, [appt.id]: true }));
     try {
-      await createQueueEntry(token, {
-        patientId: appt.patientId,
-        demandType: "scheduled",
-        priority,
-        agendaRef: appt.id,
-      });
+      await darEntradaAgenda(token, appt.id, { priority });
       await patchEntry(appt.id, { status: "arrived" });
     } catch (err) {
       setAgendaError(err.message || "Erro ao dar entrada.");
@@ -350,13 +345,14 @@ function AgendaPage({
                       <div className="agenda-appt__name">{appt.patientName}</div>
                       <div className="agenda-appt__meta">
                         {describeAgendaType(appt.type)}
+                        {appt.specialty && ` · ${appt.specialty}`}
                         {appt.doctorName && ` · ${appt.doctorName}`}
                         {appt.notes && ` · ${appt.notes}`}
                       </div>
                   </div>
 
                   <div className="agenda-appt__actions">
-                    {appt.date === todayStr && appt.status === "scheduled" && !incomplete && (
+                    {appt.date === todayStr && appt.status === "scheduled" && !incomplete && user?.role === "receptionist" && (
                       <Button
                         size="sm"
                         variant="secondary"
@@ -633,6 +629,25 @@ function AgendaPage({
             >
               <option value="">Selecionar...</option>
               {AGENDA_HOURS.map(h => <option key={h} value={h}>{h}</option>)}
+            </Select>
+
+            {/* Especialidade */}
+            <Select
+              label="Especialidade / Atendimento *"
+              value={form.specialty}
+              onChange={e => setForm(s => ({ ...s, specialty: e.target.value }))}
+            >
+              <option value="">Selecionar...</option>
+              <option value="Clínica Geral">Clínica Geral</option>
+              <option value="Enfermagem">Enfermagem</option>
+              <option value="Odontologia">Odontologia</option>
+              <option value="Ginecologia">Ginecologia</option>
+              <option value="Pediatria">Pediatria</option>
+              <option value="Saúde Mental">Saúde Mental</option>
+              <option value="Nutrição">Nutrição</option>
+              <option value="Fisioterapia">Fisioterapia</option>
+              <option value="Assistência Social">Assistência Social</option>
+              <option value="Outro">Outro</option>
             </Select>
 
             {/* Profissional */}

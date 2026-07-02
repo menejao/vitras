@@ -463,14 +463,15 @@ router.get("/odontologia/queue-hoje", (req, res) => {
     });
   }
 
-  // 2. Queue: entries for today by destination=odontologia (or odontologo) and same team
+  // 2. Queue: entries for today by specialty=Odontologia (or legacy destination containing "odontolog") and same team
   const queueItems = (db.queueEntries || []).filter(e => {
     const entryDate = String(e.arrivedAt || "").slice(0, 10);
+    const specialty = String(e.specialty || "").toLowerCase();
     const dest = String(e.destination || "").toLowerCase();
     return (
       entryDate === date &&
       String(e.teamId || "") === teamId &&
-      (dest.includes("odontolog") || dest === "") &&
+      (specialty === "odontologia" || dest.includes("odontolog")) &&
       e.status !== "removed" && e.status !== "cleared"
     );
   });

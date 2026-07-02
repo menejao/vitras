@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from "uuid";
 import { readDb, withDb } from "../db.js";
 import { validate, AgendaCreateSchema, AgendaPatchSchema } from "../schemas.js";
 import { ensureDbShape } from "../utils/domain.js";
-import { hasCapability } from "../utils/helpers.js";
+import { hasCapability, normalizeDemandType } from "../utils/helpers.js";
 import { addAuditLog } from "../services/audit.js";
 
 const router = express.Router();
@@ -46,6 +46,7 @@ function buildAgendaSnapshot(entry) {
     date: String(entry.date || ""),
     time: String(entry.time || ""),
     type: String(entry.type || "consultation"),
+    specialty: String(entry.specialty || ""),
     status: String(entry.status || "scheduled"),
     notes: String(entry.notes || ""),
     updatedAt: String(entry.updatedAt || entry.createdAt || "")
@@ -164,6 +165,7 @@ router.post("/agenda", validate(AgendaCreateSchema), async (req, res) => {
       date: String(payload.date || "").trim(),
       time: String(payload.time || "").trim(),
       type: normalizeAgendaType(payload.type),
+      specialty: String(payload.specialty || "").trim(),
       notes: String(payload.notes || "").trim(),
       status: normalizeAgendaStatus(payload.status),
       incompletePatient: Boolean(patient.incompleteProfile),
@@ -220,6 +222,7 @@ router.patch("/agenda/:id", validate(AgendaPatchSchema), async (req, res) => {
       ...(req.body.status !== undefined ? { status: normalizeAgendaStatus(req.body.status) } : {}),
       ...(req.body.doctorId !== undefined ? { doctorId } : {}),
       ...(req.body.doctorId !== undefined ? { doctorName: doctor?.name || "" } : {}),
+      ...(req.body.specialty !== undefined ? { specialty: String(req.body.specialty || "").trim() } : {}),
       incompletePatient: patient ? Boolean(patient.incompleteProfile) : Boolean(current.incompletePatient),
       summary: buildAgendaSummary(req.body.type !== undefined ? req.body.type : current.type, req.body.notes !== undefined ? req.body.notes : current.notes),
       updatedAt: new Date().toISOString(),
@@ -277,6 +280,87 @@ router.delete("/agenda/:id", async (req, res) => {
 
   if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
   return res.json({ ok: true });
+});
+
+router.post("/agenda/:id/dar-entrada", async (req, res) => {
+  if (!hasCapability(req.user, "queue.write")) {
+    return res.status(403).json({ error: "Sem permissão para dar entrada na fila" });
+  }
+
+  const result = await withDb((db) => {
+    ensureDbShape(db);
+    const agendaIndex = db.agendaEntries.findIndex((item) => item.id === String(req.params.id || ""));
+    if (agendaIndex < 0) return { error: { status: 404, message: "Agendamento não encontrado" } };
+
+    const appt = db.agendaEntries[agendaIndex];
+    if (!canAccessTeam(req.user, appt.teamId)) {
+      return { error: { status: 403, message: "Sem permissão para este agendamento" } };
+    }
+    if (appt.status !== "scheduled") {
+      return { error: { status: 409, message: "Agendamento já foi processado" } };
+    }
+
+    const patient = db.patients.find((item) => item.id === appt.patientId);
+    if (!patient) return { error: { status: 404, message: "Paciente não encontrado" } };
+
+    const ACTIVE_Q = ["waiting", "triage", "ready", "attending", "aguardando_triagem", "liberado", "chamado", "em_atendimento"];
+    const duplicate = db.queueEntries.find((item) =>
+      item.patientId === patient.id && ACTIVE_Q.includes(String(item.status || ""))
+    );
+    if (duplicate) {
+      return { error: { status: 409, message: "Paciente já está na fila ativa" } };
+    }
+
+    const priority = String(req.body?.priority || "normal");
+    const specialty = String(appt.specialty || req.body?.specialty || "").trim();
+    const now = new Date().toISOString();
+
+    const queueEntry = {
+      id: uuidv4(),
+      patientId: patient.id,
+      patientName: patient.name,
+      teamId: patient.teamId,
+      priority,
+      reason: String(req.body?.reason || "").trim(),
+      demandType: normalizeDemandType("scheduled"),
+      destination: null,
+      specialty,
+      agendaRef: appt.id,
+      needsTriage: true,
+      status: "aguardando_triagem",
+      arrivedAt: now,
+      createdAt: now,
+      createdBy: req.user.id,
+      updatedAt: now,
+      updatedBy: req.user.id,
+      executingTeamId: String(req.user.teamId || ""),
+      executingUnitId: String(req.user.unitId || ""),
+      triageBy: "",
+      triageStart: "",
+      triageDone: "",
+      vitals: null
+    };
+    db.queueEntries.push(queueEntry);
+
+    db.agendaEntries[agendaIndex] = {
+      ...appt,
+      status: "arrived",
+      updatedAt: now,
+      updatedBy: req.user.id
+    };
+
+    addAuditLog(db, req.user, "agenda.dar_entrada", "agenda_entry", appt.id, {
+      patientId: patient.id,
+      teamId: patient.teamId,
+      queueEntryId: queueEntry.id,
+      specialty
+    });
+
+    return { entry: queueEntry, appt: db.agendaEntries[agendaIndex] };
+  });
+
+  if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
+  return res.status(201).json(result);
 });
 
 export default router;

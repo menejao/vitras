@@ -252,6 +252,10 @@ export async function createQueueEntry(token, payload) {
   return api("/queue", { method: "POST", body: JSON.stringify(payload) }, token);
 }
 
+export async function darEntradaAgenda(token, agendaId, payload) {
+  return api(`/agenda/${agendaId}/dar-entrada`, { method: "POST", body: JSON.stringify(payload) }, token);
+}
+
 export async function updateQueueEntry(token, id, payload) {
   return api(`/queue/${id}`, { method: "PATCH", body: JSON.stringify(payload) }, token);
 }

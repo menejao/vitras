@@ -32,17 +32,21 @@ function buildQueueSnapshot(entry) {
   };
 }
 
+const ACTIVE_Q_STATUSES = ["waiting", "triage", "ready", "attending", "aguardando_triagem", "liberado", "chamado", "em_atendimento"];
+const TERMINAL_Q_STATUSES = ["done", "atendido", "faltou", "cancelado"];
+
 function normalizeQueueStatus(value) {
   const raw = String(value || "").trim().toLowerCase();
-  if (["waiting", "triage", "ready", "attending", "done"].includes(raw)) return raw;
+  const valid = [...ACTIVE_Q_STATUSES, ...TERMINAL_Q_STATUSES];
+  if (valid.includes(raw)) return raw;
   return "waiting";
 }
 
 function sortQueue(entries = []) {
   const priorityOrder = { urgent: 0, elderly: 1, pregnant: 2, child: 3, normal: 4 };
   return [...entries].sort((a, b) => {
-    const aDone = String(a.status || "") === "done";
-    const bDone = String(b.status || "") === "done";
+    const aDone = TERMINAL_Q_STATUSES.includes(String(a.status || ""));
+    const bDone = TERMINAL_Q_STATUSES.includes(String(b.status || ""));
     if (aDone && !bDone) return 1;
     if (bDone && !aDone) return -1;
     const pa = priorityOrder[String(a.priority || "normal")] ?? 4;
@@ -88,13 +92,14 @@ router.post("/queue", validate(QueueCreateSchema), async (req, res) => {
     }
     const duplicate = db.queueEntries.find((item) =>
       item.patientId === patient.id &&
-      ["waiting", "triage", "ready", "attending"].includes(String(item.status || ""))
+      ACTIVE_Q_STATUSES.includes(String(item.status || ""))
     );
     if (duplicate) {
       return { error: { status: 409, message: "Paciente já está na fila ativa" } };
     }
 
     const now = new Date().toISOString();
+    const initialStatus = payload.needsTriage === false ? "liberado" : "aguardando_triagem";
     const entry = {
       id: uuidv4(),
       patientId: patient.id,
@@ -104,8 +109,10 @@ router.post("/queue", validate(QueueCreateSchema), async (req, res) => {
       reason: String(payload.reason || "").trim(),
       demandType: normalizeDemandType(payload.demandType),
       destination: payload.destination ? String(payload.destination) : null,
+      specialty: String(payload.specialty || "").trim(),
       agendaRef: String(payload.agendaRef || "").trim(),
-      status: "waiting",
+      needsTriage: payload.needsTriage !== false,
+      status: initialStatus,
       arrivedAt: now,
       createdAt: now,
       createdBy: req.user.id,
@@ -233,7 +240,7 @@ router.post("/queue/clear-done", async (req, res) => {
     const now = new Date().toISOString();
     let clearedCount = 0;
     db.queueEntries = db.queueEntries.map((entry) => {
-      if (String(entry.teamId || "") === teamId && String(entry.status || "") === "done") {
+      if (String(entry.teamId || "") === teamId && TERMINAL_Q_STATUSES.includes(String(entry.status || ""))) {
         clearedCount += 1;
         return { ...entry, status: "cleared", clearedAt: now, clearedById: req.user.id };
       }
