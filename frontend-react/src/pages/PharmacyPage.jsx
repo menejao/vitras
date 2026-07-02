@@ -311,7 +311,7 @@ function PharmacyPage({
   onAdjustStockItem,
   onDispense,
 }) {
-  const [pharmaTab, setPharmaTab] = useState("stock");
+  const [pharmaTab, setPharmaTab] = useState("prescricoes");
   const [prescriptions, setPrescriptions] = useState([]);
   const [rxSearch, setRxSearch] = useState("");
   const [rxLoading, setRxLoading] = useState(false);
@@ -327,6 +327,20 @@ function PharmacyPage({
   const [dispSubmitting, setDispSubmitting] = useState(false);
   const [dispError, setDispError] = useState("");
   const [dispSuccess, setDispSuccess] = useState("");
+
+  // External dispensation state
+  const [extItemId, setExtItemId] = useState("");
+  const [extQty, setExtQty] = useState(1);
+  const [extPrescritorNome, setExtPrescritorNome] = useState("");
+  const [extCrm, setExtCrm] = useState("");
+  const [extUf, setExtUf] = useState("");
+  const [extNumReceita, setExtNumReceita] = useState("");
+  const [extDtReceita, setExtDtReceita] = useState("");
+  const [extPatientName, setExtPatientName] = useState("");
+  const [extObs, setExtObs] = useState("");
+  const [extBusy, setExtBusy] = useState(false);
+  const [extError, setExtError] = useState("");
+  const [extSuccess, setExtSuccess] = useState("");
 
   async function loadReceitasForPatient(patientId) {
     if (!token || !patientId) return;
@@ -391,14 +405,6 @@ function PharmacyPage({
     }
   }
 
-  useEffect(() => {
-    if (pharmaTab !== "prescriptions" || !token) return;
-    setRxLoading(true);
-    fetchPrescriptions(token)
-      .then(r => setPrescriptions(r?.prescriptions || []))
-      .catch(() => {})
-      .finally(() => setRxLoading(false));
-  }, [pharmaTab, token]);
   const [catFilter, setCatFilter] = useState("Todas");
   const [search, setSearch] = useState("");
   const [showLowOnly, setShowLowOnly] = useState(false);
@@ -460,6 +466,42 @@ function PharmacyPage({
     await onDispense?.(payload);
   }
 
+  async function submitExtDispensacao() {
+    setExtError("");
+    setExtSuccess("");
+    if (!extItemId) return setExtError("Selecione o medicamento.");
+    if (Number(extQty) <= 0) return setExtError("Quantidade deve ser maior que zero.");
+    if (!extPrescritorNome.trim()) return setExtError("Nome do prescritor é obrigatório.");
+    if (!extNumReceita.trim()) return setExtError("Número da receita é obrigatório.");
+    if (!extDtReceita) return setExtError("Data da receita é obrigatória.");
+    const item = stock.find(s => s.id === extItemId);
+    if (!item) return setExtError("Medicamento não encontrado.");
+    if (Number(extQty) > Number(item.qty || 0)) return setExtError("Quantidade maior que o estoque disponível.");
+    setExtBusy(true);
+    try {
+      await onDispense?.({
+        itemId: extItemId,
+        qty: Number(extQty),
+        patient: extPatientName.trim() || "Dispensação externa",
+        patientId: "",
+        prescriber: extPrescritorNome.trim(),
+        prescriberId: "",
+        prescriberCouncil: extCrm ? `CRM ${extCrm}/${extUf}`.trim() : "",
+        numReceita: extNumReceita.trim(),
+        dtReceita: extDtReceita,
+        lote: "",
+        notes: extObs.trim(),
+      });
+      setExtSuccess("Dispensação registrada com sucesso.");
+      setExtItemId(""); setExtQty(1); setExtPrescritorNome(""); setExtCrm(""); setExtUf("");
+      setExtNumReceita(""); setExtDtReceita(""); setExtPatientName(""); setExtObs("");
+    } catch (e) {
+      setExtError(e?.message || "Erro ao registrar dispensação.");
+    } finally {
+      setExtBusy(false);
+    }
+  }
+
   async function handleStockConfirm(payload) {
     if (payload.mode === "add") {
       await onCreateStockItem?.(payload.form);
@@ -513,10 +555,10 @@ function PharmacyPage({
 
       <div className="pharma-tabs-bar">
         <Tabs>
+          <Tab active={pharmaTab === "prescricoes"} onClick={() => setPharmaTab("prescricoes")}>Prescrições</Tab>
+          {canWrite && <Tab active={pharmaTab === "dispensacao_externa"} onClick={() => setPharmaTab("dispensacao_externa")}>Dispensação Externa</Tab>}
           <Tab active={pharmaTab === "stock"} onClick={() => setPharmaTab("stock")}>Estoque</Tab>
-          <Tab active={pharmaTab === "log"} onClick={() => setPharmaTab("log")}>Log de Movimentações</Tab>
-          <Tab active={pharmaTab === "prescriptions"} onClick={() => setPharmaTab("prescriptions")}>Prescrições</Tab>
-          {canWrite && <Tab active={pharmaTab === "dispensacao"} onClick={() => setPharmaTab("dispensacao")}>Dispensação</Tab>}
+          <Tab active={pharmaTab === "movimentacoes"} onClick={() => setPharmaTab("movimentacoes")}>Movimentações</Tab>
         </Tabs>
       </div>
 
@@ -575,7 +617,6 @@ function PharmacyPage({
                         {canUseWriteFlow ? (
                           <td style={{ textAlign: "center" }}>
                             <div style={{ display: "flex", gap: "var(--s-1)", justifyContent: "center" }}>
-                              <Button size="sm" onClick={() => setDispenseItem(item)} disabled={Number(item.qty || 0) === 0}>Dispensar</Button>
                               <Button variant="ghost" size="sm" onClick={() => setEditItem({ item, mode: "entrada" })}>+ Entrada</Button>
                               <Button variant="ghost" size="sm" onClick={() => setEditItem({ item, mode: "adjust" })}>± Ajustar</Button>
                               <Button variant="ghost" size="sm" onClick={() => setEditItem({ item, mode: "edit" })}>Editar</Button>
@@ -598,7 +639,7 @@ function PharmacyPage({
             )}
           </div>
         )}
-        {pharmaTab === "log" && (
+        {pharmaTab === "movimentacoes" && (
           <>
             <div className="pharma-anvisa-notice">
               <span>
@@ -676,7 +717,7 @@ function PharmacyPage({
             </div>
           </>
         )}
-        {pharmaTab === "dispensacao" && (
+        {pharmaTab === "prescricoes" && (
           <div className="card" style={{ padding: "var(--space-5, 1.25rem)" }}>
             <div style={{ marginBottom: "var(--space-4, 1rem)" }}>
               <strong>1. Buscar paciente</strong>
@@ -800,56 +841,65 @@ function PharmacyPage({
           </div>
         )}
 
-        {pharmaTab === "prescriptions" && (
-          <div className="card card--noPad overflow-hidden">
-            <div className="pharma-toolbar">
-              <div className="pharma-search">
-                <Input value={rxSearch} onChange={e => setRxSearch(e.target.value)} placeholder="Buscar paciente ou medicamento..." />
+        {pharmaTab === "dispensacao_externa" && canWrite && (
+          <div className="card" style={{ padding: "var(--space-5, 1.25rem)", maxWidth: 600 }}>
+            <p style={{ fontSize: "var(--t-sm)", color: "var(--text-2)", marginBottom: 16 }}>
+              Use este fluxo para dispensar medicamentos com prescrição de profissional externo à unidade.
+            </p>
+            {extError && <div className="error-banner" style={{ marginBottom: 12 }}>{extError}</div>}
+            {extSuccess && <div style={{ background: "var(--success-bg, #ecfdf5)", color: "var(--success, #059669)", border: "1px solid var(--success, #059669)", borderRadius: 8, padding: "8px 12px", marginBottom: 12 }}>{extSuccess}</div>}
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <div>
+                <label className="field-label">Medicamento *</label>
+                <Select value={extItemId} onChange={e => setExtItemId(e.target.value)}>
+                  <option value="">Selecione o medicamento...</option>
+                  {stock.filter(s => Number(s.qty || 0) > 0).map(s => (
+                    <option key={s.id} value={s.id}>{s.name} ({s.qty} {s.unit})</option>
+                  ))}
+                </Select>
+              </div>
+              <div>
+                <label className="field-label">Quantidade *</label>
+                <Input type="number" min={1} value={extQty} onChange={e => setExtQty(e.target.value)} style={{ maxWidth: 120 }} />
+              </div>
+              <div>
+                <label className="field-label">Nome do paciente</label>
+                <Input value={extPatientName} onChange={e => setExtPatientName(e.target.value)} placeholder="Opcional" />
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 120px 80px", gap: 10 }}>
+                <div>
+                  <label className="field-label">Prescritor *</label>
+                  <Input value={extPrescritorNome} onChange={e => setExtPrescritorNome(e.target.value)} placeholder="Nome completo" />
+                </div>
+                <div>
+                  <label className="field-label">CRM</label>
+                  <Input value={extCrm} onChange={e => setExtCrm(e.target.value)} placeholder="000000" />
+                </div>
+                <div>
+                  <label className="field-label">UF</label>
+                  <Input value={extUf} onChange={e => setExtUf(e.target.value)} placeholder="SP" maxLength={2} />
+                </div>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                <div>
+                  <label className="field-label">Número da receita *</label>
+                  <Input value={extNumReceita} onChange={e => setExtNumReceita(e.target.value)} placeholder="Ex: 12345" />
+                </div>
+                <div>
+                  <label className="field-label">Data da receita *</label>
+                  <Input type="date" value={extDtReceita} onChange={e => setExtDtReceita(e.target.value)} />
+                </div>
+              </div>
+              <div>
+                <label className="field-label">Observações</label>
+                <Input value={extObs} onChange={e => setExtObs(e.target.value)} placeholder="Opcional" />
+              </div>
+              <div>
+                <Button variant="primary" size="sm" onClick={submitExtDispensacao} disabled={extBusy}>
+                  {extBusy ? "Registrando..." : "Registrar Dispensação Externa"}
+                </Button>
               </div>
             </div>
-              <table className="patients-table" style={{ width: "100%" }}>
-                <thead>
-                  <tr>
-                    <th>Paciente</th>
-                    <th>Medicamentos</th>
-                    <th>Profissional</th>
-                    <th>Data</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rxLoading ? (
-                    <tr><td colSpan={5} style={{ textAlign: "center", padding: "2rem", color: "var(--text-2)" }}>Carregando prescrições...</td></tr>
-                  ) : prescriptions.filter(rx => {
-                    if (!rxSearch) return true;
-                    const q = rxSearch.toLowerCase();
-                    return String(rx.patientName || "").toLowerCase().includes(q) || String(rx.title || "").toLowerCase().includes(q);
-                  }).length === 0 ? (
-                    <tr><td colSpan={5} style={{ textAlign: "center", padding: "2rem", color: "var(--text-2)" }}>Nenhuma prescrição encontrada.</td></tr>
-                  ) : prescriptions.filter(rx => {
-                    if (!rxSearch) return true;
-                    const q = rxSearch.toLowerCase();
-                    return String(rx.patientName || "").toLowerCase().includes(q) || String(rx.title || "").toLowerCase().includes(q);
-                  }).map(rx => (
-                    <tr key={rx.id}>
-                      <td><strong>{rx.patientName}</strong></td>
-                      <td className="small" style={{ maxWidth: 260, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{String(rx.title || "").replace(/^Prescricao:\s*/i, "")}</td>
-                      <td className="muted small">{rx.professionalName || "—"}</td>
-                      <td className="muted small">{rx.date ? new Date(rx.date + "T12:00:00").toLocaleDateString("pt-BR") : "—"}</td>
-                      <td>
-                        <Button size="sm" variant="ghost" onClick={() => printPrescription({
-                          patient: { name: rx.patientName, id: rx.patientId },
-                          medications: String(rx.title || "").replace(/^Prescricao:\s*/i, "").split(", ").map(n => ({ name: n })),
-                          professional: { name: rx.professionalName, councilNumber: rx.professionalCouncil },
-                        })}>
-                          <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><rect x="3" y="9" width="10" height="6" rx="1" stroke="currentColor" strokeWidth="1.3"/><path d="M3 9V5a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v4" stroke="currentColor" strokeWidth="1.3"/><path d="M5 4V2h6v2" stroke="currentColor" strokeWidth="1.3"/><circle cx="12" cy="7" r=".75" fill="currentColor"/></svg>
-                          Imprimir
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
           </div>
         )}
       </div>

@@ -117,7 +117,7 @@ router.post("/dental/stock/:id/adjust", validate(DentalAdjustSchema), (req, res)
 
     const logEntry = {
       id: uuidv4(),
-      type: "adjustment",
+      type: req.body.operationType || "ajuste",
       itemId: item.id,
       teamId: item.teamId,
       delta: req.body.delta,

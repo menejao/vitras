@@ -156,6 +156,70 @@ function normalizeLookupText(value) {
     .trim();
 }
 
+/* ── Catalog seed ── */
+
+const CATALOG_SEED = [
+  // Farmácia
+  { code: "MED-0001", name: "Paracetamol 500mg", domain: "pharmacy", category: "Analgésico", unit: "comprimido", allowedUnits: ["comprimido", "cápsula"], controlsLote: false, controlsValidade: true, minQty: 100 },
+  { code: "MED-0002", name: "Dipirona Sódica 500mg", domain: "pharmacy", category: "Analgésico", unit: "comprimido", allowedUnits: ["comprimido"], controlsLote: false, controlsValidade: true, minQty: 100 },
+  { code: "MED-0003", name: "Ibuprofeno 600mg", domain: "pharmacy", category: "Anti-inflamatório", unit: "comprimido", allowedUnits: ["comprimido"], controlsLote: false, controlsValidade: true, minQty: 50 },
+  { code: "MED-0004", name: "Amoxicilina 500mg", domain: "pharmacy", category: "Antibiótico", unit: "cápsula", allowedUnits: ["cápsula", "comprimido"], controlsLote: false, controlsValidade: true, minQty: 50 },
+  { code: "MED-0005", name: "Azitromicina 500mg", domain: "pharmacy", category: "Antibiótico", unit: "comprimido", allowedUnits: ["comprimido"], controlsLote: false, controlsValidade: true, minQty: 30 },
+  { code: "MED-0006", name: "Enalapril 10mg", domain: "pharmacy", category: "Cardiovascular", unit: "comprimido", allowedUnits: ["comprimido"], controlsLote: false, controlsValidade: true, minQty: 100 },
+  { code: "MED-0007", name: "Losartana Potássica 50mg", domain: "pharmacy", category: "Cardiovascular", unit: "comprimido", allowedUnits: ["comprimido"], controlsLote: false, controlsValidade: true, minQty: 100 },
+  { code: "MED-0008", name: "Metformina 850mg", domain: "pharmacy", category: "Diabetes", unit: "comprimido", allowedUnits: ["comprimido"], controlsLote: false, controlsValidade: true, minQty: 100 },
+  { code: "MED-0009", name: "Insulina NPH 100UI/mL", domain: "pharmacy", category: "Diabetes", unit: "frasco", allowedUnits: ["frasco"], controlsLote: true, controlsValidade: true, minQty: 10 },
+  { code: "MED-0010", name: "Fluoxetina 20mg", domain: "pharmacy", category: "Saúde Mental", unit: "comprimido", allowedUnits: ["comprimido", "cápsula"], controlsLote: false, controlsValidade: true, minQty: 50 },
+  { code: "MED-0011", name: "Salbutamol 100mcg Spray", domain: "pharmacy", category: "Respiratório", unit: "frasco", allowedUnits: ["frasco"], controlsLote: true, controlsValidade: true, minQty: 10 },
+  { code: "MED-0012", name: "Sulfato Ferroso 40mg", domain: "pharmacy", category: "Gestante", unit: "comprimido", allowedUnits: ["comprimido"], controlsLote: false, controlsValidade: true, minQty: 50 },
+  { code: "MED-0013", name: "Ácido Fólico 5mg", domain: "pharmacy", category: "Gestante", unit: "comprimido", allowedUnits: ["comprimido"], controlsLote: false, controlsValidade: true, minQty: 50 },
+  { code: "MED-0014", name: "Omeprazol 20mg", domain: "pharmacy", category: "Gastrointestinal", unit: "cápsula", allowedUnits: ["cápsula"], controlsLote: false, controlsValidade: true, minQty: 50 },
+  { code: "MED-0015", name: "Soro Fisiológico 0,9% 500mL", domain: "pharmacy", category: "Soro", unit: "bolsa", allowedUnits: ["bolsa", "frasco"], controlsLote: true, controlsValidade: true, minQty: 20 },
+  { code: "MED-0016", name: "Captopril 25mg", domain: "pharmacy", category: "Cardiovascular", unit: "comprimido", allowedUnits: ["comprimido"], controlsLote: false, controlsValidade: true, minQty: 50 },
+  { code: "MED-0017", name: "Atenolol 50mg", domain: "pharmacy", category: "Cardiovascular", unit: "comprimido", allowedUnits: ["comprimido"], controlsLote: false, controlsValidade: true, minQty: 50 },
+  { code: "MED-0018", name: "Sinvastatina 20mg", domain: "pharmacy", category: "Cardiovascular", unit: "comprimido", allowedUnits: ["comprimido"], controlsLote: false, controlsValidade: true, minQty: 50 },
+  { code: "MED-0019", name: "Hidroclorotiazida 25mg", domain: "pharmacy", category: "Cardiovascular", unit: "comprimido", allowedUnits: ["comprimido"], controlsLote: false, controlsValidade: true, minQty: 50 },
+  { code: "MED-0020", name: "Dexametasona 4mg", domain: "pharmacy", category: "Corticoide", unit: "ampola", allowedUnits: ["ampola", "comprimido"], controlsLote: true, controlsValidade: true, minQty: 20 },
+  // Enfermagem
+  { code: "ENF-0001", name: "Atadura de Crepe 6cm", domain: "nursing", category: "Curativo", unit: "unidade", allowedUnits: ["unidade", "caixa"], controlsLote: false, controlsValidade: false, minQty: 10 },
+  { code: "ENF-0002", name: "Atadura de Crepe 10cm", domain: "nursing", category: "Curativo", unit: "unidade", allowedUnits: ["unidade", "caixa"], controlsLote: false, controlsValidade: false, minQty: 10 },
+  { code: "ENF-0003", name: "Atadura de Crepe 15cm", domain: "nursing", category: "Curativo", unit: "unidade", allowedUnits: ["unidade", "caixa"], controlsLote: false, controlsValidade: false, minQty: 10 },
+  { code: "ENF-0004", name: "Compressa de Gaze", domain: "nursing", category: "Curativo", unit: "unidade", allowedUnits: ["unidade", "caixa", "pacote"], controlsLote: false, controlsValidade: true, minQty: 50 },
+  { code: "ENF-0005", name: "Clorexidina Degermante", domain: "nursing", category: "Antisséptico", unit: "frasco", allowedUnits: ["frasco"], controlsLote: true, controlsValidade: true, minQty: 2 },
+  { code: "ENF-0006", name: "Luva de Procedimento P", domain: "nursing", category: "EPI", unit: "caixa", allowedUnits: ["caixa", "par"], controlsLote: false, controlsValidade: true, minQty: 1 },
+  { code: "ENF-0007", name: "Luva de Procedimento M", domain: "nursing", category: "EPI", unit: "caixa", allowedUnits: ["caixa", "par"], controlsLote: false, controlsValidade: true, minQty: 1 },
+  { code: "ENF-0008", name: "Luva de Procedimento G", domain: "nursing", category: "EPI", unit: "caixa", allowedUnits: ["caixa", "par"], controlsLote: false, controlsValidade: true, minQty: 1 },
+  { code: "ENF-0009", name: "Seringa 20mL", domain: "nursing", category: "Seringa", unit: "unidade", allowedUnits: ["unidade", "caixa"], controlsLote: false, controlsValidade: true, minQty: 20 },
+  { code: "ENF-0010", name: "Seringa 60mL", domain: "nursing", category: "Seringa", unit: "unidade", allowedUnits: ["unidade", "caixa"], controlsLote: false, controlsValidade: true, minQty: 10 },
+  { code: "ENF-0011", name: "Micropore Pequeno", domain: "nursing", category: "Curativo", unit: "rolo", allowedUnits: ["rolo"], controlsLote: false, controlsValidade: false, minQty: 2 },
+  { code: "ENF-0012", name: "Esparadrapo Impermeável P", domain: "nursing", category: "Curativo", unit: "rolo", allowedUnits: ["rolo"], controlsLote: false, controlsValidade: false, minQty: 2 },
+  { code: "ENF-0013", name: "Tiras Reagentes Hemoanálise cx 50", domain: "nursing", category: "Diabetes", unit: "caixa", allowedUnits: ["caixa"], controlsLote: true, controlsValidade: true, minQty: 2 },
+  { code: "ENF-0014", name: "Agulha para Caneta de Insulina", domain: "nursing", category: "Diabetes", unit: "unidade", allowedUnits: ["unidade", "caixa"], controlsLote: false, controlsValidade: true, minQty: 30 },
+  { code: "ENF-0015", name: "Cloreto de Sódio 0,9% 500mL Curativo", domain: "nursing", category: "Soro/Curativo", unit: "frasco", allowedUnits: ["frasco"], controlsLote: true, controlsValidade: true, minQty: 5 },
+  // Odontologia
+  { code: "ODONT-0001", name: "Luva de Látex Tamanho M", domain: "dental", category: "EPI", unit: "par", allowedUnits: ["par", "caixa"], controlsLote: false, controlsValidade: true, minQty: 100 },
+  { code: "ODONT-0002", name: "Máscara Cirúrgica", domain: "dental", category: "EPI", unit: "unidade", allowedUnits: ["unidade", "caixa"], controlsLote: false, controlsValidade: true, minQty: 200 },
+  { code: "ODONT-0003", name: "Gorro Descartável", domain: "dental", category: "EPI", unit: "unidade", allowedUnits: ["unidade", "pacote"], controlsLote: false, controlsValidade: false, minQty: 100 },
+  { code: "ODONT-0004", name: "Babador Descartável", domain: "dental", category: "Descartável", unit: "unidade", allowedUnits: ["unidade", "pacote"], controlsLote: false, controlsValidade: false, minQty: 100 },
+  { code: "ODONT-0005", name: "Seringa Carpule", domain: "dental", category: "Anestesia", unit: "unidade", allowedUnits: ["unidade"], controlsLote: false, controlsValidade: false, minQty: 50 },
+  { code: "ODONT-0006", name: "Agulha Curta Descartável", domain: "dental", category: "Anestesia", unit: "unidade", allowedUnits: ["unidade", "caixa"], controlsLote: false, controlsValidade: true, minQty: 50 },
+  { code: "ODONT-0007", name: "Lidocaína 2% com Vasoconstritor", domain: "dental", category: "Anestesia", unit: "tubete", allowedUnits: ["tubete", "caixa"], controlsLote: true, controlsValidade: true, minQty: 20 },
+  { code: "ODONT-0008", name: "Broca Alta Rotação Carbide", domain: "dental", category: "Instrumental", unit: "unidade", allowedUnits: ["unidade"], controlsLote: false, controlsValidade: false, minQty: 5 },
+  { code: "ODONT-0009", name: "Resina Composta A2", domain: "dental", category: "Restauração", unit: "seringa", allowedUnits: ["seringa"], controlsLote: true, controlsValidade: true, minQty: 3 },
+  { code: "ODONT-0010", name: "Ácido Fosfórico 37%", domain: "dental", category: "Restauração", unit: "bisnaga", allowedUnits: ["bisnaga"], controlsLote: true, controlsValidade: true, minQty: 2 },
+  { code: "ODONT-0011", name: "Cimento de Ionômero de Vidro", domain: "dental", category: "Restauração", unit: "kit", allowedUnits: ["kit"], controlsLote: true, controlsValidade: true, minQty: 1 },
+  { code: "ODONT-0012", name: "Algodão em Rolo", domain: "dental", category: "Descartável", unit: "pacote", allowedUnits: ["pacote"], controlsLote: false, controlsValidade: false, minQty: 5 },
+  { code: "ODONT-0013", name: "Fio Dental", domain: "dental", category: "Higiene", unit: "rolo", allowedUnits: ["rolo", "caixa"], controlsLote: false, controlsValidade: false, minQty: 10 },
+  { code: "ODONT-0014", name: "Gaze Estéril", domain: "dental", category: "Descartável", unit: "pacote", allowedUnits: ["pacote"], controlsLote: false, controlsValidade: true, minQty: 5 },
+  { code: "ODONT-0015", name: "Sugador Descartável", domain: "dental", category: "Descartável", unit: "unidade", allowedUnits: ["unidade", "pacote"], controlsLote: false, controlsValidade: false, minQty: 50 },
+];
+
+function seedCatalog(db) {
+  for (const item of CATALOG_SEED) {
+    db.catalogItems.push({ ...item, active: true, obs: "" });
+  }
+}
+
 /* ── DB shape enforcement ── */
 
 function ensureDbShape(db) {
@@ -187,6 +251,8 @@ function ensureDbShape(db) {
   ensureArray(db, "dentalStock");
   ensureArray(db, "dentalLogs");
   ensureArray(db, "almoxRequisicoes");
+  ensureArray(db, "catalogItems");
+  if (!db.catalogItems.length) seedCatalog(db);
   ensureArray(db, "exams");
   ensureArray(db, "appointments");
   ensureArray(db, "tasks");

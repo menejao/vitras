@@ -580,6 +580,7 @@ const DentalAdjustSchema = z.object({
   lote: optionalShortString(120),
   validade: optionalShortString(50),
   obs: optionalShortString(2000),
+  operationType: z.enum(["entrada", "saida", "ajuste", "inventario"]).optional(),
 });
 
 const DentalDispenseSchema = z.object({
