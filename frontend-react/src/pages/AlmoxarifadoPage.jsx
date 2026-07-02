@@ -291,79 +291,108 @@ export default function AlmoxarifadoPage({ user, token }) {
   ) : null;
 
   return (
-    <div>
+    <div className="almoxarifado-page">
       <PageHeader
+        eyebrow="ALMOXARIFADO"
         title="Almoxarifado"
         subtitle="Requisições internas e recebimento de materiais"
         actions={heroActions}
       />
 
-      {error && <div className="error-banner" style={{ marginBottom: 16 }}>{error}</div>}
-
-      <Tabs>
-        <Tab active={tab === "requisicoes"} onClick={() => setTab("requisicoes")}>Requisições</Tab>
-        <Tab active={tab === "recebimentos"} onClick={() => setTab("recebimentos")}>Recebimentos</Tab>
-        <Tab active={tab === "historico"} onClick={() => setTab("historico")}>Histórico</Tab>
-      </Tabs>
-
-      {tab === "requisicoes" && (
-        <div style={{ marginTop: 16 }}>
-          {loading ? (
-            <div style={{ padding: "2rem", textAlign: "center", color: "var(--text-2)" }}>Carregando...</div>
-          ) : requisicoes.filter(r => r.status === "rascunho" || r.status === "enviada" || r.status === "recebimento_parcial").length === 0 ? (
-            <div className="card" style={{ padding: "2.5rem", textAlign: "center", color: "var(--text-2)" }}>
-              <div style={{ fontWeight: 600, marginBottom: 4 }}>Nenhuma requisição em aberto</div>
-              {canWrite && <div style={{ fontSize: "var(--t-sm)" }}>Use o botão &quot;+ Nova Requisição&quot; para criar.</div>}
-            </div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {requisicoes
-                .filter(r => r.status === "rascunho" || r.status === "enviada" || r.status === "recebimento_parcial")
-                .map(r => <RequisicaoCard key={r.id} r={r} canWrite={canWrite} onEnviar={enviarRequisicao} onReceive={openReceive} />)}
-            </div>
-          )}
+      {error && (
+        <div className="almox-error">
+          <span>{error}</span>
+          <Button size="sm" variant="ghost" onClick={loadRequisicoes}>Tentar novamente</Button>
         </div>
       )}
 
-      {tab === "recebimentos" && (
-        <div style={{ marginTop: 16 }}>
-          {loading ? (
-            <div style={{ padding: "2rem", textAlign: "center", color: "var(--text-2)" }}>Carregando...</div>
-          ) : pendentes.length === 0 ? (
-            <div className="card" style={{ padding: "2.5rem", textAlign: "center", color: "var(--text-2)" }}>
-              Nenhuma requisição aguardando recebimento.
-            </div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {pendentes.map(r => <RequisicaoCard key={r.id} r={r} canWrite={canWrite} onEnviar={enviarRequisicao} onReceive={openReceive} showReceive />)}
-            </div>
-          )}
-        </div>
-      )}
+      <div className="almox-tabs-bar">
+        <Tabs>
+          <Tab active={tab === "requisicoes"} onClick={() => setTab("requisicoes")}>Requisições</Tab>
+          <Tab active={tab === "recebimentos"} onClick={() => setTab("recebimentos")}>Recebimentos</Tab>
+          <Tab active={tab === "historico"} onClick={() => setTab("historico")}>Histórico</Tab>
+        </Tabs>
+      </div>
 
-      {tab === "historico" && (
-        <div style={{ marginTop: 16 }}>
-          {loading ? (
-            <div style={{ padding: "2rem", textAlign: "center", color: "var(--text-2)" }}>Carregando...</div>
-          ) : historico.length === 0 ? (
-            <div className="card" style={{ padding: "2.5rem", textAlign: "center", color: "var(--text-2)" }}>
-              Nenhum registro no histórico.
-            </div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {historico.map(r => <RequisicaoCard key={r.id} r={r} canWrite={false} onEnviar={() => {}} onReceive={() => {}} />)}
-            </div>
-          )}
-        </div>
-      )}
+      <div className="almox-body">
+        {tab === "requisicoes" && (
+          <>
+            {loading ? (
+              <div style={{ padding: "2rem", textAlign: "center", color: "var(--text-2)" }}>Carregando...</div>
+            ) : requisicoes.filter(r => r.status === "rascunho" || r.status === "enviada" || r.status === "recebimento_parcial").length === 0 ? (
+              <div className="empty">
+                <div className="empty__icon empty__icon--neutral">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/>
+                    <rect x="9" y="3" width="6" height="4" rx="1"/>
+                    <line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/>
+                  </svg>
+                </div>
+                <h3 className="empty__title">Nenhuma requisição em aberto</h3>
+                <p className="empty__desc">Crie uma nova requisição para solicitar materiais ao almoxarifado.</p>
+                {canWrite && <Button onClick={openModal}>+ Nova Requisição</Button>}
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {requisicoes
+                  .filter(r => r.status === "rascunho" || r.status === "enviada" || r.status === "recebimento_parcial")
+                  .map(r => <RequisicaoCard key={r.id} r={r} canWrite={canWrite} onEnviar={enviarRequisicao} onReceive={openReceive} />)}
+              </div>
+            )}
+          </>
+        )}
+
+        {tab === "recebimentos" && (
+          <>
+            {loading ? (
+              <div style={{ padding: "2rem", textAlign: "center", color: "var(--text-2)" }}>Carregando...</div>
+            ) : pendentes.length === 0 ? (
+              <div className="empty">
+                <div className="empty__icon empty__icon--neutral">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg>
+                </div>
+                <h3 className="empty__title">Nenhum recebimento pendente</h3>
+                <p className="empty__desc">Requisições enviadas aguardando conferência aparecerão aqui.</p>
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {pendentes.map(r => <RequisicaoCard key={r.id} r={r} canWrite={canWrite} onEnviar={enviarRequisicao} onReceive={openReceive} showReceive />)}
+              </div>
+            )}
+          </>
+        )}
+
+        {tab === "historico" && (
+          <>
+            {loading ? (
+              <div style={{ padding: "2rem", textAlign: "center", color: "var(--text-2)" }}>Carregando...</div>
+            ) : historico.length === 0 ? (
+              <div className="empty">
+                <div className="empty__icon empty__icon--neutral">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                  </svg>
+                </div>
+                <h3 className="empty__title">Histórico vazio</h3>
+                <p className="empty__desc">Requisições recebidas ou canceladas aparecerão aqui.</p>
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {historico.map(r => <RequisicaoCard key={r.id} r={r} canWrite={false} onEnviar={() => {}} onReceive={() => {}} />)}
+              </div>
+            )}
+          </>
+        )}
+      </div>
 
       {/* Modal Nova Requisição */}
       {showModal && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div
-            className="modal-box"
+            className="modal-box almox-modal--wide"
             onClick={e => e.stopPropagation()}
-            style={{ width: "min(700px, 92vw)", maxHeight: "90vh", display: "flex", flexDirection: "column" }}
           >
             <div className="modal-header">
               <span className="modal-title">Nova Requisição ao Almoxarifado</span>

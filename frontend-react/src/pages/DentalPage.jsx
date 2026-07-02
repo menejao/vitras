@@ -2,10 +2,13 @@ import { useEffect, useState } from "react";
 import PageHeader from "../components/layout/PageHeader";
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
+import Select from "../components/ui/Select";
 import { Tabs, Tab } from "../components/ui/Tabs";
 import KPI from "../components/ui/KPI";
 
 const API = () => import.meta.env.VITE_API_URL || "";
+
+const UNIT_OPTIONS = ["unidade", "caixa", "pacote", "frasco", "ampola", "rolo", "par", "kit", "envelope", "tubo", "seringa"];
 
 async function apiFetch(path, token, opts = {}) {
   const r = await fetch(`${API()}${path}`, {
@@ -32,6 +35,15 @@ const OP_TYPE_LABEL = {
   adjustment: "Ajuste",
 };
 
+function IconBox() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+      <polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>
+    </svg>
+  );
+}
+
 export default function DentalPage({ user, token }) {
   const canWrite = Boolean(user?.capabilities?.includes("dental.write"));
   const [tab, setTab] = useState("estoque");
@@ -41,7 +53,10 @@ export default function DentalPage({ user, token }) {
   const [error, setError] = useState("");
 
   const [showNew, setShowNew] = useState(false);
-  const [newForm, setNewForm] = useState({ name: "", category: "", unit: "unidade", qty: 0, minQty: 0, notes: "" });
+  const [newForm, setNewForm] = useState({
+    codigo: "", name: "", category: "", unit: "unidade",
+    qty: 0, minQty: 0, localizacao: "", lote: "", validade: "", notes: "",
+  });
   const [newBusy, setNewBusy] = useState(false);
   const [newError, setNewError] = useState("");
 
@@ -62,7 +77,7 @@ export default function DentalPage({ user, token }) {
       setStock(s.data || []);
       setLogs(l.data || []);
     } catch {
-      setError("Não foi possível carregar os dados. Tente novamente.");
+      setError("Não foi possível carregar os dados.");
     } finally {
       setLoading(false);
     }
@@ -81,14 +96,20 @@ export default function DentalPage({ user, token }) {
         body: JSON.stringify({
           name: newForm.name.trim(),
           category: newForm.category.trim(),
-          unit: newForm.unit.trim() || "unidade",
+          unit: newForm.unit || "unidade",
           qty: Number(newForm.qty) || 0,
           minQty: Number(newForm.minQty) || 0,
-          notes: newForm.notes || undefined,
+          notes: [
+            newForm.codigo ? `Código: ${newForm.codigo.trim()}` : "",
+            newForm.localizacao ? `Local: ${newForm.localizacao.trim()}` : "",
+            newForm.lote ? `Lote: ${newForm.lote.trim()}` : "",
+            newForm.validade ? `Validade: ${newForm.validade.trim()}` : "",
+            newForm.notes.trim(),
+          ].filter(Boolean).join(" · ") || undefined,
         }),
       });
       setShowNew(false);
-      setNewForm({ name: "", category: "", unit: "unidade", qty: 0, minQty: 0, notes: "" });
+      setNewForm({ codigo: "", name: "", category: "", unit: "unidade", qty: 0, minQty: 0, localizacao: "", lote: "", validade: "", notes: "" });
       await loadAll();
     } catch {
       setNewError("Não foi possível criar o insumo. Tente novamente.");
@@ -153,172 +174,205 @@ export default function DentalPage({ user, token }) {
   ) : null;
 
   return (
-    <div>
+    <div className="dental-page">
       <PageHeader
+        eyebrow="INSUMOS ODONTOLÓGICOS"
         title="Insumos Odontológicos"
         subtitle="Controle de estoque e movimentações da equipe de saúde bucal"
         actions={heroActions}
       />
 
-      {error && <div className="error-banner" style={{ marginBottom: 16 }}>{error}</div>}
-
-      <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
-        <KPI label="Total de itens" value={stock.length} />
-        <KPI label="Estoque baixo" value={lowCount} variant={lowCount > 0 ? "warning" : "default"} />
-        <KPI label="Sem estoque" value={zeroCount} variant={zeroCount > 0 ? "danger" : "default"} />
+      <div className="dental-kpis">
+        <KPI label="Total de itens" value={stock.length} className="card" />
+        <KPI label="Estoque baixo" value={lowCount} className={`card${lowCount > 0 ? " kpi--warning" : ""}`} />
+        <KPI label="Sem estoque" value={zeroCount} className={`card${zeroCount > 0 ? " kpi--danger" : ""}`} />
       </div>
 
-      <Tabs>
-        <Tab active={tab === "estoque"} onClick={() => setTab("estoque")}>Estoque</Tab>
-        <Tab active={tab === "movimentacoes"} onClick={() => setTab("movimentacoes")}>Movimentações</Tab>
-      </Tabs>
+      <div className="dental-tabs-bar">
+        <Tabs>
+          <Tab active={tab === "estoque"} onClick={() => setTab("estoque")}>Estoque</Tab>
+          <Tab active={tab === "movimentacoes"} onClick={() => setTab("movimentacoes")}>Movimentações</Tab>
+        </Tabs>
+      </div>
 
-      {tab === "estoque" && (
-        <div style={{ marginTop: 16 }}>
-          {loading ? (
-            <div style={{ padding: "2rem", textAlign: "center", color: "var(--text-2)" }}>Carregando...</div>
-          ) : stock.length === 0 ? (
-            <div className="card" style={{ padding: "2.5rem", textAlign: "center", color: "var(--text-2)" }}>
-              <div style={{ fontWeight: 600, marginBottom: 4 }}>Nenhum insumo cadastrado</div>
-              {canWrite && <div style={{ fontSize: "var(--t-sm)" }}>Use o botão &quot;+ Novo Insumo&quot; para começar.</div>}
-            </div>
-          ) : (
-            <div className="card card--noPad overflow-hidden">
-              <table className="patients-table" style={{ width: "100%" }}>
-                <thead>
-                  <tr>
-                    <th>Insumo</th>
-                    <th>Categoria</th>
-                    <th>Estoque</th>
-                    <th>Mín.</th>
-                    {canWrite && <th style={{ width: 210 }}>Operações</th>}
-                  </tr>
-                </thead>
-                <tbody>
-                  {stock.map(s => {
-                    const statusCls = s.qty === 0 ? "zero" : s.qty <= s.minQty ? "low" : "ok";
-                    return (
-                      <tr key={s.id}>
-                        <td style={{ fontWeight: 600, fontSize: "var(--t-sm)" }}>{s.name}</td>
-                        <td className="muted small">{s.category}</td>
-                        <td>
-                          <span className={`pharma-stock-badge pharma-stock-badge--${statusCls}`}>
-                            {s.qty} {s.unit}
-                          </span>
-                        </td>
-                        <td className="muted small">{s.minQty} {s.unit}</td>
-                        {canWrite && (
-                          <td>
-                            <div style={{ display: "flex", gap: 4 }}>
-                              <Button size="sm" variant="ghost" onClick={() => openOp(s, "entrada")}>Entrada</Button>
-                              <Button size="sm" variant="ghost" onClick={() => openOp(s, "saida")}>Saída</Button>
-                              <Button size="sm" variant="ghost" onClick={() => openOp(s, "ajuste")}>Ajuste</Button>
-                            </div>
+      <div className="dental-body">
+        {error && (
+          <div className="dental-error">
+            <span>{error}</span>
+            <Button size="sm" variant="ghost" onClick={loadAll}>Tentar novamente</Button>
+          </div>
+        )}
+
+        {tab === "estoque" && (
+          <>
+            {loading ? (
+              <div style={{ padding: "2rem", textAlign: "center", color: "var(--text-2)" }}>Carregando...</div>
+            ) : stock.length === 0 && !error ? (
+              <div className="empty">
+                <div className="empty__icon empty__icon--neutral"><IconBox /></div>
+                <h3 className="empty__title">Nenhum insumo cadastrado</h3>
+                <p className="empty__desc">Cadastre o primeiro item para começar a controlar o estoque odontológico.</p>
+                {canWrite && <Button onClick={() => { setShowNew(true); setNewError(""); }}>+ Novo Insumo</Button>}
+              </div>
+            ) : (
+              <div className="card card--noPad overflow-hidden">
+                <table className="patients-table" style={{ width: "100%" }}>
+                  <thead>
+                    <tr>
+                      <th>Insumo</th>
+                      <th>Categoria</th>
+                      <th>Estoque</th>
+                      <th>Mín.</th>
+                      {canWrite && <th style={{ width: 220 }}>Operações</th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {stock.map(s => {
+                      const statusCls = s.qty === 0 ? "zero" : s.qty <= s.minQty ? "low" : "ok";
+                      return (
+                        <tr key={s.id}>
+                          <td style={{ fontWeight: 600, fontSize: "var(--t-sm)" }}>
+                            {s.name}
+                            {s.notes && <div className="muted" style={{ fontSize: "var(--t-xs)", fontWeight: 400, marginTop: 2 }}>{s.notes}</div>}
                           </td>
-                        )}
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      )}
+                          <td className="muted small">{s.category}</td>
+                          <td>
+                            <span className={`pharma-stock-badge pharma-stock-badge--${statusCls}`}>
+                              {s.qty} {s.unit}
+                            </span>
+                          </td>
+                          <td className="muted small">{s.minQty} {s.unit}</td>
+                          {canWrite && (
+                            <td>
+                              <div style={{ display: "flex", gap: 4 }}>
+                                <Button size="sm" variant="ghost" onClick={() => openOp(s, "entrada")}>Entrada</Button>
+                                <Button size="sm" variant="ghost" onClick={() => openOp(s, "saida")}>Saída</Button>
+                                <Button size="sm" variant="ghost" onClick={() => openOp(s, "ajuste")}>Ajuste</Button>
+                              </div>
+                            </td>
+                          )}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
+        )}
 
-      {tab === "movimentacoes" && (
-        <div style={{ marginTop: 16 }}>
-          {loading ? (
-            <div style={{ padding: "2rem", textAlign: "center", color: "var(--text-2)" }}>Carregando...</div>
-          ) : logs.length === 0 ? (
-            <div className="card" style={{ padding: "2.5rem", textAlign: "center", color: "var(--text-2)" }}>
-              Nenhuma movimentação registrada.
-            </div>
-          ) : (
-            <div className="card card--noPad overflow-hidden">
-              <table className="patients-table" style={{ width: "100%" }}>
-                <thead>
-                  <tr>
-                    <th>Data</th>
-                    <th>Tipo</th>
-                    <th>Insumo</th>
-                    <th>Movim.</th>
-                    <th>Motivo</th>
-                    <th>Responsável</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {[...logs].reverse().map(l => {
-                    const itemName = stock.find(s => s.id === l.itemId)?.name || "—";
-                    return (
-                      <tr key={l.id}>
-                        <td className="muted small">{fmtTs(l.at)}</td>
-                        <td>
-                          <span className="chip chip--slate" style={{ fontSize: "0.7rem" }}>
-                            {OP_TYPE_LABEL[l.type] || l.type}
-                          </span>
-                        </td>
-                        <td className="small">{itemName}</td>
-                        <td className="small">
-                          <span style={{ color: l.delta > 0 ? "var(--teal-600, #0d9488)" : "var(--red-600, #dc2626)", fontWeight: 600 }}>
-                            {l.delta > 0 ? "+" : ""}{l.delta}
-                          </span>
-                          <span className="muted"> → {l.newQty}</span>
-                        </td>
-                        <td className="muted small">{l.reason || "—"}</td>
-                        <td className="muted small">{l.actorName || "—"}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      )}
+        {tab === "movimentacoes" && (
+          <>
+            {loading ? (
+              <div style={{ padding: "2rem", textAlign: "center", color: "var(--text-2)" }}>Carregando...</div>
+            ) : logs.length === 0 ? (
+              <div className="empty">
+                <div className="empty__icon empty__icon--neutral"><IconBox /></div>
+                <h3 className="empty__title">Nenhuma movimentação registrada</h3>
+                <p className="empty__desc">As entradas, saídas e ajustes de estoque aparecerão aqui.</p>
+              </div>
+            ) : (
+              <div className="card card--noPad overflow-hidden">
+                <table className="patients-table" style={{ width: "100%" }}>
+                  <thead>
+                    <tr>
+                      <th>Data</th>
+                      <th>Tipo</th>
+                      <th>Insumo</th>
+                      <th>Movim.</th>
+                      <th>Motivo</th>
+                      <th>Responsável</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[...logs].reverse().map(l => {
+                      const itemName = stock.find(s => s.id === l.itemId)?.name || "—";
+                      return (
+                        <tr key={l.id}>
+                          <td className="muted small">{fmtTs(l.at)}</td>
+                          <td>
+                            <span className="chip chip--slate" style={{ fontSize: "0.7rem" }}>
+                              {OP_TYPE_LABEL[l.type] || l.type}
+                            </span>
+                          </td>
+                          <td className="small">{itemName}</td>
+                          <td className="small">
+                            <span style={{ color: l.delta > 0 ? "var(--teal-600, #0d9488)" : "var(--red-600, #dc2626)", fontWeight: 600 }}>
+                              {l.delta > 0 ? "+" : ""}{l.delta}
+                            </span>
+                            <span className="muted"> → {l.newQty}</span>
+                          </td>
+                          <td className="muted small">{l.reason || "—"}</td>
+                          <td className="muted small">{l.actorName || "—"}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
+        )}
+      </div>
 
       {showNew && (
         <div className="modal-overlay" onClick={() => setShowNew(false)}>
-          <div className="modal-box" onClick={e => e.stopPropagation()} style={{ width: "min(520px, 92vw)" }}>
+          <div className="modal-box dental-modal--wide" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <span className="modal-title">Novo Insumo</span>
+              <span className="modal-title">Novo Insumo Odontológico</span>
               <Button size="sm" variant="ghost" iconOnly onClick={() => setShowNew(false)}>✕</Button>
             </div>
-            <div className="modal-body">
+            <div className="modal-body" style={{ overflowY: "auto", flex: 1 }}>
               {newError && <div className="error-banner" style={{ marginBottom: 12 }}>{newError}</div>}
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
                 <div>
-                  <label className="field-label">Nome *</label>
-                  <Input value={newForm.name} onChange={e => setNewForm(p => ({ ...p, name: e.target.value }))} placeholder="Nome do insumo" />
+                  <label className="field-label">Código</label>
+                  <Input value={newForm.codigo} onChange={e => setNewForm(f => ({ ...f, codigo: e.target.value }))} placeholder="Ex: ODO-0001" />
                 </div>
                 <div>
                   <label className="field-label">Categoria *</label>
-                  <Input value={newForm.category} onChange={e => setNewForm(p => ({ ...p, category: e.target.value }))} placeholder="Ex: EPI, Anestesia, Restauração..." />
+                  <Input value={newForm.category} onChange={e => setNewForm(f => ({ ...f, category: e.target.value }))} placeholder="Ex: EPI, Anestesia, Restauração..." />
                 </div>
-                <div style={{ display: "flex", gap: 12 }}>
-                  <div style={{ flex: 1 }}>
-                    <label className="field-label">Unidade</label>
-                    <Input value={newForm.unit} onChange={e => setNewForm(p => ({ ...p, unit: e.target.value }))} placeholder="unidade" />
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <label className="field-label">Qtd. inicial</label>
-                    <Input type="number" min={0} value={newForm.qty} onChange={e => setNewForm(p => ({ ...p, qty: e.target.value }))} />
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <label className="field-label">Mínimo</label>
-                    <Input type="number" min={0} value={newForm.minQty} onChange={e => setNewForm(p => ({ ...p, minQty: e.target.value }))} />
-                  </div>
+                <div style={{ gridColumn: "1 / -1" }}>
+                  <label className="field-label">Nome *</label>
+                  <Input value={newForm.name} onChange={e => setNewForm(f => ({ ...f, name: e.target.value }))} placeholder="Nome do insumo" />
                 </div>
                 <div>
+                  <label className="field-label">Unidade</label>
+                  <Select value={newForm.unit} onChange={e => setNewForm(f => ({ ...f, unit: e.target.value }))}>
+                    {UNIT_OPTIONS.map(u => <option key={u} value={u}>{u}</option>)}
+                  </Select>
+                </div>
+                <div>
+                  <label className="field-label">Localização</label>
+                  <Input value={newForm.localizacao} onChange={e => setNewForm(f => ({ ...f, localizacao: e.target.value }))} placeholder="Ex: Prateleira A1" />
+                </div>
+                <div>
+                  <label className="field-label">Qtd. inicial</label>
+                  <Input type="number" min={0} value={newForm.qty} onChange={e => setNewForm(f => ({ ...f, qty: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="field-label">Estoque mínimo</label>
+                  <Input type="number" min={0} value={newForm.minQty} onChange={e => setNewForm(f => ({ ...f, minQty: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="field-label">Lote</label>
+                  <Input value={newForm.lote} onChange={e => setNewForm(f => ({ ...f, lote: e.target.value }))} placeholder="Opcional" />
+                </div>
+                <div>
+                  <label className="field-label">Validade</label>
+                  <Input type="date" value={newForm.validade} onChange={e => setNewForm(f => ({ ...f, validade: e.target.value }))} />
+                </div>
+                <div style={{ gridColumn: "1 / -1" }}>
                   <label className="field-label">Observações</label>
-                  <Input value={newForm.notes} onChange={e => setNewForm(p => ({ ...p, notes: e.target.value }))} placeholder="Opcional" />
+                  <Input value={newForm.notes} onChange={e => setNewForm(f => ({ ...f, notes: e.target.value }))} placeholder="Opcional" />
                 </div>
               </div>
             </div>
             <div className="modal-footer">
-              <Button variant="ghost" size="sm" onClick={() => setShowNew(false)}>Cancelar</Button>
+              <Button variant="ghost" size="sm" onClick={() => setShowNew(false)} disabled={newBusy}>Cancelar</Button>
               <Button variant="primary" size="sm" onClick={submitNovoInsumo} disabled={newBusy}>
-                {newBusy ? "Salvando..." : "Salvar"}
+                {newBusy ? "Salvando..." : "Salvar Insumo"}
               </Button>
             </div>
           </div>
@@ -327,12 +381,12 @@ export default function DentalPage({ user, token }) {
 
       {opItem && (
         <div className="modal-overlay" onClick={() => setOpItem(null)}>
-          <div className="modal-box" onClick={e => e.stopPropagation()} style={{ width: "min(480px, 92vw)" }}>
+          <div className="modal-box" onClick={e => e.stopPropagation()} style={{ width: "min(560px, 90vw)", maxHeight: "90vh", display: "flex", flexDirection: "column" }}>
             <div className="modal-header">
               <span className="modal-title">{opModeLabel} — {opItem.name}</span>
               <Button size="sm" variant="ghost" iconOnly onClick={() => setOpItem(null)}>✕</Button>
             </div>
-            <div className="modal-body">
+            <div className="modal-body" style={{ overflowY: "auto", flex: 1 }}>
               {opError && <div className="error-banner" style={{ marginBottom: 12 }}>{opError}</div>}
               <div style={{ color: "var(--text-2)", fontSize: "var(--t-sm)", marginBottom: 12 }}>
                 Estoque atual: <strong>{opItem.qty} {opItem.unit}</strong>
@@ -356,7 +410,7 @@ export default function DentalPage({ user, token }) {
                     </div>
                     <div style={{ flex: 1 }}>
                       <label className="field-label">Validade</label>
-                      <Input value={opForm.validade} onChange={e => setOpForm(p => ({ ...p, validade: e.target.value }))} placeholder="MM/AAAA" />
+                      <Input type="date" value={opForm.validade} onChange={e => setOpForm(p => ({ ...p, validade: e.target.value }))} />
                     </div>
                   </div>
                 )}

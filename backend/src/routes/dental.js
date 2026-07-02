@@ -63,9 +63,9 @@ router.get("/dental/stock", (req, res) => {
   ensureDbShape(db);
 
   const teamId = user.teamId || "";
-  if (teamId) ensureTeamDentalStock(db, teamId, user.id);
+  ensureTeamDentalStock(db, teamId, user.id);
 
-  let items = (db.dentalStock || []).filter(s => String(s.teamId || "") === String(teamId || ""));
+  let items = (db.dentalStock || []).filter(s => String(s.teamId || "") === String(teamId));
   res.json({ data: items });
 });
 
