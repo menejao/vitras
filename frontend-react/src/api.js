@@ -475,6 +475,23 @@ export async function sendMessage(token, patientId, text) {
   return api(`/patients/${patientId}/messages`, { method: "POST", body: JSON.stringify({ text }) }, token);
 }
 
+// ── Odontologia ──────────────────────────────────────────────────────────────
+export async function getOdontogramChart(token, patientId) {
+  return api(`/odontologia/chart/${patientId}`, { method: "GET" }, token);
+}
+export async function patchOdontogramTooth(token, patientId, fdi, payload) {
+  return api(`/odontologia/chart/${patientId}/tooth/${fdi}`, { method: "PATCH", body: JSON.stringify(payload) }, token);
+}
+export async function createOdontoProcedure(token, payload) {
+  return api("/odontologia/procedures", { method: "POST", body: JSON.stringify(payload) }, token);
+}
+export async function patchOdontoProcedure(token, id, payload) {
+  return api(`/odontologia/procedures/${id}`, { method: "PATCH", body: JSON.stringify(payload) }, token);
+}
+export async function deleteOdontoProcedure(token, id) {
+  return api(`/odontologia/procedures/${id}`, { method: "DELETE" }, token);
+}
+
 export async function createRecord(token, patientId, payload) {
   return api(`/patients/${patientId}/records`, { method: "POST", body: JSON.stringify(payload) }, token);
 }

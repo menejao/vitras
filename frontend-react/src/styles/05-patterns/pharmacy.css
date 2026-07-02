@@ -538,3 +538,317 @@
   .pharma-body { padding-left: var(--s-4); padding-right: var(--s-4); }
   .pharma-pat-card__grid { grid-template-columns: 1fr; }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   ODONTOGRAM — DENTAL-ODONTOGRAM-FOUNDATION-01
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── Workspace layout ─────────────────────────────────────── */
+.odonto-workspace {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+.odonto-workspace__chart {
+  overflow-y: auto;
+  padding: var(--s-3);
+}
+.odonto-workspace__panel {
+  border-left: 1px solid var(--border);
+  overflow-y: auto;
+}
+
+/* ── Chart container ──────────────────────────────────────── */
+.odonto-chart {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-2);
+}
+.odonto-chart__dentition-toggle {
+  display: flex;
+  gap: var(--s-1);
+  margin-bottom: var(--s-2);
+}
+.odonto-toggle-btn {
+  padding: var(--s-1) var(--s-3);
+  border-radius: var(--r-full);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-2);
+  font-size: .78rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all .15s;
+}
+.odonto-toggle-btn--active {
+  background: var(--navy);
+  color: #fff;
+  border-color: var(--navy);
+  font-weight: 700;
+}
+.odonto-chart__label {
+  font-size: .65rem;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.odonto-chart__arch {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+.odonto-chart__half {
+  display: flex;
+  gap: 2px;
+}
+.odonto-chart__half--mirror {
+  flex-direction: row;
+}
+.odonto-chart__midline {
+  width: 1px;
+  height: 50px;
+  background: var(--border);
+  margin: 0 var(--s-1);
+  flex-shrink: 0;
+}
+.odonto-chart__gap {
+  height: var(--s-3);
+}
+
+/* ── Tooth button ─────────────────────────────────────────── */
+.odonto-tooth {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px;
+  border-radius: var(--r-sm);
+  transition: background .12s;
+}
+.odonto-tooth:hover {
+  background: var(--surface-2, #f1f5f9);
+}
+.odonto-tooth__fdi {
+  font-size: .6rem;
+  font-weight: 600;
+  color: var(--text-3);
+  line-height: 1;
+}
+
+/* ── Legend ───────────────────────────────────────────────── */
+.odonto-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .35rem .7rem;
+  justify-content: center;
+  margin-top: var(--s-3);
+  padding: var(--s-2) var(--s-3);
+  border-top: 1px solid var(--border);
+  width: 100%;
+}
+.odonto-legend__item {
+  display: flex;
+  align-items: center;
+  gap: .3rem;
+  font-size: .68rem;
+  color: var(--text-2);
+}
+.odonto-legend__swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+/* ── Tooth side panel ─────────────────────────────────────── */
+.odonto-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.odonto-panel__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: var(--s-3);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.odonto-panel__fdi {
+  font-size: .75rem;
+  font-weight: 700;
+  color: var(--teal-6, #0d9488);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+.odonto-panel__name {
+  font-size: .82rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-top: 2px;
+}
+.odonto-panel__tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.odonto-panel__tab {
+  flex: 1;
+  padding: var(--s-2) var(--s-1);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: .73rem;
+  font-weight: 500;
+  color: var(--text-2);
+  border-bottom: 2px solid transparent;
+  transition: all .15s;
+}
+.odonto-panel__tab--active {
+  color: var(--teal-6, #0d9488);
+  border-bottom-color: var(--teal-6, #0d9488);
+  font-weight: 700;
+}
+.odonto-panel__body {
+  flex: 1;
+  overflow-y: auto;
+}
+.odonto-panel__section {
+  padding: var(--s-3);
+}
+
+/* ── Condition selector ───────────────────────────────────── */
+.odonto-cond-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s-1);
+}
+.odonto-cond-grid--sm {
+  grid-template-columns: 1fr;
+}
+.odonto-cond-btn {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  padding: var(--s-1) var(--s-2);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  font-size: .73rem;
+  color: var(--text-2);
+  transition: all .12s;
+  text-align: left;
+}
+.odonto-cond-btn--active {
+  border-color: var(--cond-color, #0d9488);
+  background: color-mix(in srgb, var(--cond-color, #0d9488) 12%, white);
+  color: var(--text);
+  font-weight: 600;
+}
+.odonto-cond-btn:disabled {
+  opacity: .6;
+  cursor: not-allowed;
+}
+.odonto-cond-btn__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--cond-color, #e2e8f0);
+  flex-shrink: 0;
+}
+.odonto-cond-btn--sm {
+  padding: 4px var(--s-2);
+  font-size: .71rem;
+}
+
+/* ── Face section ─────────────────────────────────────────── */
+.odonto-face-section {
+  display: flex;
+  gap: var(--s-3);
+  align-items: flex-start;
+  margin-bottom: var(--s-2);
+}
+.odonto-face-cond {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ── Procedures list ──────────────────────────────────────── */
+.odonto-proc-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+.odonto-proc-item {
+  padding: var(--s-2) var(--s-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface);
+}
+.odonto-proc-item__top {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  flex-wrap: wrap;
+  margin-bottom: 2px;
+}
+.odonto-proc-item__type {
+  font-size: .78rem;
+  font-weight: 600;
+  color: var(--text);
+}
+.odonto-proc-item__status {
+  font-size: .65rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: var(--r-full);
+  letter-spacing: .04em;
+}
+.odonto-proc-item__meta {
+  font-size: .7rem;
+  color: var(--text-3);
+}
+.odonto-proc-item__notes {
+  font-size: .73rem;
+  color: var(--text-2);
+  margin-top: 2px;
+}
+.odonto-proc-item__actions {
+  display: flex;
+  gap: var(--s-1);
+  margin-top: var(--s-1);
+}
+
+/* ── Responsive ───────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .odonto-workspace {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+  .odonto-workspace__panel {
+    border-left: none;
+    border-top: 1px solid var(--border);
+    max-height: 60vh;
+  }
+}
+@media (max-width: 600px) {
+  .odonto-chart__half {
+    gap: 1px;
+  }
+  .odonto-tooth svg {
+    width: 32px;
+    height: 32px;
+  }
+  .odonto-legend {
+    gap: .25rem .5rem;
+  }
+}
