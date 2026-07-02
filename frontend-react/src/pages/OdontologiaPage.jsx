@@ -286,9 +286,11 @@ function OdontogramChart({ teeth, onToothClick, selectedFdi }) {
   );
 }
 
-// ── ToothPanel (painel lateral) ───────────────────────────────────────────────
-function ToothPanel({ fdi, toothData, procedures, patientId, token, canWrite, onClose, onUpdate }) {
-  const [tab, setTab] = useState("condicao");
+// ── ToothPanel ────────────────────────────────────────────────────────────────
+// Responsabilidade: estado clínico do dente.
+// NÃO registra procedimentos — apenas condição + histórico local.
+function ToothPanel({ fdi, toothData, procedures, patientId, token, canWrite, onClose, onUpdate, onRegisterProc }) {
+  const [view, setView] = useState("condicao");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [selectedFace, setSelectedFace] = useState(null);
@@ -296,75 +298,88 @@ function ToothPanel({ fdi, toothData, procedures, patientId, token, canWrite, on
   const [faceConditions, setFaceConditions] = useState(toothData?.faces || {});
   const [notes, setNotes] = useState(toothData?.notes || "");
   const [condSaved, setCondSaved] = useState(false);
-  const [procForm, setProcForm] = useState({ type: "restauracao", face: "", date: new Date().toISOString().slice(0,10), status: "planejado", notes: "" });
-  const [procBusy, setProcBusy] = useState(false);
-  const [procOk, setProcOk] = useState(false);
 
   useEffect(() => {
     setCondition(toothData?.condition || "higido");
     setFaceConditions(toothData?.faces || {});
     setNotes(toothData?.notes || "");
-    setCondSaved(false); setError("");
-  }, [fdi, toothData]);
+    setCondSaved(false); setError(""); setView("condicao"); setSelectedFace(null);
+  }, [fdi]);
 
   async function saveCondition() {
     setSaving(true); setError(""); setCondSaved(false);
     try {
       await patchOdontogramTooth(token, patientId, fdi, { condition, faces: faceConditions, notes });
-      setCondSaved(true); onUpdate?.();
+      // Criar registro histórico da alteração de condição
+      const { createRecord } = await import("../api");
+      const condLabel = CONDITIONS.find(c => c.value === condition)?.label || condition;
+      const faceDetails = Object.entries(faceConditions)
+        .filter(([_, v]) => v && v !== "higido")
+        .map(([k, v]) => `${FACES.find(f => f.key === k)?.label || k}: ${CONDITIONS.find(c => c.value === v)?.label || v}`)
+        .join(", ");
+      await createRecord(token, patientId, {
+        date: new Date().toISOString().slice(0, 10),
+        time: new Date().toTimeString().slice(0, 5),
+        type: "consultation",
+        title: `Dente ${fdi} — ${condLabel}${faceDetails ? ` (${faceDetails})` : ""}`,
+        details: notes || "",
+        professionalName: "",
+        professionalCouncil: "",
+        immutable: true,
+        metadata: { consultKind: "odontologia", subtype: "condicao", fdi, condition },
+      });
+      setCondSaved(true);
+      onUpdate?.();
     } catch (e) { setError(e.message || "Erro ao salvar"); }
     finally { setSaving(false); }
   }
 
-  async function saveProcLocal(e) {
-    e.preventDefault(); setProcBusy(true); setError("");
-    try {
-      await createOdontoProcedure(token, { patientId, toothFdi: fdi, face: procForm.face || null, type: procForm.type, date: procForm.date, status: procForm.status, notes: procForm.notes || null });
-      setProcOk(true);
-      setProcForm({ type: "restauracao", face: "", date: new Date().toISOString().slice(0,10), status: "planejado", notes: "" });
-      onUpdate?.();
-    } catch (e) { setError(e.message || "Erro"); }
-    finally { setProcBusy(false); }
-  }
-
-  async function changeStatus(id, s) {
-    try { await patchOdontoProcedure(token, id, { status: s }); onUpdate?.(); }
-    catch (e) { setError(e.message || "Erro"); }
-  }
-
-  async function removeProc(id) {
-    try { await deleteOdontoProcedure(token, id); onUpdate?.(); }
-    catch (e) { setError(e.message || "Erro"); }
-  }
-
   const toothProcs = procedures.filter(p => p.toothFdi === fdi);
+  const currentCondColor = CONDITION_COLOR[condition];
+  const currentCondLabel = CONDITIONS.find(c => c.value === condition)?.label || condition;
 
   return (
     <div className="odonto-panel">
       <div className="odonto-panel__header">
-        <div>
+        <div style={{ flex: 1 }}>
           <div className="odonto-panel__fdi">Dente {fdi}</div>
           <div className="odonto-panel__name">{getToothName(fdi)}</div>
+          {condition !== "higido" && (
+            <span style={{
+              display: "inline-block", marginTop: 4,
+              fontSize: ".68rem", fontWeight: 700, padding: "2px 8px",
+              borderRadius: "var(--r-full)",
+              background: currentCondColor !== "transparent" ? currentCondColor + "22" : "#f8fafc",
+              color: currentCondColor !== "transparent" ? currentCondColor : "var(--text-3)",
+              border: `1px solid ${currentCondColor !== "transparent" ? currentCondColor + "55" : "#e2e8f0"}`,
+            }}>
+              {currentCondLabel}
+            </span>
+          )}
         </div>
         <Button type="button" variant="ghost" size="sm" iconOnly onClick={onClose} aria-label="Fechar">
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M2 2l12 12M14 2L2 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
         </Button>
       </div>
+
       <div className="odonto-panel__tabs">
-        {[["condicao","Condição"],["procedimento","Procedimento"],["historico","Histórico"]].map(([id, label]) => (
-          <button key={id} type="button" className={`odonto-panel__tab${tab === id ? " odonto-panel__tab--active" : ""}`} onClick={() => { setTab(id); setError(""); }}>
-            {label}
-          </button>
-        ))}
+        <button type="button" className={`odonto-panel__tab${view === "condicao" ? " odonto-panel__tab--active" : ""}`} onClick={() => { setView("condicao"); setError(""); }}>
+          Condição
+        </button>
+        <button type="button" className={`odonto-panel__tab${view === "historico" ? " odonto-panel__tab--active" : ""}`} onClick={() => { setView("historico"); setError(""); }}>
+          Histórico do dente{toothProcs.length > 0 ? ` (${toothProcs.length})` : ""}
+        </button>
       </div>
+
       <div className="odonto-panel__body">
         <ErrorMsg msg={error} />
 
-        {tab === "condicao" && (
+        {view === "condicao" && (
           <div className="odonto-panel__section">
-            {condSaved && <SuccessBanner msg="Condição salva." onNew={() => setCondSaved(false)} newLabel="Editar" />}
+            {condSaved && <SuccessBanner msg="Condição do dente atualizada." onNew={() => setCondSaved(false)} newLabel="Editar" />}
+
             <div style={{ marginBottom: "var(--s-3)" }}>
-              <label className="field__label">Condição geral do dente</label>
+              <label className="field__label">Condição geral</label>
               <div className="odonto-cond-grid">
                 {CONDITIONS.map(c => (
                   <button key={c.value} type="button"
@@ -373,12 +388,12 @@ function ToothPanel({ fdi, toothData, procedures, patientId, token, canWrite, on
                     onClick={() => { setCondition(c.value); setCondSaved(false); }}
                     disabled={!canWrite}
                   >
-                    <span className="odonto-cond-btn__dot" />
-                    {c.label}
+                    <span className="odonto-cond-btn__dot" />{c.label}
                   </button>
                 ))}
               </div>
             </div>
+
             <div style={{ marginBottom: "var(--s-3)" }}>
               <label className="field__label" style={{ display: "block", marginBottom: "var(--s-2)" }}>Condição por face</label>
               <div className="odonto-face-section">
@@ -401,92 +416,36 @@ function ToothPanel({ fdi, toothData, procedures, patientId, token, canWrite, on
                     </div>
                   </div>
                 ) : (
-                  <div style={{ fontSize: ".78rem", color: "var(--text-3)", alignSelf: "center" }}>Clique numa face para selecionar.</div>
+                  <div style={{ fontSize: ".78rem", color: "var(--text-3)", alignSelf: "center" }}>Clique numa face para editar.</div>
                 )}
               </div>
             </div>
+
             <div className="field" style={{ marginBottom: "var(--s-3)" }}>
               <label className="field__label">Observações</label>
-              <AutoTextarea value={notes} onChange={e => { setNotes(e.target.value); setCondSaved(false); }} placeholder="Observações clínicas..." disabled={!canWrite} />
+              <AutoTextarea value={notes} onChange={e => { setNotes(e.target.value); setCondSaved(false); }} placeholder="Observações clínicas..." disabled={!canWrite} minRows={2} maxRows={4} />
             </div>
-            {canWrite && <Button type="button" variant="primary" size="sm" loading={saving} onClick={saveCondition}>Salvar condição</Button>}
+
+            <div style={{ display: "flex", gap: "var(--s-2)", flexWrap: "wrap" }}>
+              {canWrite && (
+                <Button type="button" variant="primary" size="sm" loading={saving} onClick={saveCondition}>
+                  Salvar condição
+                </Button>
+              )}
+              {canWrite && (
+                <Button type="button" variant="secondary" size="sm"
+                  onClick={() => onRegisterProc?.(fdi, selectedFace || "")}>
+                  Registrar procedimento
+                </Button>
+              )}
+            </div>
           </div>
         )}
 
-        {tab === "procedimento" && (
-          <div className="odonto-panel__section">
-            {canWrite && (
-              <>
-                {procOk && <SuccessBanner msg="Procedimento registrado." onNew={() => setProcOk(false)} />}
-                {!procOk && (
-                  <form onSubmit={saveProcLocal} className="odonto-proc-form">
-                    <div className="odonto-proc-form__row">
-                      <Select label="Tipo" value={procForm.type} onChange={e => setProcForm(s => ({ ...s, type: e.target.value }))}>
-                        {[...new Set(ODONTO_CATALOG.map(p => p.category))].map(cat => (
-                          <optgroup key={cat} label={cat}>
-                            {ODONTO_CATALOG.filter(p => p.category === cat).map(p => (
-                              <option key={p.code} value={p.code}>{p.name}</option>
-                            ))}
-                          </optgroup>
-                        ))}
-                        <optgroup label="Outro">
-                          <option value="outro">Outro (texto livre)</option>
-                        </optgroup>
-                      </Select>
-                    </div>
-                    <div className="odonto-proc-form__row odonto-proc-form__row--3col">
-                      <Input label="Data" type="date" value={procForm.date} max={new Date().toISOString().slice(0,10)} onChange={e => setProcForm(s => ({ ...s, date: e.target.value }))} />
-                      <Select label="Status" value={procForm.status} onChange={e => setProcForm(s => ({ ...s, status: e.target.value }))}>
-                        {PROC_STATUS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-                      </Select>
-                      <Select label="Face" value={procForm.face} onChange={e => setProcForm(s => ({ ...s, face: e.target.value }))}>
-                        <option value="">Geral</option>
-                        {FACES.map(f => <option key={f.key} value={f.key}>{f.label}</option>)}
-                      </Select>
-                    </div>
-                    <div className="field">
-                      <label className="field__label">Observações</label>
-                      <AutoTextarea value={procForm.notes} onChange={e => setProcForm(s => ({ ...s, notes: e.target.value }))} placeholder="Observações complementares..." minRows={2} />
-                    </div>
-                    <Button type="submit" variant="primary" size="sm" loading={procBusy}>Registrar procedimento</Button>
-                  </form>
-                )}
-              </>
-            )}
-            {toothProcs.length > 0 && (
-              <div className="odonto-proc-list" style={{ marginTop: "var(--s-3)" }}>
-                {toothProcs.map(p => {
-                  const sc = STATUS_COLORS[p.status] || {};
-                  const procName = ODONTO_CATALOG.find(c => c.code === p.type)?.name || p.type;
-                  return (
-                    <div key={p.id} className="odonto-proc-item">
-                      <div className="odonto-proc-item__top">
-                        <span className="odonto-proc-item__type">{procName}{p.face ? ` — ${FACES.find(f => f.key === p.face)?.label || p.face}` : ""}</span>
-                        <span className="odonto-proc-item__status" style={{ background: sc.bg, color: sc.text }}>{PROC_STATUS.find(s => s.value === p.status)?.label}</span>
-                      </div>
-                      <div className="odonto-proc-item__meta">{p.date ? fmtDate(p.date) : "—"}{p.professionalName ? ` · ${p.professionalName}` : ""}</div>
-                      {p.notes && <div className="odonto-proc-item__notes">{p.notes}</div>}
-                      {canWrite && (
-                        <div className="odonto-proc-item__actions">
-                          {p.status !== "concluido" && <Button type="button" variant="ghost" size="sm" onClick={() => changeStatus(p.id, "concluido")}>Concluir</Button>}
-                          <Button type="button" variant="ghost" size="sm" onClick={() => removeProc(p.id)}>Remover</Button>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-            {toothProcs.length === 0 && !canWrite && (
-              <div style={{ fontSize: ".8rem", color: "var(--text-3)", padding: "var(--s-2) 0" }}>Nenhum procedimento registrado para o dente {fdi}.</div>
-            )}
-          </div>
-        )}
-
-        {tab === "historico" && (
+        {view === "historico" && (
           <div className="odonto-panel__section">
             {toothProcs.length === 0 ? (
-              <div style={{ fontSize: ".8rem", color: "var(--text-3)" }}>Nenhum histórico para o dente {fdi}.</div>
+              <div style={{ fontSize: ".8rem", color: "var(--text-3)" }}>Nenhum procedimento registrado para o dente {fdi}.</div>
             ) : (
               <div className="odonto-proc-list">
                 {[...toothProcs].sort((a, b) => (b.date || "").localeCompare(a.date || "")).map(p => {
@@ -517,7 +476,7 @@ function ToothPanel({ fdi, toothData, procedures, patientId, token, canWrite, on
 }
 
 // ── WorkspaceOdontograma ──────────────────────────────────────────────────────
-function WorkspaceOdontograma({ patient, token, canWrite, onChartUpdated }) {
+function WorkspaceOdontograma({ patient, token, canWrite, onChartUpdated, onRegisterProc }) {
   const [chartData, setChartData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -579,6 +538,7 @@ function WorkspaceOdontograma({ patient, token, canWrite, onChartUpdated }) {
             canWrite={canWrite}
             onClose={closeDrawer}
             onUpdate={loadChart}
+            onRegisterProc={onRegisterProc}
           />
         )}
       </div>
@@ -669,15 +629,21 @@ function WorkspaceResumo({ patient, history, procedures, chartTeeth }) {
 }
 
 // ── WorkspaceProcedimentos (catálogo estruturado) ─────────────────────────────
-function WorkspaceProcedimentos({ patient, user, token, onSaved }) {
+// prefill: { fdi, face } — pré-seleciona dente/face vindo do painel do odontograma
+function WorkspaceProcedimentos({ patient, user, token, onSaved, prefill }) {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("all");
-  const [selected, setSelected] = useState([]); // array of { proc, tooth, face, obs }
+  const [selected, setSelected] = useState([]);
   const [date, setDate] = useState(new Date().toISOString().slice(0,10));
   const [status, setStatus] = useState("concluido");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+
+  // Limpar seleção quando muda o prefill
+  useEffect(() => {
+    setSelected([]); setSuccess(false);
+  }, [prefill?.fdi, prefill?.face]);
 
   const filtered = useMemo(() => ODONTO_CATALOG.filter(p => {
     const matchCat = category === "all" || p.category === category;
@@ -690,7 +656,7 @@ function WorkspaceProcedimentos({ patient, user, token, onSaved }) {
     setSelected(s => {
       const exists = s.find(x => x.proc.code === proc.code);
       if (exists) return s.filter(x => x.proc.code !== proc.code);
-      return [...s, { proc, tooth: "", face: "", obs: "" }];
+      return [...s, { proc, tooth: prefill?.fdi || "", face: prefill?.face || "", obs: "" }];
     });
   }
 
@@ -753,6 +719,14 @@ function WorkspaceProcedimentos({ patient, user, token, onSaved }) {
 
   return (
     <form onSubmit={handleSubmit} style={{ padding: "var(--s-3)", display: "flex", flexDirection: "column", gap: "var(--s-3)" }}>
+      {prefill?.fdi && (
+        <div className="odonto-prefill-banner">
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M8 1a7 7 0 100 14A7 7 0 008 1zm0 3v4m0 2v1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+          Procedimento para: <strong>Dente {prefill.fdi}</strong>
+          {prefill.face ? ` — ${FACES.find(f => f.key === prefill.face)?.label || prefill.face}` : ""}
+          {" "}· Selecione o procedimento abaixo
+        </div>
+      )}
       <div className="odonto-proc-toolbar">
         <div className="odonto-proc-search">
           <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style={{ color: "var(--text-3)" }}>
@@ -1058,33 +1032,117 @@ function WorkspaceTimeline({ history, procedures }) {
   );
 }
 
-// ── WorkspaceHistorico ────────────────────────────────────────────────────────
-function WorkspaceHistorico({ history }) {
+// ── WorkspaceHistorico ─────────────────────────────────────────────────────────
+// Linha do tempo unificada: condições + procedimentos + planos + evoluções.
+// Substitui a aba Timeline (removida).
+function WorkspaceHistorico({ history, procedures }) {
+  const [filter, setFilter] = useState("todos");
+
+  const HIST_FILTERS = [
+    { id: "todos",         label: "Todos" },
+    { id: "condicoes",     label: "Condições" },
+    { id: "procedimentos", label: "Procedimentos" },
+    { id: "planos",        label: "Planos" },
+    { id: "documentos",    label: "Documentos" },
+  ];
+
+  const TYPE_CFG = {
+    condicao:         { bg: "#fef3c7", color: "#92400e",  label: "Cond." },
+    evolucao:         { bg: "#f0f9ff", color: "#0369a1",  label: "Evol." },
+    plano_tratamento: { bg: "#f5f3ff", color: "#6d28d9",  label: "Plano" },
+    procedimento:     { bg: "#f0fdf4", color: "#166534",  label: "Proc." },
+    proc_dente:       { bg: "#f0fdf4", color: "#166534",  label: "Proc." },
+    consulta:         { bg: "#f8fafc", color: "#475569",  label: "Cons." },
+  };
+
+  const events = [];
+
+  (history || []).filter(r => r.metadata?.consultKind === "odontologia").forEach(r => {
+    events.push({
+      id: "h-" + r.id,
+      date: r.date,
+      histType: r.metadata?.subtype || "consulta",
+      title: r.title,
+      tooth: r.metadata?.fdi || r.metadata?.dente,
+      prof: r.professionalName,
+    });
+  });
+
+  (procedures || []).forEach(p => {
+    const procName = ODONTO_CATALOG.find(c => c.code === p.type)?.name || p.type;
+    events.push({
+      id: "p-" + p.id,
+      date: p.date,
+      histType: "proc_dente",
+      title: procName,
+      tooth: p.toothFdi,
+      face: p.face,
+      status: p.status,
+      prof: p.professionalName,
+    });
+  });
+
+  events.sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+
+  function filterFn(ev) {
+    switch (filter) {
+      case "condicoes":     return ev.histType === "condicao";
+      case "procedimentos": return ev.histType === "procedimento" || ev.histType === "proc_dente";
+      case "planos":        return ev.histType === "plano_tratamento";
+      case "documentos":    return ev.histType === "evolucao";
+      default:              return true;
+    }
+  }
+
+  const visible = events.filter(filterFn);
+
   if (history === null) return <div style={{ padding: "var(--s-4)", color: "var(--text-3)", fontSize: ".85rem" }}>Carregando...</div>;
-  const dh = history.filter(r => r.metadata?.consultKind === "odontologia");
-  if (!dh.length) return (
-    <div className="vacc-empty" style={{ padding: "var(--s-6)" }}>
-      <div className="vacc-empty__icon" style={{ opacity: .2 }}>
-        <svg width="32" height="32" viewBox="0 0 16 16" fill="none"><path d="M3 2h10v12H3z" stroke="currentColor" strokeWidth="1.4"/><path d="M6 6h5M6 8.5h5M6 11h3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
-      </div>
-      <p className="vacc-empty__label">Sem histórico odontológico registrado.</p>
-    </div>
-  );
-  const SUBTYPE_LABEL = { procedimento: "Proc", evolucao: "Evol", plano_tratamento: "Plano" };
+
   return (
     <div style={{ padding: "var(--s-3)" }}>
-      {dh.map(h => (
-        <div key={h.id} className="specialty-panel__hist-item">
-          <span className="specialty-panel__hist-date">{fmtDate(h.date)}</span>
-          <span className="specialty-panel__hist-title">{h.title}</span>
-          {h.metadata?.subtype && (
-            <span style={{ fontSize: ".68rem", padding: "1px 6px", borderRadius: "var(--r-full)", background: "var(--teal-1)", color: "var(--teal-7)", fontWeight: 700, letterSpacing: ".05em" }}>
-              {SUBTYPE_LABEL[h.metadata.subtype] || h.metadata.subtype}
-            </span>
-          )}
-          {h.professionalName && <span className="specialty-panel__hist-prof">{h.professionalName}</span>}
+      <div className="odonto-proc-cats" style={{ marginBottom: "var(--s-3)" }}>
+        {HIST_FILTERS.map(f => (
+          <button key={f.id} type="button"
+            className={`odonto-cat-chip${filter === f.id ? " odonto-cat-chip--active" : ""}`}
+            onClick={() => setFilter(f.id)}>
+            {f.label}
+          </button>
+        ))}
+      </div>
+
+      {visible.length === 0 ? (
+        <div className="vacc-empty" style={{ padding: "var(--s-5)" }}>
+          <div className="vacc-empty__icon" style={{ opacity: .2 }}>
+            <svg width="28" height="28" viewBox="0 0 16 16" fill="none"><path d="M3 2h10v12H3z" stroke="currentColor" strokeWidth="1.4"/><path d="M6 6h5M6 8.5h5M6 11h3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
+          </div>
+          <p className="vacc-empty__label">Nenhum registro encontrado.</p>
         </div>
-      ))}
+      ) : (
+        <div className="odonto-timeline">
+          {visible.map(ev => {
+            const cfg = TYPE_CFG[ev.histType] || TYPE_CFG.consulta;
+            const sc = ev.status ? STATUS_COLORS[ev.status] : null;
+            return (
+              <div key={ev.id} className="odonto-timeline__item">
+                <div className="odonto-timeline__dot" style={{ background: cfg.color }} />
+                <div className="odonto-timeline__body">
+                  <div className="odonto-timeline__top">
+                    <span className="odonto-timeline__title">{ev.title}</span>
+                    <span className="odonto-timeline__badge" style={{ background: cfg.bg, color: cfg.color }}>{cfg.label}</span>
+                    {sc && <span className="odonto-timeline__badge" style={{ background: sc.bg, color: sc.text }}>{PROC_STATUS.find(s => s.value === ev.status)?.label}</span>}
+                  </div>
+                  <div className="odonto-timeline__meta">
+                    {ev.date ? fmtDate(ev.date) : "—"}
+                    {ev.tooth ? ` · Dente ${ev.tooth}` : ""}
+                    {ev.face ? ` — ${FACES.find(f => f.key === ev.face)?.label || ev.face}` : ""}
+                    {ev.prof ? ` · ${ev.prof}` : ""}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -1096,7 +1154,6 @@ const WORKSPACE_TABS = [
   { id: "procedimentos", label: "Procedimentos", requiresWrite: true },
   { id: "evolucao",      label: "Evolução",      requiresWrite: true },
   { id: "plano",         label: "Plano",         requiresWrite: true },
-  { id: "timeline",      label: "Timeline" },
   { id: "historico",     label: "Histórico" },
 ];
 
@@ -1105,6 +1162,7 @@ function DentalWorkspacePanel({ patient, user, token, onClose }) {
   const [history, setHistory] = useState(null);
   const [procedures, setProcedures] = useState([]);
   const [chartTeeth, setChartTeeth] = useState({});
+  const [procPrefill, setProcPrefill] = useState(null); // { fdi, face }
   const canWrite = hasCapability(user, "dental.write") || hasCapability(user, "dental.admin");
 
   const loadHistory = useCallback(() => {
@@ -1131,6 +1189,11 @@ function DentalWorkspacePanel({ patient, user, token, onClose }) {
   const handleChartUpdated = useCallback((chartData) => {
     setProcedures(chartData?.procedures || []);
     setChartTeeth(chartData?.odontogram?.teeth || {});
+  }, []);
+
+  const handleRegisterProc = useCallback((fdi, face) => {
+    setProcPrefill({ fdi, face: face || "" });
+    setActiveTab("procedimentos");
   }, []);
 
   const age = patient.birthDate
@@ -1167,12 +1230,11 @@ function DentalWorkspacePanel({ patient, user, token, onClose }) {
 
       <div style={{ flex: 1, overflowY: activeTab === "odontograma" ? "hidden" : "auto", minHeight: 0 }}>
         {activeTab === "resumo" && <WorkspaceResumo patient={patient} history={history} procedures={procedures} chartTeeth={chartTeeth} />}
-        {activeTab === "odontograma" && <WorkspaceOdontograma patient={patient} token={token} canWrite={canWrite} onChartUpdated={handleChartUpdated} />}
-        {activeTab === "procedimentos" && canWrite && <WorkspaceProcedimentos patient={patient} user={user} token={token} onSaved={onSaved} />}
+        {activeTab === "odontograma" && <WorkspaceOdontograma patient={patient} token={token} canWrite={canWrite} onChartUpdated={handleChartUpdated} onRegisterProc={handleRegisterProc} />}
+        {activeTab === "procedimentos" && canWrite && <WorkspaceProcedimentos patient={patient} user={user} token={token} onSaved={onSaved} prefill={procPrefill} />}
         {activeTab === "evolucao" && canWrite && <WorkspaceEvolucao patient={patient} user={user} token={token} onSaved={onSaved} />}
         {activeTab === "plano" && canWrite && <WorkspacePlano patient={patient} user={user} token={token} onSaved={onSaved} />}
-        {activeTab === "timeline" && <WorkspaceTimeline history={history} procedures={procedures} />}
-        {activeTab === "historico" && <WorkspaceHistorico history={history} />}
+        {activeTab === "historico" && <WorkspaceHistorico history={history} procedures={procedures} />}
       </div>
     </div>
   );

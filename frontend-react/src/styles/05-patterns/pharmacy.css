@@ -802,6 +802,14 @@
   .odonto-resumo-grid { grid-template-columns: 1fr; }
 }
 
+/* ── Prefill banner (procedimento vindo do odontograma) ───── */
+.odonto-prefill-banner {
+  display: flex; align-items: center; gap: .5rem;
+  padding: .5rem .75rem; border-radius: var(--r-md);
+  background: #eff6ff; color: #1d4ed8;
+  font-size: .8rem; border: 1px solid #bfdbfe;
+}
+
 /* ── DENTAL-CLINICAL-WORKSPACE-02 — Drawer + Timeline ──────
    Replaces the old grid-based .odonto-workspace layout.
    The chart occupies full width; the tooth panel slides over.
