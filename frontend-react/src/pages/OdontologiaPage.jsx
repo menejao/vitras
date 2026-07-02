@@ -1128,10 +1128,10 @@ function DentalWorkspacePanel({ patient, user, token, onClose }) {
 
   function onSaved() { loadHistory(); loadProcs(); }
 
-  function handleChartUpdated(chartData) {
+  const handleChartUpdated = useCallback((chartData) => {
     setProcedures(chartData?.procedures || []);
     setChartTeeth(chartData?.odontogram?.teeth || {});
-  }
+  }, []);
 
   const age = patient.birthDate
     ? Math.floor((Date.now() - new Date(patient.birthDate + "T12:00:00").getTime()) / (365.25 * 86400000))
