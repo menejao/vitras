@@ -406,4 +406,167 @@ router.delete("/odontologia/plan-items/:id", (req, res) => {
   res.json(result);
 });
 
+// GET /odontologia/queue-hoje?date=YYYY-MM-DD
+router.get("/odontologia/queue-hoje", (req, res) => {
+  const user = req.user;
+  if (!canRead(user)) return res.status(403).json({ error: "Sem permissão" });
+
+  const date = req.query.date || new Date().toISOString().slice(0, 10);
+  const db = readDb();
+  ensureDbShape(db);
+  const teamId = String(user.teamId || "");
+
+  const AGENDA_STATUS_MAP = {
+    scheduled: "agendado", arrived: "aguardando",
+    attending: "em_atendimento", done: "atendido", absent: "faltou",
+  };
+  const QUEUE_STATUS_MAP = {
+    waiting: "aguardando", triage: "triagem", ready: "aguardando_odonto",
+    attending: "em_atendimento", done: "atendido",
+  };
+  const TYPE_LABEL = {
+    consultation: "Consulta", return: "Retorno", procedure: "Procedimento", other: "Outro",
+  };
+  const DEMAND_LABEL = {
+    scheduled: "Agendado", urgent: "Urgência", return: "Retorno", walk_in: "Demanda espontânea",
+  };
+
+  const result = [];
+
+  // 1. Agenda: today's appointments for this dentist (by doctorId) or team
+  const agendaItems = (db.agendaEntries || []).filter(e =>
+    e.date === date &&
+    (String(e.doctorId || "") === String(user.id) || String(e.teamId || "") === teamId) &&
+    e.status !== "cancelled"
+  );
+
+  for (const entry of agendaItems) {
+    const patient = (db.patients || []).find(p => p.id === entry.patientId);
+    if (!patient) continue;
+    const age = patient.birthDate
+      ? Math.floor((Date.now() - new Date(patient.birthDate + "T12:00:00").getTime()) / (365.25 * 86400000))
+      : null;
+    result.push({
+      id: "agenda-" + entry.id,
+      sourceId: entry.id,
+      source: "agenda",
+      patientId: patient.id,
+      patientName: patient.name,
+      patientAge: age,
+      horario: entry.time || null,
+      demandType: TYPE_LABEL[entry.type] || entry.type,
+      status: AGENDA_STATUS_MAP[entry.status] || entry.status,
+      notes: entry.notes || null,
+      destination: "Odontologia",
+      arrivedAt: null,
+      priority: null,
+    });
+  }
+
+  // 2. Queue: entries for today by destination=odontologia (or odontologo) and same team
+  const queueItems = (db.queueEntries || []).filter(e => {
+    const entryDate = String(e.arrivedAt || "").slice(0, 10);
+    const dest = String(e.destination || "").toLowerCase();
+    return (
+      entryDate === date &&
+      String(e.teamId || "") === teamId &&
+      (dest.includes("odontolog") || dest === "") &&
+      e.status !== "removed" && e.status !== "cleared"
+    );
+  });
+
+  for (const entry of queueItems) {
+    if (result.some(r => r.patientId === entry.patientId)) continue;
+    const patient = (db.patients || []).find(p => p.id === entry.patientId);
+    if (!patient) continue;
+    const age = patient.birthDate
+      ? Math.floor((Date.now() - new Date(patient.birthDate + "T12:00:00").getTime()) / (365.25 * 86400000))
+      : null;
+    result.push({
+      id: "queue-" + entry.id,
+      sourceId: entry.id,
+      source: "queue",
+      patientId: patient.id,
+      patientName: patient.name,
+      patientAge: age,
+      horario: entry.arrivedAt ? String(entry.arrivedAt).slice(11, 16) : null,
+      demandType: DEMAND_LABEL[entry.demandType] || entry.demandType || "Demanda espontânea",
+      status: QUEUE_STATUS_MAP[entry.status] || entry.status,
+      notes: null,
+      destination: entry.destination || "Odontologia",
+      arrivedAt: entry.arrivedAt || null,
+      priority: entry.priority || null,
+    });
+  }
+
+  const STATUS_ORDER = {
+    em_atendimento: 0, aguardando_odonto: 1, triagem: 2,
+    aguardando: 3, agendado: 4, atendido: 5, faltou: 6,
+  };
+  result.sort((a, b) => {
+    const ao = STATUS_ORDER[a.status] ?? 10;
+    const bo = STATUS_ORDER[b.status] ?? 10;
+    if (ao !== bo) return ao - bo;
+    return (a.horario || "").localeCompare(b.horario || "");
+  });
+
+  res.json({ data: result });
+});
+
+// POST /odontologia/prescricoes
+router.post("/odontologia/prescricoes", (req, res) => {
+  const user = req.user;
+  if (!canWrite(user)) return res.status(403).json({ error: "Sem permissão" });
+
+  const { patientId, itens, dtReceita, validade, obs, encounterId, cro } = req.body;
+  if (!patientId) return res.status(400).json({ error: "patientId obrigatório" });
+  if (!itens || !itens.length) return res.status(400).json({ error: "Itens obrigatórios" });
+
+  const result = withDb(db => {
+    ensureDbShape(db);
+    if (!db.prescricoes) db.prescricoes = [];
+    const patient = (db.patients || []).find(p => p.id === patientId);
+    if (!patient) return { error: "Paciente não encontrado", status: 404 };
+
+    const now = new Date().toISOString();
+    const receita = {
+      id: uuidv4(),
+      patientId,
+      prescriberId: user.id,
+      prescritorNome: user.name || user.username || "",
+      cro: cro || user.cro || null,
+      teamId: user.teamId || null,
+      dtReceita: dtReceita || now.slice(0, 10),
+      validade: validade || "",
+      itens: (itens || []).map(it => ({ ...it, dispensado: 0 })),
+      obs: obs || null,
+      status: "ativa",
+      origem: "odontologia",
+      encounterId: encounterId || null,
+      criadaEm: now,
+      criadaPor: user.id,
+    };
+    db.prescricoes.push(receita);
+    addAuditLog(db, user, "create", "receita_odonto", receita.id, { patientId });
+    return { data: receita };
+  });
+
+  if (result.error) return res.status(result.status || 500).json({ error: result.error });
+  res.status(201).json(result);
+});
+
+// GET /odontologia/prescricoes?patientId=X
+router.get("/odontologia/prescricoes", (req, res) => {
+  const user = req.user;
+  if (!canRead(user)) return res.status(403).json({ error: "Sem permissão" });
+  const { patientId } = req.query;
+  if (!patientId) return res.status(400).json({ error: "patientId obrigatório" });
+  const db = readDb();
+  ensureDbShape(db);
+  const list = (db.prescricoes || [])
+    .filter(r => r.patientId === patientId && r.origem === "odontologia")
+    .sort((a, b) => (b.criadaEm || "").localeCompare(a.criadaEm || ""));
+  res.json({ data: list });
+});
+
 export default router;

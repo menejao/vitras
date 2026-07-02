@@ -512,6 +512,16 @@ export async function patchOdontoPlanItem(token, id, payload) {
 export async function deleteOdontoPlanItem(token, id) {
   return api(`/odontologia/plan-items/${id}`, { method: "DELETE" }, token);
 }
+export async function getDentalQueueToday(token) {
+  const date = new Date().toISOString().slice(0, 10);
+  return api(`/odontologia/queue-hoje?date=${date}`, { method: "GET" }, token);
+}
+export async function createOdontoPrescricao(token, payload) {
+  return api("/odontologia/prescricoes", { method: "POST", body: JSON.stringify(payload) }, token);
+}
+export async function getOdontoPrescricoes(token, patientId) {
+  return api(`/odontologia/prescricoes?patientId=${encodeURIComponent(patientId)}`, { method: "GET" }, token);
+}
 
 export async function createRecord(token, patientId, payload) {
   return api(`/patients/${patientId}/records`, { method: "POST", body: JSON.stringify(payload) }, token);

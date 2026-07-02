@@ -17,6 +17,7 @@ import {
   createOdontoPlanItem,
   patchOdontoPlanItem,
   deleteOdontoPlanItem,
+  getDentalQueueToday,
 } from "../api";
 import { matchesPatientSearch } from "../utils/clinical";
 import { fmtDate, initials } from "../utils/formatting";
@@ -825,15 +826,14 @@ function WorkspaceProcedimentos({ patient, user, token, onSaved, prefill, onGetE
 
 // ── WorkspaceEvolucao ─────────────────────────────────────────────────────────
 function WorkspaceEvolucao({ patient, user, token, onSaved, history, encounter, onGetEncounter }) {
-  const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ date: new Date().toISOString().slice(0,10), queixa: "", exame: "", evolucao: "", conduta: "", orientacoes: "", proximo: "" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [saved, setSaved] = useState(false);
   function upd(k) { return e => setForm(s => ({ ...s, [k]: e.target.value })); }
 
   const evols = (history || [])
-    .filter(r => r.metadata?.consultKind === "odontologia" && r.metadata?.subtype === "evolucao" &&
-      (encounter ? r.metadata?.encounterId === encounter.id : true))
+    .filter(r => r.metadata?.consultKind === "odontologia" && r.metadata?.subtype === "evolucao")
     .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
 
   async function handleSubmit(e) {
@@ -857,8 +857,8 @@ function WorkspaceEvolucao({ patient, user, token, onSaved, history, encounter, 
         details, professionalName: user?.name || "", professionalCouncil: "",
         immutable: true, metadata: { consultKind: "odontologia", subtype: "evolucao", encounterId: enc?.id || null },
       });
-      setShowForm(false);
       setForm({ date: new Date().toISOString().slice(0,10), queixa: "", exame: "", evolucao: "", conduta: "", orientacoes: "", proximo: "" });
+      setSaved(true);
       onSaved?.();
     } catch (err) { setError(err.message || "Erro."); }
     finally { setBusy(false); }
@@ -866,8 +866,43 @@ function WorkspaceEvolucao({ patient, user, token, onSaved, history, encounter, 
 
   return (
     <div style={{ padding: "var(--s-4)", display: "flex", flexDirection: "column", gap: "var(--s-3)" }}>
+      {saved && <SuccessBanner msg="Evolução salva." onNew={() => setSaved(false)} newLabel="+ Nova evolução" />}
+
+      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "var(--s-3)" }}>
+        <div style={{ maxWidth: 180 }}>
+          <Input label="Data" type="date" value={form.date} max={new Date().toISOString().slice(0,10)} onChange={upd("date")} />
+        </div>
+        <div className="field">
+          <label className="field__label">Queixa principal</label>
+          <AutoTextarea value={form.queixa} onChange={upd("queixa")} placeholder="Motivo da consulta..." minRows={2} maxRows={4} />
+        </div>
+        <div className="field">
+          <label className="field__label">Exame clínico</label>
+          <AutoTextarea value={form.exame} onChange={upd("exame")} placeholder="Achados clínicos..." minRows={2} maxRows={5} />
+        </div>
+        <div className="field">
+          <label className="field__label">Evolução *</label>
+          <AutoTextarea value={form.evolucao} onChange={upd("evolucao")} placeholder="Evolução do caso..." minRows={3} maxRows={8} required />
+        </div>
+        <div className="field">
+          <label className="field__label">Conduta</label>
+          <AutoTextarea value={form.conduta} onChange={upd("conduta")} placeholder="Conduta adotada..." minRows={2} maxRows={5} />
+        </div>
+        <div className="field">
+          <label className="field__label">Orientações ao paciente</label>
+          <AutoTextarea value={form.orientacoes} onChange={upd("orientacoes")} placeholder="Orientações dadas..." minRows={2} maxRows={4} />
+        </div>
+        <div className="field">
+          <label className="field__label">Próximo passo</label>
+          <AutoTextarea value={form.proximo} onChange={upd("proximo")} placeholder="Próximo atendimento ou encaminhamento..." minRows={1} maxRows={3} />
+        </div>
+        <ErrorMsg msg={error} />
+        <div><Button type="submit" variant="primary" loading={busy}>Salvar evolução</Button></div>
+      </form>
+
       {evols.length > 0 && (
-        <div style={{ marginBottom: "var(--s-2)" }}>
+        <div style={{ marginTop: "var(--s-4)", borderTop: "1px solid var(--border)", paddingTop: "var(--s-3)" }}>
+          <div style={{ fontSize: ".7rem", fontWeight: 700, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: ".07em", marginBottom: "var(--s-2)" }}>Evoluções anteriores</div>
           {evols.map(r => (
             <div key={r.id} className="odonto-evol-card">
               <div className="odonto-evol-card__header">
@@ -879,45 +914,6 @@ function WorkspaceEvolucao({ patient, user, token, onSaved, history, encounter, 
           ))}
         </div>
       )}
-
-      {!showForm ? (
-        <Button type="button" variant="secondary" onClick={() => setShowForm(true)}>+ Nova evolução</Button>
-      ) : (
-        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "var(--s-3)" }}>
-          <div style={{ maxWidth: 180 }}>
-            <Input label="Data" type="date" value={form.date} max={new Date().toISOString().slice(0,10)} onChange={upd("date")} />
-          </div>
-          <div className="field">
-            <label className="field__label">Queixa principal</label>
-            <AutoTextarea value={form.queixa} onChange={upd("queixa")} placeholder="Motivo da consulta..." minRows={2} maxRows={4} />
-          </div>
-          <div className="field">
-            <label className="field__label">Exame clínico</label>
-            <AutoTextarea value={form.exame} onChange={upd("exame")} placeholder="Achados clínicos..." minRows={2} maxRows={5} />
-          </div>
-          <div className="field">
-            <label className="field__label">Evolução *</label>
-            <AutoTextarea value={form.evolucao} onChange={upd("evolucao")} placeholder="Evolução do caso..." minRows={3} maxRows={8} required />
-          </div>
-          <div className="field">
-            <label className="field__label">Conduta</label>
-            <AutoTextarea value={form.conduta} onChange={upd("conduta")} placeholder="Conduta adotada..." minRows={2} maxRows={5} />
-          </div>
-          <div className="field">
-            <label className="field__label">Orientações ao paciente</label>
-            <AutoTextarea value={form.orientacoes} onChange={upd("orientacoes")} placeholder="Orientações dadas..." minRows={2} maxRows={4} />
-          </div>
-          <div className="field">
-            <label className="field__label">Próximo passo</label>
-            <AutoTextarea value={form.proximo} onChange={upd("proximo")} placeholder="Próximo atendimento ou encaminhamento..." minRows={1} maxRows={3} />
-          </div>
-          <ErrorMsg msg={error} />
-          <div style={{ display: "flex", gap: "var(--s-2)" }}>
-            <Button type="submit" variant="primary" loading={busy}>Salvar evolução</Button>
-            <Button type="button" variant="ghost" onClick={() => { setShowForm(false); setError(""); }}>Cancelar</Button>
-          </div>
-        </form>
-      )}
     </div>
   );
 }
@@ -925,7 +921,6 @@ function WorkspaceEvolucao({ patient, user, token, onSaved, history, encounter, 
 // ── WorkspacePlano (checklist) ────────────────────────────────────────────────
 function WorkspacePlano({ patient, user, token, onSaved, planItems, onPlanUpdated, encounter, onGetEncounter }) {
   const [items, setItems] = useState(planItems || []);
-  const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ descricao: "", dente: "", prioridade: "media", previsao: "" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -954,7 +949,6 @@ function WorkspacePlano({ patient, user, token, onSaved, planItems, onPlanUpdate
       });
       setItems(s => [...s, res.data]);
       setForm({ descricao: "", dente: "", prioridade: "media", previsao: "" });
-      setShowForm(false);
       onPlanUpdated?.();
     } catch (err) { setError(err.message || "Erro."); }
     finally { setBusy(false); }
@@ -982,7 +976,31 @@ function WorkspacePlano({ patient, user, token, onSaved, planItems, onPlanUpdate
 
   return (
     <div style={{ padding: "var(--s-4)" }}>
-      <ErrorMsg msg={error} />
+      <form onSubmit={addItem} className="odonto-plan-form" style={{ marginBottom: "var(--s-4)" }}>
+        <div className="field">
+          <label className="field__label">Nova etapa *</label>
+          <input type="text" className="input" value={form.descricao}
+            onChange={e => setForm(s => ({ ...s, descricao: e.target.value }))}
+            placeholder="Ex: Restaurar dente 16 (face mesial)..." />
+        </div>
+        <div style={{ display: "flex", gap: "var(--s-2)", flexWrap: "wrap" }}>
+          <div style={{ flex: "1 1 90px" }}>
+            <Input label="Dente (FDI)" value={form.dente} onChange={e => setForm(s => ({ ...s, dente: e.target.value }))} placeholder="ex: 16" />
+          </div>
+          <div style={{ flex: "1 1 120px" }}>
+            <Select label="Prioridade" value={form.prioridade} onChange={e => setForm(s => ({ ...s, prioridade: e.target.value }))}>
+              <option value="alta">Alta</option>
+              <option value="media">Média</option>
+              <option value="baixa">Baixa</option>
+            </Select>
+          </div>
+          <div style={{ flex: "1 1 140px" }}>
+            <Input label="Previsão" type="date" value={form.previsao} onChange={e => setForm(s => ({ ...s, previsao: e.target.value }))} />
+          </div>
+        </div>
+        <ErrorMsg msg={error} />
+        <div><Button type="submit" variant="primary" size="sm" loading={busy}>Adicionar ao plano</Button></div>
+      </form>
 
       {pending.length > 0 && (
         <div style={{ marginBottom: "var(--s-4)" }}>
@@ -1035,40 +1053,8 @@ function WorkspacePlano({ patient, user, token, onSaved, planItems, onPlanUpdate
         </div>
       )}
 
-      {items.length === 0 && !showForm && (
+      {items.length === 0 && (
         <div style={{ fontSize: ".82rem", color: "var(--text-3)", marginBottom: "var(--s-3)" }}>Nenhuma etapa no plano de tratamento.</div>
-      )}
-
-      {showForm ? (
-        <form onSubmit={addItem} className="odonto-plan-form">
-          <div className="field">
-            <label className="field__label">Descrição *</label>
-            <input type="text" className="input" value={form.descricao}
-              onChange={e => setForm(s => ({ ...s, descricao: e.target.value }))}
-              placeholder="Ex: Restaurar dente 16 (face mesial)..." />
-          </div>
-          <div style={{ display: "flex", gap: "var(--s-2)", flexWrap: "wrap" }}>
-            <div style={{ flex: "1 1 90px" }}>
-              <Input label="Dente (FDI)" value={form.dente} onChange={e => setForm(s => ({ ...s, dente: e.target.value }))} placeholder="ex: 16" />
-            </div>
-            <div style={{ flex: "1 1 120px" }}>
-              <Select label="Prioridade" value={form.prioridade} onChange={e => setForm(s => ({ ...s, prioridade: e.target.value }))}>
-                <option value="alta">Alta</option>
-                <option value="media">Média</option>
-                <option value="baixa">Baixa</option>
-              </Select>
-            </div>
-            <div style={{ flex: "1 1 140px" }}>
-              <Input label="Previsão" type="date" value={form.previsao} onChange={e => setForm(s => ({ ...s, previsao: e.target.value }))} />
-            </div>
-          </div>
-          <div style={{ display: "flex", gap: "var(--s-2)" }}>
-            <Button type="submit" variant="primary" size="sm" loading={busy}>Adicionar</Button>
-            <Button type="button" variant="ghost" size="sm" onClick={() => { setShowForm(false); setError(""); }}>Cancelar</Button>
-          </div>
-        </form>
-      ) : (
-        <Button type="button" variant="secondary" size="sm" onClick={() => setShowForm(true)}>+ Adicionar etapa ao plano</Button>
       )}
     </div>
   );
@@ -1280,25 +1266,27 @@ function ElapsedTimer({ startedAt }) {
 }
 
 // ── EncounterHeader ───────────────────────────────────────────────────────────
-function EncounterHeader({ encounter }) {
+function EncounterHeader({ encounter, queueEntry }) {
   const TIPO_LABEL = {
     programado: "Consulta programada", demanda_espontanea: "Demanda espontânea",
-    urgencia: "Urgência", retorno: "Retorno", encaixe: "Encaixe", avulso: "Registro avulso",
+    urgencia: "Urgência", retorno: "Retorno", encaixe: "Encaixe",
   };
-  const isAvulso = !encounter || encounter.tipo === "avulso";
-  const label = encounter ? (TIPO_LABEL[encounter.tipo] || encounter.tipo) : "Registro avulso";
+  // Priority: queue entry type > encounter tipo > hidden
+  const label = queueEntry?.demandType
+    || (encounter && encounter.tipo !== "avulso" ? (TIPO_LABEL[encounter.tipo] || encounter.tipo) : null);
+
+  if (!label && !encounter?.startedAt) return null;
+
   return (
     <div className="odonto-encounter-header">
       <div className="odonto-encounter-header__info">
-        <span className="odonto-encounter-header__badge" style={
-          isAvulso
-            ? { background: "#f1f5f9", color: "#64748b" }
-            : { background: "#dcfce7", color: "#166534" }
-        }>
-          {label}
-        </span>
-        {encounter?.startedAt && (
-          <span className="odonto-encounter-header__time">Início {encounter.startedAt.slice(11, 16)}</span>
+        {label && (
+          <span className="odonto-encounter-header__badge" style={{ background: "#dcfce7", color: "#166534" }}>
+            {label}
+          </span>
+        )}
+        {queueEntry?.horario && (
+          <span className="odonto-encounter-header__time">Chegada {queueEntry.horario}</span>
         )}
         {encounter?.status === "em_atendimento" && encounter?.startedAt && (
           <span className="odonto-encounter-header__elapsed">
@@ -1314,17 +1302,208 @@ function EncounterHeader({ encounter }) {
 }
 
 
+// ── Catálogo de medicamentos odontológicos ────────────────────────────────────
+const DENTAL_MEDS = [
+  { nome: "Amoxicilina 500mg",                  dosagem: "500mg",            posologia: "1 cápsula de 8/8h por 7 dias",                                   qtdPrescrita: 21, categoria: "Antibiótico" },
+  { nome: "Amoxicilina + Clavulanato 875/125mg", dosagem: "875mg/125mg",      posologia: "1 comprimido de 12/12h por 7 dias",                               qtdPrescrita: 14, categoria: "Antibiótico" },
+  { nome: "Azitromicina 500mg",                  dosagem: "500mg",            posologia: "1 comprimido 1×/dia por 3 dias",                                  qtdPrescrita: 3,  categoria: "Antibiótico" },
+  { nome: "Clindamicina 300mg",                  dosagem: "300mg",            posologia: "1 cápsula de 8/8h por 7 dias (alérgico à penicilina)",            qtdPrescrita: 21, categoria: "Antibiótico" },
+  { nome: "Metronidazol 400mg",                  dosagem: "400mg",            posologia: "1 comprimido de 8/8h por 7 dias",                                 qtdPrescrita: 21, categoria: "Antibiótico" },
+  { nome: "Ibuprofeno 600mg",                    dosagem: "600mg",            posologia: "1 comprimido de 8/8h por 5 dias",                                 qtdPrescrita: 15, categoria: "Anti-inflamatório" },
+  { nome: "Nimesulida 100mg",                    dosagem: "100mg",            posologia: "1 comprimido de 12/12h por 5 dias",                               qtdPrescrita: 10, categoria: "Anti-inflamatório" },
+  { nome: "Prednisolona 20mg",                   dosagem: "20mg",             posologia: "1 comprimido 1×/dia por 5 dias",                                  qtdPrescrita: 5,  categoria: "Corticoide" },
+  { nome: "Dipirona 500mg",                      dosagem: "500mg",            posologia: "1 comprimido de 6/6h se dor",                                     qtdPrescrita: 20, categoria: "Analgésico" },
+  { nome: "Paracetamol 750mg",                   dosagem: "750mg",            posologia: "1 comprimido de 6/6h se dor",                                     qtdPrescrita: 20, categoria: "Analgésico" },
+  { nome: "Clorexidina 0,12% (bochechos)",       dosagem: "0,12% 250mL",      posologia: "Bochecho de 15 mL por 30s, 2×/dia por 14 dias",                  qtdPrescrita: 1,  categoria: "Antisséptico" },
+  { nome: "Nistatina 100.000 UI/mL (suspensão)", dosagem: "100.000 UI/mL",    posologia: "1 mL em bochecho por 2 min, 4×/dia por 14 dias",                 qtdPrescrita: 1,  categoria: "Antifúngico" },
+];
+
+const DENTAL_MED_CATS = [...new Set(DENTAL_MEDS.map(m => m.categoria))];
+
 // ── WorkspacePrescricao ───────────────────────────────────────────────────────
-function WorkspacePrescricao({ patient }) {
+function WorkspacePrescricao({ patient, user, token, encounter, onGetEncounter }) {
+  const [itens, setItens] = useState([]);
+  const [medSearch, setMedSearch] = useState("");
+  const [medCat, setMedCat] = useState("all");
+  const [cro, setCro] = useState(user?.cro || "");
+  const [validade, setValidade] = useState("30 dias");
+  const [obs, setObs] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [saved, setSaved] = useState(null);
+  const [prescricoes, setPrescricoes] = useState(null);
+
+  useEffect(() => {
+    import("../api").then(({ getOdontoPrescricoes }) =>
+      getOdontoPrescricoes(token, patient.id)
+        .then(r => setPrescricoes(r.data || []))
+        .catch(() => setPrescricoes([]))
+    );
+  }, [token, patient.id, saved]);
+
+  const filteredMeds = useMemo(() => DENTAL_MEDS.filter(m => {
+    const matchCat = medCat === "all" || m.categoria === medCat;
+    const q = medSearch.trim().toLowerCase();
+    return matchCat && (!q || m.nome.toLowerCase().includes(q));
+  }), [medSearch, medCat]);
+
+  function addMed(med) {
+    if (itens.find(i => i.nome === med.nome)) return;
+    setItens(s => [...s, { nome: med.nome, dosagem: med.dosagem, posologia: med.posologia, qtdPrescrita: med.qtdPrescrita }]);
+  }
+
+  function removeMed(nome) { setItens(s => s.filter(i => i.nome !== nome)); }
+
+  function updateItem(nome, field, val) {
+    setItens(s => s.map(i => i.nome === nome ? { ...i, [field]: val } : i));
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    if (itens.length === 0) { setError("Adicione ao menos um medicamento."); return; }
+    setBusy(true); setError("");
+    try {
+      const enc = await onGetEncounter?.();
+      const { createOdontoPrescricao } = await import("../api");
+      const now = new Date();
+      const result = await createOdontoPrescricao(token, {
+        patientId: patient.id,
+        dtReceita: now.toISOString().slice(0, 10),
+        validade,
+        itens,
+        obs: obs || null,
+        cro: cro || null,
+        encounterId: enc?.id || encounter?.id || null,
+      });
+      setSaved(result.data);
+      setItens([]); setObs(""); setMedSearch("");
+    } catch (err) { setError(err.message || "Erro ao emitir receita."); }
+    finally { setBusy(false); }
+  }
+
   return (
-    <div style={{ padding: "var(--s-4)" }}>
-      <div style={{ background: "var(--surface-2,#f8fafc)", border: "1px solid var(--border)", borderRadius: "var(--r-md)", padding: "var(--s-4)", marginBottom: "var(--s-4)" }}>
-        <p style={{ fontSize: ".85rem", color: "var(--text-2)", marginBottom: "var(--s-2)", fontWeight: 600 }}>Prescrições odontológicas</p>
-        <p style={{ fontSize: ".82rem", color: "var(--text-3)", margin: 0 }}>As prescrições são gerenciadas no módulo de Prescrições. Prescrições emitidas para este paciente aparecerão automaticamente no histórico clínico.</p>
-      </div>
-      <p style={{ fontSize: ".75rem", color: "var(--text-3)", marginTop: "var(--s-3)" }}>
-        Integração direta nesta aba será implementada em fase posterior (prescrição ligada ao atendimento).
-      </p>
+    <div style={{ padding: "var(--s-4)", display: "flex", flexDirection: "column", gap: "var(--s-4)" }}>
+      {saved && (
+        <SuccessBanner
+          msg={`Receita emitida — aparece na Farmácia.`}
+          onNew={() => setSaved(null)}
+          newLabel="+ Nova receita"
+        />
+      )}
+
+      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "var(--s-3)" }}>
+        {/* CRO + validade */}
+        <div style={{ display: "flex", gap: "var(--s-2)", flexWrap: "wrap" }}>
+          <div style={{ flex: "1 1 160px" }}>
+            <Input label="CRO do prescritor" value={cro} onChange={e => setCro(e.target.value)} placeholder="CRO-SP 00000" />
+          </div>
+          <div style={{ flex: "1 1 140px" }}>
+            <Input label="Validade" value={validade} onChange={e => setValidade(e.target.value)} placeholder="30 dias" />
+          </div>
+        </div>
+
+        {/* Catálogo */}
+        <div>
+          <div className="field__label" style={{ marginBottom: "var(--s-1)" }}>Adicionar medicamento</div>
+          <div style={{ display: "flex", gap: "var(--s-2)", marginBottom: "var(--s-2)", flexWrap: "wrap" }}>
+            <div className="odonto-proc-search" style={{ flex: "1 1 180px" }}>
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style={{ color: "var(--text-3)" }}>
+                <circle cx="6.5" cy="6.5" r="4" stroke="currentColor" strokeWidth="1.5"/>
+                <path d="M10.5 10.5l3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+              </svg>
+              <input type="search" className="odonto-proc-search__input" placeholder="Buscar medicamento..."
+                value={medSearch} onChange={e => setMedSearch(e.target.value)} />
+            </div>
+            <div className="odonto-proc-cats" style={{ flex: "0 0 auto" }}>
+              <button type="button" className={`odonto-cat-chip${medCat === "all" ? " odonto-cat-chip--active" : ""}`} onClick={() => setMedCat("all")}>Todos</button>
+              {DENTAL_MED_CATS.map(c => (
+                <button key={c} type="button" className={`odonto-cat-chip${medCat === c ? " odonto-cat-chip--active" : ""}`} onClick={() => setMedCat(c)}>{c}</button>
+              ))}
+            </div>
+          </div>
+          <div className="odonto-proc-catalog" style={{ maxHeight: 200 }}>
+            {filteredMeds.map(med => {
+              const added = !!itens.find(i => i.nome === med.nome);
+              return (
+                <button key={med.nome} type="button"
+                  className={`odonto-proc-catalog__item${added ? " odonto-proc-catalog__item--selected" : ""}`}
+                  onClick={() => added ? removeMed(med.nome) : addMed(med)}
+                  style={{ textAlign: "left" }}>
+                  <div className="odonto-proc-catalog__info">
+                    <div className="odonto-proc-catalog__name">{med.nome}</div>
+                    <div className="odonto-proc-catalog__meta">
+                      <span className="odonto-cat-badge">{med.categoria}</span>
+                      <span style={{ fontSize: ".72rem", color: "var(--text-3)" }}>{med.posologia}</span>
+                    </div>
+                  </div>
+                  {added
+                    ? <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M2.5 8.5l4 4 7-7" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    : <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                  }
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Itens selecionados */}
+        {itens.length > 0 && (
+          <div>
+            <div className="field__label" style={{ marginBottom: "var(--s-2)" }}>Itens da receita ({itens.length})</div>
+            {itens.map(item => (
+              <div key={item.nome} className="odonto-proc-selected-item">
+                <div className="odonto-proc-selected-item__name">
+                  <button type="button" className="odonto-proc-remove" onClick={() => removeMed(item.nome)} aria-label="Remover">
+                    <svg width="10" height="10" viewBox="0 0 16 16" fill="none"><path d="M2 2l12 12M14 2L2 14" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+                  </button>
+                  {item.nome}
+                </div>
+                <div className="odonto-proc-selected-item__fields">
+                  <Input label="Dosagem" value={item.dosagem} onChange={e => updateItem(item.nome, "dosagem", e.target.value)} style={{ maxWidth: 160 }} />
+                  <div className="field" style={{ flex: 1 }}>
+                    <label className="field__label">Posologia</label>
+                    <AutoTextarea value={item.posologia} onChange={e => updateItem(item.nome, "posologia", e.target.value)} minRows={1} maxRows={3} />
+                  </div>
+                  <Input label="Qtd." value={String(item.qtdPrescrita)} onChange={e => updateItem(item.nome, "qtdPrescrita", Number(e.target.value) || 1)} type="number" min="1" style={{ maxWidth: 70 }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="field">
+          <label className="field__label">Observações</label>
+          <AutoTextarea value={obs} onChange={e => setObs(e.target.value)} minRows={2} maxRows={4} placeholder="Orientações adicionais ao paciente..." />
+        </div>
+
+        <ErrorMsg msg={error} />
+        <div><Button type="submit" variant="primary" loading={busy} disabled={itens.length === 0}>Emitir receita</Button></div>
+      </form>
+
+      {/* Receitas anteriores */}
+      {prescricoes !== null && prescricoes.length > 0 && (
+        <div style={{ borderTop: "1px solid var(--border)", paddingTop: "var(--s-3)" }}>
+          <div style={{ fontSize: ".7rem", fontWeight: 700, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: ".07em", marginBottom: "var(--s-2)" }}>Receitas odontológicas anteriores</div>
+          {prescricoes.map(r => (
+            <div key={r.id} className="odonto-evol-card" style={{ marginBottom: "var(--s-2)" }}>
+              <div className="odonto-evol-card__header">
+                <span className="odonto-evol-card__date">{fmtDate(r.dtReceita)}</span>
+                {r.prescritorNome && <span className="odonto-evol-card__prof">· {r.prescritorNome}</span>}
+                {r.cro && <span className="odonto-evol-card__prof">· CRO {r.cro}</span>}
+                <span style={{ marginLeft: "auto", fontSize: ".72rem", color: "#166534", background: "#dcfce7", padding: "1px 8px", borderRadius: "var(--r-full)", fontWeight: 600 }}>{r.status}</span>
+              </div>
+              <div className="odonto-evol-card__body">
+                {(r.itens || []).map((it, idx) => (
+                  <div key={idx} style={{ fontSize: ".8rem", marginBottom: ".2rem" }}>
+                    <strong>{it.nome}</strong> — {it.posologia} — Qtd: {it.qtdPrescrita}
+                  </div>
+                ))}
+                {r.obs && <div style={{ fontSize: ".78rem", color: "var(--text-3)", marginTop: ".4rem" }}>{r.obs}</div>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -1418,7 +1597,7 @@ const WORKSPACE_TABS = [
   { id: "historico",     label: "Histórico" },
 ];
 
-function DentalWorkspacePanel({ patient, user, token, onClose }) {
+function DentalWorkspacePanel({ patient, user, token, onClose, queueEntry }) {
   const [activeTab, setActiveTab] = useState("resumo");
   const [history, setHistory] = useState(null);
   const [procedures, setProcedures] = useState([]);
@@ -1525,7 +1704,7 @@ function DentalWorkspacePanel({ patient, user, token, onClose }) {
         </Button>
       </div>
 
-      <EncounterHeader encounter={encounter} />
+      <EncounterHeader encounter={encounter} queueEntry={queueEntry} />
 
       <div className="odonto-workspace-tabs">
         {visibleTabs.map(t => (
@@ -1543,9 +1722,110 @@ function DentalWorkspacePanel({ patient, user, token, onClose }) {
         {activeTab === "procedimentos" && canWrite && <WorkspaceProcedimentos patient={patient} user={user} token={token} onSaved={onSaved} prefill={procPrefill} onGetEncounter={getOrCreateEncounter} />}
         {activeTab === "evolucao" && canWrite && <WorkspaceEvolucao patient={patient} user={user} token={token} onSaved={onSaved} history={history} encounter={encounter} onGetEncounter={getOrCreateEncounter} />}
         {activeTab === "plano" && canWrite && <WorkspacePlano patient={patient} user={user} token={token} onSaved={onSaved} planItems={planItems} onPlanUpdated={loadPlanItems} encounter={encounter} onGetEncounter={getOrCreateEncounter} />}
-        {activeTab === "prescricao" && canWrite && <WorkspacePrescricao patient={patient} encounter={encounter} />}
+        {activeTab === "prescricao" && canWrite && <WorkspacePrescricao patient={patient} user={user} token={token} encounter={encounter} onGetEncounter={getOrCreateEncounter} />}
         {activeTab === "documentos" && <WorkspaceDocumentos patient={patient} user={user} token={token} encounter={encounter} onSaved={onSaved} onGetEncounter={getOrCreateEncounter} />}
         {activeTab === "historico" && <WorkspaceHistorico history={history} procedures={procedures} />}
+      </div>
+    </div>
+  );
+}
+
+// ── DentalQueueView ───────────────────────────────────────────────────────────
+const QUEUE_STATUS_CFG = {
+  agendado:         { label: "Agendado",           bg: "#f1f5f9", color: "#475569" },
+  aguardando:       { label: "Aguardando",          bg: "#fef9c3", color: "#854d0e" },
+  triagem:          { label: "Em triagem",          bg: "#fef3c7", color: "#92400e" },
+  aguardando_odonto:{ label: "Aguardando odonto",   bg: "#dbeafe", color: "#1d4ed8" },
+  em_atendimento:   { label: "Em atendimento",      bg: "#dcfce7", color: "#166534" },
+  atendido:         { label: "Atendido",            bg: "#f0fdf4", color: "#166534" },
+  faltou:           { label: "Faltou",              bg: "#f1f5f9", color: "#94a3b8" },
+};
+
+function DentalQueueView({ entries, loading, selectedId, onSelect, today }) {
+  const [filter, setFilter] = useState("aguardando");
+
+  const STATUS_GROUPS = {
+    aguardando:      ["agendado", "aguardando", "triagem", "aguardando_odonto"],
+    em_atendimento:  ["em_atendimento"],
+    atendidos:       ["atendido", "faltou"],
+  };
+
+  const counts = {
+    aguardando:     (entries || []).filter(e => STATUS_GROUPS.aguardando.includes(e.status)).length,
+    em_atendimento: (entries || []).filter(e => STATUS_GROUPS.em_atendimento.includes(e.status)).length,
+    atendidos:      (entries || []).filter(e => STATUS_GROUPS.atendidos.includes(e.status)).length,
+  };
+
+  const visible = (entries || []).filter(e =>
+    filter === "todos" ? true : STATUS_GROUPS[filter]?.includes(e.status)
+  );
+
+  const PRIORITY_CFG = {
+    urgent:   { label: "URGENTE", bg: "#fee2e2", color: "#b91c1c" },
+    elderly:  { label: "Idoso",   bg: "#fef9c3", color: "#854d0e" },
+    pregnant: { label: "Gestante", bg: "#fce7f3", color: "#9d174d" },
+    child:    { label: "Criança", bg: "#dbeafe", color: "#1e40af" },
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+      <div style={{ padding: "var(--s-2) var(--s-3)", borderBottom: "1px solid var(--border)" }}>
+        <div style={{ fontSize: ".68rem", fontWeight: 700, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: "var(--s-1)" }}>
+          Fila — {today}
+        </div>
+        <div style={{ display: "flex", gap: "var(--s-1)" }}>
+          {[
+            { key: "aguardando", label: `Aguardando (${counts.aguardando})` },
+            { key: "em_atendimento", label: `Atendendo (${counts.em_atendimento})` },
+            { key: "atendidos", label: `Prontos (${counts.atendidos})` },
+          ].map(f => (
+            <button key={f.key} type="button"
+              className={`odonto-cat-chip${filter === f.key ? " odonto-cat-chip--active" : ""}`}
+              style={{ fontSize: ".7rem" }}
+              onClick={() => setFilter(f.key)}>
+              {f.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="vacc-panel__list" style={{ flex: 1, overflowY: "auto" }}>
+        {loading && <p className="vacc-panel__empty">Carregando fila...</p>}
+        {!loading && visible.length === 0 && (
+          <p className="vacc-panel__empty">
+            {filter === "aguardando" ? "Nenhum paciente aguardando." : "Nenhum registro."}
+          </p>
+        )}
+        {visible.map(entry => {
+          const sc = QUEUE_STATUS_CFG[entry.status] || { label: entry.status, bg: "#f1f5f9", color: "#64748b" };
+          const prioCfg = PRIORITY_CFG[entry.priority];
+          return (
+            <button key={entry.id} type="button"
+              className={`vacc-pat${selectedId === entry.patientId ? " is-active" : ""}`}
+              onClick={() => onSelect(entry)}>
+              <Avatar name={entry.patientName} size="sm" />
+              <div className="vacc-pat__copy" style={{ flex: 1, minWidth: 0 }}>
+                <div className="vacc-pat__name">{entry.patientName}</div>
+                <div className="vacc-pat__meta" style={{ display: "flex", alignItems: "center", gap: "4px", flexWrap: "wrap" }}>
+                  {entry.patientAge !== null && <span className="vacc-pat__age">{entry.patientAge}a</span>}
+                  {entry.horario && <span style={{ fontSize: ".7rem", color: "var(--text-3)" }}>{entry.horario}</span>}
+                  {entry.demandType && <span style={{ fontSize: ".7rem", color: "var(--text-3)" }}>{entry.demandType}</span>}
+                  {prioCfg && (
+                    <span style={{ fontSize: ".67rem", fontWeight: 700, padding: "1px 6px", borderRadius: "var(--r-full)", background: prioCfg.bg, color: prioCfg.color }}>
+                      {prioCfg.label}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <span style={{ fontSize: ".68rem", fontWeight: 600, padding: "2px 7px", borderRadius: "var(--r-full)", background: sc.bg, color: sc.color, flexShrink: 0 }}>
+                {sc.label}
+              </span>
+              <svg className="vacc-pat__chevron" width="11" height="11" viewBox="0 0 16 16" fill="none">
+                <path d="M6 12l4-4-4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
@@ -1561,9 +1841,36 @@ const DENTAL_ICON = (
 export default function OdontologiaPage({ patients, user, token }) {
   const canRead = hasCapability(user, "dental.read") || hasCapability(user, "dental.write") || hasCapability(user, "dental.admin");
 
+  const [showSearch, setShowSearch] = useState(false);
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(0);
   const [selectedPatient, setSelectedPatient] = useState(null);
+  const [selectedQueueEntry, setSelectedQueueEntry] = useState(null);
+  const [queueEntries, setQueueEntries] = useState([]);
+  const [queueLoading, setQueueLoading] = useState(true);
+
+  const today = new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+
+  useEffect(() => {
+    setQueueLoading(true);
+    getDentalQueueToday(token)
+      .then(r => setQueueEntries(r.data || []))
+      .catch(() => setQueueEntries([]))
+      .finally(() => setQueueLoading(false));
+  }, [token]);
+
+  function handleQueueSelect(entry) {
+    const patient = patients.find(p => p.id === entry.patientId);
+    if (!patient) return;
+    setSelectedPatient(patient);
+    setSelectedQueueEntry(entry);
+    setShowSearch(false);
+  }
+
+  function handleClose() {
+    setSelectedPatient(null);
+    setSelectedQueueEntry(null);
+  }
 
   const filtered = useMemo(() => {
     const base = !query.trim() ? patients : patients.filter(p => matchesPatientSearch(p, query));
@@ -1586,50 +1893,83 @@ export default function OdontologiaPage({ patients, user, token }) {
       <PageHeader
         eyebrow="ATENDIMENTO ODONTOLÓGICO"
         title="Odontologia"
-        subtitle={`${filtered.length} paciente${filtered.length !== 1 ? "s" : ""} cadastrado${filtered.length !== 1 ? "s" : ""}`}
+        subtitle={today}
+        actions={
+          <Button type="button" variant="secondary" size="sm"
+            onClick={() => { setShowSearch(s => !s); setQuery(""); setPage(0); }}>
+            {showSearch ? "← Fila" : "Consultar paciente"}
+          </Button>
+        }
       />
       <div className="vaccines-layout">
         <div className="vacc-panel">
-          <div className="card card--noPad overflow-hidden">
-            <div className="vacc-panel__search">
-              <Input value={query} onChange={e => { setQuery(e.target.value); setPage(0); }} placeholder="Buscar paciente..." />
-            </div>
-            <div className="vacc-panel__list">
-              {paged.length === 0 ? (
-                <p className="vacc-panel__empty">Nenhum paciente encontrado.</p>
-              ) : paged.map(p => {
-                const am = p.birthDate ? Math.round((Date.now() - new Date(p.birthDate + "T12:00:00").getTime()) / (1000 * 60 * 60 * 24 * 30.44)) : null;
-                const isActive = selectedPatient?.id === p.id;
-                return (
-                  <button key={p.id} type="button" className={`vacc-pat${isActive ? " is-active" : ""}`} onClick={() => setSelectedPatient(isActive ? null : p)}>
-                    <Avatar name={p.name} size="sm" />
-                    <div className="vacc-pat__copy">
-                      <div className="vacc-pat__name">{p.name}</div>
-                      {am !== null && <div className="vacc-pat__meta"><span className="vacc-pat__age">{am < 24 ? `${am}m` : `${Math.floor(am/12)}a`}</span></div>}
-                    </div>
-                    <svg className="vacc-pat__chevron" width="11" height="11" viewBox="0 0 16 16" fill="none"><path d="M6 12l4-4-4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                  </button>
-                );
-              })}
-            </div>
-            {totalPages > 1 && (
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: ".5rem", padding: "var(--s-2) var(--s-3)", borderTop: "1px solid var(--border)" }}>
-                <Button type="button" variant="secondary" size="sm" disabled={page === 0} onClick={() => setPage(p => p - 1)}>‹</Button>
-                <span style={{ fontSize: ".75rem", color: "var(--text-dim)" }}>{page + 1} / {totalPages}</span>
-                <Button type="button" variant="secondary" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)}>›</Button>
-              </div>
+          <div className="card card--noPad overflow-hidden" style={{ height: "100%" }}>
+            {showSearch ? (
+              <>
+                <div className="vacc-panel__search">
+                  <Input value={query} onChange={e => { setQuery(e.target.value); setPage(0); }} placeholder="Buscar paciente..." autoFocus />
+                </div>
+                <div className="vacc-panel__list">
+                  {paged.length === 0 ? (
+                    <p className="vacc-panel__empty">Nenhum paciente encontrado.</p>
+                  ) : paged.map(p => {
+                    const am = p.birthDate ? Math.round((Date.now() - new Date(p.birthDate + "T12:00:00").getTime()) / (1000 * 60 * 60 * 24 * 30.44)) : null;
+                    const isActive = selectedPatient?.id === p.id && !selectedQueueEntry;
+                    return (
+                      <button key={p.id} type="button" className={`vacc-pat${isActive ? " is-active" : ""}`}
+                        onClick={() => { setSelectedPatient(p); setSelectedQueueEntry(null); }}>
+                        <Avatar name={p.name} size="sm" />
+                        <div className="vacc-pat__copy">
+                          <div className="vacc-pat__name">{p.name}</div>
+                          {am !== null && <div className="vacc-pat__meta"><span className="vacc-pat__age">{am < 24 ? `${am}m` : `${Math.floor(am/12)}a`}</span></div>}
+                        </div>
+                        <svg className="vacc-pat__chevron" width="11" height="11" viewBox="0 0 16 16" fill="none"><path d="M6 12l4-4-4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                      </button>
+                    );
+                  })}
+                </div>
+                {totalPages > 1 && (
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: ".5rem", padding: "var(--s-2) var(--s-3)", borderTop: "1px solid var(--border)" }}>
+                    <Button type="button" variant="secondary" size="sm" disabled={page === 0} onClick={() => setPage(p => p - 1)}>‹</Button>
+                    <span style={{ fontSize: ".75rem", color: "var(--text-dim)" }}>{page + 1} / {totalPages}</span>
+                    <Button type="button" variant="secondary" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)}>›</Button>
+                  </div>
+                )}
+              </>
+            ) : (
+              <DentalQueueView
+                entries={queueEntries}
+                loading={queueLoading}
+                selectedId={selectedPatient?.id}
+                onSelect={handleQueueSelect}
+                today={today}
+              />
             )}
           </div>
         </div>
         <div className="vacc-main">
           {selectedPatient ? (
             <div className="card card--noPad overflow-hidden" style={{ height: "100%" }}>
-              <DentalWorkspacePanel patient={selectedPatient} user={user} token={token} onClose={() => setSelectedPatient(null)} />
+              <DentalWorkspacePanel
+                patient={selectedPatient}
+                user={user}
+                token={token}
+                onClose={handleClose}
+                queueEntry={selectedQueueEntry}
+              />
             </div>
           ) : (
             <div className="vacc-empty">
               <div className="vacc-empty__icon" style={{ opacity: .2 }}>{DENTAL_ICON}</div>
-              <p className="vacc-empty__label">Selecione um paciente para iniciar o atendimento odontológico.</p>
+              <p className="vacc-empty__label">
+                {showSearch
+                  ? "Selecione um paciente para abrir o prontuário."
+                  : queueLoading
+                    ? "Carregando fila do dia..."
+                    : queueEntries.length === 0
+                      ? "Nenhum paciente na fila hoje. Use 'Consultar paciente' para buscar."
+                      : "Selecione um paciente da fila para iniciar o atendimento."}
+              </p>
             </div>
           )}
         </div>
