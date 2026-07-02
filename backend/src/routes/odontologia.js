@@ -221,7 +221,7 @@ router.delete("/odontologia/procedures/:id", (req, res) => {
 });
 
 const VALID_ENCOUNTER_STATUS = ["aberto", "em_atendimento", "encerrado", "cancelado"];
-const VALID_ENCOUNTER_TIPOS = ["programado", "demanda_espontanea", "urgencia"];
+const VALID_ENCOUNTER_TIPOS = ["programado", "demanda_espontanea", "urgencia", "retorno", "encaixe", "avulso"];
 const VALID_PLAN_STATUS = ["pendente", "em_andamento", "concluido", "cancelado"];
 const VALID_PLAN_PRIO = ["alta", "media", "baixa"];
 

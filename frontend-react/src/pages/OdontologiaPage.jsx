@@ -637,7 +637,7 @@ function WorkspaceResumo({ patient, history, procedures, chartTeeth }) {
 
 // ── WorkspaceProcedimentos (catálogo estruturado) ─────────────────────────────
 // prefill: { fdi, face } — pré-seleciona dente/face vindo do painel do odontograma
-function WorkspaceProcedimentos({ patient, user, token, onSaved, prefill }) {
+function WorkspaceProcedimentos({ patient, user, token, onSaved, prefill, onGetEncounter }) {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("all");
   const [selected, setSelected] = useState([]);
@@ -680,6 +680,7 @@ function WorkspaceProcedimentos({ patient, user, token, onSaved, prefill }) {
     if (selected.length === 0) { setError("Selecione ao menos um procedimento."); return; }
     setBusy(true); setError("");
     try {
+      const enc = await onGetEncounter?.();
       const { createRecord } = await import("../api");
       // Register each selected procedure
       for (const item of selected) {
@@ -699,7 +700,7 @@ function WorkspaceProcedimentos({ patient, user, token, onSaved, prefill }) {
           professionalName: user?.name || "",
           professionalCouncil: "",
           immutable: true,
-          metadata: { consultKind: "odontologia", subtype: "procedimento", procCode: proc.code, procCategory: proc.category, dente: tooth || null },
+          metadata: { consultKind: "odontologia", subtype: "procedimento", procCode: proc.code, procCategory: proc.category, dente: tooth || null, encounterId: enc?.id || null },
         });
 
         // If proc has a tooth, also create odontoProcedure
@@ -823,7 +824,7 @@ function WorkspaceProcedimentos({ patient, user, token, onSaved, prefill }) {
 }
 
 // ── WorkspaceEvolucao ─────────────────────────────────────────────────────────
-function WorkspaceEvolucao({ patient, user, token, onSaved, history, encounter }) {
+function WorkspaceEvolucao({ patient, user, token, onSaved, history, encounter, onGetEncounter }) {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ date: new Date().toISOString().slice(0,10), queixa: "", exame: "", evolucao: "", conduta: "", orientacoes: "", proximo: "" });
   const [busy, setBusy] = useState(false);
@@ -840,6 +841,7 @@ function WorkspaceEvolucao({ patient, user, token, onSaved, history, encounter }
     if (!form.evolucao.trim()) { setError("Evolução obrigatória."); return; }
     setBusy(true); setError("");
     try {
+      const enc = await onGetEncounter?.();
       const { createRecord } = await import("../api");
       const details = [
         form.queixa ? `Queixa principal: ${form.queixa}` : "",
@@ -853,7 +855,7 @@ function WorkspaceEvolucao({ patient, user, token, onSaved, history, encounter }
         date: form.date, time: new Date().toTimeString().slice(0,5),
         type: "consultation", title: "Evolução odontológica",
         details, professionalName: user?.name || "", professionalCouncil: "",
-        immutable: true, metadata: { consultKind: "odontologia", subtype: "evolucao", encounterId: encounter?.id || null },
+        immutable: true, metadata: { consultKind: "odontologia", subtype: "evolucao", encounterId: enc?.id || null },
       });
       setShowForm(false);
       setForm({ date: new Date().toISOString().slice(0,10), queixa: "", exame: "", evolucao: "", conduta: "", orientacoes: "", proximo: "" });
@@ -921,7 +923,7 @@ function WorkspaceEvolucao({ patient, user, token, onSaved, history, encounter }
 }
 
 // ── WorkspacePlano (checklist) ────────────────────────────────────────────────
-function WorkspacePlano({ patient, user, token, onSaved, planItems, onPlanUpdated, encounter }) {
+function WorkspacePlano({ patient, user, token, onSaved, planItems, onPlanUpdated, encounter, onGetEncounter }) {
   const [items, setItems] = useState(planItems || []);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ descricao: "", dente: "", prioridade: "media", previsao: "" });
@@ -941,9 +943,10 @@ function WorkspacePlano({ patient, user, token, onSaved, planItems, onPlanUpdate
     if (!form.descricao.trim()) { setError("Descrição obrigatória."); return; }
     setBusy(true); setError("");
     try {
+      const enc = await onGetEncounter?.();
       const res = await createOdontoPlanItem(token, {
         patientId: patient.id,
-        encounterId: encounter?.id || null,
+        encounterId: enc?.id || encounter?.id || null,
         descricao: form.descricao,
         dente: form.dente || null,
         prioridade: form.prioridade,
@@ -1276,103 +1279,40 @@ function ElapsedTimer({ startedAt }) {
   return <>{String(m).padStart(2, "0")}:{String(s).padStart(2, "0")}</>;
 }
 
-// ── EncounterStartScreen ──────────────────────────────────────────────────────
-function EncounterStartScreen({ patient, onStart, loading }) {
-  const [tipo, setTipo] = useState("demanda_espontanea");
-  const [motivo, setMotivo] = useState("");
-  const TIPOS = [
-    { value: "programado",       label: "Programada" },
-    { value: "demanda_espontanea", label: "Demanda espontânea" },
-    { value: "urgencia",         label: "Urgência" },
-  ];
-  return (
-    <div className="odonto-encounter-start">
-      <div className="odonto-encounter-start__card">
-        <div className="odonto-encounter-start__icon" aria-hidden="true">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 5.5c-1.5-2-4-2.5-5.5-1C4.5 6 4 8 5 10.5c.7 1.8 1.5 5.5 2.5 7 .5 1 1.5 1 2 0 .3-.6.5-1.5.5-3 0-1.5 1-2 2-2s2 .5 2 2c0 1.5.2 2.4.5 3 .5 1 1.5 1 2 0 1-1.5 1.8-5.2 2.5-7 1-2.5.5-4.5-1.5-6-1.5-1.5-4-1-5.5 1z"/>
-          </svg>
-        </div>
-        <div className="odonto-encounter-start__title">Iniciar atendimento odontológico</div>
-        <div className="odonto-encounter-start__patient">{patient.name}</div>
-        <div style={{ display: "flex", gap: "var(--s-2)", marginBottom: "var(--s-4)", flexWrap: "wrap" }}>
-          {TIPOS.map(t => (
-            <button key={t.value} type="button"
-              className={`odonto-encounter-tipo-btn${tipo === t.value ? " odonto-encounter-tipo-btn--active" : ""}`}
-              onClick={() => setTipo(t.value)}>
-              {t.label}
-            </button>
-          ))}
-        </div>
-        <div className="field" style={{ marginBottom: "var(--s-4)" }}>
-          <label className="field__label">Motivo / queixa principal (opcional)</label>
-          <input type="text" className="input" value={motivo}
-            onChange={e => setMotivo(e.target.value)}
-            placeholder="Ex: Dor de dente, revisão, urgência..." />
-        </div>
-        <Button type="button" variant="primary" loading={loading}
-          onClick={() => onStart({ tipo, motivo })}>
-          Iniciar atendimento
-        </Button>
-      </div>
-    </div>
-  );
-}
-
 // ── EncounterHeader ───────────────────────────────────────────────────────────
-function EncounterHeader({ encounter, onClose, canWrite }) {
-  const TIPO_LABEL = { programado: "Programada", demanda_espontanea: "Demanda Espontânea", urgencia: "Urgência" };
-  const ST_CFG = {
-    em_atendimento: { bg: "#dcfce7", color: "#166534", label: "Em atendimento" },
-    aberto:         { bg: "#fef9c3", color: "#854d0e", label: "Aberto" },
-    encerrado:      { bg: "#f1f5f9", color: "#64748b", label: "Encerrado" },
-    cancelado:      { bg: "#fee2e2", color: "#b91c1c", label: "Cancelado" },
+function EncounterHeader({ encounter }) {
+  const TIPO_LABEL = {
+    programado: "Consulta programada", demanda_espontanea: "Demanda espontânea",
+    urgencia: "Urgência", retorno: "Retorno", encaixe: "Encaixe", avulso: "Registro avulso",
   };
-  const st = ST_CFG[encounter.status] || ST_CFG.aberto;
+  const isAvulso = !encounter || encounter.tipo === "avulso";
+  const label = encounter ? (TIPO_LABEL[encounter.tipo] || encounter.tipo) : "Registro avulso";
   return (
     <div className="odonto-encounter-header">
       <div className="odonto-encounter-header__info">
-        <span className="odonto-encounter-header__badge" style={{ background: st.bg, color: st.color }}>{st.label}</span>
-        <span className="odonto-encounter-header__tipo">{TIPO_LABEL[encounter.tipo] || encounter.tipo}</span>
-        {encounter.startedAt && (
+        <span className="odonto-encounter-header__badge" style={
+          isAvulso
+            ? { background: "#f1f5f9", color: "#64748b" }
+            : { background: "#dcfce7", color: "#166534" }
+        }>
+          {label}
+        </span>
+        {encounter?.startedAt && (
           <span className="odonto-encounter-header__time">Início {encounter.startedAt.slice(11, 16)}</span>
         )}
-        {encounter.status === "em_atendimento" && encounter.startedAt && (
+        {encounter?.status === "em_atendimento" && encounter?.startedAt && (
           <span className="odonto-encounter-header__elapsed">
             <ElapsedTimer startedAt={encounter.startedAt} />
           </span>
         )}
+        {encounter?.professionalName && (
+          <span className="odonto-encounter-header__tipo">{encounter.professionalName}</span>
+        )}
       </div>
-      {canWrite && encounter.status === "em_atendimento" && (
-        <Button type="button" variant="secondary" size="sm" onClick={onClose}>Encerrar</Button>
-      )}
     </div>
   );
 }
 
-// ── CloseEncounterModal ───────────────────────────────────────────────────────
-function CloseEncounterModal({ encounter, patient, procedures, onConfirm, onCancel, busy }) {
-  const encProcs = (procedures || []).filter(p => p.encounterId === encounter?.id);
-  return (
-    <div className="odonto-modal-backdrop" role="dialog" aria-modal="true" onClick={onCancel}>
-      <div className="odonto-modal" onClick={e => e.stopPropagation()}>
-        <div className="odonto-modal__title">Encerrar atendimento</div>
-        <div className="odonto-modal__body">
-          <div className="odonto-modal__row"><span>Paciente</span><strong>{patient.name}</strong></div>
-          {encounter.startedAt && (
-            <div className="odonto-modal__row"><span>Tempo em atendimento</span><strong><ElapsedTimer startedAt={encounter.startedAt} /></strong></div>
-          )}
-          {encounter.motivo && <div className="odonto-modal__row"><span>Motivo</span><strong>{encounter.motivo}</strong></div>}
-          <div className="odonto-modal__row"><span>Procedimentos registrados</span><strong>{encProcs.length}</strong></div>
-        </div>
-        <div className="odonto-modal__footer">
-          <Button type="button" variant="secondary" onClick={onCancel}>Cancelar</Button>
-          <Button type="button" variant="primary" loading={busy} onClick={onConfirm}>Confirmar encerramento</Button>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // ── WorkspacePrescricao ───────────────────────────────────────────────────────
 function WorkspacePrescricao({ patient }) {
@@ -1390,7 +1330,7 @@ function WorkspacePrescricao({ patient }) {
 }
 
 // ── WorkspaceDocumentos ───────────────────────────────────────────────────────
-function WorkspaceDocumentos({ patient, user, token, encounter, onSaved }) {
+function WorkspaceDocumentos({ patient, user, token, encounter, onSaved, onGetEncounter }) {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ tipo: "radiografia", nome: "", descricao: "" });
   const [busy, setBusy] = useState(false);
@@ -1410,6 +1350,7 @@ function WorkspaceDocumentos({ patient, user, token, encounter, onSaved }) {
     if (!form.nome.trim()) { setError("Nome obrigatório."); return; }
     setBusy(true); setError("");
     try {
+      const enc = await onGetEncounter?.();
       const { createRecord } = await import("../api");
       await createRecord(token, patient.id, {
         date: new Date().toISOString().slice(0, 10),
@@ -1421,7 +1362,7 @@ function WorkspaceDocumentos({ patient, user, token, encounter, onSaved }) {
         immutable: true,
         metadata: {
           consultKind: "odontologia", subtype: "documento",
-          encounterId: encounter?.id || null, docTipo: form.tipo,
+          encounterId: enc?.id || encounter?.id || null, docTipo: form.tipo,
         },
       });
       setShowForm(false);
@@ -1478,23 +1419,24 @@ const WORKSPACE_TABS = [
 ];
 
 function DentalWorkspacePanel({ patient, user, token, onClose }) {
-  const [activeTab, setActiveTab] = useState("odontograma");
+  const [activeTab, setActiveTab] = useState("resumo");
   const [history, setHistory] = useState(null);
   const [procedures, setProcedures] = useState([]);
   const [chartTeeth, setChartTeeth] = useState({});
   const [procPrefill, setProcPrefill] = useState(null);
-
-  // Encounter
   const [encounter, setEncounter] = useState(null);
-  const [encounterLoading, setEncounterLoading] = useState(true);
-  const [startingEncounter, setStartingEncounter] = useState(false);
-  const [showCloseModal, setShowCloseModal] = useState(false);
-  const [closingEncounter, setClosingEncounter] = useState(false);
-
-  // Plan checklist
   const [planItems, setPlanItems] = useState([]);
 
+  const encounterRef = useRef(null);
+  const encounterCreatingRef = useRef(false);
+
   const canWrite = hasCapability(user, "dental.write") || hasCapability(user, "dental.admin");
+
+  // Sync state → ref so getOrCreateEncounter always sees current value
+  function setEncounterSync(e) {
+    encounterRef.current = e;
+    setEncounter(e);
+  }
 
   const loadHistory = useCallback(() => {
     import("../api").then(({ getPatientHistory }) =>
@@ -1513,17 +1455,6 @@ function DentalWorkspacePanel({ patient, user, token, onClose }) {
       .catch(() => {});
   }, [token, patient.id]);
 
-  const loadEncounter = useCallback(async () => {
-    if (!canWrite) { setEncounterLoading(false); return; }
-    setEncounterLoading(true);
-    try {
-      const res = await getDentalEncounters(token, patient.id);
-      const open = (res.data || []).find(e => ["aberto", "em_atendimento"].includes(e.status));
-      setEncounter(open || null);
-    } catch { setEncounter(null); }
-    finally { setEncounterLoading(false); }
-  }, [token, patient.id, canWrite]);
-
   const loadPlanItems = useCallback(async () => {
     try {
       const res = await getOdontoPlanItems(token, patient.id);
@@ -1531,11 +1462,37 @@ function DentalWorkspacePanel({ patient, user, token, onClose }) {
     } catch {}
   }, [token, patient.id]);
 
+  // Load existing open encounter on mount (silent, non-blocking)
+  const loadEncounter = useCallback(async () => {
+    if (!canWrite) return;
+    try {
+      const res = await getDentalEncounters(token, patient.id);
+      const open = (res.data || []).find(e => ["aberto", "em_atendimento"].includes(e.status));
+      if (open) setEncounterSync(open);
+    } catch {}
+  }, [token, patient.id, canWrite]); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
-    loadHistory(); loadProcs(); loadEncounter(); loadPlanItems();
-  }, [loadHistory, loadProcs, loadEncounter, loadPlanItems]);
+    loadHistory(); loadProcs(); loadPlanItems(); loadEncounter();
+  }, [loadHistory, loadProcs, loadPlanItems, loadEncounter]);
 
   function onSaved() { loadHistory(); loadProcs(); }
+
+  // Creates encounter silently on first save if none exists
+  const getOrCreateEncounter = useCallback(async () => {
+    if (encounterRef.current) return encounterRef.current;
+    if (encounterCreatingRef.current) return null;
+    encounterCreatingRef.current = true;
+    try {
+      const res = await getDentalEncounters(token, patient.id);
+      const open = (res.data || []).find(e => ["aberto", "em_atendimento"].includes(e.status));
+      if (open) { setEncounterSync(open); return open; }
+      const created = await createDentalEncounter(token, { patientId: patient.id, tipo: "avulso", motivo: "" });
+      setEncounterSync(created.data);
+      return created.data;
+    } catch { return null; }
+    finally { encounterCreatingRef.current = false; }
+  }, [token, patient.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleChartUpdated = useCallback((chartData) => {
     setProcedures(chartData?.procedures || []);
@@ -1547,48 +1504,14 @@ function DentalWorkspacePanel({ patient, user, token, onClose }) {
     setActiveTab("procedimentos");
   }, []);
 
-  async function handleStartEncounter({ tipo, motivo }) {
-    setStartingEncounter(true);
-    try {
-      const res = await createDentalEncounter(token, { patientId: patient.id, tipo, motivo });
-      setEncounter(res.data);
-    } catch { await loadEncounter(); }
-    finally { setStartingEncounter(false); }
-  }
-
-  async function handleCloseEncounter() {
-    if (!encounter) return;
-    setClosingEncounter(true);
-    try {
-      const res = await patchDentalEncounter(token, encounter.id, {
-        status: "encerrado", endedAt: new Date().toISOString(),
-      });
-      setEncounter(res.data);
-      setShowCloseModal(false);
-      onSaved();
-    } catch {}
-    finally { setClosingEncounter(false); }
-  }
-
   const age = patient.birthDate
     ? Math.floor((Date.now() - new Date(patient.birthDate + "T12:00:00").getTime()) / (365.25 * 86400000))
     : null;
 
   const visibleTabs = WORKSPACE_TABS.filter(t => !t.requiresWrite || canWrite);
-  const showStartScreen = canWrite && !encounter && !encounterLoading;
 
   return (
     <div className="specialty-panel" style={{ height: "100%", display: "flex", flexDirection: "column" }}>
-      {showCloseModal && encounter && (
-        <CloseEncounterModal
-          encounter={encounter} patient={patient}
-          procedures={procedures}
-          onConfirm={handleCloseEncounter}
-          onCancel={() => setShowCloseModal(false)}
-          busy={closingEncounter}
-        />
-      )}
-
       <div className="specialty-panel__header">
         <div style={{ display: "flex", alignItems: "center", gap: ".75rem" }}>
           <div className="specialty-panel__avatar">{initials(patient.name)}</div>
@@ -1602,37 +1525,28 @@ function DentalWorkspacePanel({ patient, user, token, onClose }) {
         </Button>
       </div>
 
-      {encounter && <EncounterHeader encounter={encounter} onClose={() => setShowCloseModal(true)} canWrite={canWrite} />}
+      <EncounterHeader encounter={encounter} />
 
-      {canWrite && encounterLoading ? (
-        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-3)", fontSize: ".85rem" }}>
-          Carregando...
-        </div>
-      ) : showStartScreen ? (
-        <EncounterStartScreen patient={patient} onStart={handleStartEncounter} loading={startingEncounter} />
-      ) : (
-        <>
-          <div className="odonto-workspace-tabs">
-            {visibleTabs.map(t => (
-              <button key={t.id} type="button"
-                className={`odonto-workspace-tab${activeTab === t.id ? " odonto-workspace-tab--active" : ""}`}
-                onClick={() => setActiveTab(t.id)}>
-                {t.label}
-              </button>
-            ))}
-          </div>
-          <div style={{ flex: 1, overflowY: activeTab === "odontograma" ? "hidden" : "auto", minHeight: 0 }}>
-            {activeTab === "resumo" && <WorkspaceResumo patient={patient} history={history} procedures={procedures} chartTeeth={chartTeeth} />}
-            {activeTab === "odontograma" && <WorkspaceOdontograma patient={patient} token={token} canWrite={canWrite} onChartUpdated={handleChartUpdated} onRegisterProc={handleRegisterProc} />}
-            {activeTab === "procedimentos" && canWrite && <WorkspaceProcedimentos patient={patient} user={user} token={token} onSaved={onSaved} prefill={procPrefill} />}
-            {activeTab === "evolucao" && canWrite && <WorkspaceEvolucao patient={patient} user={user} token={token} onSaved={onSaved} history={history} encounter={encounter} />}
-            {activeTab === "plano" && canWrite && <WorkspacePlano patient={patient} user={user} token={token} onSaved={onSaved} planItems={planItems} onPlanUpdated={loadPlanItems} encounter={encounter} />}
-            {activeTab === "prescricao" && canWrite && <WorkspacePrescricao patient={patient} encounter={encounter} />}
-            {activeTab === "documentos" && <WorkspaceDocumentos patient={patient} user={user} token={token} encounter={encounter} onSaved={onSaved} />}
-            {activeTab === "historico" && <WorkspaceHistorico history={history} procedures={procedures} />}
-          </div>
-        </>
-      )}
+      <div className="odonto-workspace-tabs">
+        {visibleTabs.map(t => (
+          <button key={t.id} type="button"
+            className={`odonto-workspace-tab${activeTab === t.id ? " odonto-workspace-tab--active" : ""}`}
+            onClick={() => setActiveTab(t.id)}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      <div style={{ flex: 1, overflowY: activeTab === "odontograma" ? "hidden" : "auto", minHeight: 0 }}>
+        {activeTab === "resumo" && <WorkspaceResumo patient={patient} history={history} procedures={procedures} chartTeeth={chartTeeth} />}
+        {activeTab === "odontograma" && <WorkspaceOdontograma patient={patient} token={token} canWrite={canWrite} onChartUpdated={handleChartUpdated} onRegisterProc={handleRegisterProc} />}
+        {activeTab === "procedimentos" && canWrite && <WorkspaceProcedimentos patient={patient} user={user} token={token} onSaved={onSaved} prefill={procPrefill} onGetEncounter={getOrCreateEncounter} />}
+        {activeTab === "evolucao" && canWrite && <WorkspaceEvolucao patient={patient} user={user} token={token} onSaved={onSaved} history={history} encounter={encounter} onGetEncounter={getOrCreateEncounter} />}
+        {activeTab === "plano" && canWrite && <WorkspacePlano patient={patient} user={user} token={token} onSaved={onSaved} planItems={planItems} onPlanUpdated={loadPlanItems} encounter={encounter} onGetEncounter={getOrCreateEncounter} />}
+        {activeTab === "prescricao" && canWrite && <WorkspacePrescricao patient={patient} encounter={encounter} />}
+        {activeTab === "documentos" && <WorkspaceDocumentos patient={patient} user={user} token={token} encounter={encounter} onSaved={onSaved} onGetEncounter={getOrCreateEncounter} />}
+        {activeTab === "historico" && <WorkspaceHistorico history={history} procedures={procedures} />}
+      </div>
     </div>
   );
 }
