@@ -316,6 +316,81 @@ function PharmacyPage({
   const [rxSearch, setRxSearch] = useState("");
   const [rxLoading, setRxLoading] = useState(false);
 
+  // Patient-first dispensation state
+  const [dispPatientSearch, setDispPatientSearch] = useState("");
+  const [dispPatient, setDispPatient] = useState(null);
+  const [dispReceitas, setDispReceitas] = useState([]);
+  const [dispReceitasLoading, setDispReceitasLoading] = useState(false);
+  const [dispSelectedReceita, setDispSelectedReceita] = useState(null);
+  const [dispItems, setDispItems] = useState([]);
+  const [dispObs, setDispObs] = useState("");
+  const [dispSubmitting, setDispSubmitting] = useState(false);
+  const [dispError, setDispError] = useState("");
+  const [dispSuccess, setDispSuccess] = useState("");
+
+  async function loadReceitasForPatient(patientId) {
+    if (!token || !patientId) return;
+    setDispReceitasLoading(true);
+    setDispReceitas([]);
+    setDispSelectedReceita(null);
+    setDispItems([]);
+    try {
+      const API = import.meta.env.VITE_API_URL || "https://api.vitras.com.br";
+      const r = await fetch(`${API}/pharmacy/receitas?patientId=${patientId}&status=ativa`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const json = await r.json();
+      setDispReceitas(json.data || []);
+    } catch {
+      setDispError("Erro ao carregar receitas.");
+    } finally {
+      setDispReceitasLoading(false);
+    }
+  }
+
+  function selectReceita(receita) {
+    setDispSelectedReceita(receita);
+    setDispItems(receita.itens.map((it, idx) => ({
+      idx,
+      nome: it.nome,
+      qtdPrescrita: it.qtdPrescrita,
+      stockItemId: "",
+      qtd: it.qtdPrescrita,
+    })));
+  }
+
+  async function submitDispensacao() {
+    setDispError("");
+    setDispSuccess("");
+    if (!dispSelectedReceita) return setDispError("Selecione uma receita.");
+    if (dispItems.some(it => !it.stockItemId)) return setDispError("Vincule cada item a um item de estoque.");
+
+    setDispSubmitting(true);
+    try {
+      const API = import.meta.env.VITE_API_URL || "https://api.vitras.com.br";
+      const r = await fetch(`${API}/pharmacy/dispensacoes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          receitaId: dispSelectedReceita.id,
+          itens: dispItems.map(it => ({ stockItemId: it.stockItemId, qtd: it.qtd })),
+          obs: dispObs || undefined,
+        }),
+      });
+      const json = await r.json();
+      if (!r.ok) return setDispError(json.error || "Erro ao dispensar.");
+      setDispSuccess("Dispensação realizada com sucesso.");
+      setDispSelectedReceita(null);
+      setDispItems([]);
+      setDispObs("");
+      await loadReceitasForPatient(dispPatient.id);
+    } catch {
+      setDispError("Erro de rede.");
+    } finally {
+      setDispSubmitting(false);
+    }
+  }
+
   useEffect(() => {
     if (pharmaTab !== "prescriptions" || !token) return;
     setRxLoading(true);
@@ -441,6 +516,7 @@ function PharmacyPage({
           <Tab active={pharmaTab === "stock"} onClick={() => setPharmaTab("stock")}>Estoque</Tab>
           <Tab active={pharmaTab === "log"} onClick={() => setPharmaTab("log")}>Log de Movimentações</Tab>
           <Tab active={pharmaTab === "prescriptions"} onClick={() => setPharmaTab("prescriptions")}>Prescrições</Tab>
+          {canWrite && <Tab active={pharmaTab === "dispensacao"} onClick={() => setPharmaTab("dispensacao")}>Dispensação</Tab>}
         </Tabs>
       </div>
 
@@ -600,6 +676,130 @@ function PharmacyPage({
             </div>
           </>
         )}
+        {pharmaTab === "dispensacao" && (
+          <div className="card" style={{ padding: "var(--space-5, 1.25rem)" }}>
+            <div style={{ marginBottom: "var(--space-4, 1rem)" }}>
+              <strong>1. Buscar paciente</strong>
+              <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                <Input
+                  value={dispPatientSearch}
+                  onChange={e => setDispPatientSearch(e.target.value)}
+                  placeholder="Nome, CPF ou CNS..."
+                  style={{ flex: 1 }}
+                />
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    const q = dispPatientSearch.toLowerCase();
+                    const found = patients.find(p =>
+                      String(p.name || "").toLowerCase().includes(q) ||
+                      String(p.cpf || "").replace(/\D/g, "").includes(q.replace(/\D/g, "")) ||
+                      String(p.cns || "").replace(/\D/g, "").includes(q.replace(/\D/g, ""))
+                    );
+                    if (!found) { setDispError("Paciente não encontrado."); setDispPatient(null); return; }
+                    setDispError("");
+                    setDispSuccess("");
+                    setDispPatient(found);
+                    setDispSelectedReceita(null);
+                    setDispItems([]);
+                    loadReceitasForPatient(found.id);
+                  }}
+                >
+                  Buscar
+                </Button>
+              </div>
+            </div>
+
+            {dispError && <div className="error-banner" style={{ marginBottom: 12 }}>{dispError}</div>}
+            {dispSuccess && <div style={{ background: "var(--success-bg, #ecfdf5)", color: "var(--success, #059669)", border: "1px solid var(--success, #059669)", borderRadius: 8, padding: "8px 12px", marginBottom: 12 }}>{dispSuccess}</div>}
+
+            {dispPatient && (
+              <div style={{ marginBottom: "var(--space-4, 1rem)" }}>
+                <strong>2. Paciente: {dispPatient.name}</strong>
+                <div style={{ fontSize: "var(--t-sm, 0.85rem)", color: "var(--text-2, #64748b)", marginTop: 4 }}>
+                  CPF: {dispPatient.cpf || "—"} · CNS: {dispPatient.cns || "—"}
+                </div>
+              </div>
+            )}
+
+            {dispPatient && (
+              <div style={{ marginBottom: "var(--space-4, 1rem)" }}>
+                <strong>3. Receitas ativas</strong>
+                {dispReceitasLoading && <div style={{ color: "var(--text-2)", marginTop: 8 }}>Carregando...</div>}
+                {!dispReceitasLoading && dispReceitas.length === 0 && (
+                  <div style={{ color: "var(--text-2)", marginTop: 8 }}>Nenhuma receita ativa para este paciente.</div>
+                )}
+                {!dispReceitasLoading && dispReceitas.map(r => (
+                  <div
+                    key={r.id}
+                    onClick={() => selectReceita(r)}
+                    style={{
+                      border: `1px solid ${dispSelectedReceita?.id === r.id ? "var(--primary, #2563eb)" : "var(--border, #e2e8f0)"}`,
+                      borderRadius: 8,
+                      padding: "10px 14px",
+                      marginTop: 8,
+                      cursor: "pointer",
+                      background: dispSelectedReceita?.id === r.id ? "var(--primary-light, #eff6ff)" : "var(--surface, #fff)",
+                    }}
+                  >
+                    <div style={{ fontWeight: 600, fontSize: "var(--t-sm)" }}>
+                      Receita {r.dtReceita} · válida até {r.validade}
+                    </div>
+                    <div style={{ fontSize: "var(--t-xs, 0.75rem)", color: "var(--text-2)", marginTop: 4 }}>
+                      {r.itens.map(it => `${it.nome} ${it.dosagem}`).join(" · ")}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {dispSelectedReceita && (
+              <div style={{ marginBottom: "var(--space-4, 1rem)" }}>
+                <strong>4. Vincular a itens de estoque</strong>
+                {dispItems.map((it, i) => (
+                  <div key={i} style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 8 }}>
+                    <div style={{ flex: 2, fontSize: "var(--t-sm)" }}>{it.nome}</div>
+                    <Select
+                      value={it.stockItemId}
+                      onChange={e => setDispItems(prev => prev.map((d, j) => j === i ? { ...d, stockItemId: e.target.value } : d))}
+                      style={{ flex: 3 }}
+                    >
+                      <option value="">Selecionar item...</option>
+                      {stock.map(s => (
+                        <option key={s.id} value={s.id}>{s.name} ({s.qty} {s.unit})</option>
+                      ))}
+                    </Select>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={it.qtdPrescrita}
+                      value={it.qtd}
+                      onChange={e => setDispItems(prev => prev.map((d, j) => j === i ? { ...d, qtd: Number(e.target.value) } : d))}
+                      style={{ width: 70 }}
+                    />
+                    <span style={{ fontSize: "var(--t-xs)", color: "var(--text-2)" }}>/{it.qtdPrescrita}</span>
+                  </div>
+                ))}
+                <Input
+                  value={dispObs}
+                  onChange={e => setDispObs(e.target.value)}
+                  placeholder="Observações (opcional)"
+                  style={{ marginTop: 12 }}
+                />
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={submitDispensacao}
+                  disabled={dispSubmitting}
+                  style={{ marginTop: 12 }}
+                >
+                  {dispSubmitting ? "Dispensando..." : "Confirmar Dispensação"}
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+
         {pharmaTab === "prescriptions" && (
           <div className="card card--noPad overflow-hidden">
             <div className="pharma-toolbar">

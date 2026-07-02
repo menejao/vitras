@@ -541,6 +541,77 @@ const SuppliesCloseContinuousSchema = z.object({
   reason: z.string().trim().min(8).max(1000)
 });
 
+const ReceitaCreateSchema = z.object({
+  patientId: z.string().trim().min(1).max(100),
+  prescriberId: z.string().trim().min(1).max(100),
+  dtReceita: z.string().trim().min(1).max(50),
+  validade: z.string().trim().min(1).max(50),
+  itens: z.array(z.object({
+    nome: z.string().trim().min(1).max(200),
+    dosagem: z.string().trim().min(1).max(200),
+    posologia: z.string().trim().min(1).max(500),
+    qtdPrescrita: z.number().int().min(1).max(10000)
+  })).min(1).max(20),
+  obs: optionalShortString(2000),
+});
+
+const DispensacaoCreateSchema = z.object({
+  receitaId: z.string().trim().min(1).max(100),
+  itens: z.array(z.object({
+    stockItemId: z.string().trim().min(1).max(100),
+    qtd: z.number().int().min(1).max(100000),
+    lote: z.string().trim().max(120).optional(),
+  })).min(1).max(20),
+  obs: optionalShortString(2000),
+});
+
+const DentalStockCreateSchema = z.object({
+  name: z.string().trim().min(1).max(200),
+  category: z.string().trim().min(1).max(120),
+  unit: z.string().trim().min(1).max(60),
+  qty: z.number().min(0).max(100000).optional().default(0),
+  minQty: z.number().min(0).max(100000).optional().default(0),
+  notes: optionalShortString(500),
+});
+
+const DentalAdjustSchema = z.object({
+  delta: z.number().int().min(-100000).max(100000),
+  reason: z.string().trim().min(3).max(1000),
+  lote: optionalShortString(120),
+  validade: optionalShortString(50),
+  obs: optionalShortString(2000),
+});
+
+const DentalDispenseSchema = z.object({
+  items: z.array(z.object({
+    id: z.string().trim().min(1).max(100),
+    qty: z.number().int().min(1).max(100000)
+  })).min(1).max(40),
+  obs: optionalShortString(2000),
+});
+
+const AlmoxRequisicaoCreateSchema = z.object({
+  itens: z.array(z.object({
+    nome: z.string().trim().min(1).max(200),
+    unit: z.string().trim().min(1).max(60),
+    qtdSolicitada: z.number().int().min(1).max(100000),
+    dominio: z.enum(["pharmacy", "nursing", "dental"]),
+    obs: z.string().trim().max(500).optional(),
+  })).min(1).max(60),
+  obs: optionalShortString(2000),
+});
+
+const AlmoxRecebimentoSchema = z.object({
+  itens: z.array(z.object({
+    itemIdx: z.number().int().min(0).max(59),
+    qtdRecebida: z.number().int().min(0).max(100000),
+    lote: z.string().trim().max(120).optional(),
+    validade: z.string().trim().max(50).optional(),
+    obs: z.string().trim().max(500).optional(),
+  })).min(1).max(60),
+  obs: optionalShortString(2000),
+});
+
 const CriticalActionReasonSchema = z.object({
   reason: z.string().trim().min(8).max(1000)
 });
@@ -1000,6 +1071,13 @@ export {
   SuppliesAdjustSchema,
   SuppliesDispenseSchema,
   SuppliesCloseContinuousSchema,
+  ReceitaCreateSchema,
+  DispensacaoCreateSchema,
+  DentalStockCreateSchema,
+  DentalAdjustSchema,
+  DentalDispenseSchema,
+  AlmoxRequisicaoCreateSchema,
+  AlmoxRecebimentoSchema,
   CriticalActionReasonSchema,
   ExamCreateSchema,
   ExamAttachmentCreateSchema,

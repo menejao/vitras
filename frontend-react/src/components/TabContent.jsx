@@ -19,6 +19,8 @@ const QueuePage          = lazy(() => import("../pages/QueuePage"));
 const RecordsPage        = lazy(() => import("../pages/RecordsPage"));
 const InsumoPage         = lazy(() => import("../pages/InsumoPage"));
 const PharmacyPage       = lazy(() => import("../pages/PharmacyPage"));
+const DentalPage         = lazy(() => import("../pages/DentalPage"));
+const AlmoxarifadoPage   = lazy(() => import("../pages/AlmoxarifadoPage"));
 const VaccinesPage       = lazy(() => import("../pages/VaccinesPage"));
 const ExamsPage          = lazy(() => import("../pages/ExamsPage"));
 const AgendaPage         = lazy(() => import("../pages/AgendaPage"));
@@ -169,6 +171,14 @@ export function TabContent({
           onCreateStockItem={createPharmacyItem} onUpdateStockItem={updatePharmacyItem}
           onAdjustStockItem={adjustPharmacyItem} onDispense={dispensePharmacyItem}
         />
+      )}
+
+      {tab === "dental" && (
+        <DentalPage user={user} token={token} />
+      )}
+
+      {tab === "almoxarifado" && (
+        <AlmoxarifadoPage user={user} token={token} />
       )}
 
       {tab === "insumos" && (

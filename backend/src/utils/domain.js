@@ -182,6 +182,11 @@ function ensureDbShape(db) {
   ensureArray(db, "suppliesStock");
   ensureArray(db, "suppliesLogs");
   ensureArray(db, "suppliesContinuous");
+  ensureArray(db, "prescricoes");
+  ensureArray(db, "dispensacoes");
+  ensureArray(db, "dentalStock");
+  ensureArray(db, "dentalLogs");
+  ensureArray(db, "almoxRequisicoes");
   ensureArray(db, "exams");
   ensureArray(db, "appointments");
   ensureArray(db, "tasks");

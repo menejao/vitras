@@ -81,6 +81,8 @@ const ROLE_CAPABILITIES = {
     "referrals.read",
     "referrals.write",
     "reports.read",
+    "dental.read",
+    "dental.write",
     "diagnostics.read",
     "users.read.scoped",
     "ai.access"
@@ -96,7 +98,11 @@ const ROLE_CAPABILITIES = {
     "reports.read",
     "diagnostics.read",
     "pharmacy.read",
+    "receitas.read",
+    "dispensacoes.read",
     "supplies.read",
+    "dental.read",
+    "almoxarifado.read",
     "users.read.all",
     "users.manage.all",
     "audit.read",
@@ -140,14 +146,24 @@ const ROLE_CAPABILITIES = {
     "dashboard.read",
     "pharmacy.read",
     "pharmacy.write",
+    "receitas.read",
+    "receitas.write",
+    "dispensacoes.read",
+    "dispensacoes.write",
     "supplies.read",
-    "supplies.write"
+    "supplies.write",
+    "almoxarifado.read",
+    "almoxarifado.write"
   ],
   pharmacy_tech: [
     "dashboard.read",
     "pharmacy.read",
+    "receitas.read",
+    "dispensacoes.read",
+    "dispensacoes.write",
     "supplies.read",
-    "supplies.write"
+    "supplies.write",
+    "almoxarifado.read"
   ],
   receptionist: [
     "dashboard.read",
@@ -221,8 +237,16 @@ const ROLE_CAPABILITIES = {
     "referrals.write",
     "pharmacy.read",
     "pharmacy.write",
+    "receitas.read",
+    "receitas.write",
+    "dispensacoes.read",
+    "dispensacoes.write",
     "supplies.read",
     "supplies.write",
+    "dental.read",
+    "dental.write",
+    "almoxarifado.read",
+    "almoxarifado.write",
     "users.read.all",
     "users.manage.all",
     "audit.read",
@@ -248,6 +272,7 @@ const ROLE_CAPABILITIES = {
     "records.write",
     "exams.read",
     "referrals.read",
+    "dental.read",
     "users.read.scoped"
   ],
   oral_health_tech: [
