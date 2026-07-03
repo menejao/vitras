@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Vitras. Todos os direitos reservados.
+﻿// Copyright (c) 2026 Vitras. Todos os direitos reservados.
 import express from "express";
 import { v4 as uuidv4 } from "uuid";
 import { readDb, withDb } from "../db.js";
@@ -47,7 +47,7 @@ function validateFdi(fdi) {
 // GET /odontologia/chart/:patientId
 router.get("/odontologia/chart/:patientId", async (req, res) => {
   const user = req.user;
-  if (!canRead(user)) return res.status(403).json({ error: "Sem permissão" });
+  if (!canRead(user)) return res.status(403).json({ error: "Sem permissÃ£o" });
 
   const { patientId } = req.params;
   const db = await readDb();
@@ -66,28 +66,28 @@ router.get("/odontologia/chart/:patientId", async (req, res) => {
 });
 
 // PATCH /odontologia/chart/:patientId/tooth/:fdi
-router.patch("/odontologia/chart/:patientId/tooth/:fdi", (req, res) => {
+router.patch("/odontologia/chart/:patientId/tooth/:fdi", async (req, res) => {
   const user = req.user;
-  if (!canWrite(user)) return res.status(403).json({ error: "Sem permissão" });
+  if (!canWrite(user)) return res.status(403).json({ error: "Sem permissÃ£o" });
 
   const { patientId, fdi } = req.params;
-  if (!validateFdi(fdi)) return res.status(400).json({ error: "FDI inválido" });
+  if (!validateFdi(fdi)) return res.status(400).json({ error: "FDI invÃ¡lido" });
 
   const { condition, faces, notes } = req.body;
   if (condition && !VALID_CONDITIONS.includes(condition)) {
-    return res.status(400).json({ error: "Condição inválida" });
+    return res.status(400).json({ error: "CondiÃ§Ã£o invÃ¡lida" });
   }
   if (faces) {
     for (const [face, cond] of Object.entries(faces)) {
-      if (!VALID_FACES.includes(face)) return res.status(400).json({ error: `Face inválida: ${face}` });
-      if (cond && !VALID_CONDITIONS.includes(cond)) return res.status(400).json({ error: `Condição de face inválida: ${cond}` });
+      if (!VALID_FACES.includes(face)) return res.status(400).json({ error: `Face invÃ¡lida: ${face}` });
+      if (cond && !VALID_CONDITIONS.includes(cond)) return res.status(400).json({ error: `CondiÃ§Ã£o de face invÃ¡lida: ${cond}` });
     }
   }
 
   const result = withDb(db => {
     ensureDbShape(db);
     const patient = (db.patients || []).find(p => p.id === patientId);
-    if (!patient) return { error: "Paciente não encontrado", status: 404 };
+    if (!patient) return { error: "Paciente nÃ£o encontrado", status: 404 };
 
     let chart = db.odontograms.find(o => o.patientId === patientId);
     if (!chart) {
@@ -125,21 +125,21 @@ router.patch("/odontologia/chart/:patientId/tooth/:fdi", (req, res) => {
 });
 
 // POST /odontologia/procedures
-router.post("/odontologia/procedures", (req, res) => {
+router.post("/odontologia/procedures", async (req, res) => {
   const user = req.user;
-  if (!canWrite(user)) return res.status(403).json({ error: "Sem permissão" });
+  if (!canWrite(user)) return res.status(403).json({ error: "Sem permissÃ£o" });
 
   const { patientId, toothFdi, face, type, date, notes, status } = req.body;
-  if (!patientId) return res.status(400).json({ error: "patientId obrigatório" });
-  if (!validateFdi(toothFdi)) return res.status(400).json({ error: "FDI inválido" });
-  if (!type || !VALID_PROC_TYPES.includes(type)) return res.status(400).json({ error: "Tipo inválido" });
-  if (face && !VALID_FACES.includes(face)) return res.status(400).json({ error: "Face inválida" });
-  if (status && !VALID_STATUSES.includes(status)) return res.status(400).json({ error: "Status inválido" });
+  if (!patientId) return res.status(400).json({ error: "patientId obrigatÃ³rio" });
+  if (!validateFdi(toothFdi)) return res.status(400).json({ error: "FDI invÃ¡lido" });
+  if (!type || !VALID_PROC_TYPES.includes(type)) return res.status(400).json({ error: "Tipo invÃ¡lido" });
+  if (face && !VALID_FACES.includes(face)) return res.status(400).json({ error: "Face invÃ¡lida" });
+  if (status && !VALID_STATUSES.includes(status)) return res.status(400).json({ error: "Status invÃ¡lido" });
 
   const result = withDb(db => {
     ensureDbShape(db);
     const patient = (db.patients || []).find(p => p.id === patientId);
-    if (!patient) return { error: "Paciente não encontrado", status: 404 };
+    if (!patient) return { error: "Paciente nÃ£o encontrado", status: 404 };
 
     const now = new Date().toISOString();
     const proc = {
@@ -173,17 +173,17 @@ router.post("/odontologia/procedures", (req, res) => {
 });
 
 // PATCH /odontologia/procedures/:id
-router.patch("/odontologia/procedures/:id", (req, res) => {
+router.patch("/odontologia/procedures/:id", async (req, res) => {
   const user = req.user;
-  if (!canWrite(user)) return res.status(403).json({ error: "Sem permissão" });
+  if (!canWrite(user)) return res.status(403).json({ error: "Sem permissÃ£o" });
 
   const { status, notes, date } = req.body;
-  if (status && !VALID_STATUSES.includes(status)) return res.status(400).json({ error: "Status inválido" });
+  if (status && !VALID_STATUSES.includes(status)) return res.status(400).json({ error: "Status invÃ¡lido" });
 
   const result = withDb(db => {
     ensureDbShape(db);
     const proc = (db.odontoProcedures || []).find(p => p.id === req.params.id && !p.deletedAt);
-    if (!proc) return { error: "Procedimento não encontrado", status: 404 };
+    if (!proc) return { error: "Procedimento nÃ£o encontrado", status: 404 };
 
     if (status !== undefined) proc.status = status;
     if (notes !== undefined) proc.notes = notes;
@@ -198,15 +198,15 @@ router.patch("/odontologia/procedures/:id", (req, res) => {
   res.json(result);
 });
 
-// DELETE /odontologia/procedures/:id — logical delete
-router.delete("/odontologia/procedures/:id", (req, res) => {
+// DELETE /odontologia/procedures/:id â€” logical delete
+router.delete("/odontologia/procedures/:id", async (req, res) => {
   const user = req.user;
-  if (!canWrite(user)) return res.status(403).json({ error: "Sem permissão" });
+  if (!canWrite(user)) return res.status(403).json({ error: "Sem permissÃ£o" });
 
   const result = withDb(db => {
     ensureDbShape(db);
     const proc = (db.odontoProcedures || []).find(p => p.id === req.params.id && !p.deletedAt);
-    if (!proc) return { error: "Procedimento não encontrado", status: 404 };
+    if (!proc) return { error: "Procedimento nÃ£o encontrado", status: 404 };
 
     proc.deletedAt = new Date().toISOString();
     proc.deletedBy = user.id;
@@ -226,12 +226,12 @@ const VALID_PLAN_STATUS = ["pendente", "em_andamento", "concluido", "cancelado"]
 const VALID_PLAN_PRIO = ["alta", "media", "baixa"];
 
 // GET /odontologia/encounters?patientId=X
-router.get("/odontologia/encounters", (req, res) => {
+router.get("/odontologia/encounters", async (req, res) => {
   const user = req.user;
-  if (!canRead(user)) return res.status(403).json({ error: "Sem permissão" });
+  if (!canRead(user)) return res.status(403).json({ error: "Sem permissÃ£o" });
   const { patientId } = req.query;
-  if (!patientId) return res.status(400).json({ error: "patientId obrigatório" });
-  const db = readDb();
+  if (!patientId) return res.status(400).json({ error: "patientId obrigatÃ³rio" });
+  const db = await readDb();
   ensureDbShape(db);
   const encounters = (db.dentalEncounters || [])
     .filter(e => e.patientId === patientId)
@@ -240,19 +240,19 @@ router.get("/odontologia/encounters", (req, res) => {
 });
 
 // POST /odontologia/encounters
-router.post("/odontologia/encounters", (req, res) => {
+router.post("/odontologia/encounters", async (req, res) => {
   const user = req.user;
-  if (!canWrite(user)) return res.status(403).json({ error: "Sem permissão" });
+  if (!canWrite(user)) return res.status(403).json({ error: "Sem permissÃ£o" });
   const { patientId, tipo, motivo } = req.body;
-  if (!patientId) return res.status(400).json({ error: "patientId obrigatório" });
-  if (tipo && !VALID_ENCOUNTER_TIPOS.includes(tipo)) return res.status(400).json({ error: "Tipo inválido" });
+  if (!patientId) return res.status(400).json({ error: "patientId obrigatÃ³rio" });
+  if (tipo && !VALID_ENCOUNTER_TIPOS.includes(tipo)) return res.status(400).json({ error: "Tipo invÃ¡lido" });
 
   const result = withDb(db => {
     ensureDbShape(db);
     const open = (db.dentalEncounters || []).find(
       e => e.patientId === patientId && ["aberto", "em_atendimento"].includes(e.status)
     );
-    if (open) return { error: "Já existe atendimento em aberto", status: 409, existing: open };
+    if (open) return { error: "JÃ¡ existe atendimento em aberto", status: 409, existing: open };
 
     const now = new Date().toISOString();
     const encounter = {
@@ -284,16 +284,16 @@ router.post("/odontologia/encounters", (req, res) => {
 });
 
 // PATCH /odontologia/encounters/:id
-router.patch("/odontologia/encounters/:id", (req, res) => {
+router.patch("/odontologia/encounters/:id", async (req, res) => {
   const user = req.user;
-  if (!canWrite(user)) return res.status(403).json({ error: "Sem permissão" });
+  if (!canWrite(user)) return res.status(403).json({ error: "Sem permissÃ£o" });
   const { status, obs, motivo, endedAt } = req.body;
-  if (status && !VALID_ENCOUNTER_STATUS.includes(status)) return res.status(400).json({ error: "Status inválido" });
+  if (status && !VALID_ENCOUNTER_STATUS.includes(status)) return res.status(400).json({ error: "Status invÃ¡lido" });
 
   const result = withDb(db => {
     ensureDbShape(db);
     const encounter = (db.dentalEncounters || []).find(e => e.id === req.params.id);
-    if (!encounter) return { error: "Atendimento não encontrado", status: 404 };
+    if (!encounter) return { error: "Atendimento nÃ£o encontrado", status: 404 };
     if (status !== undefined) encounter.status = status;
     if (obs !== undefined) encounter.obs = obs;
     if (motivo !== undefined) encounter.motivo = motivo;
@@ -308,12 +308,12 @@ router.patch("/odontologia/encounters/:id", (req, res) => {
 });
 
 // GET /odontologia/plan-items?patientId=X
-router.get("/odontologia/plan-items", (req, res) => {
+router.get("/odontologia/plan-items", async (req, res) => {
   const user = req.user;
-  if (!canRead(user)) return res.status(403).json({ error: "Sem permissão" });
+  if (!canRead(user)) return res.status(403).json({ error: "Sem permissÃ£o" });
   const { patientId } = req.query;
-  if (!patientId) return res.status(400).json({ error: "patientId obrigatório" });
-  const db = readDb();
+  if (!patientId) return res.status(400).json({ error: "patientId obrigatÃ³rio" });
+  const db = await readDb();
   ensureDbShape(db);
   const PRIO_ORD = { alta: 0, media: 1, baixa: 2 };
   const items = (db.odontoPlanItems || [])
@@ -323,13 +323,13 @@ router.get("/odontologia/plan-items", (req, res) => {
 });
 
 // POST /odontologia/plan-items
-router.post("/odontologia/plan-items", (req, res) => {
+router.post("/odontologia/plan-items", async (req, res) => {
   const user = req.user;
-  if (!canWrite(user)) return res.status(403).json({ error: "Sem permissão" });
+  if (!canWrite(user)) return res.status(403).json({ error: "Sem permissÃ£o" });
   const { patientId, descricao, procedimento, dente, prioridade, previsao, encounterId } = req.body;
-  if (!patientId) return res.status(400).json({ error: "patientId obrigatório" });
-  if (!descricao) return res.status(400).json({ error: "descricao obrigatória" });
-  if (prioridade && !VALID_PLAN_PRIO.includes(prioridade)) return res.status(400).json({ error: "Prioridade inválida" });
+  if (!patientId) return res.status(400).json({ error: "patientId obrigatÃ³rio" });
+  if (!descricao) return res.status(400).json({ error: "descricao obrigatÃ³ria" });
+  if (prioridade && !VALID_PLAN_PRIO.includes(prioridade)) return res.status(400).json({ error: "Prioridade invÃ¡lida" });
 
   const result = withDb(db => {
     ensureDbShape(db);
@@ -361,17 +361,17 @@ router.post("/odontologia/plan-items", (req, res) => {
 });
 
 // PATCH /odontologia/plan-items/:id
-router.patch("/odontologia/plan-items/:id", (req, res) => {
+router.patch("/odontologia/plan-items/:id", async (req, res) => {
   const user = req.user;
-  if (!canWrite(user)) return res.status(403).json({ error: "Sem permissão" });
+  if (!canWrite(user)) return res.status(403).json({ error: "Sem permissÃ£o" });
   const { status, prioridade, previsao } = req.body;
-  if (status && !VALID_PLAN_STATUS.includes(status)) return res.status(400).json({ error: "Status inválido" });
-  if (prioridade && !VALID_PLAN_PRIO.includes(prioridade)) return res.status(400).json({ error: "Prioridade inválida" });
+  if (status && !VALID_PLAN_STATUS.includes(status)) return res.status(400).json({ error: "Status invÃ¡lido" });
+  if (prioridade && !VALID_PLAN_PRIO.includes(prioridade)) return res.status(400).json({ error: "Prioridade invÃ¡lida" });
 
   const result = withDb(db => {
     ensureDbShape(db);
     const item = (db.odontoPlanItems || []).find(i => i.id === req.params.id && !i.deletedAt);
-    if (!item) return { error: "Item não encontrado", status: 404 };
+    if (!item) return { error: "Item nÃ£o encontrado", status: 404 };
     if (status !== undefined) {
       item.status = status;
       if (status === "concluido") item.concluidoEm = new Date().toISOString();
@@ -387,15 +387,15 @@ router.patch("/odontologia/plan-items/:id", (req, res) => {
   res.json(result);
 });
 
-// DELETE /odontologia/plan-items/:id — logical
-router.delete("/odontologia/plan-items/:id", (req, res) => {
+// DELETE /odontologia/plan-items/:id â€” logical
+router.delete("/odontologia/plan-items/:id", async (req, res) => {
   const user = req.user;
-  if (!canWrite(user)) return res.status(403).json({ error: "Sem permissão" });
+  if (!canWrite(user)) return res.status(403).json({ error: "Sem permissÃ£o" });
 
   const result = withDb(db => {
     ensureDbShape(db);
     const item = (db.odontoPlanItems || []).find(i => i.id === req.params.id && !i.deletedAt);
-    if (!item) return { error: "Item não encontrado", status: 404 };
+    if (!item) return { error: "Item nÃ£o encontrado", status: 404 };
     item.deletedAt = new Date().toISOString();
     item.updatedAt = new Date().toISOString();
     addAuditLog(db, user, "delete", "odontoPlanItem", item.id, {});
@@ -408,18 +408,18 @@ router.delete("/odontologia/plan-items/:id", (req, res) => {
 
 // GET /odontologia/queue-hoje?date=YYYY-MM-DD
 // Single source of truth: only reads queueEntries filtered by specialty=odontologia.
-// Agenda is not a queue — patients appear here only after "Dar entrada" creates a Queue record.
-router.get("/odontologia/queue-hoje", (req, res) => {
+// Agenda is not a queue â€” patients appear here only after "Dar entrada" creates a Queue record.
+router.get("/odontologia/queue-hoje", async (req, res) => {
   const user = req.user;
-  if (!canRead(user)) return res.status(403).json({ error: "Sem permissão" });
+  if (!canRead(user)) return res.status(403).json({ error: "Sem permissÃ£o" });
 
   const date = req.query.date || new Date().toISOString().slice(0, 10);
-  const db = readDb();
+  const db = await readDb();
   ensureDbShape(db);
   const teamId = String(user.teamId || "");
 
   const DEMAND_LABEL = {
-    scheduled: "Agendado", spontaneous: "Espontâneo",
+    scheduled: "Agendado", spontaneous: "EspontÃ¢neo",
   };
 
   const STATUS_ORDER = {
@@ -479,19 +479,19 @@ router.get("/odontologia/queue-hoje", (req, res) => {
 });
 
 // POST /odontologia/prescricoes
-router.post("/odontologia/prescricoes", (req, res) => {
+router.post("/odontologia/prescricoes", async (req, res) => {
   const user = req.user;
-  if (!canWrite(user)) return res.status(403).json({ error: "Sem permissão" });
+  if (!canWrite(user)) return res.status(403).json({ error: "Sem permissÃ£o" });
 
   const { patientId, itens, dtReceita, validade, obs, encounterId, cro } = req.body;
-  if (!patientId) return res.status(400).json({ error: "patientId obrigatório" });
-  if (!itens || !itens.length) return res.status(400).json({ error: "Itens obrigatórios" });
+  if (!patientId) return res.status(400).json({ error: "patientId obrigatÃ³rio" });
+  if (!itens || !itens.length) return res.status(400).json({ error: "Itens obrigatÃ³rios" });
 
   const result = withDb(db => {
     ensureDbShape(db);
     if (!db.prescricoes) db.prescricoes = [];
     const patient = (db.patients || []).find(p => p.id === patientId);
-    if (!patient) return { error: "Paciente não encontrado", status: 404 };
+    if (!patient) return { error: "Paciente nÃ£o encontrado", status: 404 };
 
     const now = new Date().toISOString();
     const receita = {
@@ -521,12 +521,12 @@ router.post("/odontologia/prescricoes", (req, res) => {
 });
 
 // GET /odontologia/prescricoes?patientId=X
-router.get("/odontologia/prescricoes", (req, res) => {
+router.get("/odontologia/prescricoes", async (req, res) => {
   const user = req.user;
-  if (!canRead(user)) return res.status(403).json({ error: "Sem permissão" });
+  if (!canRead(user)) return res.status(403).json({ error: "Sem permissÃ£o" });
   const { patientId } = req.query;
-  if (!patientId) return res.status(400).json({ error: "patientId obrigatório" });
-  const db = readDb();
+  if (!patientId) return res.status(400).json({ error: "patientId obrigatÃ³rio" });
+  const db = await readDb();
   ensureDbShape(db);
   const list = (db.prescricoes || [])
     .filter(r => r.patientId === patientId && r.origem === "odontologia")
@@ -535,3 +535,5 @@ router.get("/odontologia/prescricoes", (req, res) => {
 });
 
 export default router;
+
+
