@@ -357,3 +357,165 @@
   border: none;
   border-radius: var(--r-md);
 }
+
+/* ── Tabs ─────────────────────────────────────────────────────── */
+.exams-tabs {
+  display: flex;
+  gap: var(--s-1);
+  padding: 0 var(--s-6) var(--s-3);
+  border-bottom: 1px solid var(--border);
+}
+.exams-tab-btn {
+  padding: var(--s-1) var(--s-4);
+  font: 500 var(--t-sm) var(--font-sans);
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: var(--r-md);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+}
+.exams-tab-btn.is-active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}
+
+/* ── Request queue ────────────────────────────────────────────── */
+.req-queue {
+  padding: var(--s-4) var(--s-6);
+}
+.req-queue__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin-bottom: var(--s-4);
+}
+.req-queue__filters select,
+.req-queue__filters input {
+  max-width: 200px;
+}
+.req-queue__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+/* ── Request card ─────────────────────────────────────────────── */
+.req-card {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: var(--s-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+.req-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+}
+.req-card__patient {
+  font: 600 var(--t-sm) var(--font-sans);
+  color: var(--text);
+}
+.req-card__chips {
+  display: flex;
+  gap: var(--s-1);
+  flex-wrap: wrap;
+}
+.req-card__priority, .req-card__status, .req-card__origin {
+  font: 500 var(--t-xs) var(--font-sans);
+  padding: 2px var(--s-2);
+  border-radius: var(--r-sm);
+}
+.req-card__priority--urgent { background: #fef2f2; color: #dc2626; }
+.req-card__priority--priority { background: #fff7ed; color: #ea580c; }
+.req-card__priority--routine { background: var(--surface-2); color: var(--text-muted); }
+.req-card__status--pending { background: #eff6ff; color: #2563eb; }
+.req-card__status--progress { background: #fefce8; color: #ca8a04; }
+.req-card__status--done { background: #f0fdf4; color: #16a34a; }
+.req-card__status--cancelled { background: var(--surface-2); color: var(--text-muted); text-decoration: line-through; }
+.req-card__origin { background: var(--surface-2); color: var(--text-muted); }
+.req-card__exams {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-1);
+}
+.req-card__exam-tag {
+  font: 400 var(--t-xs) var(--font-sans);
+  padding: 2px var(--s-2);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  color: var(--text);
+}
+.req-card__meta {
+  font: 400 var(--t-xs) var(--font-sans);
+  color: var(--text-muted);
+}
+.req-card__justif, .req-card__result {
+  font: 400 var(--t-xs) var(--font-sans);
+  color: var(--text-muted);
+  background: var(--surface-2);
+  padding: var(--s-2);
+  border-radius: var(--r-sm);
+}
+.req-card__result {
+  color: var(--text);
+  border-left: 3px solid var(--primary);
+}
+.req-card__actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* ── Execution modal ──────────────────────────────────────────── */
+.exam-exec-modal { display: flex; flex-direction: column; gap: var(--s-4); }
+.exam-exec-modal__info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  padding: var(--s-3);
+  background: var(--surface-2);
+  border-radius: var(--r-md);
+}
+.exam-exec-modal__meta {
+  font: 400 var(--t-xs) var(--font-sans);
+  color: var(--text-muted);
+}
+.exam-exec-modal__exams {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-1);
+  margin-top: var(--s-1);
+}
+.exam-exec-modal__exam-tag {
+  font: 400 var(--t-xs) var(--font-sans);
+  padding: 2px var(--s-2);
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+}
+.exam-exec-modal__exam-tag--urgent {
+  background: #fef2f2;
+  color: #dc2626;
+  border-color: #fca5a5;
+}
+.exam-exec-modal__justif {
+  font: 400 var(--t-xs) var(--font-sans);
+  color: var(--text-muted);
+  font-style: italic;
+}
+.exam-exec-modal__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+.exam-exec-modal__row {
+  display: flex;
+  gap: var(--s-2);
+}
+.exam-exec-modal__row > * { flex: 1; }

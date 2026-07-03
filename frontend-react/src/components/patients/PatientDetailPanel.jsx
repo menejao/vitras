@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { createRecord, createTask, getHouseholds, createHousehold, patchHousehold } from "../../api";
+import { createRecord, createTask, getHouseholds, createHousehold, patchHousehold, createExamRequest } from "../../api";
 import { printExamRequest, printAttendanceAttest, printMedicalAttest } from "../../utils/printDoc";
 import PrescriptionModal from "../prescription/PrescriptionModal";
 import { parseLocalDate } from "../../utils/dates";
@@ -689,7 +689,23 @@ function ExamRequestModal({ patient, user, token, onClose }) {
         ...valid.map((exam, idx) => `${idx + 1}. ${exam.type === "Outros" ? exam.name.trim() : exam.type}${exam.urgency === "urgent" ? " - URGENTE" : exam.urgency === "priority" ? " - PRIORITARIO" : ""}${exam.notes ? `\n   Observacao: ${exam.notes}` : ""}`),
         justification ? `\nJustificativa clinica: ${justification}` : "",
       ].filter(Boolean).join("\n");
-      await createRecord(token, patient.id, { type: "exam_request", date: today, title: `Pedido de exame: ${title}`, details });
+      const record = await createRecord(token, patient.id, { type: "exam_request", date: today, title: `Pedido de exame: ${title}`, details });
+      const originMap = { doctor: "medicina", nurse_manager: "enfermagem", dentist: "odontologia" };
+      const origin = originMap[user?.role] || "medicina";
+      await createExamRequest(token, {
+        patientId: patient.id,
+        patientName: patient.name,
+        clinicalRecordId: record?.data?.id || null,
+        requestedByCouncil: getCouncilLabel(user) || null,
+        origin,
+        exams: valid.map(exam => ({
+          name: exam.type === "Outros" ? exam.name.trim() : exam.type,
+          urgency: exam.urgency === "urgent" ? "urgente" : exam.urgency === "priority" ? "prioritario" : "rotina",
+          notes: exam.notes || "",
+        })),
+        priority: valid.some(e => e.urgency === "urgent") ? "urgente" : valid.some(e => e.urgency === "priority") ? "prioritario" : "rotina",
+        clinicalJustification: justification || "",
+      });
       setSaved({ valid, justification });
     } catch (error) { setErr(error?.message || "Erro ao salvar."); } finally { setBusy(false); }
   }

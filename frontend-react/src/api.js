@@ -748,3 +748,24 @@ export async function pruneAuditLogs(token, payload) {
     body: JSON.stringify(payload || {})
   }, token);
 }
+
+// ─── Exam Requests ────────────────────────────────────────────────────────────
+
+export async function createExamRequest(token, payload) {
+  return api("/exam-requests", { method: "POST", body: JSON.stringify(payload) }, token);
+}
+
+export async function listExamRequests(token, params = {}) {
+  const q = new URLSearchParams();
+  if (params.patientId) q.set("patientId", params.patientId);
+  if (params.status) q.set("status", params.status);
+  if (params.date) q.set("date", params.date);
+  if (params.priority) q.set("priority", params.priority);
+  if (params.origin) q.set("origin", params.origin);
+  const qs = q.toString();
+  return api(`/exam-requests${qs ? `?${qs}` : ""}`, { method: "GET" }, token);
+}
+
+export async function updateExamRequestStatus(token, id, payload) {
+  return api(`/exam-requests/${id}/status`, { method: "PATCH", body: JSON.stringify(payload) }, token);
+}

@@ -254,6 +254,7 @@ function ensureDbShape(db) {
   ensureArray(db, "catalogItems");
   if (!db.catalogItems.length) seedCatalog(db);
   ensureArray(db, "exams");
+  ensureArray(db, "examRequests");
   ensureArray(db, "appointments");
   ensureArray(db, "tasks");
   ensureArray(db, "messages");
