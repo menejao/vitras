@@ -359,25 +359,9 @@
 }
 
 /* ── Tabs ─────────────────────────────────────────────────────── */
-.exams-tabs {
-  display: flex;
-  gap: var(--s-1);
-  padding: 0 var(--s-6) var(--s-3);
-  border-bottom: 1px solid var(--border);
-}
-.exams-tab-btn {
-  padding: var(--s-1) var(--s-4);
-  font: 500 var(--t-sm) var(--font-sans);
-  border: none;
-  background: transparent;
-  color: var(--text-muted);
-  border-radius: var(--r-md);
-  cursor: pointer;
-  border-bottom: 2px solid transparent;
-}
-.exams-tab-btn.is-active {
-  color: var(--primary);
-  border-bottom-color: var(--primary);
+.exams-tabs-bar {
+  padding: 0 var(--s-6);
+  flex-shrink: 0;
 }
 
 /* ── Request queue ────────────────────────────────────────────── */

@@ -10,6 +10,7 @@ import Input from "../components/ui/Input";
 import Modal from "../components/ui/Modal";
 import Select from "../components/ui/Select";
 import Textarea from "../components/ui/Textarea";
+import { Tabs, Tab } from "../components/ui/Tabs";
 
 const EXAM_TYPES = ["Hemograma completo", "Glicemia em jejum", "HbA1c", "Colesterol total e frações", "Triglicerídeos", "Creatinina", "Ureia", "TGO/TGP", "TSH/T4 livre", "Urina rotina (EAS)", "Urocultura", "Raio-X tórax", "Ultrassonografia abdominal", "Ultrassonografia obstétrica", "ECG", "Espirometria", "Mamografia", "Papanicolau", "PSA", "Ferritina/Ferro sérico", "Vitamina D", "Coagulograma", "Outros"];
 
@@ -455,21 +456,11 @@ function ExamsPage({ patients, user, token, onNavigatePatient }) {
     <div className="exams-page">
       <PageHeader eyebrow="Laboratório" title="Exames" subtitle="Pedidos de exame e resultados." />
 
-      <div className="exams-tabs">
-        <button
-          className={`exams-tab-btn${tab === "exames_do_dia" ? " is-active" : ""}`}
-          onClick={() => setTab("exames_do_dia")}
-          type="button"
-        >
-          Exames do dia
-        </button>
-        <button
-          className={`exams-tab-btn${tab === "resultados" ? " is-active" : ""}`}
-          onClick={() => setTab("resultados")}
-          type="button"
-        >
-          Resultados
-        </button>
+      <div className="exams-tabs-bar">
+        <Tabs>
+          <Tab active={tab === "exames_do_dia"} onClick={() => setTab("exames_do_dia")}>Exames do dia</Tab>
+          <Tab active={tab === "resultados"} onClick={() => setTab("resultados")}>Resultados</Tab>
+        </Tabs>
       </div>
 
       {tab === "resultados" && (

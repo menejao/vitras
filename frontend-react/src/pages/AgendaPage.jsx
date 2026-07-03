@@ -524,20 +524,20 @@ function AgendaPage({
             {/* Tipo de agendamento */}
             <div className="field field--span-2">
               <span className="field__label">Tipo de agendamento</span>
-              <div className="agenda-type-toggle">
+              <div className="btn-group">
                 <button
                   type="button"
-                  className={`agenda-type-toggle__btn${!isExamAppt ? " is-active" : ""}`}
+                  className={`btn btn--sm${!isExamAppt ? " is-active" : ""}`}
                   onClick={() => setForm(s => ({ ...s, appointmentType: "clinical", examTypeId: "", examName: "" }))}
                 >
                   Atendimento
                 </button>
                 <button
                   type="button"
-                  className={`agenda-type-toggle__btn${isExamAppt ? " is-active" : ""}`}
+                  className={`btn btn--sm${isExamAppt ? " is-active" : ""}`}
                   onClick={() => setForm(s => ({ ...s, appointmentType: "exam", specialty: "", type: "procedure" }))}
                 >
-                  <IconFlask /> Exame
+                  Exame
                 </button>
               </div>
             </div>

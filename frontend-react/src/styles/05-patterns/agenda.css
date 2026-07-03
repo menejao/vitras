@@ -572,41 +572,6 @@
   .agenda-toolbar__count { align-self: flex-end; }
 }
 
-/* ── Appointment type toggle ──────────────────────────────────── */
-.agenda-type-toggle {
-  display: flex;
-  gap: 0;
-  border: 1.5px solid #2563eb;
-  border-radius: var(--r-md);
-  overflow: hidden;
-  width: fit-content;
-  background: #fff;
-}
-.agenda-type-toggle__btn {
-  display: flex;
-  align-items: center;
-  gap: var(--s-1);
-  padding: var(--s-1) var(--s-4);
-  font: 500 var(--t-sm) var(--font-sans);
-  border: none;
-  background: #fff;
-  color: #374151;
-  cursor: pointer;
-  border-right: 1.5px solid #2563eb;
-  transition: background 0.12s, color 0.12s;
-  line-height: 1.5;
-  min-height: 34px;
-}
-.agenda-type-toggle__btn:last-child { border-right: none; }
-.agenda-type-toggle__btn.is-active {
-  background: #2563eb !important;
-  color: #ffffff !important;
-  font-weight: 600;
-}
-.agenda-type-toggle__btn:hover:not(.is-active) {
-  background: #eff6ff;
-  color: #1d4ed8;
-}
 
 /* ── Exam appointment badge ───────────────────────────────────── */
 .agenda-appt--exam {
