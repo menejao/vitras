@@ -1,6 +1,6 @@
 ﻿import { useEffect, useMemo, useRef, useState } from "react";
 import { isPharmacist } from "../utils/roles";
-import { fetchPrescriptions } from "../api";
+import { api, fetchPrescriptions } from "../api";
 import { printPrescription } from "../utils/printDoc";
 import PageHeader from "../components/layout/PageHeader";
 import Button from "../components/ui/Button";
@@ -575,15 +575,10 @@ function PharmacyPage({
     setDispItems([]);
     setDispError("");
     try {
-      const API = import.meta.env.VITE_API_URL || "https://api.vitras.com.br";
-      // No status filter — backend returns non-cancelled, non-dispensed by default
-      const r = await fetch(`${API}/pharmacy/receitas?patientId=${patientId}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const json = await r.json();
-      if (!r.ok) throw new Error(json.error || "Erro ao carregar receitas.");
+      // Use api() so token refresh + CSRF are handled automatically
+      const json = await api(`/pharmacy/receitas?patientId=${encodeURIComponent(patientId)}`, { method: "GET", retryCount: 2 }, token);
       // Show ativa + parcialmente_dispensada as active
-      const active = (json.data || []).filter(r2 => r2.status === "ativa" || r2.status === "parcialmente_dispensada");
+      const active = (json.data || []).filter(r => r.status === "ativa" || r.status === "parcialmente_dispensada");
       setDispReceitas(active);
     } catch (e) {
       setDispError(e.message || "Erro ao carregar receitas.");
@@ -611,25 +606,22 @@ function PharmacyPage({
 
     setDispSubmitting(true);
     try {
-      const API = import.meta.env.VITE_API_URL || "https://api.vitras.com.br";
-      const r = await fetch(`${API}/pharmacy/dispensacoes`, {
+      // Use api() so CSRF header + token refresh are handled automatically
+      await api("/pharmacy/dispensacoes", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           receitaId: dispSelectedReceita.id,
           itens: dispItems.map(it => ({ stockItemId: it.stockItemId, qtd: it.qtd })),
           obs: dispObs || undefined,
         }),
-      });
-      const json = await r.json();
-      if (!r.ok) return setDispError(json.error || "Erro ao dispensar.");
+      }, token);
       setDispSuccess("Dispensação realizada com sucesso.");
       setDispSelectedReceita(null);
       setDispItems([]);
       setDispObs("");
       await loadReceitasForPatient(dispPatient.id);
-    } catch {
-      setDispError("Erro de rede.");
+    } catch (e) {
+      setDispError(e.message || "Erro ao dispensar.");
     } finally {
       setDispSubmitting(false);
     }

@@ -58,10 +58,10 @@ export default function PrescriptionModal({ patient, user, token, onClose, origi
   const [validity, setValidity] = useState("30");
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
-  const [step, setStep] = useState("form"); // "form" | "password" | "saved"
+  const [step, setStep] = useState("form"); // "form" | "password" | "saved" | "pharmacy_error"
   const [password, setPassword] = useState("");
   const [savedMeds, setSavedMeds] = useState(null);
-  const [pharmacyWarning, setPharmacyWarning] = useState("");
+  const [pharmacyErrMsg, setPharmacyErrMsg] = useState("");
 
   function addMed() { setMeds(s => [...s, { ...EMPTY_MED }]); }
   function removeMed(i) { setMeds(s => s.filter((_, idx) => idx !== i)); }
@@ -117,6 +117,7 @@ export default function PrescriptionModal({ patient, user, token, onClose, origi
 
       const validUntilDate = new Date();
       validUntilDate.setDate(validUntilDate.getDate() + parseInt(validity, 10));
+      setSavedMeds(valid);
       try {
         await createPharmacyReceita(token, {
           patientId: patient.id,
@@ -135,13 +136,12 @@ export default function PrescriptionModal({ patient, user, token, onClose, origi
           obs: null,
           origem: origin,
         });
+        setStep("saved");
       } catch (pharmacyErr) {
         console.error("[PrescriptionModal] createPharmacyReceita failed:", pharmacyErr);
-        setPharmacyWarning("Receita criada no prontuário, mas não foi enviada para a Farmácia.");
+        setPharmacyErrMsg(pharmacyErr?.message || "Erro ao registrar na Farmácia.");
+        setStep("pharmacy_error");
       }
-
-      setSavedMeds(valid);
-      setStep("saved");
     } catch (error) {
       console.error("[PrescriptionModal] confirmAndSave failed:", error);
       setErr(error?.message || "Erro ao salvar a prescrição.");
@@ -161,6 +161,34 @@ export default function PrescriptionModal({ patient, user, token, onClose, origi
     });
   }
 
+  if (step === "pharmacy_error") {
+    return (
+      <Modal title="Prescrição com falha na Farmácia" onClose={() => onClose(true)} className="modal--lg"
+        actions={<>
+          <Button variant="secondary" type="button" onClick={() => onClose(true)}>Fechar</Button>
+          <Button type="button" onClick={handlePrint}>
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" style={{ marginRight: 6 }}><rect x="3" y="9" width="10" height="6" rx="1" stroke="currentColor" strokeWidth="1.3"/><path d="M3 9V5a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v4" stroke="currentColor" strokeWidth="1.3"/><path d="M5 4V2h6v2" stroke="currentColor" strokeWidth="1.3"/><circle cx="12" cy="7" r=".75" fill="currentColor"/></svg>
+            Imprimir prescrição
+          </Button>
+        </>}>
+        <div className="aclin-modal-stack">
+          <Alert tone="warning">Prescrição registrada com falha parcial.</Alert>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: "var(--fs-sm)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--success, #059669)" }}>
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.3"/><path d="M5 8l2 2 4-4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              Registrada no prontuário
+            </div>
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 8, color: "var(--danger, #dc2626)" }}>
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0, marginTop: 1 }}><circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.3"/><path d="M5 5l6 6M11 5l-6 6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
+              <span>NÃO disponível na Farmácia — {pharmacyErrMsg}</span>
+            </div>
+          </div>
+          <p style={{ fontSize: "var(--fs-sm)", color: "var(--text-2)" }}>O documento pode ser impresso. Contate o suporte se o erro persistir.</p>
+        </div>
+      </Modal>
+    );
+  }
+
   if (step === "saved") {
     return (
       <Modal title="Prescrição de medicamentos" onClose={() => onClose(true)} className="modal--lg"
@@ -173,7 +201,6 @@ export default function PrescriptionModal({ patient, user, token, onClose, origi
         </>}>
         <div className="aclin-modal-stack">
           <Alert tone="success">Prescrição registrada com sucesso.</Alert>
-          {pharmacyWarning && <Alert tone="warning">{pharmacyWarning}</Alert>}
           <p style={{ fontSize: "var(--fs-sm)", color: "var(--text-2)" }}>Clique em <strong>Imprimir prescrição</strong> para gerar o documento imprimível.</p>
         </div>
       </Modal>
