@@ -45,12 +45,12 @@ function validateFdi(fdi) {
 }
 
 // GET /odontologia/chart/:patientId
-router.get("/odontologia/chart/:patientId", (req, res) => {
+router.get("/odontologia/chart/:patientId", async (req, res) => {
   const user = req.user;
   if (!canRead(user)) return res.status(403).json({ error: "Sem permissão" });
 
   const { patientId } = req.params;
-  const db = readDb();
+  const db = await readDb();
   ensureDbShape(db);
 
   const odontogram = (db.odontograms || []).find(o => o.patientId === patientId) || {

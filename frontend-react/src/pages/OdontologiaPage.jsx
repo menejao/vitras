@@ -1760,11 +1760,11 @@ function DentalWorkspacePanel({ patient, user, token, onClose, queueEntry, onReg
       </div>
 
       {canWrite && !isAtendido && onRegistrar && (
-        <div style={{ padding: "var(--s-2) var(--s-3)", borderTop: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: "var(--s-1)" }}>
+        <div style={{ padding: "var(--s-2) var(--s-3)", borderTop: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "var(--s-2)", flexWrap: "wrap" }}>
           {registrarError && (
-            <p style={{ fontSize: ".75rem", color: "var(--danger)", margin: 0 }}>{registrarError}</p>
+            <p style={{ fontSize: ".75rem", color: "var(--danger)", margin: 0, flex: 1 }}>{registrarError}</p>
           )}
-          <Button type="button" variant="primary" size="sm" onClick={handleRegistrar} style={{ width: "100%" }}>
+          <Button type="button" variant="primary" size="sm" onClick={handleRegistrar}>
             Registrar atendimento odontológico
           </Button>
         </div>
@@ -1838,7 +1838,7 @@ function DentalQueueView({ entries, loading, selectedId, onSelect, today }) {
       </div>
 
       <div className="vacc-panel__list" style={{ flex: 1, overflowY: "auto" }}>
-        {loading && <p className="vacc-panel__empty">Carregando fila...</p>}
+        {loading && entries.length === 0 && <p className="vacc-panel__empty">Carregando fila...</p>}
         {!loading && visible.length === 0 && (
           <p className="vacc-panel__empty">
             {filter === "aguardando" ? "Nenhum paciente aguardando." : "Nenhum registro."}
@@ -1855,7 +1855,7 @@ function DentalQueueView({ entries, loading, selectedId, onSelect, today }) {
               <div className="vacc-pat__copy" style={{ flex: 1, minWidth: 0 }}>
                 <div className="vacc-pat__name">{entry.patientName}</div>
                 <div className="vacc-pat__meta" style={{ display: "flex", alignItems: "center", gap: "4px", flexWrap: "wrap" }}>
-                  {entry.patientAge !== null && <span className="vacc-pat__age">{entry.patientAge}a</span>}
+                  {entry.patientAge != null && <span className="vacc-pat__age">{entry.patientAge}a</span>}
                   {entry.horario && <span style={{ fontSize: ".7rem", color: "var(--text-3)" }}>{entry.horario}</span>}
                   {entry.demandType && (
                     <span style={{ fontSize: ".67rem", fontWeight: 600, padding: "1px 6px", borderRadius: "var(--r-full)", background: "#eff6ff", color: "#1d4ed8" }}>
