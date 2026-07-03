@@ -523,6 +523,258 @@ function StockItemAutocomplete({ stock, onSelect, placeholder }) {
   );
 }
 
+function normSearch(v) {
+  return String(v || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
+}
+
+function StockDispAutocomplete({ stock: availStock, value, onChange, placeholder }) {
+  const [query, setQuery] = useState(value?.name || "");
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef(null);
+
+  useEffect(() => { setQuery(value?.name || ""); }, [value]);
+
+  const results = useMemo(() => {
+    const q = normSearch(query);
+    const pool = availStock.filter(s => Number(s.qty || 0) > 0);
+    if (q.length < 1) return pool.slice(0, 8);
+    return pool.filter(s =>
+      normSearch(s.name).includes(q) ||
+      normSearch(s.category || "").includes(q) ||
+      normSearch(s.unit || "").includes(q) ||
+      (s.lote && normSearch(s.lote).includes(q))
+    ).slice(0, 10);
+  }, [availStock, query]);
+
+  useEffect(() => {
+    function onOut(e) { if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false); }
+    document.addEventListener("mousedown", onOut);
+    return () => document.removeEventListener("mousedown", onOut);
+  }, []);
+
+  function pick(item) { setQuery(item.name); setOpen(false); onChange(item); }
+
+  return (
+    <div ref={wrapRef} style={{ position: "relative", flex: 1, minWidth: 0 }}>
+      <Input
+        value={query}
+        onChange={e => { setQuery(e.target.value); onChange(null); setOpen(true); }}
+        onFocus={() => setOpen(true)}
+        placeholder={placeholder || "Selecionar estoque disponível..."}
+        autoComplete="off"
+      />
+      {open && (
+        <div style={{
+          position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 9999,
+          background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 10,
+          maxHeight: 260, overflowY: "auto", boxShadow: "0 8px 24px rgba(0,0,0,.12)"
+        }}>
+          {results.length === 0 ? (
+            <div style={{ padding: "12px 14px", fontSize: "var(--t-sm)", color: "var(--text-2)" }}>
+              Nenhum item disponível no estoque para &quot;{query}&quot;
+            </div>
+          ) : results.map(s => {
+            const st = stockStatusClass(s);
+            return (
+              <div key={s.id} onMouseDown={() => pick(s)}
+                style={{ display: "flex", justifyContent: "space-between", alignItems: "center",
+                  padding: "10px 14px", cursor: "pointer", borderBottom: "1px solid var(--border)" }}
+                onMouseEnter={e => e.currentTarget.style.background = "var(--surface-alt,#f8fafc)"}
+                onMouseLeave={e => e.currentTarget.style.background = ""}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 600, fontSize: "var(--t-sm)" }}>{s.name}</div>
+                  <div style={{ fontSize: "var(--t-xs)", color: "var(--text-2)" }}>
+                    {s.category} · {s.unit}
+                    {s.lote ? ` · Lote: ${s.lote}` : ""}
+                    {s.validade ? ` · Val: ${fmtDate(s.validade)}` : ""}
+                  </div>
+                </div>
+                <span className={`pharma-stock-badge pharma-stock-badge--${st}`}
+                  style={{ fontSize: "0.75rem", marginLeft: 8, whiteSpace: "nowrap" }}>
+                  {s.qty} {s.unit}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DispensaReceitaModal({ receita, patient, stock, token, onClose, onSuccess }) {
+  const today = new Date().toISOString().slice(0, 10);
+
+  const availableStock = useMemo(() => {
+    return stock.filter(s => {
+      if (Number(s.qty || 0) <= 0) return false;
+      if (s.validade && String(s.validade).slice(0, 10) < today) return false;
+      return true;
+    });
+  }, [stock, today]);
+
+  function suggest(itemName) {
+    const q = normSearch(itemName);
+    const tokens = q.split(/\s+/).filter(t => t.length > 2);
+    let best = null, bestScore = 0;
+    for (const s of availableStock) {
+      const sn = normSearch(s.name);
+      if (sn === q || sn.includes(q)) return s;
+      const score = tokens.filter(t => sn.includes(t)).length;
+      if (score > bestScore) { bestScore = score; best = s; }
+    }
+    return bestScore >= 2 ? best : null;
+  }
+
+  const [items, setItems] = useState(() =>
+    (receita.itens || []).map((it, idx) => {
+      const suggested = suggest(it.nome);
+      return {
+        idx,
+        nome: it.nome,
+        dosagem: it.dosagem || "",
+        posologia: it.posologia || "",
+        qtdPrescrita: Number(it.qtdPrescrita) || 1,
+        stockItem: suggested,
+        qtd: Number(it.qtdPrescrita) || 1,
+      };
+    })
+  );
+  const [obs, setObs] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+
+  function updateItem(idx, patch) {
+    setItems(prev => prev.map((it, i) => i === idx ? { ...it, ...patch } : it));
+  }
+
+  async function handleConfirm() {
+    setErr("");
+    if (receita.validUntil && receita.validUntil < today) return setErr("Receita vencida. Não é possível dispensar.");
+    if (receita.status === "cancelada") return setErr("Receita cancelada.");
+    if (receita.status === "dispensada") return setErr("Receita já dispensada.");
+    for (const it of items) {
+      if (!it.stockItem) return setErr(`Selecione o item de estoque para "${it.nome}".`);
+      if (Number(it.qtd) <= 0) return setErr(`Quantidade inválida para "${it.nome}".`);
+      if (Number(it.qtd) > Number(it.stockItem.qty || 0)) {
+        return setErr(`Quantidade (${it.qtd}) maior que estoque disponível (${it.stockItem.qty}) para "${it.stockItem.name}".`);
+      }
+    }
+    setBusy(true);
+    try {
+      await api("/pharmacy/dispensacoes", {
+        method: "POST",
+        body: JSON.stringify({
+          receitaId: receita.id,
+          itens: items.map(it => ({ stockItemId: it.stockItem.id, qtd: Number(it.qtd) })),
+          obs: obs.trim() || undefined,
+        }),
+      }, token);
+      onSuccess();
+      onClose();
+    } catch (e) {
+      setErr(e?.message || "Erro ao registrar dispensação.");
+      setBusy(false);
+    }
+  }
+
+  const isExpired = receita.validUntil && receita.validUntil < today;
+
+  return (
+    <Modal
+      title="Dispensar receita"
+      onClose={() => !busy && onClose()}
+      className="modal--lg"
+      actions={<>
+        <Button variant="secondary" onClick={onClose} disabled={busy}>Cancelar</Button>
+        <Button onClick={handleConfirm} disabled={busy || isExpired}>
+          {busy ? "Registrando..." : "Confirmar dispensação"}
+        </Button>
+      </>}
+    >
+      {/* Receita header */}
+      <div className="disp-modal-header">
+        <div className="disp-modal-patient">
+          <strong>{patient?.name}</strong>
+          {calcAge(patient?.dob) !== null && <span> · {calcAge(patient?.dob)} anos</span>}
+          {patient?.cpf && <span> · CPF {patient.cpf}</span>}
+        </div>
+        <div className="disp-modal-rx-info">
+          <span>{originLabel(receita.origem)}</span>
+          <span>Prescritor: {receita.prescritorNome || "—"}{receita.prescritorRegistro ? ` (${receita.prescritorRegistro})` : ""}</span>
+          <span>Emitida: {fmtDate(receita.dtReceita)}</span>
+          {receita.validUntil && (
+            <span style={{ color: isExpired ? "var(--danger,#dc2626)" : undefined }}>
+              Válida até: {fmtDate(receita.validUntil)}{isExpired ? " ⚠ VENCIDA" : ""}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Items */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: 16 }}>
+        {items.map((it, i) => (
+          <div key={i} className="disp-modal-item">
+            <div className="disp-modal-item__header">
+              <span className="disp-modal-item__num">{i + 1}</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="disp-modal-item__name">{it.nome}</div>
+                {(it.dosagem || it.posologia) && (
+                  <div className="disp-modal-item__dosage">
+                    {it.dosagem}{it.posologia ? ` · ${it.posologia}` : ""}
+                  </div>
+                )}
+              </div>
+              <div style={{ fontSize: "var(--t-xs)", color: "var(--text-2)", whiteSpace: "nowrap" }}>
+                Prescrito: {it.qtdPrescrita}
+              </div>
+            </div>
+            <div className="disp-modal-item__fields">
+              <StockDispAutocomplete
+                stock={availableStock}
+                value={it.stockItem}
+                onChange={stockItem => updateItem(i, {
+                  stockItem,
+                  qtd: stockItem ? Math.min(Number(it.qtd), Number(stockItem.qty)) : it.qtd,
+                })}
+                placeholder="Buscar no estoque disponível..."
+              />
+              <div style={{ display: "flex", alignItems: "flex-end", gap: 8, flexShrink: 0 }}>
+                <div style={{ width: 90 }}>
+                  <Input
+                    label="Qtd"
+                    type="number"
+                    min={1}
+                    max={it.stockItem ? it.stockItem.qty : it.qtdPrescrita}
+                    value={it.qtd}
+                    onChange={e => updateItem(i, { qtd: Math.max(1, Number(e.target.value) || 1) })}
+                  />
+                </div>
+                {it.stockItem && (
+                  <div style={{ fontSize: "var(--t-xs)", color: "var(--text-2)", paddingBottom: 10 }}>
+                    / {it.stockItem.qty} em estoque
+                  </div>
+                )}
+              </div>
+            </div>
+            {it.stockItem && Number(it.qtd) > Number(it.stockItem.qty) && (
+              <div style={{ fontSize: "var(--t-xs)", color: "var(--danger,#dc2626)", marginTop: 4 }}>
+                Quantidade maior que estoque disponível.
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <div style={{ marginTop: 16 }}>
+        <Input label="Observações" value={obs} onChange={e => setObs(e.target.value)} placeholder="Observações (opcional)" />
+      </div>
+
+      {err && <div className="error-banner" style={{ marginTop: 12 }}>{err}</div>}
+    </Modal>
+  );
+}
+
 function PharmacyPage({
   user,
   token,
@@ -548,10 +800,7 @@ function PharmacyPage({
   const [dispPatient, setDispPatient] = useState(null);
   const [dispReceitas, setDispReceitas] = useState([]);
   const [dispReceitasLoading, setDispReceitasLoading] = useState(false);
-  const [dispSelectedReceita, setDispSelectedReceita] = useState(null);
-  const [dispItems, setDispItems] = useState([]);
-  const [dispObs, setDispObs] = useState("");
-  const [dispSubmitting, setDispSubmitting] = useState(false);
+  const [dispModalReceita, setDispModalReceita] = useState(null);
   const [dispError, setDispError] = useState("");
   const [dispSuccess, setDispSuccess] = useState("");
 
@@ -587,44 +836,10 @@ function PharmacyPage({
     }
   }
 
-  function selectReceita(receita) {
-    setDispSelectedReceita(receita);
-    setDispItems(receita.itens.map((it, idx) => ({
-      idx,
-      nome: it.nome,
-      qtdPrescrita: it.qtdPrescrita,
-      stockItemId: "",
-      qtd: it.qtdPrescrita,
-    })));
-  }
-
-  async function submitDispensacao() {
+  function openDispensaModal(receita) {
+    setDispModalReceita(receita);
     setDispError("");
     setDispSuccess("");
-    if (!dispSelectedReceita) return setDispError("Selecione uma receita.");
-    if (dispItems.some(it => !it.stockItemId)) return setDispError("Vincule cada item a um item de estoque.");
-
-    setDispSubmitting(true);
-    try {
-      // Use api() so CSRF header + token refresh are handled automatically
-      await api("/pharmacy/dispensacoes", {
-        method: "POST",
-        body: JSON.stringify({
-          receitaId: dispSelectedReceita.id,
-          itens: dispItems.map(it => ({ stockItemId: it.stockItemId, qtd: it.qtd })),
-          obs: dispObs || undefined,
-        }),
-      }, token);
-      setDispSuccess("Dispensação realizada com sucesso.");
-      setDispSelectedReceita(null);
-      setDispItems([]);
-      setDispObs("");
-      await loadReceitasForPatient(dispPatient.id);
-    } catch (e) {
-      setDispError(e.message || "Erro ao dispensar.");
-    } finally {
-      setDispSubmitting(false);
-    }
   }
 
   const [catFilter, setCatFilter] = useState("Todas");
@@ -1017,9 +1232,8 @@ function PharmacyPage({
                     </div>
                   )}
                   {!dispReceitasLoading && dispReceitas.map(r => {
-                    const selected = dispSelectedReceita?.id === r.id;
                     return (
-                      <div key={r.id} className={`pharma-rx-card${selected ? " pharma-rx-card--selected" : ""}`}>
+                      <div key={r.id} className="pharma-rx-card">
                         <div className="pharma-rx-card__header">
                           <div className="pharma-rx-card__origin">{originLabel(r.origem)}</div>
                           {statusBadge(r.status)}
@@ -1037,11 +1251,13 @@ function PharmacyPage({
                             </div>
                           ))}
                         </div>
-                        <div className="pharma-rx-card__actions">
-                          <button type="button" className="pharma-rx-card__btn-open" onClick={() => selectReceita(r)}>
-                            {selected ? "Receita selecionada ✓" : "Selecionar para dispensar"}
-                          </button>
-                        </div>
+                        {canUseWriteFlow && (
+                          <div className="pharma-rx-card__actions">
+                            <button type="button" className="pharma-rx-card__btn-open" onClick={() => openDispensaModal(r)}>
+                              Dispensar
+                            </button>
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -1056,56 +1272,6 @@ function PharmacyPage({
               )}
             </div>
 
-            {/* Column 2: Dispensação */}
-            {dispSelectedReceita && (
-              <div className="pharma-rx-right">
-                <div className="card" style={{ padding: "var(--s-5)" }}>
-                  <div style={{ fontWeight: 700, fontSize: "var(--t-sm)", marginBottom: 14, color: "var(--navy)" }}>Dispensar receita</div>
-                  {dispItems.map((it, i) => (
-                    <div key={i} className="pharma-disp-item">
-                      <div className="pharma-disp-item__name">{it.nome}</div>
-                      <Select
-                        value={it.stockItemId}
-                        onChange={e => setDispItems(prev => prev.map((d, j) => j === i ? { ...d, stockItemId: e.target.value } : d))}
-                      >
-                        <option value="">Selecionar estoque...</option>
-                        {stock.map(s => (
-                          <option key={s.id} value={s.id}>{s.name} ({s.qty} {s.unit})</option>
-                        ))}
-                      </Select>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>
-                        <Input
-                          type="number" min={1} max={it.qtdPrescrita}
-                          value={it.qtd}
-                          onChange={e => setDispItems(prev => prev.map((d, j) => j === i ? { ...d, qtd: Number(e.target.value) } : d))}
-                          style={{ width: 80 }}
-                        />
-                        <span style={{ fontSize: "var(--t-xs)", color: "var(--text-2)" }}>de {it.qtdPrescrita} prescrito{it.qtdPrescrita !== 1 ? "s" : ""}</span>
-                      </div>
-                    </div>
-                  ))}
-                  <Input
-                    value={dispObs}
-                    onChange={e => setDispObs(e.target.value)}
-                    placeholder="Observações (opcional)"
-                    style={{ marginTop: 12 }}
-                  />
-                  {dispError && <div className="error-banner" style={{ marginTop: 10 }}>{dispError}</div>}
-                  <Button
-                    variant="primary"
-                    onClick={submitDispensacao}
-                    disabled={dispSubmitting}
-                    style={{ marginTop: 14, width: "100%" }}
-                  >
-                    {dispSubmitting ? "Registrando..." : "Confirmar Dispensação"}
-                  </Button>
-                  <button type="button" onClick={() => { setDispSelectedReceita(null); setDispItems([]); }}
-                    style={{ marginTop: 8, background: "none", border: "none", cursor: "pointer", fontSize: "var(--t-xs)", color: "var(--text-2)", textDecoration: "underline", display: "block", width: "100%", textAlign: "center" }}>
-                    Cancelar
-                  </button>
-                </div>
-              </div>
-            )}
           </div>
         )}
 
@@ -1288,6 +1454,19 @@ function PharmacyPage({
         )}
       </div>
 
+      {dispModalReceita && canUseWriteFlow && (
+        <DispensaReceitaModal
+          receita={dispModalReceita}
+          patient={dispPatient}
+          stock={stock}
+          token={token}
+          onClose={() => setDispModalReceita(null)}
+          onSuccess={async () => {
+            setDispSuccess("Dispensação realizada com sucesso.");
+            if (dispPatient) await loadReceitasForPatient(dispPatient.id);
+          }}
+        />
+      )}
       {dispenseItem && canUseWriteFlow ? (
         <DispenseModal
           item={dispenseItem}

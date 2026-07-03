@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import Input from "../ui/Input";
 import { searchMedications } from "../../data/medicationCatalog";
 
 /**
@@ -78,10 +79,8 @@ export default function MedicationAutocomplete({
 
   return (
     <div className="med-autocomplete" style={{ position: "relative" }}>
-      <input
+      <Input
         ref={inputRef}
-        type="text"
-        className="aclin-input med-autocomplete__input"
         value={query}
         onChange={handleInput}
         onKeyDown={handleKeyDown}
