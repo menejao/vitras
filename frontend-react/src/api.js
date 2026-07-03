@@ -173,8 +173,12 @@ export async function api(path, options = {}, token = "") {
       }
       // Translate generic validation error to actionable message; log technical details only
       if (message === "Dados inválidos" && response.status === 400) {
-        if (body?.details?.length) console.warn("[API] Validation details:", body.details);
-        message = "Não foi possível salvar. Verifique os dados e tente novamente.";
+        if (body?.details?.length) {
+          console.error("[API] Validation details:", body.details);
+          message = body.details.join("; ");
+        } else {
+          message = "Não foi possível salvar. Verifique os dados e tente novamente.";
+        }
       }
       console.warn(`[API] ${response.status} ${path}`, message, body);
       const err = new Error(message);

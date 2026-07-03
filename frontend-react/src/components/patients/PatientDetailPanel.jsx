@@ -699,7 +699,7 @@ function ExamRequestModal({ patient, user, token, onClose }) {
         ...valid.map((exam, idx) => `${idx + 1}. ${exam.type === "Outros" ? exam.name.trim() : exam.type}${exam.urgency === "urgent" ? " - URGENTE" : exam.urgency === "priority" ? " - PRIORITARIO" : ""}${exam.notes ? `\n   Observacao: ${exam.notes}` : ""}`),
         justification ? `\nJustificativa clinica: ${justification}` : "",
       ].filter(Boolean).join("\n");
-      await createRecord(token, patient.id, { type: "exam_request", date: today, time: new Date().toTimeString().slice(0, 5), title: `Pedido de exame: ${title}`, details, immutable: true, professionalName: user?.name || "", professionalCouncil: getCouncilLabel(user) });
+      await createRecord(token, patient.id, { type: "exam_request", date: today, title: `Pedido de exame: ${title}`, details });
       setSaved({ valid, justification });
     } catch (error) { setErr(error?.message || "Erro ao salvar."); } finally { setBusy(false); }
   }
@@ -825,7 +825,7 @@ function PrescriptionModal({ patient, user, token, onClose }) {
           return `${idx + 1}. ${name} ${med.dosage}${med.route ? ` - Via: ${med.route}` : ""}\n   Frequencia: ${med.frequency}${med.duration ? ` por ${med.duration}` : ""}${med.notes ? `\n   Observacao: ${med.notes}` : ""}`;
         }),
       ].join("\n");
-      await createRecord(token, patient.id, { type: "prescription", date: today, time: new Date().toTimeString().slice(0, 5), title: `Prescricao: ${title}`, details, immutable: true, professionalName: user?.name || "", professionalCouncil: getCouncilLabel(user) });
+      await createRecord(token, patient.id, { type: "prescription", date: today, title: `Prescricao: ${title}`, details });
       try {
         await createPharmacyReceita(token, {
           patientId: patient.id,
@@ -844,7 +844,10 @@ function PrescriptionModal({ patient, user, token, onClose }) {
       } catch (_) { /* pharmacy save failure doesn't block prescription */ }
       setSavedMeds(valid);
       setStep("saved");
-    } catch (error) { setErr(error?.message || "Erro ao salvar."); } finally { setBusy(false); }
+    } catch (error) {
+      console.error("[PrescriptionModal] confirmAndSave failed:", error);
+      setErr(error?.message || "Erro ao salvar a prescrição.");
+    } finally { setBusy(false); }
   }
 
   function handlePrint() {
@@ -997,11 +1000,8 @@ function InternalReferralModal({ patient, user, users, token, onClose }) {
       ].filter(Boolean).join("\n");
       await createRecord(token, patient.id, {
         type: "referral", date: today,
-        time: new Date().toTimeString().slice(0, 5),
         title: `Encaminhamento → ${target.name}`,
-        details, immutable: true,
-        professionalName: user?.name || "",
-        professionalCouncil: getCouncilLabel(user),
+        details,
       });
       await createTask(token, {
         patientId: patient.id,
@@ -1077,12 +1077,8 @@ function AttendanceAttestModal({ patient, user, token, onClose }) {
       await createRecord(token, patient.id, {
         type: "attendance_attest",
         date: today,
-        time: now.toTimeString().slice(0, 5),
         title: `Declaração de comparecimento — ${now.toLocaleDateString("pt-BR")} às ${timeStr}h`,
         details: `Declaração de comparecimento emitida em ${now.toLocaleDateString("pt-BR")} às ${timeStr}h.\nProfissional: ${user?.name || ""}${getCouncilLabel(user) ? ` (${getCouncilLabel(user)})` : ""}`,
-        immutable: true,
-        professionalName: user?.name || "",
-        professionalCouncil: getCouncilLabel(user),
       });
       setSaved(true);
     } catch (error) { setErr(error?.message || "Erro ao salvar."); } finally { setBusy(false); }
@@ -1155,12 +1151,8 @@ function MedicalAttestModal({ patient, user, token, onClose }) {
       await createRecord(token, patient.id, {
         type: "medical_attest",
         date: today,
-        time: now.toTimeString().slice(0, 5),
         title: `Atestado médico — ${days} dia(s)${cid ? ` (CID: ${cid})` : ""}`,
         details,
-        immutable: true,
-        professionalName: user?.name || "",
-        professionalCouncil: getCouncilLabel(user),
       });
       setSaved(true);
     } catch (error) { setErr(error?.message || "Erro ao salvar."); } finally { setBusy(false); }
