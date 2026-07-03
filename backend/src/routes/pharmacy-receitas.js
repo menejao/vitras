@@ -35,7 +35,11 @@ router.get("/pharmacy/receitas", async (req, res) => {
     items = items.filter(r => r.patientId === req.query.patientId);
   }
   if (req.query.status) {
-    items = items.filter(r => r.status === req.query.status);
+    const statuses = req.query.status.split(",").map(s => s.trim());
+    items = items.filter(r => statuses.includes(r.status));
+  } else {
+    // Default: exclude cancelled and fully dispensed
+    items = items.filter(r => r.status !== "cancelada" && r.status !== "dispensada");
   }
   // Sort newest first
   items = [...items].sort((a, b) => (b.criadaEm || "").localeCompare(a.criadaEm || ""));
@@ -72,11 +76,14 @@ router.post("/pharmacy/receitas", validate(ReceitaCreateSchema), async (req, res
     const receita = {
       id: uuidv4(),
       patientId: body.patientId,
+      patientName: body.patientName || patient.name || null,
       prescriberId: body.prescriberId,
       prescritorNome: user.name || user.username,
+      prescritorRegistro: body.prescritorRegistro || null,
       teamId: user.teamId || null,
       dtReceita: body.dtReceita,
       validade: body.validade,
+      validUntil: body.validUntil || null,
       itens: body.itens.map(it => ({ ...it, dispensado: 0 })),
       obs: body.obs || null,
       origem: body.origem || "medicina",

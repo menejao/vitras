@@ -545,9 +545,12 @@ const SuppliesCloseContinuousSchema = z.object({
 
 const ReceitaCreateSchema = z.object({
   patientId: z.string().trim().min(1).max(100),
+  patientName: z.string().trim().max(300).optional(),
   prescriberId: z.string().trim().min(1).max(100),
+  prescritorRegistro: z.string().trim().max(100).optional(),
   dtReceita: z.string().trim().min(1).max(50),
   validade: z.string().trim().min(1).max(50),
+  validUntil: z.string().trim().max(50).optional(),
   itens: z.array(z.object({
     nome: z.string().trim().min(1).max(200),
     dosagem: z.string().trim().min(1).max(200),
@@ -555,6 +558,7 @@ const ReceitaCreateSchema = z.object({
     qtdPrescrita: z.number().int().min(1).max(10000)
   })).min(1).max(20),
   obs: optionalShortString(2000),
+  origem: z.string().trim().max(50).optional(),
 });
 
 const DispensacaoCreateSchema = z.object({

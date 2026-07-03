@@ -12,6 +12,41 @@ import KPI from "../components/ui/KPI";
 
 const BASE_UNITS = ["comprimido", "capsula", "frasco", "bolsa", "ampola", "sache", "bisnaga"];
 
+const ORIGIN_LABELS = {
+  medicina: "Medicina",
+  medical: "Medicina",
+  enfermagem: "Enfermagem",
+  nursing: "Enfermagem",
+  odontologia: "Odontologia",
+  dentistry: "Odontologia",
+};
+function originLabel(raw) {
+  return ORIGIN_LABELS[String(raw || "").toLowerCase()] || "Medicina";
+}
+
+const STATUS_LABELS = {
+  ativa: { label: "Ativa", cls: "pharma-rx-badge--ativa" },
+  parcialmente_dispensada: { label: "Parcial", cls: "pharma-rx-badge--parcial" },
+  dispensada: { label: "Dispensada", cls: "pharma-rx-badge--dispensada" },
+  vencida: { label: "Vencida", cls: "pharma-rx-badge--vencida" },
+  cancelada: { label: "Cancelada", cls: "pharma-rx-badge--cancelada" },
+};
+function statusBadge(status) {
+  const cfg = STATUS_LABELS[status] || { label: status, cls: "" };
+  return <span className={`pharma-rx-badge ${cfg.cls}`}>{cfg.label}</span>;
+}
+
+function calcAge(dob) {
+  if (!dob) return null;
+  const diff = Date.now() - new Date(dob).getTime();
+  return Math.floor(diff / (365.25 * 24 * 3600 * 1000));
+}
+
+function fmtDate(d) {
+  if (!d) return "—";
+  return new Date(d + "T12:00:00").toLocaleDateString("pt-BR");
+}
+
 function IconSearch() {
   return (
     <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
@@ -512,15 +547,20 @@ function PharmacyPage({
     setDispReceitas([]);
     setDispSelectedReceita(null);
     setDispItems([]);
+    setDispError("");
     try {
       const API = import.meta.env.VITE_API_URL || "https://api.vitras.com.br";
-      const r = await fetch(`${API}/pharmacy/receitas?patientId=${patientId}&status=ativa`, {
+      // No status filter — backend returns non-cancelled, non-dispensed by default
+      const r = await fetch(`${API}/pharmacy/receitas?patientId=${patientId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const json = await r.json();
-      setDispReceitas(json.data || []);
-    } catch {
-      setDispError("Erro ao carregar receitas.");
+      if (!r.ok) throw new Error(json.error || "Erro ao carregar receitas.");
+      // Show ativa + parcialmente_dispensada as active
+      const active = (json.data || []).filter(r2 => r2.status === "ativa" || r2.status === "parcialmente_dispensada");
+      setDispReceitas(active);
+    } catch (e) {
+      setDispError(e.message || "Erro ao carregar receitas.");
     } finally {
       setDispReceitasLoading(false);
     }
@@ -895,107 +935,157 @@ function PharmacyPage({
           </>
         )}
         {pharmaTab === "prescricoes" && (
-          <div className="card" style={{ padding: "var(--space-5, 1.25rem)" }}>
-            <div style={{ marginBottom: "var(--space-4, 1rem)" }}>
-              <strong style={{ display: "block", marginBottom: 8 }}>1. Buscar paciente</strong>
-              <PatientSearchAutocomplete
-                patients={patients}
-                onSelect={p => {
-                  setDispError("");
-                  setDispSuccess("");
-                  setDispPatient(p);
-                  setDispSelectedReceita(null);
-                  setDispItems([]);
-                  loadReceitasForPatient(p.id);
-                }}
-              />
+          <div className="pharma-rx-layout">
+            {/* Column 1: Patient search + patient card + receitas */}
+            <div className="pharma-rx-left">
+              {/* 1. Buscar paciente */}
+              <div className="card" style={{ padding: "var(--s-5)" }}>
+                <div style={{ fontWeight: 700, fontSize: "var(--t-sm)", marginBottom: 10, color: "var(--navy)" }}>Buscar paciente</div>
+                <PatientSearchAutocomplete
+                  patients={patients}
+                  onSelect={p => {
+                    setDispError("");
+                    setDispSuccess("");
+                    setDispPatient(p);
+                    setDispSelectedReceita(null);
+                    setDispItems([]);
+                    loadReceitasForPatient(p.id);
+                  }}
+                />
+                {dispPatient && (
+                  <button type="button" onClick={() => { setDispPatient(null); setDispReceitas([]); setDispSelectedReceita(null); setDispItems([]); setDispError(""); setDispSuccess(""); }}
+                    style={{ marginTop: 8, background: "none", border: "none", cursor: "pointer", fontSize: "var(--t-xs)", color: "var(--text-2)", textDecoration: "underline" }}>
+                    Limpar seleção
+                  </button>
+                )}
+              </div>
+
+              {/* 2. Patient card */}
+              {dispPatient && (
+                <div className="pharma-patient-card card">
+                  <div className="pharma-patient-card__avatar">
+                    {String(dispPatient.name || "").split(" ").slice(0, 2).map(w => w[0] || "").join("").toUpperCase()}
+                  </div>
+                  <div className="pharma-patient-card__info">
+                    <div className="pharma-patient-card__name">{dispPatient.name}</div>
+                    <div className="pharma-patient-card__meta">
+                      {calcAge(dispPatient.dob) !== null && <span>{calcAge(dispPatient.dob)} anos</span>}
+                      {dispPatient.cpf && <span>CPF {dispPatient.cpf}</span>}
+                      {dispPatient.cns && <span>CNS {dispPatient.cns}</span>}
+                      {dispPatient.phone && <span>{dispPatient.phone}</span>}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {dispError && <div className="error-banner">{dispError}</div>}
+              {dispSuccess && <div className="pharma-success-banner">{dispSuccess}</div>}
+
+              {/* 3. Receitas ativas */}
+              {dispPatient && (
+                <div className="card" style={{ padding: "var(--s-5)" }}>
+                  <div style={{ fontWeight: 700, fontSize: "var(--t-sm)", marginBottom: 10, color: "var(--navy)" }}>
+                    Receitas ativas
+                    {dispReceitas.length > 0 && <span style={{ marginLeft: 8, fontWeight: 400, fontSize: "var(--t-xs)", color: "var(--text-2)" }}>{dispReceitas.length} receita{dispReceitas.length !== 1 ? "s" : ""}</span>}
+                  </div>
+                  {dispReceitasLoading && <div style={{ color: "var(--text-2)", fontSize: "var(--t-sm)" }}>Carregando...</div>}
+                  {!dispReceitasLoading && dispReceitas.length === 0 && (
+                    <div className="pharma-rx-empty">
+                      <div className="pharma-rx-empty__icon">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none"><rect x="5" y="3" width="14" height="18" rx="2" stroke="currentColor" strokeWidth="1.3"/><path d="M8 8h8M8 12h5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
+                      </div>
+                      <div className="pharma-rx-empty__title">Nenhuma receita ativa</div>
+                      <div className="pharma-rx-empty__text">Este paciente não possui prescrições pendentes de dispensação.</div>
+                    </div>
+                  )}
+                  {!dispReceitasLoading && dispReceitas.map(r => {
+                    const selected = dispSelectedReceita?.id === r.id;
+                    return (
+                      <div key={r.id} className={`pharma-rx-card${selected ? " pharma-rx-card--selected" : ""}`}>
+                        <div className="pharma-rx-card__header">
+                          <div className="pharma-rx-card__origin">{originLabel(r.origem)}</div>
+                          {statusBadge(r.status)}
+                        </div>
+                        <div className="pharma-rx-card__meta">
+                          <span>{r.prescritorNome || "—"}{r.prescritorRegistro ? ` · ${r.prescritorRegistro}` : ""}</span>
+                          <span>Emitida: {fmtDate(r.dtReceita)}</span>
+                          {r.validUntil ? <span>Válida até: {fmtDate(r.validUntil)}</span> : r.validade ? <span>Validade: {r.validade}</span> : null}
+                        </div>
+                        <div className="pharma-rx-card__meds">
+                          {r.itens.map((it, idx) => (
+                            <div key={idx} className="pharma-rx-card__med">
+                              <span className="pharma-rx-card__med-name">{it.nome}</span>
+                              <span className="pharma-rx-card__med-detail">{it.dosagem}{it.posologia ? ` · ${it.posologia}` : ""}</span>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="pharma-rx-card__actions">
+                          <button type="button" className="pharma-rx-card__btn-open" onClick={() => selectReceita(r)}>
+                            {selected ? "Receita selecionada ✓" : "Selecionar para dispensar"}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {!dispPatient && (
+                <div className="pharma-rx-start">
+                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="1.3"/><path d="M21 21l-4.35-4.35" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
+                  <p>Busque um paciente pelo nome, CPF ou CNS para ver as receitas pendentes de dispensação.</p>
+                </div>
+              )}
             </div>
 
-            {dispError && <div className="error-banner" style={{ marginBottom: 12 }}>{dispError}</div>}
-            {dispSuccess && <div style={{ background: "var(--success-bg, #ecfdf5)", color: "var(--success, #059669)", border: "1px solid var(--success, #059669)", borderRadius: 8, padding: "8px 12px", marginBottom: 12 }}>{dispSuccess}</div>}
-
-            {dispPatient && (
-              <div style={{ marginBottom: "var(--space-4, 1rem)" }}>
-                <strong>2. Paciente: {dispPatient.name}</strong>
-                <div style={{ fontSize: "var(--t-sm, 0.85rem)", color: "var(--text-2, #64748b)", marginTop: 4 }}>
-                  CPF: {dispPatient.cpf || "—"} · CNS: {dispPatient.cns || "—"}
-                </div>
-              </div>
-            )}
-
-            {dispPatient && (
-              <div style={{ marginBottom: "var(--space-4, 1rem)" }}>
-                <strong>3. Receitas ativas</strong>
-                {dispReceitasLoading && <div style={{ color: "var(--text-2)", marginTop: 8 }}>Carregando...</div>}
-                {!dispReceitasLoading && dispReceitas.length === 0 && (
-                  <div style={{ color: "var(--text-2)", marginTop: 8 }}>Nenhuma receita ativa para este paciente.</div>
-                )}
-                {!dispReceitasLoading && dispReceitas.map(r => (
-                  <div
-                    key={r.id}
-                    onClick={() => selectReceita(r)}
-                    style={{
-                      border: `1px solid ${dispSelectedReceita?.id === r.id ? "var(--primary, #2563eb)" : "var(--border, #e2e8f0)"}`,
-                      borderRadius: 8,
-                      padding: "10px 14px",
-                      marginTop: 8,
-                      cursor: "pointer",
-                      background: dispSelectedReceita?.id === r.id ? "var(--primary-light, #eff6ff)" : "var(--surface, #fff)",
-                    }}
-                  >
-                    <div style={{ fontWeight: 600, fontSize: "var(--t-sm)" }}>
-                      Receita {r.dtReceita} · válida até {r.validade}
-                    </div>
-                    <div style={{ fontSize: "var(--t-xs, 0.75rem)", color: "var(--text-2)", marginTop: 4 }}>
-                      {r.itens.map(it => `${it.nome} ${it.dosagem}`).join(" · ")}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
+            {/* Column 2: Dispensação */}
             {dispSelectedReceita && (
-              <div style={{ marginBottom: "var(--space-4, 1rem)" }}>
-                <strong>4. Vincular a itens de estoque</strong>
-                {dispItems.map((it, i) => (
-                  <div key={i} style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 8 }}>
-                    <div style={{ flex: 2, fontSize: "var(--t-sm)" }}>{it.nome}</div>
-                    <Select
-                      value={it.stockItemId}
-                      onChange={e => setDispItems(prev => prev.map((d, j) => j === i ? { ...d, stockItemId: e.target.value } : d))}
-                      style={{ flex: 3 }}
-                    >
-                      <option value="">Selecionar item...</option>
-                      {stock.map(s => (
-                        <option key={s.id} value={s.id}>{s.name} ({s.qty} {s.unit})</option>
-                      ))}
-                    </Select>
-                    <Input
-                      type="number"
-                      min={1}
-                      max={it.qtdPrescrita}
-                      value={it.qtd}
-                      onChange={e => setDispItems(prev => prev.map((d, j) => j === i ? { ...d, qtd: Number(e.target.value) } : d))}
-                      style={{ width: 70 }}
-                    />
-                    <span style={{ fontSize: "var(--t-xs)", color: "var(--text-2)" }}>/{it.qtdPrescrita}</span>
-                  </div>
-                ))}
-                <Input
-                  value={dispObs}
-                  onChange={e => setDispObs(e.target.value)}
-                  placeholder="Observações (opcional)"
-                  style={{ marginTop: 12 }}
-                />
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={submitDispensacao}
-                  disabled={dispSubmitting}
-                  style={{ marginTop: 12 }}
-                >
-                  {dispSubmitting ? "Dispensando..." : "Confirmar Dispensação"}
-                </Button>
+              <div className="pharma-rx-right">
+                <div className="card" style={{ padding: "var(--s-5)" }}>
+                  <div style={{ fontWeight: 700, fontSize: "var(--t-sm)", marginBottom: 14, color: "var(--navy)" }}>Dispensar receita</div>
+                  {dispItems.map((it, i) => (
+                    <div key={i} className="pharma-disp-item">
+                      <div className="pharma-disp-item__name">{it.nome}</div>
+                      <Select
+                        value={it.stockItemId}
+                        onChange={e => setDispItems(prev => prev.map((d, j) => j === i ? { ...d, stockItemId: e.target.value } : d))}
+                      >
+                        <option value="">Selecionar estoque...</option>
+                        {stock.map(s => (
+                          <option key={s.id} value={s.id}>{s.name} ({s.qty} {s.unit})</option>
+                        ))}
+                      </Select>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>
+                        <Input
+                          type="number" min={1} max={it.qtdPrescrita}
+                          value={it.qtd}
+                          onChange={e => setDispItems(prev => prev.map((d, j) => j === i ? { ...d, qtd: Number(e.target.value) } : d))}
+                          style={{ width: 80 }}
+                        />
+                        <span style={{ fontSize: "var(--t-xs)", color: "var(--text-2)" }}>de {it.qtdPrescrita} prescrito{it.qtdPrescrita !== 1 ? "s" : ""}</span>
+                      </div>
+                    </div>
+                  ))}
+                  <Input
+                    value={dispObs}
+                    onChange={e => setDispObs(e.target.value)}
+                    placeholder="Observações (opcional)"
+                    style={{ marginTop: 12 }}
+                  />
+                  {dispError && <div className="error-banner" style={{ marginTop: 10 }}>{dispError}</div>}
+                  <Button
+                    variant="primary"
+                    onClick={submitDispensacao}
+                    disabled={dispSubmitting}
+                    style={{ marginTop: 14, width: "100%" }}
+                  >
+                    {dispSubmitting ? "Registrando..." : "Confirmar Dispensação"}
+                  </Button>
+                  <button type="button" onClick={() => { setDispSelectedReceita(null); setDispItems([]); }}
+                    style={{ marginTop: 8, background: "none", border: "none", cursor: "pointer", fontSize: "var(--t-xs)", color: "var(--text-2)", textDecoration: "underline", display: "block", width: "100%", textAlign: "center" }}>
+                    Cancelar
+                  </button>
+                </div>
               </div>
             )}
           </div>

@@ -61,6 +61,7 @@ export default function PrescriptionModal({ patient, user, token, onClose, origi
   const [step, setStep] = useState("form"); // "form" | "password" | "saved"
   const [password, setPassword] = useState("");
   const [savedMeds, setSavedMeds] = useState(null);
+  const [pharmacyWarning, setPharmacyWarning] = useState("");
 
   function addMed() { setMeds(s => [...s, { ...EMPTY_MED }]); }
   function removeMed(i) { setMeds(s => s.filter((_, idx) => idx !== i)); }
@@ -114,12 +115,17 @@ export default function PrescriptionModal({ patient, user, token, onClose, origi
 
       await createRecord(token, patient.id, { type: "prescription", date: today, title: `Prescricao: ${title}`, details });
 
+      const validUntilDate = new Date();
+      validUntilDate.setDate(validUntilDate.getDate() + parseInt(validity, 10));
       try {
         await createPharmacyReceita(token, {
           patientId: patient.id,
-          prescriberId: user.id,
+          patientName: patient.name,
+          prescriberId: user.id || user.username || "unknown",
+          prescritorRegistro: getCouncilLabel(user) || null,
           dtReceita: today,
           validade: `${validity} dias`,
+          validUntil: validUntilDate.toISOString().slice(0, 10),
           itens: valid.map(med => ({
             nome: med.name === "Outros (digitar)" ? med.custom.trim() : med.name,
             dosagem: med.dosage,
@@ -129,7 +135,10 @@ export default function PrescriptionModal({ patient, user, token, onClose, origi
           obs: null,
           origem: origin,
         });
-      } catch (_) { /* pharmacy save failure doesn't block prescription record */ }
+      } catch (pharmacyErr) {
+        console.error("[PrescriptionModal] createPharmacyReceita failed:", pharmacyErr);
+        setPharmacyWarning("Receita criada no prontuário, mas não foi enviada para a Farmácia.");
+      }
 
       setSavedMeds(valid);
       setStep("saved");
@@ -164,6 +173,7 @@ export default function PrescriptionModal({ patient, user, token, onClose, origi
         </>}>
         <div className="aclin-modal-stack">
           <Alert tone="success">Prescrição registrada com sucesso.</Alert>
+          {pharmacyWarning && <Alert tone="warning">{pharmacyWarning}</Alert>}
           <p style={{ fontSize: "var(--fs-sm)", color: "var(--text-2)" }}>Clique em <strong>Imprimir prescrição</strong> para gerar o documento imprimível.</p>
         </div>
       </Modal>
