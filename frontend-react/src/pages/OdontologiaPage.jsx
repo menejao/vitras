@@ -1705,7 +1705,7 @@ function DentalQueueView({ entries, loading, selectedId, onSelect, today }) {
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
       <div style={{ padding: "var(--s-2) var(--s-3)", borderBottom: "1px solid var(--border)" }}>
         <div style={{ fontSize: ".68rem", fontWeight: 700, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: "var(--s-1)" }}>
-          Fila — {today}
+          Fila de hoje
         </div>
         <div style={{ display: "flex", gap: "var(--s-1)" }}>
           {[
@@ -1848,7 +1848,7 @@ export default function OdontologiaPage({ patients, user, token }) {
       <PageHeader
         eyebrow="ATENDIMENTO ODONTOLÓGICO"
         title="Odontologia"
-        subtitle={today}
+        subtitle="Atendimento odontológico do dia"
         actions={
           <Button type="button" variant="secondary" size="sm"
             onClick={() => { setShowSearch(s => !s); setQuery(""); setPage(0); }}>
@@ -1893,9 +1893,8 @@ export default function OdontologiaPage({ patients, user, token }) {
               </>
             ) : (
               <>
-                <div style={{ padding: "var(--s-2) var(--s-3)", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: ".5rem" }}>
-                  <span style={{ fontSize: ".7rem", fontWeight: 600, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: ".05em" }}>Fila — Hoje</span>
-                  <span style={{ fontSize: ".7rem", color: "var(--text-dim)" }}>{today}</span>
+                <div style={{ padding: "var(--s-2) var(--s-3)", borderBottom: "1px solid var(--border)" }}>
+                  <span style={{ fontSize: ".7rem", fontWeight: 600, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: ".05em" }}>Fila de hoje</span>
                 </div>
                 <DentalQueueView
                   entries={queueEntries}

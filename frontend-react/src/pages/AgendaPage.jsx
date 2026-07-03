@@ -736,7 +736,7 @@ function AgendaPage({
 
             {/* Horário */}
             <Select
-              label={slotsLoading ? "Horário (verificando...)" : availableSlots ? `Horário * (${availableSlots.length} disponíveis)` : "Horário *"}
+              label="Horário *"
               value={form.time}
               onChange={e => setForm(s => ({ ...s, time: e.target.value }))}
             >

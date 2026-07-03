@@ -1,14 +1,10 @@
+// Apenas procedimentos realizados na UBS — exames devem usar ubsExamCatalog.js
 export const AGENDA_PROCEDURE_SUBTYPES = [
-  { value: "preventivo",    label: "Preventivo / Papanicolau" },
-  { value: "glicemia",      label: "Glicemia capilar" },
-  { value: "pressao",       label: "Aferição de pressão arterial" },
-  { value: "teste_gravidez",label: "Teste de gravidez" },
-  { value: "teste_hiv",     label: "Teste rápido HIV" },
-  { value: "teste_sifilis", label: "Teste rápido sífilis" },
-  { value: "teste_hepatite",label: "Teste rápido hepatite B/C" },
-  { value: "curativo",      label: "Curativo / Enfermagem" },
-  { value: "coleta_lab",    label: "Coleta de exames laboratoriais" },
+  { value: "curativo",      label: "Curativo / Troca de curativo" },
   { value: "vacina",        label: "Vacinação" },
+  { value: "inalacao",      label: "Inalação / Nebulização" },
+  { value: "suturas",       label: "Retirada de pontos / Suturas" },
+  { value: "pressao",       label: "Aferição de pressão arterial" },
   { value: "outro_proc",    label: "Outro procedimento" },
 ];
 

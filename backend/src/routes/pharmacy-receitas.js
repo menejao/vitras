@@ -117,8 +117,9 @@ router.post("/pharmacy/dispensacoes", validate(DispensacaoCreateSchema), async (
     const teamId = user.teamId || receita.teamId;
     const stockItems = (db.pharmacyStock || []).filter(s => String(s.teamId || "") === String(teamId || ""));
 
-    // Validate all items have sufficient stock before mutating
+    // Validate stock only for items with qty > 0
     for (const it of body.itens) {
+      if (!it.qtd || it.qtd === 0) continue;
       const stock = stockItems.find(s => s.id === it.stockItemId);
       if (!stock) return { error: `Item de estoque não encontrado: ${it.stockItemId}`, status: 404 };
       if (stock.qty < it.qtd) return { error: `Estoque insuficiente para ${stock.name}`, status: 400 };
@@ -126,6 +127,16 @@ router.post("/pharmacy/dispensacoes", validate(DispensacaoCreateSchema), async (
 
     const dispensacaoItens = [];
     for (const it of body.itens) {
+      if (!it.qtd || it.qtd === 0) {
+        dispensacaoItens.push({
+          stockItemId: null,
+          nome: it.prescricaoItemNome || "—",
+          qtd: 0,
+          lote: null,
+          naoDispensado: true,
+        });
+        continue;
+      }
       const stockIdx = db.pharmacyStock.findIndex(s => s.id === it.stockItemId);
       const stock = db.pharmacyStock[stockIdx];
       const prevQty = stock.qty;
@@ -155,9 +166,10 @@ router.post("/pharmacy/dispensacoes", validate(DispensacaoCreateSchema), async (
 
     db.dispensacoes.push(dispensacao);
 
-    // Mark receita as dispensada se todos os itens foram atendidos
-    receita.status = "dispensada";
-    receita.dispensadaEm = new Date().toISOString();
+    const anyDispensed = dispensacaoItens.some(i => !i.naoDispensado);
+    const anySkipped = dispensacaoItens.some(i => i.naoDispensado);
+    receita.status = anyDispensed && anySkipped ? "parcialmente_dispensada" : anyDispensed ? "dispensada" : "ativa";
+    if (anyDispensed || anySkipped) receita.dispensadaEm = new Date().toISOString();
 
     addAuditLog(db, user, "create", "dispensacao", dispensacao.id, {
       patientId: receita.patientId,

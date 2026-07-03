@@ -292,7 +292,7 @@ function RequestCard({ req, canExecute, onExecute }) {
 // ─── ExamsPage ────────────────────────────────────────────────────────────────
 
 function ExamsPage({ patients, user, token, onNavigatePatient }) {
-  const [tab, setTab] = useState("exames");
+  const [tab, setTab] = useState("exames_do_dia");
 
   // ── Exames tab state ──
   const [search, setSearch] = useState("");
@@ -350,7 +350,7 @@ function ExamsPage({ patients, user, token, onNavigatePatient }) {
   }, [token, filterStatus, filterPriority, filterOrigin, filterDate]);
 
   useEffect(() => {
-    if (tab === "pedidos") {
+    if (tab === "exames_do_dia") {
       loadRequests();
     }
   }, [tab, loadRequests]);
@@ -457,22 +457,22 @@ function ExamsPage({ patients, user, token, onNavigatePatient }) {
 
       <div className="exams-tabs">
         <button
-          className={`exams-tab-btn${tab === "exames" ? " is-active" : ""}`}
-          onClick={() => setTab("exames")}
+          className={`exams-tab-btn${tab === "exames_do_dia" ? " is-active" : ""}`}
+          onClick={() => setTab("exames_do_dia")}
+          type="button"
+        >
+          Exames do dia
+        </button>
+        <button
+          className={`exams-tab-btn${tab === "resultados" ? " is-active" : ""}`}
+          onClick={() => setTab("resultados")}
           type="button"
         >
           Resultados
         </button>
-        <button
-          className={`exams-tab-btn${tab === "pedidos" ? " is-active" : ""}`}
-          onClick={() => setTab("pedidos")}
-          type="button"
-        >
-          Pedidos
-        </button>
       </div>
 
-      {tab === "exames" && (
+      {tab === "resultados" && (
         <div className="exams-body">
           <div className="exams-sidebar">
             <div className="exams-sidebar__search">
@@ -610,7 +610,7 @@ function ExamsPage({ patients, user, token, onNavigatePatient }) {
         </div>
       )}
 
-      {tab === "pedidos" && (
+      {tab === "exames_do_dia" && (
         <div className="req-queue">
           <div className="req-queue__filters">
             <Select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>

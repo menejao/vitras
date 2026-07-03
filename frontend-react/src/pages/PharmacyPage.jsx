@@ -653,9 +653,12 @@ function DispensaReceitaModal({ receita, patient, stock, token, onClose, onSucce
     if (receita.validUntil && receita.validUntil < today) return setErr("Receita vencida. Não é possível dispensar.");
     if (receita.status === "cancelada") return setErr("Receita cancelada.");
     if (receita.status === "dispensada") return setErr("Receita já dispensada.");
+    const anyZero = items.some(it => Number(it.qtd) === 0);
+    if (anyZero && !obs.trim()) return setErr("Informe observação para itens não dispensados.");
     for (const it of items) {
+      if (Number(it.qtd) === 0) continue;
       if (!it.stockItem) return setErr(`Selecione o item de estoque para "${it.nome}".`);
-      if (Number(it.qtd) <= 0) return setErr(`Quantidade inválida para "${it.nome}".`);
+      if (Number(it.qtd) < 0) return setErr(`Quantidade inválida para "${it.nome}".`);
       if (Number(it.qtd) > Number(it.stockItem.qty || 0)) {
         return setErr(`Quantidade (${it.qtd}) maior que estoque disponível (${it.stockItem.qty}) para "${it.stockItem.name}".`);
       }
@@ -666,7 +669,9 @@ function DispensaReceitaModal({ receita, patient, stock, token, onClose, onSucce
         method: "POST",
         body: JSON.stringify({
           receitaId: receita.id,
-          itens: items.map(it => ({ stockItemId: it.stockItem.id, qtd: Number(it.qtd) })),
+          itens: items.map(it => Number(it.qtd) === 0
+            ? { stockItemId: null, qtd: 0, prescricaoItemNome: it.nome }
+            : { stockItemId: it.stockItem.id, qtd: Number(it.qtd) }),
           obs: obs.trim() || undefined,
         }),
       }, token);
@@ -744,10 +749,10 @@ function DispensaReceitaModal({ receita, patient, stock, token, onClose, onSucce
                   <Input
                     label="Qtd"
                     type="number"
-                    min={1}
+                    min={0}
                     max={it.stockItem ? it.stockItem.qty : it.qtdPrescrita}
                     value={it.qtd}
-                    onChange={e => updateItem(i, { qtd: Math.max(1, Number(e.target.value) || 1) })}
+                    onChange={e => updateItem(i, { qtd: Math.max(0, Number(e.target.value) || 0) })}
                   />
                 </div>
                 {it.stockItem && (
@@ -767,7 +772,12 @@ function DispensaReceitaModal({ receita, patient, stock, token, onClose, onSucce
       </div>
 
       <div style={{ marginTop: 16 }}>
-        <Input label="Observações" value={obs} onChange={e => setObs(e.target.value)} placeholder="Observações (opcional)" />
+        <Input
+          label={items.some(it => Number(it.qtd) === 0) ? "Observações (obrigatório — há itens não dispensados)" : "Observações"}
+          value={obs}
+          onChange={e => setObs(e.target.value)}
+          placeholder="Observações (opcional)"
+        />
       </div>
 
       {err && <div className="error-banner" style={{ marginTop: 12 }}>{err}</div>}

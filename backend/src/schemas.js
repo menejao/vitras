@@ -570,9 +570,10 @@ const ReceitaCreateSchema = z.object({
 const DispensacaoCreateSchema = z.object({
   receitaId: z.string().trim().min(1).max(100),
   itens: z.array(z.object({
-    stockItemId: z.string().trim().min(1).max(100),
-    qtd: z.number().int().min(1).max(100000),
+    stockItemId: z.string().trim().max(100).nullish(),
+    qtd: z.number().int().min(0).max(100000),
     lote: z.string().trim().max(120).optional(),
+    prescricaoItemNome: z.string().trim().max(200).optional(),
   })).min(1).max(20),
   obs: optionalShortString(2000),
 });
