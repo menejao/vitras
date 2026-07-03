@@ -704,6 +704,8 @@ const QueuePatchSchema = z.object({
   professionalName: optionalShortString(200),
   triageStart: optionalDateString(),
   triageDone: optionalDateString(),
+  startedAt: optionalDateString(),
+  endedAt: optionalDateString(),
   vitals: z.record(z.any()).optional()
 }).strict();
 

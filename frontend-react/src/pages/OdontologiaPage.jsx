@@ -1597,7 +1597,7 @@ const WORKSPACE_TABS = [
   { id: "historico",     label: "Histórico" },
 ];
 
-function DentalWorkspacePanel({ patient, user, token, onClose, queueEntry }) {
+function DentalWorkspacePanel({ patient, user, token, onClose, queueEntry, onRegistrar }) {
   const [activeTab, setActiveTab] = useState("resumo");
   const [history, setHistory] = useState(null);
   const [procedures, setProcedures] = useState([]);
@@ -1605,6 +1605,7 @@ function DentalWorkspacePanel({ patient, user, token, onClose, queueEntry }) {
   const [procPrefill, setProcPrefill] = useState(null);
   const [encounter, setEncounter] = useState(null);
   const [planItems, setPlanItems] = useState([]);
+  const [registrarError, setRegistrarError] = useState("");
 
   const encounterRef = useRef(null);
   const encounterCreatingRef = useRef(false);
@@ -1689,6 +1690,24 @@ function DentalWorkspacePanel({ patient, user, token, onClose, queueEntry }) {
 
   const visibleTabs = WORKSPACE_TABS.filter(t => !t.requiresWrite || canWrite);
 
+  const hasClinicalRecord = (
+    (Array.isArray(procedures) && procedures.length > 0) ||
+    (Array.isArray(history) && history.length > 0) ||
+    Object.keys(chartTeeth || {}).length > 0 ||
+    (Array.isArray(planItems) && planItems.length > 0)
+  );
+
+  function handleRegistrar() {
+    setRegistrarError("");
+    if (!hasClinicalRecord) {
+      setRegistrarError("Registre ao menos um dado clínico antes de encerrar o atendimento.");
+      return;
+    }
+    if (onRegistrar) onRegistrar(() => {});
+  }
+
+  const isAtendido = String(queueEntry?.status || "") === "atendido";
+
   return (
     <div className="specialty-panel" style={{ height: "100%", display: "flex", flexDirection: "column" }}>
       <div className="specialty-panel__header">
@@ -1696,7 +1715,20 @@ function DentalWorkspacePanel({ patient, user, token, onClose, queueEntry }) {
           <div className="specialty-panel__avatar">{initials(patient.name)}</div>
           <div>
             <div className="specialty-panel__name">{patient.name}</div>
-            <div className="specialty-panel__meta">{age !== null ? `${age} anos` : ""}</div>
+            <div className="specialty-panel__meta" style={{ display: "flex", alignItems: "center", gap: ".4rem", flexWrap: "wrap" }}>
+              {age !== null ? `${age} anos` : ""}
+              {queueEntry && (
+                <span style={{
+                  fontSize: ".65rem", fontWeight: 700, padding: "1px 7px",
+                  borderRadius: "var(--r-full)",
+                  background: isAtendido ? "#f0fdf4" : "#dcfce7",
+                  color: isAtendido ? "#166534" : "#14532d",
+                  border: `1px solid ${isAtendido ? "#bbf7d0" : "#86efac"}`
+                }}>
+                  {isAtendido ? "Atendido" : "Em atendimento"}
+                </span>
+              )}
+            </div>
           </div>
         </div>
         <Button type="button" variant="ghost" size="sm" iconOnly onClick={onClose} aria-label="Fechar">
@@ -1726,6 +1758,17 @@ function DentalWorkspacePanel({ patient, user, token, onClose, queueEntry }) {
         {activeTab === "documentos" && <WorkspaceDocumentos patient={patient} user={user} token={token} encounter={encounter} onSaved={onSaved} onGetEncounter={getOrCreateEncounter} />}
         {activeTab === "historico" && <WorkspaceHistorico history={history} procedures={procedures} />}
       </div>
+
+      {canWrite && !isAtendido && onRegistrar && (
+        <div style={{ padding: "var(--s-2) var(--s-3)", borderTop: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: "var(--s-1)" }}>
+          {registrarError && (
+            <p style={{ fontSize: ".75rem", color: "var(--danger)", margin: 0 }}>{registrarError}</p>
+          )}
+          <Button type="button" variant="primary" size="sm" onClick={handleRegistrar} style={{ width: "100%" }}>
+            Registrar atendimento odontológico
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
@@ -1865,22 +1908,32 @@ export default function OdontologiaPage({ patients, user, token }) {
   function handleQueueSelect(entry) {
     const patient = patients.find(p => p.id === entry.patientId);
     if (!patient) return;
+    const now = new Date().toISOString();
+    const patch = { status: "em_atendimento" };
+    if (!entry.startedAt) patch.startedAt = now;
     setSelectedPatient(patient);
-    setSelectedQueueEntry({ ...entry, status: "em_atendimento" });
+    setSelectedQueueEntry({ ...entry, ...patch });
     setShowSearch(false);
-    patchQueueLocal(entry.id, { status: "em_atendimento" });
+    patchQueueLocal(entry.id, patch);
     import("../api").then(({ updateQueueEntry }) => {
-      updateQueueEntry(token, entry.id, { status: "em_atendimento" }).catch(() => {});
+      updateQueueEntry(token, entry.id, patch).catch(() => {});
     });
   }
 
   function handleClose() {
-    if (selectedQueueEntry && ["em_atendimento", "attending"].includes(String(selectedQueueEntry.status || ""))) {
-      patchQueueLocal(selectedQueueEntry.id, { status: "atendido" });
-      import("../api").then(({ updateQueueEntry }) => {
-        updateQueueEntry(token, selectedQueueEntry.id, { status: "atendido" }).catch(() => {});
-      });
-    }
+    setSelectedPatient(null);
+    setSelectedQueueEntry(null);
+  }
+
+  function handleRegistrarAtendimento(queueEntry, onDone) {
+    const now = new Date().toISOString();
+    const patch = { status: "atendido", endedAt: now };
+    patchQueueLocal(queueEntry.id, patch);
+    setSelectedQueueEntry(prev => prev ? { ...prev, ...patch } : prev);
+    import("../api").then(({ updateQueueEntry }) => {
+      updateQueueEntry(token, queueEntry.id, patch).catch(() => {});
+    });
+    if (onDone) onDone();
     setSelectedPatient(null);
     setSelectedQueueEntry(null);
   }
@@ -1969,6 +2022,7 @@ export default function OdontologiaPage({ patients, user, token }) {
                 token={token}
                 onClose={handleClose}
                 queueEntry={selectedQueueEntry}
+                onRegistrar={(onDone) => handleRegistrarAtendimento(selectedQueueEntry, onDone)}
               />
             </div>
           ) : (

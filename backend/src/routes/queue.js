@@ -166,6 +166,8 @@ router.patch("/queue/:id", validate(QueuePatchSchema), async (req, res) => {
       ...(req.body.status !== undefined ? { status: normalizeQueueStatus(req.body.status) } : {}),
       ...(req.body.triageStart !== undefined ? { triageStart: String(req.body.triageStart || "") } : {}),
       ...(req.body.triageDone !== undefined ? { triageDone: String(req.body.triageDone || "") } : {}),
+      ...(req.body.startedAt !== undefined ? { startedAt: String(req.body.startedAt || "") } : {}),
+      ...(req.body.endedAt !== undefined ? { endedAt: String(req.body.endedAt || "") } : {}),
       ...(req.body.vitals !== undefined ? { vitals: req.body.vitals || null } : {}),
       updatedAt: new Date().toISOString(),
       updatedBy: req.user.id
