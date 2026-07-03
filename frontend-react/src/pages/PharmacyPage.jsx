@@ -330,19 +330,39 @@ function StockEditModal({ item, mode, categories, units, onConfirm, onClose }) {
   );
 }
 
+function normalizeSearch(value) {
+  return String(value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .trim();
+}
+
 function PatientSearchAutocomplete({ patients, onSelect }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const wrapRef = useRef(null);
 
   const results = useMemo(() => {
-    const q = query.toLowerCase().trim();
+    const q = normalizeSearch(query);
     if (q.length < 2) return [];
-    return patients.filter(p =>
-      String(p.name || "").toLowerCase().includes(q) ||
-      String(p.cpf || "").replace(/\D/g, "").includes(q.replace(/\D/g, "")) ||
-      String(p.cns || "").replace(/\D/g, "").includes(q.replace(/\D/g, ""))
-    ).slice(0, 8);
+    const digits = q.replace(/\D/g, "");
+    return patients.filter(p => {
+      // Name match (accent-insensitive, case-insensitive)
+      if (normalizeSearch(p.name).includes(q)) return true;
+      // Phone match (text, partial)
+      if (p.phone && normalizeSearch(p.phone).includes(q)) return true;
+      // Digit-only fields: only match when query has digits
+      if (digits.length >= 2) {
+        const cpfDigits = String(p.cpf || "").replace(/\D/g, "");
+        const cnsDigits = String(p.cns || "").replace(/\D/g, "");
+        const phoneDigits = String(p.phone || "").replace(/\D/g, "");
+        if (cpfDigits.includes(digits)) return true;
+        if (cnsDigits.includes(digits)) return true;
+        if (phoneDigits.includes(digits)) return true;
+      }
+      return false;
+    }).slice(0, 8);
   }, [patients, query]);
 
   useEffect(() => {
@@ -355,12 +375,13 @@ function PatientSearchAutocomplete({ patients, onSelect }) {
     return String(name || "").split(" ").slice(0, 2).map(w => w[0] || "").join("").toUpperCase();
   }
 
-  function maskDoc(cpf, cns) {
-    const d = String(cpf || "").replace(/\D/g, "");
-    if (d.length === 11) return `CPF ${d.slice(0, 3)}.***.***-${d.slice(9)}`;
-    const c = String(cns || "").replace(/\D/g, "");
-    if (c.length >= 15) return `CNS ${c.slice(0, 3)} ****.***.**** **`;
-    return "Sem documento";
+  function docLine(p) {
+    const cpfDigits = String(p.cpf || "").replace(/\D/g, "");
+    if (cpfDigits.length === 11) return `CPF ${cpfDigits.slice(0, 3)}.***.***-${cpfDigits.slice(9)}`;
+    const cnsDigits = String(p.cns || "").replace(/\D/g, "");
+    if (cnsDigits.length >= 15) return `CNS ${cnsDigits.slice(0, 3)} ****.***.**** **`;
+    if (p.phone) return p.phone;
+    return null;
   }
 
   function pick(p) {
@@ -369,14 +390,18 @@ function PatientSearchAutocomplete({ patients, onSelect }) {
     onSelect(p);
   }
 
+  const showDropdown = open && query.length >= 2;
+
   return (
     <div ref={wrapRef} style={{ position: "relative" }}>
       <Input
         value={query}
-        onChange={e => { setQuery(e.target.value); setOpen(e.target.value.length >= 2); }}
-        placeholder="Pesquisar paciente por nome, CPF ou CNS..."
+        onChange={e => { setQuery(e.target.value); setOpen(true); }}
+        onFocus={() => query.length >= 2 && setOpen(true)}
+        placeholder="Buscar paciente por nome, CPF ou CNS..."
+        autoComplete="off"
       />
-      {open && (
+      {showDropdown && (
         <div style={{
           position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 9999,
           background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 10,
@@ -386,24 +411,25 @@ function PatientSearchAutocomplete({ patients, onSelect }) {
             <div style={{ padding: "12px 14px", fontSize: "var(--t-sm)", color: "var(--text-2)" }}>
               Nenhum paciente encontrado para &quot;{query}&quot;
             </div>
-          ) : results.map(p => (
-            <div key={p.id} onClick={() => pick(p)}
-              style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", cursor: "pointer", borderBottom: "1px solid var(--border)" }}
-              onMouseEnter={e => e.currentTarget.style.background = "var(--surface-alt, #f8fafc)"}
-              onMouseLeave={e => e.currentTarget.style.background = ""}>
-              <div style={{ width: 36, height: 36, borderRadius: "50%", background: "var(--teal-100, #ccfbf1)", color: "var(--teal-700, #0f766e)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: "0.8rem", flexShrink: 0 }}>
-                {initials(p.name)}
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 600, fontSize: "var(--t-sm)" }}>{p.name}</div>
-                <div style={{ fontSize: "var(--t-xs)", color: "var(--text-2)" }}>
-                  {maskDoc(p.cpf, p.cns)}
-                  {p.teamName ? ` · ${p.teamName}` : ""}
-                  {p.careCategory && p.careCategory !== "general" ? ` · ${p.careCategory}` : ""}
+          ) : results.map(p => {
+            const doc = docLine(p);
+            return (
+              <div key={p.id} onClick={() => pick(p)}
+                style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", cursor: "pointer", borderBottom: "1px solid var(--border)" }}
+                onMouseEnter={e => e.currentTarget.style.background = "var(--surface-alt, #f8fafc)"}
+                onMouseLeave={e => e.currentTarget.style.background = ""}>
+                <div style={{ width: 36, height: 36, borderRadius: "50%", background: "var(--teal-100, #ccfbf1)", color: "var(--teal-700, #0f766e)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: "0.8rem", flexShrink: 0 }}>
+                  {initials(p.name)}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 600, fontSize: "var(--t-sm)" }}>{p.name}</div>
+                  {doc && (
+                    <div style={{ fontSize: "var(--t-xs)", color: "var(--text-2)" }}>{doc}</div>
+                  )}
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
