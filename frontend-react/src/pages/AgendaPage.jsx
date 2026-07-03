@@ -7,9 +7,8 @@ import { isUnavailableDay, unavailableReason } from "../utils/dates";
 import { formatCpf, formatPhone, initials, maskCpf } from "../utils/formatting";
 import { hasCapability } from "../utils/roles";
 import { SPECIALTY_MAP, specialtyLabel, normalizeToSpecialtyKey } from "../utils/specialty";
-// NETWORK-OPTIMIZATION-01: useAgenda removido — dados recebidos via props do App.jsx
-// para evitar instância duplicada do hook com poll paralelo de 15s.
 import { AGENDA_HOURS, AGENDA_STATUS_LABELS, AGENDA_PROCEDURE_SUBTYPES, describeAgendaType } from "../utils/agenda";
+import { getUbsExams, getUbsExamById } from "../data/ubsExamCatalog";
 import Button from "../components/ui/Button";
 import Alert from "../components/ui/Alert";
 import Input from "../components/ui/Input";
@@ -17,6 +16,8 @@ import Select from "../components/ui/Select";
 import Modal from "../components/ui/Modal";
 import EmptyState from "../components/ui/EmptyState";
 import PageHeader from "../components/layout/PageHeader";
+
+const UBS_EXAMS = getUbsExams();
 
 const IconPlus = () => (
   <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
@@ -63,8 +64,21 @@ const IconLock = () => (
   </svg>
 );
 
-// NETWORK-OPTIMIZATION-01: AgendaPage recebe agenda, CRUD e estado via props
-// do App.jsx (única instância de useAgenda). token ainda é passado para createPatient/createQueueEntry.
+const IconFlask = () => (
+  <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+    <path d="M6 2v5L2 13h12L10 7V2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M5 2h6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+  </svg>
+);
+
+function emptyForm() {
+  return {
+    patientId: "", doctorId: "", specialty: "", date: "", time: "",
+    type: "consultation", notes: "", status: "scheduled",
+    appointmentType: "clinical", examTypeId: "", examName: "",
+  };
+}
+
 function AgendaPage({
   patients, users, user, token,
   onNewPatient, onPatientCreated, onNavigatePatient, teams = [],
@@ -73,7 +87,7 @@ function AgendaPage({
 }) {
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [showForm, setShowForm]         = useState(false);
-  const [form, setForm]                 = useState({ patientId: "", doctorId: "", specialty: "", date: "", time: "", type: "consultation", notes: "", status: "scheduled" });
+  const [form, setForm]                 = useState(emptyForm);
   const [procedureSubtype, setProcedureSubtype] = useState("");
   const [checkingIn, setCheckingIn]     = useState({});
   const [editId, setEditId]             = useState(null);
@@ -89,8 +103,11 @@ function AgendaPage({
 
   const patWrapRef = useRef(null);
 
+  const isExamAppt = form.appointmentType === "exam";
+
   useEffect(() => {
     if (!showForm || !form.date) { setAvailableSlots(null); return; }
+    if (isExamAppt) { setAvailableSlots(null); return; } // exam slots: use default hours for now
     let cancelled = false;
     setSlotsLoading(true);
     getAvailability(token, { date: form.date, specialtyKey: form.specialty, doctorId: form.doctorId })
@@ -98,7 +115,14 @@ function AgendaPage({
       .catch(() => { if (!cancelled) setAvailableSlots(null); })
       .finally(() => { if (!cancelled) setSlotsLoading(false); });
     return () => { cancelled = true; };
-  }, [showForm, form.date, form.specialty, form.doctorId, token]);
+  }, [showForm, form.date, form.specialty, form.doctorId, token, isExamAppt]);
+
+  // When exam type changes, update examName
+  useEffect(() => {
+    if (!form.examTypeId) return;
+    const catalog = getUbsExamById(form.examTypeId);
+    if (catalog) setForm(s => ({ ...s, examName: catalog.name }));
+  }, [form.examTypeId]);
 
   const patResults = useMemo(() => {
     const q = patSearch.trim();
@@ -111,7 +135,7 @@ function AgendaPage({
   const todayStr = new Date().toISOString().slice(0, 10);
 
   function openNew(time = "", date = selectedDate) {
-    setForm({ patientId: "", doctorId: "", specialty: "", date, time, type: "consultation", notes: "", status: "scheduled" });
+    setForm({ ...emptyForm(), date, time });
     setPatSearch(""); setPatSelected(null);
     setProcedureSubtype("");
     setEditId(null); setShowForm(true);
@@ -119,7 +143,19 @@ function AgendaPage({
 
   function openEdit(appt) {
     const pat = patients.find(p => p.id === appt.patientId) || null;
-    setForm({ patientId: appt.patientId, doctorId: appt.doctorId, specialty: normalizeToSpecialtyKey(appt.specialty || ""), date: appt.date, time: appt.time, type: appt.type, notes: appt.notes || "", status: appt.status });
+    setForm({
+      patientId: appt.patientId,
+      doctorId: appt.doctorId,
+      specialty: normalizeToSpecialtyKey(appt.specialty || ""),
+      date: appt.date,
+      time: appt.time,
+      type: appt.type,
+      notes: appt.notes || "",
+      status: appt.status,
+      appointmentType: appt.appointmentType || "clinical",
+      examTypeId: appt.examTypeId || "",
+      examName: appt.examName || "",
+    });
     setPatSearch(pat?.name || ""); setPatSelected(pat);
     setProcedureSubtype("");
     setEditId(appt.id); setShowForm(true);
@@ -133,7 +169,12 @@ function AgendaPage({
     const specialty = normalizeToSpecialtyKey(appt.specialty || "");
     setCheckingIn(prev => ({ ...prev, [appt.id]: true }));
     try {
-      await darEntradaAgenda(token, appt.id, { priority, specialty, needsTriage: true });
+      if (appt.appointmentType === "exam") {
+        // Exam: dar entrada goes to exam queue, not clinical
+        await darEntradaAgenda(token, appt.id, { priority });
+      } else {
+        await darEntradaAgenda(token, appt.id, { priority, specialty, needsTriage: true });
+      }
       await patchEntry(appt.id, { status: "arrived" });
     } catch (err) {
       setAgendaError(err.message || "Erro ao dar entrada.");
@@ -165,8 +206,17 @@ function AgendaPage({
 
   async function submit(e) {
     e.preventDefault();
-    if (!form.patientId || !form.date || !form.time || !form.specialty) {
-      setAgendaError("Preencha todos os campos obrigatórios: Paciente, Data, Horário e Especialidade.");
+
+    if (!form.patientId || !form.date || !form.time) {
+      setAgendaError("Preencha todos os campos obrigatórios: Paciente, Data e Horário.");
+      return;
+    }
+    if (!isExamAppt && !form.specialty) {
+      setAgendaError("Preencha a Especialidade.");
+      return;
+    }
+    if (isExamAppt && !form.examTypeId) {
+      setAgendaError("Selecione o tipo de exame.");
       return;
     }
 
@@ -194,15 +244,6 @@ function AgendaPage({
       setAgendaError("");
     } catch (err) {
       setAgendaError(err.message || "Erro ao remover agendamento.");
-    }
-  }
-
-  async function updateStatus(id, status) {
-    try {
-      await patchEntry(id, { status });
-      setAgendaError("");
-    } catch (err) {
-      setAgendaError(err.message || "Erro ao atualizar agendamento.");
     }
   }
 
@@ -251,7 +292,6 @@ function AgendaPage({
         }
       />
 
-      {/* Navegação de data: ‹ dia › + Hoje + date-picker */}
       <div className="agenda-date-nav">
         <button type="button" className="agenda-date-nav__arrow" aria-label="Dia anterior"
           onClick={() => { const d = new Date(selectedDate + "T12:00:00"); d.setDate(d.getDate() - 1); setSelectedDate(d.toISOString().slice(0, 10)); }}>
@@ -268,10 +308,8 @@ function AgendaPage({
         )}
       </div>
 
-      {/* Label de mês */}
       <div className="agenda-month-label">{monthLabel}</div>
 
-      {/* Tira semanal */}
       <div className="agenda-week-strip">
         {weekDays.map(d => {
           const dt = new Date(d + "T12:00:00");
@@ -304,7 +342,6 @@ function AgendaPage({
         })}
       </div>
 
-      {/* Toolbar contextual */}
       <div className="agenda-toolbar">
         <div className="agenda-toolbar__filters">
           <Input
@@ -323,7 +360,6 @@ function AgendaPage({
         </span>
       </div>
 
-      {/* Timeline */}
       <div className="agenda-timeline">
         {agendaError ? <div className="alert alert--danger">{agendaError}</div> : null}
 
@@ -364,6 +400,7 @@ function AgendaPage({
               isProfileIncomplete(patObj) ||
               String(appt.patientId).startsWith("local_");
             const status = appt.status || "scheduled";
+            const isExam = appt.appointmentType === "exam";
 
             return (
               <div
@@ -371,6 +408,7 @@ function AgendaPage({
                 className={[
                   "agenda-appt",
                   `agenda-appt--${status}`,
+                  isExam ? "agenda-appt--exam" : "",
                   incomplete ? "agenda-appt--incomplete" : "",
                 ].filter(Boolean).join(" ")}
               >
@@ -394,14 +432,26 @@ function AgendaPage({
                 <div className="agenda-appt__row">
                   <span className="agenda-appt__time">{appt.time}</span>
 
-                    <div className="agenda-appt__copy">
-                      <div className="agenda-appt__name">{appt.patientName}</div>
-                      <div className="agenda-appt__meta">
-                        {describeAgendaType(appt.type)}
-                        {appt.specialty && ` · ${appt.specialty}`}
-                        {appt.doctorName && ` · ${appt.doctorName}`}
-                        {appt.notes && ` · ${appt.notes}`}
-                      </div>
+                  <div className="agenda-appt__copy">
+                    <div className="agenda-appt__name">{appt.patientName}</div>
+                    <div className="agenda-appt__meta">
+                      {isExam ? (
+                        <>
+                          <span className="agenda-appt__type-badge agenda-appt__type-badge--exam">
+                            <IconFlask /> Exame
+                          </span>
+                          {appt.examName && ` · ${appt.examName}`}
+                          {appt.doctorName && ` · ${appt.doctorName}`}
+                        </>
+                      ) : (
+                        <>
+                          {describeAgendaType(appt.type)}
+                          {appt.specialty && ` · ${appt.specialty}`}
+                          {appt.doctorName && ` · ${appt.doctorName}`}
+                          {appt.notes && ` · ${appt.notes}`}
+                        </>
+                      )}
+                    </div>
                   </div>
 
                   <div className="agenda-appt__actions">
@@ -417,7 +467,9 @@ function AgendaPage({
                       </Button>
                     )}
                     {appt.status === "arrived" && (
-                      <span className="queue-badge queue-badge--scheduled" style={{ fontSize: ".7rem" }}>Na fila</span>
+                      <span className="queue-badge queue-badge--scheduled" style={{ fontSize: ".7rem" }}>
+                        {isExam ? "Aguardando exame" : "Na fila"}
+                      </span>
                     )}
                     {appt.status !== "arrived" && appt.status !== "scheduled" && (
                       <span className="queue-badge" style={{ fontSize: ".7rem", background: "var(--color-surface-2)", color: "var(--text-2)" }}>
@@ -468,6 +520,27 @@ function AgendaPage({
           }
         >
           <form id="agenda-form" onSubmit={submit} className="field-grid field-grid--no-pad">
+
+            {/* Tipo de agendamento */}
+            <div className="field field--span-2">
+              <span className="field__label">Tipo de agendamento</span>
+              <div className="agenda-type-toggle">
+                <button
+                  type="button"
+                  className={`agenda-type-toggle__btn${!isExamAppt ? " is-active" : ""}`}
+                  onClick={() => setForm(s => ({ ...s, appointmentType: "clinical", examTypeId: "", examName: "" }))}
+                >
+                  Atendimento
+                </button>
+                <button
+                  type="button"
+                  className={`agenda-type-toggle__btn${isExamAppt ? " is-active" : ""}`}
+                  onClick={() => setForm(s => ({ ...s, appointmentType: "exam", specialty: "", type: "procedure" }))}
+                >
+                  <IconFlask /> Exame
+                </button>
+              </div>
+            </div>
 
             {/* Busca de paciente */}
             <label className="field field--span-2">
@@ -663,7 +736,7 @@ function AgendaPage({
 
             {/* Horário */}
             <Select
-              label={slotsLoading ? "Horário (verificando disponibilidade...)" : availableSlots ? `Horário * (${availableSlots.length} disponíveis)` : "Horário *"}
+              label={slotsLoading ? "Horário (verificando...)" : availableSlots ? `Horário * (${availableSlots.length} disponíveis)` : "Horário *"}
               value={form.time}
               onChange={e => setForm(s => ({ ...s, time: e.target.value }))}
             >
@@ -671,70 +744,113 @@ function AgendaPage({
               {(availableSlots ?? AGENDA_HOURS).map(h => <option key={h} value={h}>{h}</option>)}
             </Select>
 
-            {/* Especialidade */}
-            <Select
-              label="Especialidade / Atendimento *"
-              value={form.specialty}
-              onChange={e => setForm(s => ({ ...s, specialty: e.target.value }))}
-              error={!form.specialty && agendaError ? "Obrigatório" : ""}
-            >
-              <option value="">Selecionar especialidade...</option>
-              {SPECIALTY_MAP.map(s => (
-                <option key={s.key} value={s.key}>{s.label}</option>
-              ))}
-            </Select>
+            {/* EXAM FIELDS */}
+            {isExamAppt && (
+              <>
+                <Select
+                  label="Tipo de exame *"
+                  className="field--span-2"
+                  value={form.examTypeId}
+                  onChange={e => setForm(s => ({ ...s, examTypeId: e.target.value }))}
+                  error={!form.examTypeId && agendaError ? "Obrigatório" : ""}
+                >
+                  <option value="">Selecionar exame da UBS...</option>
+                  {UBS_EXAMS.map(ex => (
+                    <option key={ex.examTypeId} value={ex.examTypeId}>{ex.name}</option>
+                  ))}
+                </Select>
 
-            {/* Profissional */}
-            <Select
-              label="Profissional"
-              value={form.doctorId}
-              onChange={e => setForm(s => ({ ...s, doctorId: e.target.value }))}
-            >
-              <option value="">Sem preferência</option>
-              {doctors.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-            </Select>
+                {form.examTypeId && (() => {
+                  const ex = getUbsExamById(form.examTypeId);
+                  if (!ex) return null;
+                  return (
+                    <div className="field--span-2 agenda-exam-info">
+                      <span className="agenda-exam-info__duration">Duração média: {ex.defaultDuration} min</span>
+                      {ex.requiresPreparation && (
+                        <span className="agenda-exam-info__prep">⚠ {ex.preparationInstructions}</span>
+                      )}
+                    </div>
+                  );
+                })()}
 
-            {/* Tipo */}
-            <Select
-              label="Tipo"
-              value={form.type}
-              onChange={e => {
-                setForm(s => ({ ...s, type: e.target.value, notes: "" }));
-                setProcedureSubtype("");
-              }}
-            >
-              <option value="consultation">Consulta</option>
-              <option value="return">Retorno</option>
-              <option value="procedure">Procedimento / Exame</option>
-              <option value="other">Outro</option>
-            </Select>
+                {/* Profissional/equipe executante (opcional) */}
+                <Select
+                  label="Profissional executante (opcional)"
+                  className="field--span-2"
+                  value={form.doctorId}
+                  onChange={e => setForm(s => ({ ...s, doctorId: e.target.value }))}
+                >
+                  <option value="">Equipe de enfermagem</option>
+                  {doctors.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                </Select>
+              </>
+            )}
 
-            {/* Subtipo de procedimento */}
-            {form.type === "procedure" && (
-              <Select
-                label="Procedimento / Exame"
-                value={procedureSubtype}
-                onChange={e => {
-                  const v = e.target.value;
-                  setProcedureSubtype(v);
-                  const lbl = AGENDA_PROCEDURE_SUBTYPES.find(s => s.value === v)?.label || "";
-                  setForm(s => ({ ...s, notes: lbl }));
-                }}
-              >
-                <option value="">Selecionar...</option>
-                {AGENDA_PROCEDURE_SUBTYPES.map(s => (
-                  <option key={s.value} value={s.value}>{s.label}</option>
-                ))}
-              </Select>
+            {/* CLINICAL FIELDS */}
+            {!isExamAppt && (
+              <>
+                <Select
+                  label="Especialidade / Atendimento *"
+                  value={form.specialty}
+                  onChange={e => setForm(s => ({ ...s, specialty: e.target.value }))}
+                  error={!form.specialty && agendaError ? "Obrigatório" : ""}
+                >
+                  <option value="">Selecionar especialidade...</option>
+                  {SPECIALTY_MAP.map(s => (
+                    <option key={s.key} value={s.key}>{s.label}</option>
+                  ))}
+                </Select>
+
+                <Select
+                  label="Profissional"
+                  value={form.doctorId}
+                  onChange={e => setForm(s => ({ ...s, doctorId: e.target.value }))}
+                >
+                  <option value="">Sem preferência</option>
+                  {doctors.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                </Select>
+
+                <Select
+                  label="Tipo"
+                  value={form.type}
+                  onChange={e => {
+                    setForm(s => ({ ...s, type: e.target.value, notes: "" }));
+                    setProcedureSubtype("");
+                  }}
+                >
+                  <option value="consultation">Consulta</option>
+                  <option value="return">Retorno</option>
+                  <option value="procedure">Procedimento / Exame</option>
+                  <option value="other">Outro</option>
+                </Select>
+
+                {form.type === "procedure" && (
+                  <Select
+                    label="Procedimento / Exame"
+                    value={procedureSubtype}
+                    onChange={e => {
+                      const v = e.target.value;
+                      setProcedureSubtype(v);
+                      const lbl = AGENDA_PROCEDURE_SUBTYPES.find(s => s.value === v)?.label || "";
+                      setForm(s => ({ ...s, notes: lbl }));
+                    }}
+                  >
+                    <option value="">Selecionar...</option>
+                    {AGENDA_PROCEDURE_SUBTYPES.map(s => (
+                      <option key={s.value} value={s.value}>{s.label}</option>
+                    ))}
+                  </Select>
+                )}
+              </>
             )}
 
             {/* Observações */}
             <Input
               label="Observações"
-              className={form.type === "procedure" ? "" : "field--span-2"}
+              className="field--span-2"
               value={form.notes}
               onChange={e => setForm(s => ({ ...s, notes: e.target.value }))}
-              placeholder={form.type === "procedure" ? "Detalhes adicionais..." : "Motivo, solicitações especiais..."}
+              placeholder={isExamAppt ? "Instruções especiais, observações..." : "Motivo, solicitações especiais..."}
             />
 
           </form>

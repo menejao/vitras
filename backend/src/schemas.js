@@ -426,7 +426,10 @@ const AgendaCreateSchema = z.object({
   specialty: optionalShortString(100),
   type: z.enum(["consultation", "return", "procedure", "other"]).optional(),
   notes: optionalShortString(4000),
-  status: z.enum(["scheduled", "arrived", "attending", "done", "absent"]).optional()
+  status: z.enum(["scheduled", "arrived", "attending", "done", "absent"]).optional(),
+  appointmentType: z.enum(["clinical", "exam"]).optional(),
+  examTypeId: optionalShortString(100),
+  examName: optionalShortString(200),
 });
 
 const AgendaPatchSchema = z.object({
@@ -436,7 +439,10 @@ const AgendaPatchSchema = z.object({
   specialty: optionalShortString(100),
   type: z.enum(["consultation", "return", "procedure", "other"]).optional(),
   notes: optionalShortString(4000),
-  status: z.enum(["scheduled", "arrived", "attending", "done", "absent"]).optional()
+  status: z.enum(["scheduled", "arrived", "attending", "done", "absent"]).optional(),
+  appointmentType: z.enum(["clinical", "exam"]).optional(),
+  examTypeId: optionalShortString(100),
+  examName: optionalShortString(200),
 });
 
 // REGULACAO-REFERENCIA-01: enum expandido para refletir fluxo real SUS

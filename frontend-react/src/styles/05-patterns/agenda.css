@@ -571,3 +571,93 @@
   }
   .agenda-toolbar__count { align-self: flex-end; }
 }
+
+/* ── Appointment type toggle ──────────────────────────────────── */
+.agenda-type-toggle {
+  display: flex;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  width: fit-content;
+}
+.agenda-type-toggle__btn {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  padding: var(--s-1) var(--s-4);
+  font: 500 var(--t-sm) var(--font-sans);
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-right: 1px solid var(--border);
+  transition: background 0.1s, color 0.1s;
+}
+.agenda-type-toggle__btn:last-child { border-right: none; }
+.agenda-type-toggle__btn.is-active {
+  background: var(--primary);
+  color: #fff;
+}
+.agenda-type-toggle__btn:hover:not(.is-active) {
+  background: var(--surface-2);
+}
+
+/* ── Exam appointment badge ───────────────────────────────────── */
+.agenda-appt--exam {
+  border-left: 3px solid #7c3aed;
+}
+.agenda-appt__type-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font: 500 var(--t-xs) var(--font-sans);
+  padding: 1px var(--s-2);
+  border-radius: var(--r-sm);
+}
+.agenda-appt__type-badge--exam {
+  background: #f5f3ff;
+  color: #7c3aed;
+  border: 1px solid #ddd6fe;
+}
+
+/* ── Exam info in form ────────────────────────────────────────── */
+.agenda-exam-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  padding: var(--s-2) var(--s-3);
+  background: #f5f3ff;
+  border-radius: var(--r-md);
+  border: 1px solid #ddd6fe;
+}
+.agenda-exam-info__duration {
+  font: 500 var(--t-xs) var(--font-sans);
+  color: #7c3aed;
+}
+.agenda-exam-info__prep {
+  font: 400 var(--t-xs) var(--font-sans);
+  color: #92400e;
+}
+
+/* ── Today's exams section in req queue ──────────────────────── */
+.req-queue__today {
+  margin-bottom: var(--s-5);
+}
+.req-queue__today-label {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font: 600 var(--t-sm) var(--font-sans);
+  color: var(--text);
+  margin-bottom: var(--s-3);
+  padding-bottom: var(--s-2);
+  border-bottom: 2px solid var(--primary);
+}
+.req-queue__today-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--primary);
+  flex-shrink: 0;
+}

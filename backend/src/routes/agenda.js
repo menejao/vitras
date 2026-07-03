@@ -7,6 +7,12 @@ import { hasCapability, normalizeDemandType } from "../utils/helpers.js";
 import { addAuditLog } from "../services/audit.js";
 import { getAvailableSlots, isSlotAvailable } from "../services/availabilityService.js";
 
+function normalizeAppointmentType(value) {
+  const raw = String(value || "").trim().toLowerCase();
+  if (raw === "exam") return "exam";
+  return "clinical";
+}
+
 const router = express.Router();
 
 const VALID_SPECIALTY_KEYS = ["medico_familia", "enfermagem", "odontologia", "pediatria", "psicologia", "fisioterapia", "nutricao", "vacinacao", "curativo"];
@@ -65,6 +71,9 @@ function buildAgendaSnapshot(entry) {
     date: String(entry.date || ""),
     time: String(entry.time || ""),
     type: String(entry.type || "consultation"),
+    appointmentType: String(entry.appointmentType || "clinical"),
+    examTypeId: String(entry.examTypeId || ""),
+    examName: String(entry.examName || ""),
     specialty: String(entry.specialty || ""),
     status: String(entry.status || "scheduled"),
     notes: String(entry.notes || ""),
@@ -196,6 +205,10 @@ router.post("/agenda", validate(AgendaCreateSchema), async (req, res) => {
     }
 
     const now = new Date().toISOString();
+    const apptType = normalizeAppointmentType(payload.appointmentType);
+    const examTypeId = apptType === "exam" ? String(payload.examTypeId || "").trim() : "";
+    const examName = apptType === "exam" ? String(payload.examName || "").trim() : "";
+
     const entry = {
       id: uuidv4(),
       patientId: patient.id,
@@ -206,6 +219,9 @@ router.post("/agenda", validate(AgendaCreateSchema), async (req, res) => {
       date: String(payload.date || "").trim(),
       time: String(payload.time || "").trim(),
       type: normalizeAgendaType(payload.type),
+      appointmentType: apptType,
+      examTypeId,
+      examName,
       specialty: String(payload.specialty || "").trim(),
       notes: String(payload.notes || "").trim(),
       status: normalizeAgendaStatus(payload.status),
@@ -220,6 +236,40 @@ router.post("/agenda", validate(AgendaCreateSchema), async (req, res) => {
     };
 
     db.agendaEntries.push(entry);
+
+    // If exam appointment: also create examRequest with status "agendado"
+    if (apptType === "exam" && examName) {
+      const examRequest = {
+        id: uuidv4(),
+        patientId: patient.id,
+        patientName: patient.name,
+        clinicalRecordId: null,
+        requestedById: req.user.id,
+        requestedByName: req.user.name || req.user.username || null,
+        requestedByCouncil: null,
+        origin: "enfermagem",
+        teamId: patient.teamId,
+        requestedAt: now,
+        scheduledDate: entry.date,
+        scheduledTime: entry.time,
+        agendaRef: entry.id,
+        exams: [{ name: examName, urgency: "rotina", notes: String(payload.notes || "").trim() }],
+        priority: "rotina",
+        clinicalJustification: "",
+        executionType: "unidade",
+        status: "agendado",
+        executedById: null,
+        executedByName: null,
+        executedAt: null,
+        resultNotes: null,
+        resultDate: null,
+        notes: String(payload.notes || "").trim(),
+        createdAt: now,
+        updatedAt: now,
+      };
+      db.examRequests.push(examRequest);
+    }
+
     addAuditLog(db, req.user, "agenda.entry_created", "agenda_entry", entry.id, {
       patientId: patient.id,
       teamId: patient.teamId,
@@ -264,6 +314,9 @@ router.patch("/agenda/:id", validate(AgendaPatchSchema), async (req, res) => {
       ...(req.body.doctorId !== undefined ? { doctorId } : {}),
       ...(req.body.doctorId !== undefined ? { doctorName: doctor?.name || "" } : {}),
       ...(req.body.specialty !== undefined ? { specialty: String(req.body.specialty || "").trim() } : {}),
+      ...(req.body.appointmentType !== undefined ? { appointmentType: normalizeAppointmentType(req.body.appointmentType) } : {}),
+      ...(req.body.examTypeId !== undefined ? { examTypeId: String(req.body.examTypeId || "").trim() } : {}),
+      ...(req.body.examName !== undefined ? { examName: String(req.body.examName || "").trim() } : {}),
       incompletePatient: patient ? Boolean(patient.incompleteProfile) : Boolean(current.incompletePatient),
       summary: buildAgendaSummary(req.body.type !== undefined ? req.body.type : current.type, req.body.notes !== undefined ? req.body.notes : current.notes),
       updatedAt: new Date().toISOString(),
@@ -344,6 +397,32 @@ router.post("/agenda/:id/dar-entrada", async (req, res) => {
     const patient = db.patients.find((item) => item.id === appt.patientId);
     if (!patient) return { error: { status: 404, message: "Paciente não encontrado" } };
 
+    const now = new Date().toISOString();
+
+    // Exam appointment: update linked examRequest to "pendente" (arrived), don't touch clinical queue
+    if (appt.appointmentType === "exam") {
+      const examReqIdx = (db.examRequests || []).findIndex(r => r.agendaRef === appt.id);
+      if (examReqIdx >= 0) {
+        db.examRequests[examReqIdx] = {
+          ...db.examRequests[examReqIdx],
+          status: "pendente",
+          updatedAt: now,
+        };
+      }
+      db.agendaEntries[agendaIndex] = {
+        ...appt,
+        status: "arrived",
+        updatedAt: now,
+        updatedBy: req.user.id
+      };
+      addAuditLog(db, req.user, "agenda.dar_entrada_exame", "agenda_entry", appt.id, {
+        patientId: patient.id,
+        teamId: patient.teamId,
+        examName: appt.examName,
+      });
+      return { entry: db.examRequests[examReqIdx] || null, appt: db.agendaEntries[agendaIndex] };
+    }
+
     const ACTIVE_Q = ["waiting", "triage", "ready", "attending", "aguardando_triagem", "liberado", "chamado", "em_atendimento"];
     const duplicate = db.queueEntries.find((item) =>
       item.patientId === patient.id && ACTIVE_Q.includes(String(item.status || ""))
@@ -367,7 +446,6 @@ router.post("/agenda/:id/dar-entrada", async (req, res) => {
       return { error: { status: 400, message: "Especialidade obrigatória para dar entrada na fila." } };
     }
     const needsTriage = req.body?.needsTriage !== false;
-    const now = new Date().toISOString();
 
     const queueEntry = {
       id: uuidv4(),

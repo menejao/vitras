@@ -27,6 +27,11 @@ export const AGENDA_TYPE_LABELS = {
   other: "Outro",
 };
 
+export const AGENDA_APPOINTMENT_TYPE_LABELS = {
+  clinical: "Atendimento",
+  exam: "Exame",
+};
+
 export const AGENDA_HOURS = [
   "06:30",
   "07:00","07:30","08:00","08:30","09:00","09:30","10:00","10:30","11:00","11:30",

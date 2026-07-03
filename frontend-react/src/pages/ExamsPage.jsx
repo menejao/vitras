@@ -633,15 +633,44 @@ function ExamsPage({ patients, user, token, onNavigatePatient }) {
 
           {reqLoading ? (
             <p className="exams-section-empty">Carregando pedidos...</p>
-          ) : requests.length === 0 ? (
-            <p className="exams-section-empty">Nenhum pedido encontrado.</p>
-          ) : (
-            <div className="req-queue__list">
-              {requests.map(req => (
-                <RequestCard key={req.id} req={req} canExecute={canExec} onExecute={setExecTarget} />
-              ))}
-            </div>
-          )}
+          ) : (() => {
+            const todayStr = new Date().toISOString().slice(0, 10);
+            const todayExams = requests.filter(r =>
+              r.scheduledDate === todayStr &&
+              !["concluido", "cancelado"].includes(r.status)
+            );
+            const otherRequests = requests.filter(r =>
+              !(r.scheduledDate === todayStr && !["concluido", "cancelado"].includes(r.status))
+            );
+
+            return (
+              <>
+                {todayExams.length > 0 && !filterDate && (
+                  <div className="req-queue__today">
+                    <div className="req-queue__today-label">
+                      <span className="req-queue__today-dot" />
+                      Exames agendados para hoje ({todayExams.length})
+                    </div>
+                    {todayExams.map(req => (
+                      <RequestCard key={req.id} req={req} canExecute={canExec} onExecute={setExecTarget} />
+                    ))}
+                  </div>
+                )}
+
+                {otherRequests.length === 0 && todayExams.length === 0 && (
+                  <p className="exams-section-empty">Nenhum pedido encontrado.</p>
+                )}
+
+                {otherRequests.length > 0 && (
+                  <div className="req-queue__list">
+                    {otherRequests.map(req => (
+                      <RequestCard key={req.id} req={req} canExecute={canExec} onExecute={setExecTarget} />
+                    ))}
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </div>
       )}
 
