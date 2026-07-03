@@ -956,6 +956,7 @@ function WorkspacePlano({ patient, user, token, onSaved, planItems, onPlanUpdate
 
   async function toggleDone(item) {
     const next = item.status === "concluido" ? "pendente" : "concluido";
+    setError("");
     try {
       const res = await patchOdontoPlanItem(token, item.id, { status: next });
       setItems(s => s.map(i => i.id === item.id ? res.data : i));
@@ -964,6 +965,7 @@ function WorkspacePlano({ patient, user, token, onSaved, planItems, onPlanUpdate
   }
 
   async function removeItem(id) {
+    setError("");
     try {
       await deleteOdontoPlanItem(token, id);
       setItems(s => s.filter(i => i.id !== id));
@@ -1514,6 +1516,7 @@ function WorkspaceDocumentos({ patient, user, token, encounter, onSaved, onGetEn
   const [form, setForm] = useState({ tipo: "radiografia", nome: "", descricao: "" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [docSaved, setDocSaved] = useState(false);
 
   const DOC_TIPOS = [
     { value: "radiografia",   label: "Radiografia" },
@@ -1546,6 +1549,7 @@ function WorkspaceDocumentos({ patient, user, token, encounter, onSaved, onGetEn
       });
       setShowForm(false);
       setForm({ tipo: "radiografia", nome: "", descricao: "" });
+      setDocSaved(true);
       onSaved?.();
     } catch (err) { setError(err.message || "Erro."); }
     finally { setBusy(false); }
@@ -1557,7 +1561,9 @@ function WorkspaceDocumentos({ patient, user, token, encounter, onSaved, onGetEn
         Upload de arquivos será habilitado em versão futura. Registre apenas metadados (tipo, nome, descrição) do documento.
       </div>
 
-      {showForm ? (
+      {docSaved && <SuccessBanner msg="Documento registrado." onNew={() => setDocSaved(false)} newLabel="+ Registrar outro" />}
+
+      {!docSaved && showForm ? (
         <form onSubmit={handleSave} style={{ display: "flex", flexDirection: "column", gap: "var(--s-3)" }}>
           <ErrorMsg msg={error} />
           <Select label="Tipo de documento" value={form.tipo} onChange={e => setForm(s => ({ ...s, tipo: e.target.value }))}>
@@ -1578,9 +1584,9 @@ function WorkspaceDocumentos({ patient, user, token, encounter, onSaved, onGetEn
             <Button type="button" variant="ghost" size="sm" onClick={() => { setShowForm(false); setError(""); }}>Cancelar</Button>
           </div>
         </form>
-      ) : (
+      ) : !docSaved ? (
         <Button type="button" variant="secondary" onClick={() => setShowForm(true)}>+ Registrar documento</Button>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -1883,6 +1889,24 @@ function DentalQueueView({ entries, loading, selectedId, onSelect, today }) {
   );
 }
 
+function OdontoDateNav({ date, onChange }) {
+  function shift(days) {
+    const d = new Date(date + "T12:00:00");
+    d.setDate(d.getDate() + days);
+    onChange(d.toISOString().slice(0, 10));
+  }
+  const isToday = date === new Date().toISOString().slice(0, 10);
+  const btn = { background: "none", border: "1px solid var(--border)", borderRadius: "var(--r-sm)", padding: "2px 6px", cursor: "pointer", fontSize: ".75rem", color: "var(--text-2)", lineHeight: 1.4 };
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: ".25rem" }}>
+      <button type="button" style={btn} onClick={() => shift(-1)}>‹</button>
+      <input type="date" value={date} onChange={e => onChange(e.target.value)} style={{ border: "1px solid var(--border)", borderRadius: "var(--r-sm)", padding: "2px 5px", fontSize: ".75rem", color: "var(--text)", background: "var(--surface)", cursor: "pointer" }} />
+      <button type="button" style={btn} onClick={() => shift(1)}>›</button>
+      {!isToday && <button type="button" onClick={() => onChange(new Date().toISOString().slice(0, 10))} style={{ ...btn, background: "var(--color-primary)", color: "#fff", border: "none", fontWeight: 600 }}>Hoje</button>}
+    </div>
+  );
+}
+
 // ── OdontologiaPage ───────────────────────────────────────────────────────────
 const DENTAL_ICON = (
   <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
@@ -1899,20 +1923,19 @@ export default function OdontologiaPage({ patients, user, token }) {
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [selectedQueueEntry, setSelectedQueueEntry] = useState(null);
 
-  const todayIso = new Date().toISOString().slice(0, 10);
+  const [queueDate, setQueueDate] = useState(() => new Date().toISOString().slice(0, 10));
   const today = new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
 
   const { entries: allQueueEntries, loading: queueLoading, patchEntry } = useQueue(token, {
     enabled: canRead,
+    date: queueDate,
     onError: () => {}
   });
 
   const queueEntries = useMemo(() => allQueueEntries.filter(e => {
     const sk = String(e.specialtyKey || e.specialty || "").toLowerCase();
-    const isOdonto = sk === "odontologia" || sk.includes("odonto");
-    const entryDate = String(e.arrivedAt || "").slice(0, 10);
-    return isOdonto && entryDate === todayIso;
-  }), [allQueueEntries, todayIso]);
+    return sk === "odontologia" || sk.includes("odonto");
+  }), [allQueueEntries]);
 
   async function handleQueueSelect(entry) {
     const patient = patients.find(p => p.id === entry.patientId);
@@ -2006,13 +2029,19 @@ export default function OdontologiaPage({ patients, user, token }) {
                 )}
               </>
             ) : (
-              <DentalQueueView
-                entries={queueEntries}
-                loading={queueLoading}
-                selectedId={selectedPatient?.id}
-                onSelect={handleQueueSelect}
-                today={today}
-              />
+              <>
+                <div style={{ padding: "var(--s-2) var(--s-3)", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: ".5rem" }}>
+                  <span style={{ fontSize: ".7rem", fontWeight: 600, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: ".05em" }}>Fila</span>
+                  <OdontoDateNav date={queueDate} onChange={setQueueDate} />
+                </div>
+                <DentalQueueView
+                  entries={queueEntries}
+                  loading={queueLoading}
+                  selectedId={selectedPatient?.id}
+                  onSelect={handleQueueSelect}
+                  today={today}
+                />
+              </>
             )}
           </div>
         </div>

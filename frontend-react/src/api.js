@@ -244,8 +244,17 @@ export async function listPatients(token) {
   return api("/patients", { method: "GET", retryCount: 2 }, token);
 }
 
-export async function listQueueEntries(token) {
-  return api("/queue", { method: "GET", retryCount: 2 }, token);
+export async function listQueueEntries(token, date) {
+  const qs = date ? `?date=${encodeURIComponent(date)}` : "";
+  return api(`/queue${qs}`, { method: "GET", retryCount: 2 }, token);
+}
+
+export async function getAvailability(token, { date, specialtyKey, doctorId } = {}) {
+  const params = new URLSearchParams();
+  if (date) params.set("date", date);
+  if (specialtyKey) params.set("specialtyKey", specialtyKey);
+  if (doctorId) params.set("doctorId", doctorId);
+  return api(`/availability?${params.toString()}`, { method: "GET", retryCount: 1 }, token);
 }
 
 export async function createQueueEntry(token, payload) {

@@ -5,6 +5,7 @@ import { validate, AgendaCreateSchema, AgendaPatchSchema } from "../schemas.js";
 import { ensureDbShape } from "../utils/domain.js";
 import { hasCapability, normalizeDemandType } from "../utils/helpers.js";
 import { addAuditLog } from "../services/audit.js";
+import { getAvailableSlots, isSlotAvailable } from "../services/availabilityService.js";
 
 const router = express.Router();
 
@@ -127,6 +128,20 @@ function listScopedAgendaEntries(db, user, filters = {}) {
     });
 }
 
+router.get("/availability", async (req, res) => {
+  if (!canReadAgenda(req.user)) {
+    return res.status(403).json({ error: "Sem permissão" });
+  }
+  const db = await readDb();
+  const { date, specialtyKey, doctorId } = req.query;
+  const slots = getAvailableSlots(db, {
+    date: String(date || "").trim(),
+    specialtyKey: String(specialtyKey || "").trim(),
+    doctorId: String(doctorId || "").trim(),
+  });
+  return res.json({ date, slots });
+});
+
 router.get("/agenda", async (req, res) => {
   if (!canReadAgenda(req.user)) {
     return res.status(403).json({ error: "Sem permissão para agenda" });
@@ -158,6 +173,14 @@ router.post("/agenda", validate(AgendaCreateSchema), async (req, res) => {
 
     const apptDate = String(payload.date || "").trim();
     const apptTime = String(payload.time || "").trim();
+
+    if (apptDate) {
+      const d = new Date(apptDate + "T12:00:00");
+      const dow = d.getDay();
+      if (dow === 0 || dow === 6) {
+        return { error: { status: 409, message: "Agendamentos não são permitidos em fins de semana" } };
+      }
+    }
 
     if (doctorId && apptDate && apptTime) {
       const doctorConflict = db.agendaEntries.find(

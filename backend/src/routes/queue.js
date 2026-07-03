@@ -73,7 +73,11 @@ router.get("/queue", async (req, res) => {
     return res.status(403).json({ error: "Sem permissão para fila" });
   }
   const db = await readDb();
-  const entries = sortQueue(getScopedQueueEntries(db, req.user));
+  let entries = sortQueue(getScopedQueueEntries(db, req.user));
+  const dateFilter = String(req.query.date || "").trim();
+  if (dateFilter && /^\d{4}-\d{2}-\d{2}$/.test(dateFilter)) {
+    entries = entries.filter(e => String(e.arrivedAt || "").slice(0, 10) === dateFilter);
+  }
   return res.json(entries);
 });
 
@@ -244,8 +248,10 @@ router.post("/queue/clear-done", async (req, res) => {
     const beforeCount = db.queueEntries.length;
     const now = new Date().toISOString();
     let clearedCount = 0;
+    const todayDate = now.slice(0, 10);
     db.queueEntries = db.queueEntries.map((entry) => {
-      if (String(entry.teamId || "") === teamId && TERMINAL_Q_STATUSES.includes(String(entry.status || ""))) {
+      const entryDate = String(entry.arrivedAt || "").slice(0, 10);
+      if (String(entry.teamId || "") === teamId && TERMINAL_Q_STATUSES.includes(String(entry.status || "")) && entryDate === todayDate) {
         clearedCount += 1;
         return { ...entry, status: "cleared", clearedAt: now, clearedById: req.user.id };
       }

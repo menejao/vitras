@@ -1,6 +1,6 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { createPatient, darEntradaAgenda } from "../api";
+import { createPatient, darEntradaAgenda, getAvailability } from "../api";
 import { matchesPatientSearch, emptyPatientForm, isProfileIncomplete, ageInMonths } from "../utils/clinical";
 import { inferQueuePriorityFromPatient } from "../utils/queue";
 import { isUnavailableDay, unavailableReason } from "../utils/dates";
@@ -84,8 +84,21 @@ function AgendaPage({
   const [showNewPat, setShowNewPat]     = useState(false);
   const [newPatForm, setNewPatForm]     = useState({ name: "", cpf: "", phone: "", careCategory: "general", birthDate: "", teamId: String(user?.teamId || "") });
   const [newPatErr, setNewPatErr]       = useState("");
+  const [availableSlots, setAvailableSlots] = useState(null);
+  const [slotsLoading, setSlotsLoading] = useState(false);
 
   const patWrapRef = useRef(null);
+
+  useEffect(() => {
+    if (!showForm || !form.date) { setAvailableSlots(null); return; }
+    let cancelled = false;
+    setSlotsLoading(true);
+    getAvailability(token, { date: form.date, specialtyKey: form.specialty, doctorId: form.doctorId })
+      .then(res => { if (!cancelled) setAvailableSlots(res?.slots || []); })
+      .catch(() => { if (!cancelled) setAvailableSlots(null); })
+      .finally(() => { if (!cancelled) setSlotsLoading(false); });
+    return () => { cancelled = true; };
+  }, [showForm, form.date, form.specialty, form.doctorId, token]);
 
   const patResults = useMemo(() => {
     const q = patSearch.trim();
@@ -633,12 +646,12 @@ function AgendaPage({
 
             {/* Horário */}
             <Select
-              label="Horário *"
+              label={slotsLoading ? "Horário (verificando disponibilidade...)" : availableSlots ? `Horário * (${availableSlots.length} disponíveis)` : "Horário *"}
               value={form.time}
               onChange={e => setForm(s => ({ ...s, time: e.target.value }))}
             >
               <option value="">Selecionar...</option>
-              {AGENDA_HOURS.map(h => <option key={h} value={h}>{h}</option>)}
+              {(availableSlots ?? AGENDA_HOURS).map(h => <option key={h} value={h}>{h}</option>)}
             </Select>
 
             {/* Especialidade */}

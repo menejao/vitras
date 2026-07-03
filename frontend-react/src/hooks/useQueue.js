@@ -22,7 +22,7 @@ function sortQueueEntries(entries = []) {
 }
 
 export function useQueue(token, options = {}) {
-  const { enabled = true, pollMs = 15000, onError } = options;
+  const { enabled = true, pollMs = 15000, onError, date } = options;
   // Use ref so inline callbacks from callers don't recreate refresh on every render
   const onErrorRef = useRef(onError);
   useEffect(() => { onErrorRef.current = onError; });
@@ -36,7 +36,7 @@ export function useQueue(token, options = {}) {
     try {
       setLoading(true);
       setError("");
-      const next = await listQueueEntries(token);
+      const next = await listQueueEntries(token, date);
       setEntries(sortQueueEntries(next));
       return next;
     } catch (err) {
@@ -47,16 +47,17 @@ export function useQueue(token, options = {}) {
     } finally {
       setLoading(false);
     }
-  }, [enabled, token]); // onError intentionally excluded — handled via ref above
+  }, [enabled, token, date]); // onError intentionally excluded — handled via ref above
 
   useEffect(() => {
     if (!enabled || !token) return undefined;
+    setEntries([]);
     refresh().catch(() => {});
     const intervalId = window.setInterval(() => {
       refresh().catch(() => {});
     }, pollMs);
     return () => window.clearInterval(intervalId);
-  }, [enabled, token, pollMs, refresh]);
+  }, [enabled, token, pollMs, date, refresh]);
 
   const createEntry = useCallback(async (payload) => {
     const created = await createQueueEntry(token, payload);
