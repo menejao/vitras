@@ -820,8 +820,7 @@ function PharmacyPage({
     if (!token || !patientId) return;
     setDispReceitasLoading(true);
     setDispReceitas([]);
-    setDispSelectedReceita(null);
-    setDispItems([]);
+    setDispModalReceita(null);
     setDispError("");
     try {
       // Use api() so token refresh + CSRF are handled automatically
@@ -1180,13 +1179,12 @@ function PharmacyPage({
                     setDispError("");
                     setDispSuccess("");
                     setDispPatient(p);
-                    setDispSelectedReceita(null);
-                    setDispItems([]);
+                    setDispModalReceita(null);
                     loadReceitasForPatient(p.id);
                   }}
                 />
                 {dispPatient && (
-                  <button type="button" onClick={() => { setDispPatient(null); setDispReceitas([]); setDispSelectedReceita(null); setDispItems([]); setDispError(""); setDispSuccess(""); }}
+                  <button type="button" onClick={() => { setDispPatient(null); setDispReceitas([]); setDispModalReceita(null); setDispError(""); setDispSuccess(""); }}
                     style={{ marginTop: 8, background: "none", border: "none", cursor: "pointer", fontSize: "var(--t-xs)", color: "var(--text-2)", textDecoration: "underline" }}>
                     Limpar seleção
                   </button>
