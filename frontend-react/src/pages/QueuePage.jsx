@@ -119,6 +119,10 @@ function QueuePage({ patients, users, user, token, agenda = [], onNewPatient }) 
 
   async function addToQueue() {
     if (!selectedPatient) return;
+    if (!specialtyKey) {
+      setQueueError("Selecione uma especialidade antes de confirmar entrada.");
+      return;
+    }
     try {
       const prof = professionalId ? users?.find(u => u.id === professionalId) : null;
       await createEntry({

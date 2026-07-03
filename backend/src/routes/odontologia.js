@@ -429,12 +429,17 @@ router.get("/odontologia/queue-hoje", (req, res) => {
 
   const queueItems = (db.queueEntries || []).filter(e => {
     const entryDate = String(e.arrivedAt || "").slice(0, 10);
-    const specialty = String(e.specialty || "").toLowerCase();
+    const specialtyKey = String(e.specialtyKey || e.specialty || "").toLowerCase();
     const dest = String(e.destination || "").toLowerCase();
+    const isOdonto =
+      specialtyKey === "odontologia" ||
+      specialtyKey.includes("odonto") ||
+      dest.includes("odontolog") ||
+      dest.includes("odonto");
     return (
       entryDate === date &&
       String(e.teamId || "") === teamId &&
-      (specialty === "odontologia" || dest.includes("odontolog")) &&
+      isOdonto &&
       e.status !== "removed" && e.status !== "cleared"
     );
   });
@@ -451,7 +456,8 @@ router.get("/odontologia/queue-hoje", (req, res) => {
       patientAge: age,
       horario: entry.arrivedAt ? String(entry.arrivedAt).slice(11, 16) : null,
       demandType: DEMAND_LABEL[entry.demandType] || entry.demandType || "",
-      specialty: entry.specialty || "odontologia",
+      specialty: entry.specialty || entry.specialtyKey || "odontologia",
+      specialtyKey: entry.specialtyKey || entry.specialty || "odontologia",
       status: entry.status,
       priority: entry.priority || null,
       needsTriage: entry.needsTriage !== false,

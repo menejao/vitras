@@ -8,6 +8,24 @@ import { addAuditLog } from "../services/audit.js";
 
 const router = express.Router();
 
+const VALID_SPECIALTY_KEYS = ["medico_familia", "enfermagem", "odontologia", "pediatria", "psicologia", "fisioterapia", "nutricao", "vacinacao", "curativo"];
+
+function resolveSpecialtyKey(raw) {
+  const s = String(raw || "").toLowerCase().trim();
+  if (!s) return "";
+  if (VALID_SPECIALTY_KEYS.includes(s)) return s;
+  if (["odonto", "dental", "dentist"].some(k => s.includes(k))) return "odontologia";
+  if (["enferma", "nurse", "nursing"].some(k => s.includes(k))) return "enfermagem";
+  if (["médico", "medico", "familia", "família", "geral", "clínica", "clinica", "doctor", "ginecol"].some(k => s.includes(k))) return "medico_familia";
+  if (["pediatr", "criança", "child"].some(k => s.includes(k))) return "pediatria";
+  if (["psicol", "mental"].some(k => s.includes(k))) return "psicologia";
+  if (["fisio", "physio"].some(k => s.includes(k))) return "fisioterapia";
+  if (["nutri"].some(k => s.includes(k))) return "nutricao";
+  if (["vacin", "vaccin", "imuniz"].some(k => s.includes(k))) return "vacinacao";
+  if (["curativ", "wound", "dressing"].some(k => s.includes(k))) return "curativo";
+  return s;
+}
+
 function canReadAgenda(user) {
   return hasCapability(user, "agenda.read") || hasCapability(user, "agenda.write");
 }
@@ -312,7 +330,19 @@ router.post("/agenda/:id/dar-entrada", async (req, res) => {
     }
 
     const priority = String(req.body?.priority || "normal");
-    const specialty = String(appt.specialty || req.body?.specialty || "").trim();
+    // Resolve specialty from priority chain: appt fields → body fields → destination fallback
+    const rawSpecialty =
+      appt.specialtyKey ||
+      req.body?.specialtyKey ||
+      appt.specialty ||
+      req.body?.specialty ||
+      appt.destination ||
+      req.body?.destination ||
+      "";
+    const specialtyKey = resolveSpecialtyKey(rawSpecialty);
+    if (!specialtyKey) {
+      return { error: { status: 400, message: "Especialidade obrigatória para dar entrada na fila." } };
+    }
     const needsTriage = req.body?.needsTriage !== false;
     const now = new Date().toISOString();
 
@@ -325,7 +355,8 @@ router.post("/agenda/:id/dar-entrada", async (req, res) => {
       reason: String(req.body?.reason || "").trim(),
       demandType: normalizeDemandType("scheduled"),
       destination: null,
-      specialty,
+      specialty: specialtyKey,
+      specialtyKey,
       agendaRef: appt.id,
       needsTriage,
       status: needsTriage ? "aguardando_triagem" : "liberado",
@@ -356,7 +387,7 @@ router.post("/agenda/:id/dar-entrada", async (req, res) => {
       patientId: patient.id,
       teamId: patient.teamId,
       queueEntryId: queueEntry.id,
-      specialty
+      specialty: specialtyKey
     });
 
     return { entry: queueEntry, appt: db.agendaEntries[agendaIndex] };

@@ -6,7 +6,7 @@ import { inferQueuePriorityFromPatient } from "../utils/queue";
 import { isUnavailableDay, unavailableReason } from "../utils/dates";
 import { formatCpf, formatPhone, initials, maskCpf } from "../utils/formatting";
 import { hasCapability } from "../utils/roles";
-import { specialtyLabel } from "../utils/specialty";
+import { SPECIALTY_MAP, specialtyLabel, normalizeToSpecialtyKey } from "../utils/specialty";
 // NETWORK-OPTIMIZATION-01: useAgenda removido — dados recebidos via props do App.jsx
 // para evitar instância duplicada do hook com poll paralelo de 15s.
 import { AGENDA_HOURS, AGENDA_STATUS_LABELS, AGENDA_PROCEDURE_SUBTYPES, describeAgendaType } from "../utils/agenda";
@@ -106,7 +106,7 @@ function AgendaPage({
 
   function openEdit(appt) {
     const pat = patients.find(p => p.id === appt.patientId) || null;
-    setForm({ patientId: appt.patientId, doctorId: appt.doctorId, specialty: appt.specialty || "", date: appt.date, time: appt.time, type: appt.type, notes: appt.notes || "", status: appt.status });
+    setForm({ patientId: appt.patientId, doctorId: appt.doctorId, specialty: normalizeToSpecialtyKey(appt.specialty || ""), date: appt.date, time: appt.time, type: appt.type, notes: appt.notes || "", status: appt.status });
     setPatSearch(pat?.name || ""); setPatSelected(pat);
     setProcedureSubtype("");
     setEditId(appt.id); setShowForm(true);
@@ -117,10 +117,10 @@ function AgendaPage({
   async function checkIn(appt) {
     const patient = patients.find(p => p.id === appt.patientId);
     const priority = patient ? inferQueuePriorityFromPatient(patient) : "normal";
+    const specialty = normalizeToSpecialtyKey(appt.specialty || "");
     setCheckingIn(prev => ({ ...prev, [appt.id]: true }));
     try {
-      await darEntradaAgenda(token, appt.id, { priority });
-      // Backend sets agenda status=arrived; refresh agenda
+      await darEntradaAgenda(token, appt.id, { priority, specialty, needsTriage: true });
       await patchEntry(appt.id, { status: "arrived" });
     } catch (err) {
       setAgendaError(err.message || "Erro ao dar entrada.");
@@ -152,7 +152,10 @@ function AgendaPage({
 
   async function submit(e) {
     e.preventDefault();
-    if (!form.patientId || !form.date || !form.time) return;
+    if (!form.patientId || !form.date || !form.time || !form.specialty) {
+      setAgendaError("Preencha todos os campos obrigatórios: Paciente, Data, Horário e Especialidade.");
+      return;
+    }
 
     let resolvedPatientId = form.patientId;
 
@@ -643,18 +646,12 @@ function AgendaPage({
               label="Especialidade / Atendimento *"
               value={form.specialty}
               onChange={e => setForm(s => ({ ...s, specialty: e.target.value }))}
+              error={!form.specialty && agendaError ? "Obrigatório" : ""}
             >
-              <option value="">Selecionar...</option>
-              <option value="Clínica Geral">Clínica Geral</option>
-              <option value="Enfermagem">Enfermagem</option>
-              <option value="Odontologia">Odontologia</option>
-              <option value="Ginecologia">Ginecologia</option>
-              <option value="Pediatria">Pediatria</option>
-              <option value="Saúde Mental">Saúde Mental</option>
-              <option value="Nutrição">Nutrição</option>
-              <option value="Fisioterapia">Fisioterapia</option>
-              <option value="Assistência Social">Assistência Social</option>
-              <option value="Outro">Outro</option>
+              <option value="">Selecionar especialidade...</option>
+              {SPECIALTY_MAP.map(s => (
+                <option key={s.key} value={s.key}>{s.label}</option>
+              ))}
             </Select>
 
             {/* Profissional */}

@@ -12,6 +12,7 @@ const BREAKGLASS_EMAIL = "breakglass@vitras.com.br";
 const DRA_ID = "seed-user-dra";
 const ACS_ID = "seed-user-acs";
 const ENF_ID = "seed-user-enf";
+const DENT_ID = "seed-user-dent";
 
 function upsert(arr, item) {
   const i = arr.findIndex((x) => x.id === item.id);
@@ -280,6 +281,7 @@ export async function seedDemoTeamRosa() {
     upsert(db.users, { ...baseUser, id: DRA_ID,  name: "Dra. Maria Rosa",   email: "dra.rosa@vitras.com.br",    role: "doctor",            teamId: TEAM_ID, teamName: TEAM_NAME, password: hashPassword("Demo@2026"), councilType: "CRM",   councilNumber: "88001", councilUf: "SP" });
     upsert(db.users, { ...baseUser, id: ACS_ID,  name: "Lucas ACS",         email: "lucas.acs@vitras.com.br",   role: "acs",               teamId: TEAM_ID, teamName: TEAM_NAME, password: hashPassword("Demo@2026") });
     upsert(db.users, { ...baseUser, id: ENF_ID,  name: "Enf. Patrícia Lima",email: "patricia.enf@vitras.com.br",role: "nurse_manager",     teamId: TEAM_ID, teamName: TEAM_NAME, password: hashPassword("Demo@2026"), councilType: "COREN", councilNumber: "12345", councilUf: "SP" });
+    upsert(db.users, { ...baseUser, id: DENT_ID, name: "Dr. Carlos Dental",  email: "carlos.dent@vitras.com.br", role: "doctor",            teamId: TEAM_ID, teamName: TEAM_NAME, password: hashPassword("Demo@2026"), councilType: "CRO",   councilNumber: "55001", councilUf: "SP" });
 
     // ── Patients ──────────────────────────────────────────────────────────
     logInfo("seed_demo_creating_patients", { event: "seed_demo_creating_patients" });
@@ -572,50 +574,63 @@ export async function seedDemoTeamRosa() {
     // ── Agenda (upcoming) ─────────────────────────────────────────────────
     const agenda = [
       // Gestantes — próxima consulta pré-natal
-      { id: "seed-ag-pg01-1", patientId: "seed-p-pg01", patientName: "Amanda Cristina Lopes",       date: dAhead(14),  time: "08:00", type: "consultation", status: "scheduled", notes: "Pré-natal — 2ª consulta (16 semanas)" },
-      { id: "seed-ag-pg02-1", patientId: "seed-p-pg02", patientName: "Juliana Meireles Costa",      date: dAhead(14),  time: "08:30", type: "consultation", status: "scheduled", notes: "Pré-natal — 3ª consulta (24 semanas)" },
-      { id: "seed-ag-pg03-1", patientId: "seed-p-pg03", patientName: "Fernanda Cristina Araújo",    date: dAhead(28),  time: "09:00", type: "consultation", status: "scheduled", notes: "Pré-natal — 4ª consulta (28 semanas)" },
-      { id: "seed-ag-pg04-1", patientId: "seed-p-pg04", patientName: "Ana Beatriz Ferreira Campos", date: dAhead(21),  time: "09:30", type: "consultation", status: "scheduled", notes: "Pré-natal — 5ª consulta (36 semanas)" },
-      { id: "seed-ag-pg05-1", patientId: "seed-p-pg05", patientName: "Renata Souza Galvão",         date: dAhead(7),   time: "10:00", type: "consultation", status: "scheduled", notes: "Pré-natal — 6ª consulta (38 semanas)" },
-      { id: "seed-ag-pg06-1", patientId: "seed-p-pg06", patientName: "Patrícia Vieira Moreira",     date: dAhead(14),  time: "10:30", type: "consultation", status: "scheduled", notes: "Pré-natal — 3ª consulta (24 semanas)" },
+      { id: "seed-ag-pg01-1", patientId: "seed-p-pg01", patientName: "Amanda Cristina Lopes",       date: dAhead(14),  time: "08:00", type: "consultation", status: "scheduled", notes: "Pré-natal — 2ª consulta (16 semanas)",  specialty: "enfermagem" },
+      { id: "seed-ag-pg02-1", patientId: "seed-p-pg02", patientName: "Juliana Meireles Costa",      date: dAhead(14),  time: "08:30", type: "consultation", status: "scheduled", notes: "Pré-natal — 3ª consulta (24 semanas)",  specialty: "enfermagem" },
+      { id: "seed-ag-pg03-1", patientId: "seed-p-pg03", patientName: "Fernanda Cristina Araújo",    date: dAhead(28),  time: "09:00", type: "consultation", status: "scheduled", notes: "Pré-natal — 4ª consulta (28 semanas)",  specialty: "medico_familia" },
+      { id: "seed-ag-pg04-1", patientId: "seed-p-pg04", patientName: "Ana Beatriz Ferreira Campos", date: dAhead(21),  time: "09:30", type: "consultation", status: "scheduled", notes: "Pré-natal — 5ª consulta (36 semanas)",  specialty: "medico_familia" },
+      { id: "seed-ag-pg05-1", patientId: "seed-p-pg05", patientName: "Renata Souza Galvão",         date: dAhead(7),   time: "10:00", type: "consultation", status: "scheduled", notes: "Pré-natal — 6ª consulta (38 semanas)",  specialty: "medico_familia" },
+      { id: "seed-ag-pg06-1", patientId: "seed-p-pg06", patientName: "Patrícia Vieira Moreira",     date: dAhead(14),  time: "10:30", type: "consultation", status: "scheduled", notes: "Pré-natal — 3ª consulta (24 semanas)",  specialty: "enfermagem" },
       // Puérperas — retorno
-      { id: "seed-ag-pu01-1", patientId: "seed-p-pu01", patientName: "Camila Rodrigues Soares",  date: dAhead(10),  time: "08:00", type: "return", status: "scheduled", notes: "Consulta puerperal 15 dias" },
-      { id: "seed-ag-pu02-1", patientId: "seed-p-pu02", patientName: "Beatriz Alves Duarte",     date: dAhead(15),  time: "08:30", type: "return", status: "scheduled", notes: "Consulta puerperal 30 dias" },
+      { id: "seed-ag-pu01-1", patientId: "seed-p-pu01", patientName: "Camila Rodrigues Soares",  date: dAhead(10),  time: "08:00", type: "return", status: "scheduled", notes: "Consulta puerperal 15 dias",           specialty: "medico_familia" },
+      { id: "seed-ag-pu02-1", patientId: "seed-p-pu02", patientName: "Beatriz Alves Duarte",     date: dAhead(15),  time: "08:30", type: "return", status: "scheduled", notes: "Consulta puerperal 30 dias",           specialty: "medico_familia" },
       // Crianças — próxima puericultura
-      { id: "seed-ag-ch01-1", patientId: "seed-p-ch01", patientName: "Miguel Oliveira Barbosa",  date: dAhead(23),  time: "09:00", type: "consultation", status: "scheduled", notes: "Puericultura 1 mês" },
-      { id: "seed-ag-ch02-1", patientId: "seed-p-ch02", patientName: "Sofia Ramos Teixeira",     date: dAhead(31),  time: "09:30", type: "consultation", status: "scheduled", notes: "Puericultura 2 meses + vacinas" },
-      { id: "seed-ag-ch03-1", patientId: "seed-p-ch03", patientName: "Davi Lima Gonçalves",      date: dAhead(60),  time: "10:00", type: "consultation", status: "scheduled", notes: "Puericultura 4 meses + vacinas" },
-      { id: "seed-ag-ch04-1", patientId: "seed-p-ch04", patientName: "Larissa Costa Moura",      date: dAhead(58),  time: "10:30", type: "consultation", status: "scheduled", notes: "Puericultura 6 meses + vacinas" },
-      { id: "seed-ag-ch05-1", patientId: "seed-p-ch05", patientName: "Gabriel Ferreira Santos",  date: dAhead(88),  time: "11:00", type: "consultation", status: "scheduled", notes: "Puericultura 9 meses" },
-      { id: "seed-ag-ch06-1", patientId: "seed-p-ch06", patientName: "Isabella Nascimento Cruz", date: dAhead(91),  time: "11:30", type: "consultation", status: "scheduled", notes: "Puericultura 15 meses" },
-      // Crônicos — retorno
-      { id: "seed-ag-g07-1",  patientId: "seed-p-g07",  patientName: "Roberto Alves Mendonça",   date: dAhead(60),  time: "08:00", type: "return", status: "scheduled", notes: "Retorno HAS — 90 dias" },
-      { id: "seed-ag-g08-1",  patientId: "seed-p-g08",  patientName: "Sandra Lima Andrade",      date: dAhead(14),  time: "08:30", type: "return", status: "scheduled", notes: "Retorno urgente HAS — resultado ECG" },
-      { id: "seed-ag-g09-1",  patientId: "seed-p-g09",  patientName: "Paulo Henrique Braga",     date: dAhead(60),  time: "09:00", type: "return", status: "scheduled", notes: "Retorno DM 90 dias" },
-      { id: "seed-ag-g11-1",  patientId: "seed-p-g11",  patientName: "Francisco José Melo",      date: dAhead(14),  time: "09:30", type: "return", status: "scheduled", notes: "Retorno HAS+DM crítico" },
-      { id: "seed-ag-g12-1",  patientId: "seed-p-g12",  patientName: "Edmundo Tavares Cunha",    date: dAhead(75),  time: "10:00", type: "return", status: "scheduled", notes: "Retorno HAS+DM — 90 dias" },
-      // Idosos — retorno
-      { id: "seed-ag-el01-1", patientId: "seed-p-el01", patientName: "Rosa Maria da Silva Cunha",   date: dAhead(90),  time: "08:00", type: "consultation", status: "scheduled", notes: "Avaliação geriátrica anual" },
-      { id: "seed-ag-el02-1", patientId: "seed-p-el02", patientName: "Silvio Roberto Araújo",        date: dAhead(30),  time: "08:30", type: "return", status: "scheduled", notes: "Retorno HAS pós cardiologia" },
-      { id: "seed-ag-el03-1", patientId: "seed-p-el03", patientName: "João Carlos Oliveira Santos", date: dAhead(40),  time: "09:00", type: "return", status: "scheduled", notes: "Retorno HAS+DM — insulina" },
-      { id: "seed-ag-el04-1", patientId: "seed-p-el04", patientName: "Maria das Graças Ferreira",   date: dAhead(80),  time: "09:30", type: "return", status: "scheduled", notes: "Retorno HAS+DM — 90 dias" },
-      { id: "seed-ag-el05-1", patientId: "seed-p-el05", patientName: "Antônio Rodrigues da Silva",  date: dAhead(21),  time: "10:00", type: "return", status: "scheduled", notes: "Retorno HAS pós cardiologia" },
-      { id: "seed-ag-el06-1", patientId: "seed-p-el06", patientName: "Luiza Fernanda Rocha",        date: dAhead(270), time: "10:30", type: "consultation", status: "scheduled", notes: "Avaliação geriátrica anual" },
+      { id: "seed-ag-ch01-1", patientId: "seed-p-ch01", patientName: "Miguel Oliveira Barbosa",  date: dAhead(23),  time: "09:00", type: "consultation", status: "scheduled", notes: "Puericultura 1 mês",                  specialty: "pediatria" },
+      { id: "seed-ag-ch02-1", patientId: "seed-p-ch02", patientName: "Sofia Ramos Teixeira",     date: dAhead(31),  time: "09:30", type: "consultation", status: "scheduled", notes: "Puericultura 2 meses + vacinas",      specialty: "pediatria" },
+      { id: "seed-ag-ch03-1", patientId: "seed-p-ch03", patientName: "Davi Lima Gonçalves",      date: dAhead(60),  time: "10:00", type: "consultation", status: "scheduled", notes: "Puericultura 4 meses + vacinas",      specialty: "pediatria" },
+      { id: "seed-ag-ch04-1", patientId: "seed-p-ch04", patientName: "Larissa Costa Moura",      date: dAhead(58),  time: "10:30", type: "consultation", status: "scheduled", notes: "Puericultura 6 meses + vacinas",      specialty: "pediatria" },
+      { id: "seed-ag-ch05-1", patientId: "seed-p-ch05", patientName: "Gabriel Ferreira Santos",  date: dAhead(88),  time: "11:00", type: "consultation", status: "scheduled", notes: "Puericultura 9 meses",                specialty: "pediatria" },
+      { id: "seed-ag-ch06-1", patientId: "seed-p-ch06", patientName: "Isabella Nascimento Cruz", date: dAhead(91),  time: "11:30", type: "consultation", status: "scheduled", notes: "Puericultura 15 meses",               specialty: "pediatria" },
+      // Crônicos — retorno (médico da família)
+      { id: "seed-ag-g07-1",  patientId: "seed-p-g07",  patientName: "Roberto Alves Mendonça",   date: dAhead(60),  time: "08:00", type: "return", status: "scheduled", notes: "Retorno HAS — 90 dias",               specialty: "medico_familia" },
+      { id: "seed-ag-g08-1",  patientId: "seed-p-g08",  patientName: "Sandra Lima Andrade",      date: dAhead(14),  time: "08:30", type: "return", status: "scheduled", notes: "Retorno urgente HAS — resultado ECG", specialty: "medico_familia" },
+      { id: "seed-ag-g09-1",  patientId: "seed-p-g09",  patientName: "Paulo Henrique Braga",     date: dAhead(60),  time: "09:00", type: "return", status: "scheduled", notes: "Retorno DM 90 dias",                  specialty: "medico_familia" },
+      { id: "seed-ag-g11-1",  patientId: "seed-p-g11",  patientName: "Francisco José Melo",      date: dAhead(14),  time: "09:30", type: "return", status: "scheduled", notes: "Retorno HAS+DM crítico",              specialty: "medico_familia" },
+      { id: "seed-ag-g12-1",  patientId: "seed-p-g12",  patientName: "Edmundo Tavares Cunha",    date: dAhead(75),  time: "10:00", type: "return", status: "scheduled", notes: "Retorno HAS+DM — 90 dias",            specialty: "medico_familia" },
+      // Idosos — retorno (médico da família)
+      { id: "seed-ag-el01-1", patientId: "seed-p-el01", patientName: "Rosa Maria da Silva Cunha",   date: dAhead(90),  time: "08:00", type: "consultation", status: "scheduled", notes: "Avaliação geriátrica anual",         specialty: "medico_familia" },
+      { id: "seed-ag-el02-1", patientId: "seed-p-el02", patientName: "Silvio Roberto Araújo",        date: dAhead(30),  time: "08:30", type: "return",       status: "scheduled", notes: "Retorno HAS pós cardiologia",        specialty: "medico_familia" },
+      { id: "seed-ag-el03-1", patientId: "seed-p-el03", patientName: "João Carlos Oliveira Santos", date: dAhead(40),  time: "09:00", type: "return",       status: "scheduled", notes: "Retorno HAS+DM — insulina",          specialty: "medico_familia" },
+      { id: "seed-ag-el04-1", patientId: "seed-p-el04", patientName: "Maria das Graças Ferreira",   date: dAhead(80),  time: "09:30", type: "return",       status: "scheduled", notes: "Retorno HAS+DM — 90 dias",           specialty: "medico_familia" },
+      { id: "seed-ag-el05-1", patientId: "seed-p-el05", patientName: "Antônio Rodrigues da Silva",  date: dAhead(21),  time: "10:00", type: "return",       status: "scheduled", notes: "Retorno HAS pós cardiologia",        specialty: "medico_familia" },
+      { id: "seed-ag-el06-1", patientId: "seed-p-el06", patientName: "Luiza Fernanda Rocha",        date: dAhead(270), time: "10:30", type: "consultation", status: "scheduled", notes: "Avaliação geriátrica anual",         specialty: "medico_familia" },
+      // Odontologia — consultas de hoje (para testar fluxo dental completo)
+      { id: "seed-ag-g05-dent", patientId: "seed-p-g05", patientName: "Adriana Monteiro Pires",  date: dAhead(0), time: "08:00", type: "consultation", status: "scheduled", notes: "Consulta odontológica — 1ª consulta",   specialty: "odontologia" },
+      { id: "seed-ag-g09-dent", patientId: "seed-p-g09", patientName: "Paulo Henrique Braga",    date: dAhead(0), time: "08:30", type: "return",       status: "scheduled", notes: "Retorno odontológico — revisão",        specialty: "odontologia" },
+      { id: "seed-ag-g06-dent", patientId: "seed-p-g06", patientName: "Marcos Paulo Rodrigues",  date: dAhead(0), time: "09:00", type: "consultation", status: "scheduled", notes: "Consulta odontológica — profilaxia",    specialty: "odontologia" },
     ];
     for (const ag of agenda) {
       if (!hasId(db.agendaEntries, ag.id)) {
+        const isDental = ag.specialty === "odontologia";
         db.agendaEntries.push({
           ...ag,
           teamId: TEAM_ID,
-          doctorId: DRA_ID,
-          doctorName: "Dra. Maria Rosa",
+          doctorId: isDental ? DENT_ID : DRA_ID,
+          doctorName: isDental ? "Dr. Carlos Dental" : "Dra. Maria Rosa",
+          specialtyKey: ag.specialty || "medico_familia",
           incompletePatient: false,
           summary: ag.notes,
           createdAt: NOW,
-          createdBy: DRA_ID,
+          createdBy: isDental ? DENT_ID : DRA_ID,
           updatedAt: NOW,
-          updatedBy: DRA_ID,
+          updatedBy: isDental ? DENT_ID : DRA_ID,
         });
+      }
+    }
+    // Backfill specialty on existing agenda entries that lack it
+    for (const entry of db.agendaEntries) {
+      if (!entry.specialty) {
+        entry.specialty = entry.specialtyKey || "medico_familia";
+        entry.specialtyKey = entry.specialty;
       }
     }
 
