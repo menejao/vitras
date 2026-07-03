@@ -20,7 +20,7 @@ import {
   deleteOdontoPlanItem,
 } from "../api";
 import { matchesPatientSearch } from "../utils/clinical";
-import { printPrescription } from "../utils/printDoc";
+import PrescriptionModal from "../components/prescription/PrescriptionModal";
 import { fmtDate, initials } from "../utils/formatting";
 import { hasCapability } from "../utils/roles";
 
@@ -1305,36 +1305,27 @@ function EncounterHeader({ encounter, queueEntry }) {
 }
 
 
-// ── Catálogo de medicamentos odontológicos ────────────────────────────────────
+// ── Catálogo de medicamentos odontológicos (filtro para PrescriptionModal) ────
 const DENTAL_MEDS = [
-  { nome: "Amoxicilina 500mg",                  dosagem: "500mg",            posologia: "1 cápsula de 8/8h por 7 dias",                                   qtdPrescrita: 21, categoria: "Antibiótico" },
-  { nome: "Amoxicilina + Clavulanato 875/125mg", dosagem: "875mg/125mg",      posologia: "1 comprimido de 12/12h por 7 dias",                               qtdPrescrita: 14, categoria: "Antibiótico" },
-  { nome: "Azitromicina 500mg",                  dosagem: "500mg",            posologia: "1 comprimido 1×/dia por 3 dias",                                  qtdPrescrita: 3,  categoria: "Antibiótico" },
-  { nome: "Clindamicina 300mg",                  dosagem: "300mg",            posologia: "1 cápsula de 8/8h por 7 dias (alérgico à penicilina)",            qtdPrescrita: 21, categoria: "Antibiótico" },
-  { nome: "Metronidazol 400mg",                  dosagem: "400mg",            posologia: "1 comprimido de 8/8h por 7 dias",                                 qtdPrescrita: 21, categoria: "Antibiótico" },
-  { nome: "Ibuprofeno 600mg",                    dosagem: "600mg",            posologia: "1 comprimido de 8/8h por 5 dias",                                 qtdPrescrita: 15, categoria: "Anti-inflamatório" },
-  { nome: "Nimesulida 100mg",                    dosagem: "100mg",            posologia: "1 comprimido de 12/12h por 5 dias",                               qtdPrescrita: 10, categoria: "Anti-inflamatório" },
-  { nome: "Prednisolona 20mg",                   dosagem: "20mg",             posologia: "1 comprimido 1×/dia por 5 dias",                                  qtdPrescrita: 5,  categoria: "Corticoide" },
-  { nome: "Dipirona 500mg",                      dosagem: "500mg",            posologia: "1 comprimido de 6/6h se dor",                                     qtdPrescrita: 20, categoria: "Analgésico" },
-  { nome: "Paracetamol 750mg",                   dosagem: "750mg",            posologia: "1 comprimido de 6/6h se dor",                                     qtdPrescrita: 20, categoria: "Analgésico" },
-  { nome: "Clorexidina 0,12% (bochechos)",       dosagem: "0,12% 250mL",      posologia: "Bochecho de 15 mL por 30s, 2×/dia por 14 dias",                  qtdPrescrita: 1,  categoria: "Antisséptico" },
-  { nome: "Nistatina 100.000 UI/mL (suspensão)", dosagem: "100.000 UI/mL",    posologia: "1 mL em bochecho por 2 min, 4×/dia por 14 dias",                 qtdPrescrita: 1,  categoria: "Antifúngico" },
+  { nome: "Amoxicilina 500mg",                  dosagem: "500mg",         posologia: "1 cápsula de 8/8h por 7 dias" },
+  { nome: "Amoxicilina + Clavulanato 875/125mg", dosagem: "875mg/125mg",   posologia: "1 comprimido de 12/12h por 7 dias" },
+  { nome: "Azitromicina 500mg",                  dosagem: "500mg",         posologia: "1 comprimido 1×/dia por 3 dias" },
+  { nome: "Clindamicina 300mg",                  dosagem: "300mg",         posologia: "1 cápsula de 8/8h por 7 dias (alérgico à penicilina)" },
+  { nome: "Metronidazol 400mg",                  dosagem: "400mg",         posologia: "1 comprimido de 8/8h por 7 dias" },
+  { nome: "Ibuprofeno 600mg",                    dosagem: "600mg",         posologia: "1 comprimido de 8/8h por 5 dias" },
+  { nome: "Nimesulida 100mg",                    dosagem: "100mg",         posologia: "1 comprimido de 12/12h por 5 dias" },
+  { nome: "Prednisolona 20mg",                   dosagem: "20mg",          posologia: "1 comprimido 1×/dia por 5 dias" },
+  { nome: "Dipirona 500mg",                      dosagem: "500mg",         posologia: "1 comprimido de 6/6h se dor" },
+  { nome: "Paracetamol 750mg",                   dosagem: "750mg",         posologia: "1 comprimido de 6/6h se dor" },
+  { nome: "Clorexidina 0,12% (bochechos)",       dosagem: "0,12% 250mL",   posologia: "Bochecho de 15 mL por 30s, 2×/dia por 14 dias" },
+  { nome: "Nistatina 100.000 UI/mL (suspensão)", dosagem: "100.000 UI/mL", posologia: "1 mL em bochecho por 2 min, 4×/dia por 14 dias" },
 ];
 
-const DENTAL_MED_CATS = [...new Set(DENTAL_MEDS.map(m => m.categoria))];
-
-// ── WorkspacePrescricao ───────────────────────────────────────────────────────
-function WorkspacePrescricao({ patient, user, token, encounter, onGetEncounter }) {
-  const [itens, setItens] = useState([]);
-  const [medSearch, setMedSearch] = useState("");
-  const [medCat, setMedCat] = useState("all");
-  const [cro, setCro] = useState(user?.cro || "");
-  const [validade, setValidade] = useState("30 dias");
-  const [obs, setObs] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const [saved, setSaved] = useState(null);
+// ── WorkspacePrescricao — aba Prescrição odontológica (usa PrescriptionModal unificado) ───
+function WorkspacePrescricao({ patient, user, token }) {
+  const [showModal, setShowModal] = useState(false);
   const [prescricoes, setPrescricoes] = useState(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     import("../api").then(({ getOdontoPrescricoes }) =>
@@ -1342,157 +1333,36 @@ function WorkspacePrescricao({ patient, user, token, encounter, onGetEncounter }
         .then(r => setPrescricoes(r.data || []))
         .catch(() => setPrescricoes([]))
     );
-  }, [token, patient.id, saved]);
+  }, [token, patient.id, refreshKey]);
 
-  const filteredMeds = useMemo(() => DENTAL_MEDS.filter(m => {
-    const matchCat = medCat === "all" || m.categoria === medCat;
-    const q = medSearch.trim().toLowerCase();
-    return matchCat && (!q || m.nome.toLowerCase().includes(q));
-  }), [medSearch, medCat]);
-
-  function addMed(med) {
-    if (itens.find(i => i.nome === med.nome)) return;
-    setItens(s => [...s, { nome: med.nome, dosagem: med.dosagem, posologia: med.posologia, qtdPrescrita: med.qtdPrescrita }]);
-  }
-
-  function removeMed(nome) { setItens(s => s.filter(i => i.nome !== nome)); }
-
-  function updateItem(nome, field, val) {
-    setItens(s => s.map(i => i.nome === nome ? { ...i, [field]: val } : i));
-  }
-
-  async function handleSubmit(e) {
-    e.preventDefault();
-    if (itens.length === 0) { setError("Adicione ao menos um medicamento."); return; }
-    setBusy(true); setError("");
-    try {
-      const enc = await onGetEncounter?.();
-      const { createOdontoPrescricao } = await import("../api");
-      const now = new Date();
-      const result = await createOdontoPrescricao(token, {
-        patientId: patient.id,
-        dtReceita: now.toISOString().slice(0, 10),
-        validade,
-        itens,
-        obs: obs || null,
-        cro: cro || null,
-        encounterId: enc?.id || encounter?.id || null,
-      });
-      setSaved(result.data);
-      printPrescription({
-        patient,
-        medications: itens.map(it => ({ name: it.nome, dosage: it.dosagem, instructions: it.posologia })),
-        validity: validade,
-        professional: { ...user, councilType: "CRO", councilNumber: cro || user?.cro || "", councilUf: "" },
-      });
-      setItens([]); setObs(""); setMedSearch("");
-    } catch (err) { setError(err.message || "Erro ao emitir receita."); }
-    finally { setBusy(false); }
+  function handleClose(ok) {
+    setShowModal(false);
+    if (ok) setRefreshKey(k => k + 1);
   }
 
   return (
     <div style={{ padding: "var(--s-4)", display: "flex", flexDirection: "column", gap: "var(--s-4)" }}>
-      {saved && (
-        <SuccessBanner
-          msg={`Receita emitida — aparece na Farmácia.`}
-          onNew={() => setSaved(null)}
-          newLabel="+ Nova receita"
+      <div>
+        <Button variant="primary" onClick={() => setShowModal(true)}>
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true" style={{ marginRight: 6 }}><path d="M8 2v12M2 8h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+          Emitir receita
+        </Button>
+      </div>
+
+      {showModal && (
+        <PrescriptionModal
+          patient={patient}
+          user={user}
+          token={token}
+          origin="odontologia"
+          catalogMeds={DENTAL_MEDS}
+          onClose={handleClose}
         />
       )}
 
-      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "var(--s-3)" }}>
-        {/* CRO + validade */}
-        <div style={{ display: "flex", gap: "var(--s-2)", flexWrap: "wrap" }}>
-          <div style={{ flex: "1 1 160px" }}>
-            <Input label="CRO do prescritor" value={cro} onChange={e => setCro(e.target.value)} placeholder="CRO-SP 00000" />
-          </div>
-          <div style={{ flex: "1 1 140px" }}>
-            <Input label="Validade" value={validade} onChange={e => setValidade(e.target.value)} placeholder="30 dias" />
-          </div>
-        </div>
-
-        {/* Catálogo */}
-        <div>
-          <div className="field__label" style={{ marginBottom: "var(--s-1)" }}>Adicionar medicamento</div>
-          <div style={{ display: "flex", gap: "var(--s-2)", marginBottom: "var(--s-2)", flexWrap: "wrap" }}>
-            <div className="odonto-proc-search" style={{ flex: "1 1 180px" }}>
-              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style={{ color: "var(--text-3)" }}>
-                <circle cx="6.5" cy="6.5" r="4" stroke="currentColor" strokeWidth="1.5"/>
-                <path d="M10.5 10.5l3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-              </svg>
-              <input type="search" className="odonto-proc-search__input" placeholder="Buscar medicamento..."
-                value={medSearch} onChange={e => setMedSearch(e.target.value)} />
-            </div>
-            <div className="odonto-proc-cats" style={{ flex: "0 0 auto" }}>
-              <button type="button" className={`odonto-cat-chip${medCat === "all" ? " odonto-cat-chip--active" : ""}`} onClick={() => setMedCat("all")}>Todos</button>
-              {DENTAL_MED_CATS.map(c => (
-                <button key={c} type="button" className={`odonto-cat-chip${medCat === c ? " odonto-cat-chip--active" : ""}`} onClick={() => setMedCat(c)}>{c}</button>
-              ))}
-            </div>
-          </div>
-          <div className="odonto-proc-catalog" style={{ maxHeight: 200 }}>
-            {filteredMeds.map(med => {
-              const added = !!itens.find(i => i.nome === med.nome);
-              return (
-                <button key={med.nome} type="button"
-                  className={`odonto-proc-catalog__item${added ? " odonto-proc-catalog__item--selected" : ""}`}
-                  onClick={() => added ? removeMed(med.nome) : addMed(med)}
-                  style={{ textAlign: "left" }}>
-                  <div className="odonto-proc-catalog__info">
-                    <div className="odonto-proc-catalog__name">{med.nome}</div>
-                    <div className="odonto-proc-catalog__meta">
-                      <span className="odonto-cat-badge">{med.categoria}</span>
-                      <span style={{ fontSize: ".72rem", color: "var(--text-3)" }}>{med.posologia}</span>
-                    </div>
-                  </div>
-                  {added
-                    ? <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M2.5 8.5l4 4 7-7" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                    : <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
-                  }
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Itens selecionados */}
-        {itens.length > 0 && (
-          <div>
-            <div className="field__label" style={{ marginBottom: "var(--s-2)" }}>Itens da receita ({itens.length})</div>
-            {itens.map(item => (
-              <div key={item.nome} className="odonto-proc-selected-item">
-                <div className="odonto-proc-selected-item__name">
-                  <button type="button" className="odonto-proc-remove" onClick={() => removeMed(item.nome)} aria-label="Remover">
-                    <svg width="10" height="10" viewBox="0 0 16 16" fill="none"><path d="M2 2l12 12M14 2L2 14" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
-                  </button>
-                  {item.nome}
-                </div>
-                <div className="odonto-proc-selected-item__fields">
-                  <Input label="Dosagem" value={item.dosagem} onChange={e => updateItem(item.nome, "dosagem", e.target.value)} style={{ maxWidth: 160 }} />
-                  <div className="field" style={{ flex: 1 }}>
-                    <label className="field__label">Posologia</label>
-                    <AutoTextarea value={item.posologia} onChange={e => updateItem(item.nome, "posologia", e.target.value)} minRows={1} maxRows={3} />
-                  </div>
-                  <Input label="Qtd." value={String(item.qtdPrescrita)} onChange={e => updateItem(item.nome, "qtdPrescrita", Number(e.target.value) || 1)} type="number" min="1" style={{ maxWidth: 70 }} />
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        <div className="field">
-          <label className="field__label">Observações</label>
-          <AutoTextarea value={obs} onChange={e => setObs(e.target.value)} minRows={2} maxRows={4} placeholder="Orientações adicionais ao paciente..." />
-        </div>
-
-        <ErrorMsg msg={error} />
-        <div><Button type="submit" variant="primary" loading={busy} disabled={itens.length === 0}>Emitir receita</Button></div>
-      </form>
-
-      {/* Receitas anteriores */}
       {prescricoes !== null && prescricoes.length > 0 && (
         <div style={{ borderTop: "1px solid var(--border)", paddingTop: "var(--s-3)" }}>
-          <div style={{ fontSize: ".7rem", fontWeight: 700, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: ".07em", marginBottom: "var(--s-2)" }}>Receitas odontológicas anteriores</div>
+          <div style={{ fontSize: ".7rem", fontWeight: 700, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: ".07em", marginBottom: "var(--s-2)" }}>Receitas odontológicas</div>
           {prescricoes.map(r => (
             <div key={r.id} className="odonto-evol-card" style={{ marginBottom: "var(--s-2)" }}>
               <div className="odonto-evol-card__header">
@@ -1504,7 +1374,7 @@ function WorkspacePrescricao({ patient, user, token, encounter, onGetEncounter }
               <div className="odonto-evol-card__body">
                 {(r.itens || []).map((it, idx) => (
                   <div key={idx} style={{ fontSize: ".8rem", marginBottom: ".2rem" }}>
-                    <strong>{it.nome}</strong> — {it.posologia} — Qtd: {it.qtdPrescrita}
+                    <strong>{it.nome}</strong>{it.dosagem ? ` — ${it.dosagem}` : ""}{it.posologia ? ` — ${it.posologia}` : ""}
                   </div>
                 ))}
                 {r.obs && <div style={{ fontSize: ".78rem", color: "var(--text-3)", marginTop: ".4rem" }}>{r.obs}</div>}
@@ -1512,6 +1382,9 @@ function WorkspacePrescricao({ patient, user, token, encounter, onGetEncounter }
             </div>
           ))}
         </div>
+      )}
+      {prescricoes !== null && prescricoes.length === 0 && (
+        <p style={{ fontSize: "var(--fs-sm)", color: "var(--text-3)" }}>Nenhuma receita emitida para este paciente.</p>
       )}
     </div>
   );
@@ -1767,7 +1640,7 @@ function DentalWorkspacePanel({ patient, user, token, onClose, queueEntry, onReg
         {activeTab === "procedimentos" && canWrite && <WorkspaceProcedimentos patient={patient} user={user} token={token} onSaved={onSaved} prefill={procPrefill} onGetEncounter={getOrCreateEncounter} />}
         {activeTab === "evolucao" && canWrite && <WorkspaceEvolucao patient={patient} user={user} token={token} onSaved={onSaved} history={history} encounter={encounter} onGetEncounter={getOrCreateEncounter} />}
         {activeTab === "plano" && canWrite && <WorkspacePlano patient={patient} user={user} token={token} onSaved={onSaved} planItems={planItems} onPlanUpdated={loadPlanItems} encounter={encounter} onGetEncounter={getOrCreateEncounter} />}
-        {activeTab === "prescricao" && canWrite && <WorkspacePrescricao patient={patient} user={user} token={token} encounter={encounter} onGetEncounter={getOrCreateEncounter} />}
+        {activeTab === "prescricao" && canWrite && <WorkspacePrescricao patient={patient} user={user} token={token} />}
         {activeTab === "documentos" && <WorkspaceDocumentos patient={patient} user={user} token={token} encounter={encounter} onSaved={onSaved} onGetEncounter={getOrCreateEncounter} />}
         {activeTab === "historico" && <WorkspaceHistorico history={history} procedures={procedures} />}
       </div>
