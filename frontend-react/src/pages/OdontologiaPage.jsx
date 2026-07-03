@@ -1769,23 +1769,6 @@ function DentalQueueView({ entries, loading, selectedId, onSelect, today }) {
   );
 }
 
-function OdontoDateNav({ date, onChange }) {
-  function shift(days) {
-    const d = new Date(date + "T12:00:00");
-    d.setDate(d.getDate() + days);
-    onChange(d.toISOString().slice(0, 10));
-  }
-  const isToday = date === new Date().toISOString().slice(0, 10);
-  const btn = { background: "none", border: "1px solid var(--border)", borderRadius: "var(--r-sm)", padding: "2px 6px", cursor: "pointer", fontSize: ".75rem", color: "var(--text-2)", lineHeight: 1.4 };
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: ".25rem" }}>
-      <button type="button" style={btn} onClick={() => shift(-1)}>‹</button>
-      <input type="date" value={date} onChange={e => onChange(e.target.value)} style={{ border: "1px solid var(--border)", borderRadius: "var(--r-sm)", padding: "2px 5px", fontSize: ".75rem", color: "var(--text)", background: "var(--surface)", cursor: "pointer" }} />
-      <button type="button" style={btn} onClick={() => shift(1)}>›</button>
-      {!isToday && <button type="button" onClick={() => onChange(new Date().toISOString().slice(0, 10))} style={{ ...btn, background: "var(--color-primary)", color: "#fff", border: "none", fontWeight: 600 }}>Hoje</button>}
-    </div>
-  );
-}
 
 // ── OdontologiaPage ───────────────────────────────────────────────────────────
 const DENTAL_ICON = (
@@ -1803,12 +1786,12 @@ export default function OdontologiaPage({ patients, user, token }) {
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [selectedQueueEntry, setSelectedQueueEntry] = useState(null);
 
-  const [queueDate, setQueueDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const todayIso = new Date().toISOString().slice(0, 10);
   const today = new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
 
   const { entries: allQueueEntries, loading: queueLoading, patchEntry } = useQueue(token, {
     enabled: canRead,
-    date: queueDate,
+    date: todayIso,
     onError: () => {}
   });
 
@@ -1911,8 +1894,8 @@ export default function OdontologiaPage({ patients, user, token }) {
             ) : (
               <>
                 <div style={{ padding: "var(--s-2) var(--s-3)", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: ".5rem" }}>
-                  <span style={{ fontSize: ".7rem", fontWeight: 600, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: ".05em" }}>Fila</span>
-                  <OdontoDateNav date={queueDate} onChange={setQueueDate} />
+                  <span style={{ fontSize: ".7rem", fontWeight: 600, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: ".05em" }}>Fila — Hoje</span>
+                  <span style={{ fontSize: ".7rem", color: "var(--text-dim)" }}>{today}</span>
                 </div>
                 <DentalQueueView
                   entries={queueEntries}

@@ -30,8 +30,9 @@ import { addAuditLog } from "../services/audit.js";
 import { sensitiveDataRateLimit } from "../middlewares/rate-limits.js";
 import { MUNICIPALITY_ID } from "../config.js";
 
-const CLINICAL_PRESCRIBER_ROLES = new Set(["doctor", "dentist"]);
-const DOCTOR_ONLY_TYPES = new Set(["prescription", "medical_attest"]);
+// Roles autorizados por tipo de registro clínico
+const PRESCRIPTION_ALLOWED_ROLES = new Set(["doctor", "dentist", "nurse_manager", "break_glass_admin"]);
+const MEDICAL_ATTEST_ALLOWED_ROLES = new Set(["doctor", "break_glass_admin"]);
 
 // F5-01: Household fields — extracted from patient payload; persisted in db.households
 const HOUSEHOLD_FIELDS = ["housingType", "waterSupply", "sewage", "garbage", "electricity", "homeVisitFreq", "familyCode"];
@@ -1149,16 +1150,27 @@ router.post("/patients/:id/records", async (req, res) => {
     return res.status(403).json({ error: "ACS só pode criar registros do tipo visita" });
   }
 
-  // Prescrições e atestados médicos são exclusivos de médico e dentista
-  if (DOCTOR_ONLY_TYPES.has(typeStr) && !CLINICAL_PRESCRIBER_ROLES.has(canonicalRole(req.user.role))) {
+  // Prescrição: médico, dentista, enfermeiro e break_glass podem prescrever
+  if (typeStr === "prescription" && !PRESCRIPTION_ALLOWED_ROLES.has(canonicalRole(req.user.role))) {
     await withDb((auditDb) => {
       ensureDbShape(auditDb);
       addAuditLog(auditDb, req.user, "record.creation_blocked", "clinical_record", id, {
         type: typeStr,
-        reason: "Tipo reservado para médico/dentista"
+        reason: "Perfil sem permissão para prescrição"
       });
     });
-    return res.status(403).json({ error: "Apenas médico pode criar prescrição ou atestado médico" });
+    return res.status(403).json({ error: "Você não tem permissão para emitir prescrição neste contexto." });
+  }
+  // Atestado médico: exclusivo de médico e break_glass
+  if (typeStr === "medical_attest" && !MEDICAL_ATTEST_ALLOWED_ROLES.has(canonicalRole(req.user.role))) {
+    await withDb((auditDb) => {
+      ensureDbShape(auditDb);
+      addAuditLog(auditDb, req.user, "record.creation_blocked", "clinical_record", id, {
+        type: typeStr,
+        reason: "Atestado médico reservado para médico"
+      });
+    });
+    return res.status(403).json({ error: "Apenas médico pode emitir atestado médico." });
   }
 
   const db = await readDb();

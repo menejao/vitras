@@ -35,6 +35,45 @@
   flex-shrink: 0;
 }
 
+/* ── Navegação de data ───────────────────────────────────── */
+.agenda-date-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-3) var(--s-6) 0;
+  flex-shrink: 0;
+}
+.agenda-date-nav__arrow {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 2px 8px;
+  cursor: pointer;
+  font-size: 1rem;
+  color: var(--text-2);
+  line-height: 1.4;
+}
+.agenda-date-nav__arrow:hover { background: var(--surface-hover); }
+.agenda-date-nav__picker {
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 3px 6px;
+  font: 600 var(--t-sm) var(--font-sans);
+  color: var(--text);
+  background: var(--surface);
+  cursor: pointer;
+}
+.agenda-date-nav__today {
+  background: var(--color-primary);
+  color: #fff;
+  border: none;
+  border-radius: var(--r-sm);
+  padding: 3px 10px;
+  font: 600 var(--t-xs) var(--font-sans);
+  cursor: pointer;
+}
+.agenda-date-nav__today:hover { opacity: .85; }
+
 /* ── Tira semanal de navegação ───────────────────────────── */
 .agenda-week-strip {
   display: flex;

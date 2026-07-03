@@ -251,6 +251,23 @@ function AgendaPage({
         }
       />
 
+      {/* Navegação de data: ‹ dia › + Hoje + date-picker */}
+      <div className="agenda-date-nav">
+        <button type="button" className="agenda-date-nav__arrow" aria-label="Dia anterior"
+          onClick={() => { const d = new Date(selectedDate + "T12:00:00"); d.setDate(d.getDate() - 1); setSelectedDate(d.toISOString().slice(0, 10)); }}>
+          ‹
+        </button>
+        <input type="date" className="agenda-date-nav__picker" value={selectedDate}
+          onChange={e => e.target.value && setSelectedDate(e.target.value)} />
+        <button type="button" className="agenda-date-nav__arrow" aria-label="Próximo dia"
+          onClick={() => { const d = new Date(selectedDate + "T12:00:00"); d.setDate(d.getDate() + 1); setSelectedDate(d.toISOString().slice(0, 10)); }}>
+          ›
+        </button>
+        {selectedDate !== todayStr && (
+          <button type="button" className="agenda-date-nav__today" onClick={() => setSelectedDate(todayStr)}>Hoje</button>
+        )}
+      </div>
+
       {/* Label de mês */}
       <div className="agenda-month-label">{monthLabel}</div>
 
