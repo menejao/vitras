@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useRef } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useQueue } from "../hooks/useQueue";
 import PageHeader from "../components/layout/PageHeader";
 import Button from "../components/ui/Button";
@@ -1774,6 +1774,12 @@ function DentalWorkspacePanel({ patient, user, token, onClose, queueEntry, onReg
 }
 
 // ── DentalQueueView ───────────────────────────────────────────────────────────
+const DEMAND_TYPE_PT = {
+  scheduled: "Agendado", spontaneous: "Espontâneo",
+  return: "Retorno", consultation: "Consulta",
+  urgency: "Urgência", encaixe: "Encaixe",
+  programado: "Programado", demanda_espontanea: "Espontâneo",
+};
 const QUEUE_STATUS_CFG = {
   aguardando_triagem: { label: "Aguardando triagem", bg: "#fef9c3", color: "#854d0e" },
   liberado:           { label: "Liberado",            bg: "#dbeafe", color: "#1d4ed8" },
@@ -1851,7 +1857,11 @@ function DentalQueueView({ entries, loading, selectedId, onSelect, today }) {
                 <div className="vacc-pat__meta" style={{ display: "flex", alignItems: "center", gap: "4px", flexWrap: "wrap" }}>
                   {entry.patientAge !== null && <span className="vacc-pat__age">{entry.patientAge}a</span>}
                   {entry.horario && <span style={{ fontSize: ".7rem", color: "var(--text-3)" }}>{entry.horario}</span>}
-                  {entry.demandType && <span style={{ fontSize: ".7rem", color: "var(--text-3)" }}>{entry.demandType}</span>}
+                  {entry.demandType && (
+                    <span style={{ fontSize: ".67rem", fontWeight: 600, padding: "1px 6px", borderRadius: "var(--r-full)", background: "#eff6ff", color: "#1d4ed8" }}>
+                      {DEMAND_TYPE_PT[entry.demandType] || entry.demandType}
+                    </span>
+                  )}
                   {prioCfg && (
                     <span style={{ fontSize: ".67rem", fontWeight: 700, padding: "1px 6px", borderRadius: "var(--r-full)", background: prioCfg.bg, color: prioCfg.color }}>
                       {prioCfg.label}
