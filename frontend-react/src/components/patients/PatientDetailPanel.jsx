@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { createRecord, createTask, verifyCurrentPassword, getHouseholds, createHousehold, patchHousehold } from "../../api";
+import { createRecord, createTask, verifyCurrentPassword, getHouseholds, createHousehold, patchHousehold, createPharmacyReceita } from "../../api";
 import { printExamRequest, printPrescription, printAttendanceAttest, printMedicalAttest } from "../../utils/printDoc";
 import { parseLocalDate } from "../../utils/dates";
 import { googleCalendarUrl } from "../../utils/dates";
@@ -826,6 +826,22 @@ function PrescriptionModal({ patient, user, token, onClose }) {
         }),
       ].join("\n");
       await createRecord(token, patient.id, { type: "prescription", date: today, time: new Date().toTimeString().slice(0, 5), title: `Prescricao: ${title}`, details, immutable: true, professionalName: user?.name || "", professionalCouncil: getCouncilLabel(user) });
+      try {
+        await createPharmacyReceita(token, {
+          patientId: patient.id,
+          prescriberId: user.id,
+          dtReceita: today,
+          validade: `${validity} dias`,
+          itens: valid.map(med => ({
+            nome: med.name === "Outros (digitar)" ? med.custom.trim() : med.name,
+            dosagem: med.dosage,
+            posologia: `${med.frequency}${med.duration ? ` por ${med.duration}` : ""}${med.route ? ` - Via: ${med.route}` : ""}`,
+            qtdPrescrita: 1,
+          })),
+          obs: null,
+          origem: "medicina",
+        });
+      } catch (_) { /* pharmacy save failure doesn't block prescription */ }
       setSavedMeds(valid);
       setStep("saved");
     } catch (error) { setErr(error?.message || "Erro ao salvar."); } finally { setBusy(false); }
@@ -876,7 +892,7 @@ function PrescriptionModal({ patient, user, token, onClose }) {
             </div>
             <p className="aclin-pw-confirm__text">Prescrições exigem confirmação de identidade. Informe sua senha para prosseguir.</p>
           </div>
-          <Input label="Sua senha" type="password" value={password} onChange={e => setPassword(e.target.value)} autoFocus onKeyDown={e => e.key === "Enter" && confirmAndSave(e)} />
+          <Input label="Sua senha" type="password" value={password} onChange={e => setPassword(e.target.value)} autoComplete="new-password" autoFocus onKeyDown={e => e.key === "Enter" && confirmAndSave(e)} />
           {err && <Alert tone="danger">{err}</Alert>}
         </div>
       </Modal>

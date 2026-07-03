@@ -346,6 +346,17 @@ export async function dispensePharmacyItem(token, payload) {
   return api("/pharmacy/dispense", { method: "POST", body: JSON.stringify(payload) }, token);
 }
 
+export async function createPharmacyReceita(token, payload) {
+  return api("/pharmacy/receitas", { method: "POST", body: JSON.stringify(payload) }, token);
+}
+
+export async function listPharmacyReceitas(token, patientId, status) {
+  const params = new URLSearchParams();
+  if (patientId) params.set("patientId", patientId);
+  if (status) params.set("status", status);
+  return api(`/pharmacy/receitas?${params.toString()}`, { method: "GET", retryCount: 2 }, token);
+}
+
 export async function listSuppliesStock(token) {
   return api("/supplies/stock", { method: "GET", retryCount: 2 }, token);
 }

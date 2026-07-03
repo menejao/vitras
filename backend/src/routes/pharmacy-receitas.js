@@ -23,11 +23,11 @@ function canWriteDispensacoes(user) {
 }
 
 // GET /pharmacy/receitas?patientId=&status=
-router.get("/pharmacy/receitas", (req, res) => {
+router.get("/pharmacy/receitas", async (req, res) => {
   const user = req.user;
   if (!canReadReceitas(user)) return res.status(403).json({ error: "Sem permissão" });
 
-  const db = readDb();
+  const db = await readDb();
   ensureDbShape(db);
 
   let items = db.prescricoes || [];
@@ -44,11 +44,11 @@ router.get("/pharmacy/receitas", (req, res) => {
 });
 
 // GET /pharmacy/receitas/:id
-router.get("/pharmacy/receitas/:id", (req, res) => {
+router.get("/pharmacy/receitas/:id", async (req, res) => {
   const user = req.user;
   if (!canReadReceitas(user)) return res.status(403).json({ error: "Sem permissão" });
 
-  const db = readDb();
+  const db = await readDb();
   ensureDbShape(db);
 
   const receita = (db.prescricoes || []).find(r => r.id === req.params.id);
@@ -58,12 +58,12 @@ router.get("/pharmacy/receitas/:id", (req, res) => {
 });
 
 // POST /pharmacy/receitas
-router.post("/pharmacy/receitas", validate(ReceitaCreateSchema), (req, res) => {
+router.post("/pharmacy/receitas", validate(ReceitaCreateSchema), async (req, res) => {
   const user = req.user;
   if (!canWriteReceitas(user)) return res.status(403).json({ error: "Sem permissão" });
 
   const body = req.body;
-  const result = withDb(db => {
+  const result = await withDb(async db => {
     ensureDbShape(db);
 
     const patient = (db.patients || []).find(p => p.id === body.patientId);
@@ -79,6 +79,7 @@ router.post("/pharmacy/receitas", validate(ReceitaCreateSchema), (req, res) => {
       validade: body.validade,
       itens: body.itens.map(it => ({ ...it, dispensado: 0 })),
       obs: body.obs || null,
+      origem: body.origem || "medicina",
       status: "ativa",
       criadaEm: new Date().toISOString(),
       criadaPor: user.id,
@@ -94,12 +95,12 @@ router.post("/pharmacy/receitas", validate(ReceitaCreateSchema), (req, res) => {
 });
 
 // POST /pharmacy/dispensacoes — patient-first dispensation against a receita
-router.post("/pharmacy/dispensacoes", validate(DispensacaoCreateSchema), (req, res) => {
+router.post("/pharmacy/dispensacoes", validate(DispensacaoCreateSchema), async (req, res) => {
   const user = req.user;
   if (!canWriteDispensacoes(user)) return res.status(403).json({ error: "Sem permissão" });
 
   const body = req.body;
-  const result = withDb(db => {
+  const result = await withDb(async db => {
     ensureDbShape(db);
 
     const receita = (db.prescricoes || []).find(r => r.id === body.receitaId);
@@ -165,11 +166,11 @@ router.post("/pharmacy/dispensacoes", validate(DispensacaoCreateSchema), (req, r
 });
 
 // GET /pharmacy/dispensacoes?patientId=&receitaId=
-router.get("/pharmacy/dispensacoes", (req, res) => {
+router.get("/pharmacy/dispensacoes", async (req, res) => {
   const user = req.user;
   if (!canReadDispensacoes(user)) return res.status(403).json({ error: "Sem permissão" });
 
-  const db = readDb();
+  const db = await readDb();
   ensureDbShape(db);
 
   let items = db.dispensacoes || [];

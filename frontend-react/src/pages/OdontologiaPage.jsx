@@ -20,6 +20,7 @@ import {
   deleteOdontoPlanItem,
 } from "../api";
 import { matchesPatientSearch } from "../utils/clinical";
+import { printPrescription } from "../utils/printDoc";
 import { fmtDate, initials } from "../utils/formatting";
 import { hasCapability } from "../utils/roles";
 
@@ -1378,6 +1379,12 @@ function WorkspacePrescricao({ patient, user, token, encounter, onGetEncounter }
         encounterId: enc?.id || encounter?.id || null,
       });
       setSaved(result.data);
+      printPrescription({
+        patient,
+        medications: itens.map(it => ({ name: it.nome, dosage: it.dosagem, instructions: it.posologia })),
+        validity: validade,
+        professional: { ...user, councilType: "CRO", councilNumber: cro || user?.cro || "", councilUf: "" },
+      });
       setItens([]); setObs(""); setMedSearch("");
     } catch (err) { setError(err.message || "Erro ao emitir receita."); }
     finally { setBusy(false); }

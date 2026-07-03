@@ -487,7 +487,7 @@ router.post("/odontologia/prescricoes", async (req, res) => {
   if (!patientId) return res.status(400).json({ error: "patientId obrigatÃ³rio" });
   if (!itens || !itens.length) return res.status(400).json({ error: "Itens obrigatÃ³rios" });
 
-  const result = withDb(db => {
+  const result = await withDb(async db => {
     ensureDbShape(db);
     if (!db.prescricoes) db.prescricoes = [];
     const patient = (db.patients || []).find(p => p.id === patientId);
