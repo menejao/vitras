@@ -547,7 +547,7 @@ const ReceitaCreateSchema = z.object({
   patientId: z.string().trim().min(1).max(100),
   patientName: z.string().trim().max(300).optional(),
   prescriberId: z.string().trim().min(1).max(100),
-  prescritorRegistro: z.string().trim().max(100).optional(),
+  prescritorRegistro: z.string().trim().max(100).nullish().transform(v => v ?? ""),
   dtReceita: z.string().trim().min(1).max(50),
   validade: z.string().trim().min(1).max(50),
   validUntil: z.string().trim().max(50).optional(),
@@ -557,8 +557,8 @@ const ReceitaCreateSchema = z.object({
     posologia: z.string().trim().min(1).max(500),
     qtdPrescrita: z.number().int().min(1).max(10000)
   })).min(1).max(20),
-  obs: optionalShortString(2000),
-  origem: z.string().trim().max(50).optional(),
+  obs: z.string().trim().max(2000).nullish().transform(v => v ?? ""),
+  origem: z.string().trim().max(50).nullish().transform(v => v ?? "medicina"),
 });
 
 const DispensacaoCreateSchema = z.object({

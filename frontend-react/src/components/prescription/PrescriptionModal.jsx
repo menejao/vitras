@@ -10,6 +10,7 @@ import Select from "../ui/Select";
 import Textarea from "../ui/Textarea";
 import { createRecord, verifyCurrentPassword, createPharmacyReceita } from "../../api";
 import { printPrescription } from "../../utils/printDoc";
+import MedicationAutocomplete from "./MedicationAutocomplete";
 
 export const MEDICATIONS_COMMON = [
   "Acido folico 5mg", "Amlodipino 5mg", "Amlodipino 10mg", "Atenolol 25mg", "Atenolol 50mg",
@@ -47,12 +48,8 @@ function normalizeCatalog(catalog) {
 const EMPTY_MED = { name: "", custom: "", dosage: "", frequency: "", duration: "", route: "", notes: "" };
 
 // origin: "medicina" | "odontologia" | "enfermagem"
-// catalogMeds: string[] | {nome, dosagem, posologia}[]
-export default function PrescriptionModal({ patient, user, token, onClose, origin = "medicina", catalogMeds }) {
+export default function PrescriptionModal({ patient, user, token, onClose, origin = "medicina" }) {
   const today = new Date().toISOString().slice(0, 10);
-  const catalog = normalizeCatalog(catalogMeds);
-  const hasOthers = catalog.some(c => c.value === "Outros (digitar)");
-  const fullCatalog = hasOthers ? catalog : [...catalog, { label: "Outros (digitar)", value: "Outros (digitar)" }];
 
   const [meds, setMeds] = useState([{ ...EMPTY_MED }]);
   const [validity, setValidity] = useState("30");
@@ -66,15 +63,16 @@ export default function PrescriptionModal({ patient, user, token, onClose, origi
   function addMed() { setMeds(s => [...s, { ...EMPTY_MED }]); }
   function removeMed(i) { setMeds(s => s.filter((_, idx) => idx !== i)); }
 
-  function updateMedName(idx, value) {
-    const catalogItem = fullCatalog.find(c => c.value === value);
+  function updateMedName(idx, medObj) {
     setMeds(s => s.map((m, i) => {
       if (i !== idx) return m;
+      if (!medObj) return { ...m, name: "", dosage: "", frequency: "", route: "" };
       return {
         ...m,
-        name: value,
-        dosage: catalogItem?.defaultDosage || "",
-        frequency: catalogItem?.defaultFrequency || "",
+        name: medObj.nome || medObj.value || "",
+        dosage: medObj.dosagemPadrao || medObj.defaultDosage || "",
+        frequency: medObj.posologia || medObj.defaultFrequency || "",
+        route: medObj.via || m.route || "",
       };
     }));
   }
@@ -83,7 +81,7 @@ export default function PrescriptionModal({ patient, user, token, onClose, origi
 
   function requestConfirm(e) {
     e.preventDefault();
-    const valid = meds.filter(med => (med.name && med.name !== "Outros (digitar)") || med.custom.trim());
+    const valid = meds.filter(med => med.name && med.name.trim());
     if (!valid.length) { setErr("Adicione ao menos um medicamento."); return; }
     if (valid.find(med => !med.dosage.trim() || !med.frequency.trim())) {
       setErr("Preencha dose e frequência para todos os medicamentos."); return;
@@ -99,8 +97,8 @@ export default function PrescriptionModal({ patient, user, token, onClose, origi
       const verify = await verifyCurrentPassword(token, password);
       if (!verify?.ok) { setErr("Senha incorreta. Tente novamente."); setBusy(false); return; }
 
-      const valid = meds.filter(med => (med.name && med.name !== "Outros (digitar)") || med.custom.trim());
-      const title = valid.map(med => med.name === "Outros (digitar)" ? med.custom.trim() : med.name).join(", ");
+      const valid = meds.filter(med => med.name && med.name.trim());
+      const title = valid.map(med => med.name.trim()).join(", ");
       const originLabel = origin === "odontologia" ? "ODONTOLOGICA" : origin === "enfermagem" ? "ENFERMAGEM" : "MEDICA";
       const details = [
         `PRESCRICAO ${originLabel} - emitida em ${new Date().toLocaleDateString("pt-BR")}`,
@@ -108,8 +106,7 @@ export default function PrescriptionModal({ patient, user, token, onClose, origi
         `Profissional: ${user?.name || ""}${getCouncilLabel(user) ? ` (${getCouncilLabel(user)})` : ""}`,
         `Paciente: ${patient.name}`, "",
         ...valid.map((med, idx) => {
-          const name = med.name === "Outros (digitar)" ? med.custom.trim() : med.name;
-          return `${idx + 1}. ${name} ${med.dosage}${med.route ? ` - Via: ${med.route}` : ""}\n   Frequencia: ${med.frequency}${med.duration ? ` por ${med.duration}` : ""}${med.notes ? `\n   Observacao: ${med.notes}` : ""}`;
+          return `${idx + 1}. ${med.name.trim()} ${med.dosage}${med.route ? ` - Via: ${med.route}` : ""}\n   Frequencia: ${med.frequency}${med.duration ? ` por ${med.duration}` : ""}${med.notes ? `\n   Observacao: ${med.notes}` : ""}`;
         }),
       ].join("\n");
 
@@ -123,17 +120,17 @@ export default function PrescriptionModal({ patient, user, token, onClose, origi
           patientId: patient.id,
           patientName: patient.name,
           prescriberId: user.id || user.username || "unknown",
-          prescritorRegistro: getCouncilLabel(user) || null,
+          prescritorRegistro: getCouncilLabel(user) || "",
           dtReceita: today,
           validade: `${validity} dias`,
           validUntil: validUntilDate.toISOString().slice(0, 10),
           itens: valid.map(med => ({
-            nome: med.name === "Outros (digitar)" ? med.custom.trim() : med.name,
+            nome: med.name.trim(),
             dosagem: med.dosage,
             posologia: `${med.frequency}${med.duration ? ` por ${med.duration}` : ""}${med.route ? ` - Via: ${med.route}` : ""}`,
             qtdPrescrita: 1,
           })),
-          obs: null,
+          obs: "",
           origem: origin,
         });
         setStep("saved");
@@ -152,7 +149,7 @@ export default function PrescriptionModal({ patient, user, token, onClose, origi
     printPrescription({
       patient,
       medications: (savedMeds || []).map(med => ({
-        name: med.name === "Outros (digitar)" ? med.custom.trim() : med.name,
+        name: med.name.trim(),
         dosage: med.dosage,
         instructions: [med.route ? `Via ${med.route}` : "", `${med.frequency}${med.duration ? ` por ${med.duration}` : ""}`, med.notes].filter(Boolean).join(" · "),
       })),
@@ -239,19 +236,20 @@ export default function PrescriptionModal({ patient, user, token, onClose, origi
           <div key={idx} className="aclin-med-item">
             <div className="aclin-med-item__header">
               <span className="aclin-exam-item__num">{idx + 1}</span>
-              <Select className="aclin-exam-select" value={med.name} onChange={e => updateMedName(idx, e.target.value)}>
-                <option value="">Selecione o medicamento…</option>
-                {fullCatalog.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}
-              </Select>
+              <MedicationAutocomplete
+                context={origin}
+                value={med.name ? { nome: med.name } : null}
+                onChange={medObj => updateMedName(idx, medObj)}
+                placeholder="Digite nome ou princípio ativo…"
+                disabled={busy}
+              />
               {meds.length > 1 && (
                 <Button type="button" className="aclin-remove-btn" onClick={() => removeMed(idx)} aria-label="Remover medicamento" variant="ghost" size="sm">
                   <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M2 2l12 12M14 2L2 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
                 </Button>
               )}
             </div>
-            {med.name === "Outros (digitar)" && (
-              <Input label="Nome do medicamento" value={med.custom} onChange={e => updateMed(idx, "custom", e.target.value)} />
-            )}
+
             <div className="aclin-med-fields">
               <Input label="Dose *" value={med.dosage} onChange={e => updateMed(idx, "dosage", e.target.value)} placeholder="Ex: 500mg" />
               <Input label="Frequência / Posologia *" value={med.frequency} onChange={e => updateMed(idx, "frequency", e.target.value)} placeholder="Ex: 1x ao dia" />

@@ -1657,6 +1657,41 @@
 }
 .aclin-exam-select { flex: 1; min-width: 0; }
 
+/* ── Medication autocomplete ─────────────────────────────────── */
+.med-autocomplete { flex: 1; min-width: 0; }
+.med-autocomplete__input { width: 100%; }
+.med-autocomplete__list {
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 0;
+  right: 0;
+  z-index: 200;
+  background: var(--surface-1, #fff);
+  border: 1px solid var(--border, #d1d5db);
+  border-radius: var(--radius-md, 8px);
+  box-shadow: 0 4px 16px rgba(0,0,0,.12);
+  max-height: 280px;
+  overflow-y: auto;
+  list-style: none;
+  margin: 0; padding: 4px 0;
+}
+.med-autocomplete__item {
+  padding: .5rem .75rem;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border-subtle, #f3f4f6);
+}
+.med-autocomplete__item:last-child { border-bottom: none; }
+.med-autocomplete__item--focused,
+.med-autocomplete__item:hover { background: var(--surface-2, #f9fafb); }
+.med-autocomplete__name { font-size: var(--fs-sm, .875rem); font-weight: 600; color: var(--text-1); }
+.med-autocomplete__meta { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; margin-top: 2px; }
+.med-autocomplete__ativo { font-size: var(--fs-xs, .75rem); color: var(--text-2); }
+.med-autocomplete__forma { font-size: var(--fs-xs, .75rem); color: var(--text-3, #9ca3af); }
+.med-autocomplete__stock { font-size: var(--fs-xs, .75rem); padding: 1px 6px; border-radius: 999px; font-weight: 500; }
+.med-autocomplete__stock--ok { background: #d1fae5; color: #065f46; }
+.med-autocomplete__stock--out { background: #fee2e2; color: #991b1b; }
+.med-autocomplete__posologia { font-size: var(--fs-xs, .75rem); color: var(--text-3, #9ca3af); margin-top: 2px; font-style: italic; }
+
 .aclin-remove-btn {
   flex-shrink: 0;
   width: 28px;
