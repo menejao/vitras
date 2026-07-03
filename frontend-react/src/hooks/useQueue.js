@@ -81,10 +81,10 @@ export function useQueue(token, options = {}) {
   }, [token, refresh]);
 
   const derived = useMemo(() => {
-    const waiting = entries.filter((item) => item.status === "waiting").length;
-    const attending = entries.filter((item) => item.status === "attending").length;
-    const pendingTriage = entries.filter((item) => item.status === "waiting" || item.status === "triage");
-    const ready = entries.filter((item) => item.status === "ready");
+    const waiting = entries.filter((item) => ["waiting", "aguardando_triagem"].includes(item.status)).length;
+    const attending = entries.filter((item) => ["attending", "em_atendimento"].includes(item.status)).length;
+    const pendingTriage = entries.filter((item) => ["waiting", "triage", "aguardando_triagem"].includes(item.status));
+    const ready = entries.filter((item) => ["ready", "liberado"].includes(item.status));
     return { waiting, attending, pendingTriage, ready };
   }, [entries]);
 

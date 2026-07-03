@@ -1,4 +1,5 @@
-import { useState, useMemo, useEffect, useCallback, useRef } from "react";
+import { useState, useMemo, useCallback, useRef } from "react";
+import { useQueue } from "../hooks/useQueue";
 import PageHeader from "../components/layout/PageHeader";
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
@@ -17,7 +18,6 @@ import {
   createOdontoPlanItem,
   patchOdontoPlanItem,
   deleteOdontoPlanItem,
-  getDentalQueueToday,
 } from "../api";
 import { matchesPatientSearch } from "../utils/clinical";
 import { fmtDate, initials } from "../utils/formatting";
@@ -1888,24 +1888,23 @@ export default function OdontologiaPage({ patients, user, token }) {
   const [page, setPage] = useState(0);
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [selectedQueueEntry, setSelectedQueueEntry] = useState(null);
-  const [queueEntries, setQueueEntries] = useState([]);
-  const [queueLoading, setQueueLoading] = useState(true);
 
+  const todayIso = new Date().toISOString().slice(0, 10);
   const today = new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
 
-  useEffect(() => {
-    setQueueLoading(true);
-    getDentalQueueToday(token)
-      .then(r => setQueueEntries(r.data || []))
-      .catch(() => setQueueEntries([]))
-      .finally(() => setQueueLoading(false));
-  }, [token]);
+  const { entries: allQueueEntries, loading: queueLoading, patchEntry } = useQueue(token, {
+    enabled: canRead,
+    onError: () => {}
+  });
 
-  function patchQueueLocal(id, patch) {
-    setQueueEntries(prev => prev.map(e => e.id === id ? { ...e, ...patch } : e));
-  }
+  const queueEntries = useMemo(() => allQueueEntries.filter(e => {
+    const sk = String(e.specialtyKey || e.specialty || "").toLowerCase();
+    const isOdonto = sk === "odontologia" || sk.includes("odonto");
+    const entryDate = String(e.arrivedAt || "").slice(0, 10);
+    return isOdonto && entryDate === todayIso;
+  }), [allQueueEntries, todayIso]);
 
-  function handleQueueSelect(entry) {
+  async function handleQueueSelect(entry) {
     const patient = patients.find(p => p.id === entry.patientId);
     if (!patient) return;
     const now = new Date().toISOString();
@@ -1914,10 +1913,7 @@ export default function OdontologiaPage({ patients, user, token }) {
     setSelectedPatient(patient);
     setSelectedQueueEntry({ ...entry, ...patch });
     setShowSearch(false);
-    patchQueueLocal(entry.id, patch);
-    import("../api").then(({ updateQueueEntry }) => {
-      updateQueueEntry(token, entry.id, patch).catch(() => {});
-    });
+    patchEntry(entry.id, patch).catch(() => {});
   }
 
   function handleClose() {
@@ -1925,17 +1921,14 @@ export default function OdontologiaPage({ patients, user, token }) {
     setSelectedQueueEntry(null);
   }
 
-  function handleRegistrarAtendimento(queueEntry, onDone) {
+  async function handleRegistrarAtendimento(queueEntry, onDone) {
     const now = new Date().toISOString();
     const patch = { status: "atendido", endedAt: now };
-    patchQueueLocal(queueEntry.id, patch);
     setSelectedQueueEntry(prev => prev ? { ...prev, ...patch } : prev);
-    import("../api").then(({ updateQueueEntry }) => {
-      updateQueueEntry(token, queueEntry.id, patch).catch(() => {});
-    });
     if (onDone) onDone();
     setSelectedPatient(null);
     setSelectedQueueEntry(null);
+    patchEntry(queueEntry.id, patch).catch(() => {});
   }
 
   const filtered = useMemo(() => {

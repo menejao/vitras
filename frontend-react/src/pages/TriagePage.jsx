@@ -67,7 +67,7 @@ function TriagePage({ patients, users, user, token }) {
     if (!selected) return;
     try {
       await patchEntry(selected.id, {
-        status: "waiting",
+        status: "aguardando_triagem",
         triageStart: "",
       });
       setSelected(null);
@@ -82,7 +82,7 @@ function TriagePage({ patients, users, user, token }) {
     setSaving(true);
     try {
       await patchEntry(selected.id, {
-        status: "ready",
+        status: "liberado",
         triageDone: new Date().toISOString(),
         vitals: {
           ...vitals,
