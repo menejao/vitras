@@ -503,3 +503,145 @@
   gap: var(--s-2);
 }
 .exam-exec-modal__row > * { flex: 1; }
+
+/* ── Exam Document ──────────────────────────────────────────────────────────── */
+.exam-doc {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  padding: var(--s-2);
+  font-size: var(--t-sm);
+  color: var(--text);
+}
+
+.exam-doc__header {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: var(--s-3);
+}
+
+.exam-doc__title {
+  font-size: var(--t-lg);
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: var(--s-1);
+}
+
+.exam-doc__patient {
+  color: var(--text-muted);
+  font-size: var(--t-sm);
+}
+
+.exam-doc__fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.exam-doc__row {
+  display: flex;
+  gap: var(--s-3);
+  align-items: baseline;
+}
+
+.exam-doc__label {
+  font-size: var(--t-xs);
+  color: var(--text-muted);
+  min-width: 160px;
+  flex-shrink: 0;
+}
+
+.exam-doc__value {
+  font-size: var(--t-sm);
+  color: var(--text);
+}
+
+.exam-doc__result {
+  border-top: 1px solid var(--border);
+  padding-top: var(--s-3);
+}
+
+.exam-doc__result-label {
+  font-size: var(--t-xs);
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: var(--s-2);
+}
+
+.exam-doc__result-text {
+  white-space: pre-wrap;
+  font-family: var(--font-mono, monospace);
+  font-size: var(--t-sm);
+  color: var(--text);
+  background: var(--surface-2);
+  border-radius: var(--r-md);
+  padding: var(--s-3);
+  margin: 0;
+}
+
+.exam-doc__attachments {
+  border-top: 1px solid var(--border);
+  padding-top: var(--s-3);
+}
+
+.exam-doc__att-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--s-1) 0;
+  font-size: var(--t-sm);
+  border-bottom: 1px solid var(--surface-3);
+}
+
+.exam-doc__att-link {
+  font-size: var(--t-xs);
+  color: var(--text-muted);
+  text-decoration: none;
+}
+
+.exam-doc__footer {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--t-xs);
+  color: var(--text-muted);
+  border-top: 1px solid var(--border);
+  padding-top: var(--s-2);
+  margin-top: var(--s-2);
+}
+
+/* Destaque para resultado aberto via deepLink */
+.exams-card--highlighted {
+  outline: 2px solid var(--color-primary, #2563eb);
+  outline-offset: 2px;
+}
+
+/* ── Print ──────────────────────────────────────────────────────────────────── */
+@media print {
+  body > *:not(.modal-overlay) {
+    display: none !important;
+  }
+  .modal-overlay {
+    position: static !important;
+    background: none !important;
+  }
+  .modal {
+    box-shadow: none !important;
+    border: none !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0 !important;
+  }
+  .modal__header,
+  .modal__footer,
+  .modal__close {
+    display: none !important;
+  }
+  .exam-doc {
+    padding: 0;
+  }
+  .exam-doc__result-text {
+    background: none;
+    border: 1px solid #ccc;
+  }
+}

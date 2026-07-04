@@ -59,14 +59,100 @@ function isExternalExam(exam) {
   return exam.source === "externo" || String(exam.details || "").includes("[EXAME EXTERNO");
 }
 
-function ExamCard({ exam, canManage, onDelete, onPreview }) {
+function ExamDocumentModal({ exam, patient, onClose }) {
+  const isExternal = isExternalExam(exam);
+  const details = exam.details?.replace(/^\[EXAME.*?\]\n?/, "") || "";
+
+  return (
+    <Modal
+      title="Resultado do Exame"
+      onClose={onClose}
+      actions={
+        <>
+          <Button type="button" variant="secondary" size="sm" onClick={onClose}>Fechar</Button>
+          <Button type="button" variant="primary" size="sm" onClick={() => window.print()}>
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style={{ marginRight: "var(--s-1)" }}>
+              <rect x="3" y="6" width="10" height="7" rx="1" stroke="currentColor" strokeWidth="1.3"/>
+              <path d="M5 6V3h6v3" stroke="currentColor" strokeWidth="1.3"/>
+              <path d="M5 10h6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+              <path d="M5 12h4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+            </svg>
+            Imprimir
+          </Button>
+        </>
+      }
+    >
+      <div className="exam-doc" id="exam-doc-print">
+        <div className="exam-doc__header">
+          <div className="exam-doc__title">{exam.title}</div>
+          {patient && <div className="exam-doc__patient">Paciente: <strong>{patient.name}</strong></div>}
+        </div>
+        <div className="exam-doc__fields">
+          <div className="exam-doc__row">
+            <span className="exam-doc__label">Data da solicitação</span>
+            <span className="exam-doc__value">{fmtDate(exam.date) || "—"}</span>
+          </div>
+          {exam.resultDate && (
+            <div className="exam-doc__row">
+              <span className="exam-doc__label">Data do resultado</span>
+              <span className="exam-doc__value">{fmtDate(exam.resultDate)}</span>
+            </div>
+          )}
+          <div className="exam-doc__row">
+            <span className="exam-doc__label">Origem</span>
+            <span className="exam-doc__value">{isExternal ? "Externo (trazido pelo paciente)" : "Unidade de saúde"}</span>
+          </div>
+          {exam.lab && (
+            <div className="exam-doc__row">
+              <span className="exam-doc__label">Laboratório / Origem</span>
+              <span className="exam-doc__value">{exam.lab}</span>
+            </div>
+          )}
+          {exam.createdByName && (
+            <div className="exam-doc__row">
+              <span className="exam-doc__label">Profissional solicitante</span>
+              <span className="exam-doc__value">{exam.createdByName}</span>
+            </div>
+          )}
+        </div>
+        {details && (
+          <div className="exam-doc__result">
+            <div className="exam-doc__result-label">Resultado / Observações</div>
+            <pre className="exam-doc__result-text">{details}</pre>
+          </div>
+        )}
+        {Array.isArray(exam.attachments) && exam.attachments.length > 0 && (
+          <div className="exam-doc__attachments">
+            <div className="exam-doc__result-label">Anexos ({exam.attachments.length})</div>
+            {exam.attachments.map(att => (
+              <div key={att.id || att.name} className="exam-doc__att-row">
+                <span>{att.name}</span>
+                <a
+                  href={att.url || (att.dataBase64 ? `data:${att.contentType};base64,${att.dataBase64}` : undefined)}
+                  download={att.name}
+                  className="exam-doc__att-link"
+                >Baixar</a>
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="exam-doc__footer">
+          <span>Documento gerado pelo VITRAS</span>
+          <span>{new Date().toLocaleDateString("pt-BR")}</span>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+function ExamCard({ exam, canManage, onDelete, onPreview, onViewResult, highlighted }) {
   const isExternal = isExternalExam(exam);
   const details = exam.details?.replace(/^\[EXAME.*?\]\n?/, "") || "";
   const hasResult = exam.status === "result_available";
   const isPendingResult = !isExternal && exam.status && exam.status !== "result_available";
 
   return (
-    <div className={`exams-card${isExternal ? " exams-card--externo" : ""}${hasResult ? " exams-card--result" : ""}`}>
+    <div className={`exams-card${isExternal ? " exams-card--externo" : ""}${hasResult ? " exams-card--result" : ""}${highlighted ? " exams-card--highlighted" : ""}`}>
       <div className="exams-card__head">
         <div style={{ flex: 1, minWidth: 0 }}>
           <div className="exams-card__title">{exam.title}</div>
@@ -86,6 +172,11 @@ function ExamCard({ exam, canManage, onDelete, onPreview }) {
             <span className="exams-card__badge">
               {exam.attachments.length} anexo{exam.attachments.length > 1 ? "s" : ""}
             </span>
+          )}
+          {onViewResult && (
+            <Button className="icon-btn" title="Ver resultado" onClick={() => onViewResult(exam)} type="button" variant="ghost" size="sm">
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M1.5 8s2.5-5 6.5-5 6.5 5 6.5 5-2.5 5-6.5 5-6.5-5-6.5-5z" stroke="currentColor" strokeWidth="1.3"/><circle cx="8" cy="8" r="2" stroke="currentColor" strokeWidth="1.3"/></svg>
+            </Button>
           )}
           {canManage && (
             <Button className="icon-btn" title="Excluir" onClick={() => onDelete(exam)} type="button" variant="ghost" size="sm">
@@ -292,7 +383,7 @@ function RequestCard({ req, canExecute, onExecute }) {
 
 // ─── ExamsPage ────────────────────────────────────────────────────────────────
 
-function ExamsPage({ patients, user, token, onNavigatePatient }) {
+function ExamsPage({ patients, user, token, onNavigatePatient, deepLink, onClearDeepLink }) {
   const [tab, setTab] = useState("exames_do_dia");
 
   // ── Exames tab state ──
@@ -306,6 +397,8 @@ function ExamsPage({ patients, user, token, onNavigatePatient }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [preview, setPreview] = useState(null);
+  const [docTarget, setDocTarget] = useState(null);
+  const [openResultId, setOpenResultId] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteReason, setDeleteReason] = useState("");
   const [deleteBusy, setDeleteBusy] = useState(false);
@@ -355,6 +448,20 @@ function ExamsPage({ patients, user, token, onNavigatePatient }) {
       loadRequests();
     }
   }, [tab, loadRequests]);
+
+  useEffect(() => {
+    if (!deepLink) return;
+    if (deepLink.tab === "resultados") {
+      setTab("resultados");
+      if (deepLink.patientId) {
+        setSelectedId(deepLink.patientId);
+        loadExams(deepLink.patientId).then(() => {
+          if (deepLink.resultId) setOpenResultId(deepLink.resultId);
+        });
+      }
+    }
+    if (onClearDeepLink) onClearDeepLink();
+  }, [deepLink]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function loadExams(patientId) {
     if (!patientId) {
@@ -583,7 +690,7 @@ function ExamsPage({ patients, user, token, onNavigatePatient }) {
                     ? <p className="exams-section-empty">Carregando...</p>
                     : !posto.length
                       ? <p className="exams-section-empty">Nenhum exame registrado.</p>
-                      : posto.map((exam) => <ExamCard key={exam.id} exam={exam} canManage={canManage} onDelete={setDeleteTarget} onPreview={setPreview} />)}
+                      : posto.map((exam) => <ExamCard key={exam.id} exam={exam} canManage={canManage} onDelete={setDeleteTarget} onPreview={setPreview} onViewResult={setDocTarget} highlighted={openResultId === exam.id} />)}
                 </div>
 
                 <div className="exams-section exams-section--externo">
@@ -593,7 +700,7 @@ function ExamsPage({ patients, user, token, onNavigatePatient }) {
                   </div>
                   {!externo.length
                     ? <p className="exams-section-empty">Nenhum exame externo registrado.</p>
-                    : externo.map((exam) => <ExamCard key={exam.id} exam={exam} canManage={canManage} onDelete={setDeleteTarget} onPreview={setPreview} />)}
+                    : externo.map((exam) => <ExamCard key={exam.id} exam={exam} canManage={canManage} onDelete={setDeleteTarget} onPreview={setPreview} onViewResult={setDocTarget} highlighted={openResultId === exam.id} />)}
                 </div>
               </>
             )}
@@ -718,6 +825,14 @@ function ExamsPage({ patients, user, token, onNavigatePatient }) {
               : <iframe className="exams-preview__frame" src={preview.url} title={preview.name} />}
           </div>
         </Modal>
+      )}
+
+      {docTarget && (
+        <ExamDocumentModal
+          exam={docTarget}
+          patient={selectedPatient}
+          onClose={() => setDocTarget(null)}
+        />
       )}
 
       {execTarget && (

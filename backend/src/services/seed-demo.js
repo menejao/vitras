@@ -740,37 +740,6 @@ export async function seedDemoTeamRosa() {
       }
     }
 
-    // ── Notifications (lab result events) ────────────────────────────────
-    if (!hasId(db.notifications, "seed-notif-lab-g14")) {
-      db.notifications.push({
-        id: "seed-notif-lab-g14",
-        type: "info",
-        title: "Resultado disponível: Hemograma Completo",
-        detail: "Saiu o resultado do exame Hemograma Completo do paciente Marcelo Costa Barbosa.",
-        patientId: "seed-p-g14",
-        teamId: TEAM_ID,
-        examId: "seed-exam-g14-result",
-        createdAt: tsAgo(115),
-        read: false,
-      });
-    }
-
-    // ── Lab integration records (idempotency control) ────────────────────
-    if (!hasId(db.labIntegrations, "seed-labint-g14-001")) {
-      db.labIntegrations.push({
-        id: "seed-labint-g14-001",
-        requestId: "seed-req-g14-001",
-        idempotencyKey: "SEED-LAB-G14-001",
-        examId: "seed-exam-g14-result",
-        patientId: "seed-p-g14",
-        teamId: TEAM_ID,
-        examTitle: "Hemograma Completo",
-        status: "result_received",
-        lab: "Laboratório Municipal",
-        createdAt: tsAgo(115),
-      });
-    }
-
     // ── Pharmacy stock ────────────────────────────────────────────────────
     if (!db.pharmacyStock.some((i) => i.teamId === TEAM_ID)) {
       for (const item of PHARMACY_ITEMS) {
