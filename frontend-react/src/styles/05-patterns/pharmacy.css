@@ -1198,6 +1198,12 @@
 }
 
 /* ── Prescricoes tab layout ─────────────────────────────────── */
+.pharma-rx-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
 .pharma-rx-layout {
   display: grid;
   grid-template-columns: 1fr 340px;

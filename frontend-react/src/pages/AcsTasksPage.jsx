@@ -1834,7 +1834,7 @@ function CadastroDomiciliarSection({ token, user, patients }) {
     if (!patient) return;
     setLoading(true);
     try {
-      const res = await fetch(`/api/households?patientId=${patient.id}`, {
+      const res = await fetch(`${API_URL}/households?patientId=${patient.id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const body = await res.json().catch(() => ([]));
@@ -1931,7 +1931,7 @@ function CadastroDomiciliarSection({ token, user, patients }) {
     setSaving(true); setSaveError(""); setSaveOk(false);
     try {
       const payload = { ...buildPayload(), patientId: selectedPatient.id };
-      const res = await fetch("/api/households", {
+      const res = await fetch(`${API_URL}/households`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(payload),
@@ -1955,7 +1955,7 @@ function CadastroDomiciliarSection({ token, user, patients }) {
     setSaving(true); setSaveError(""); setSaveOk(false);
     try {
       const payload = buildPayload();
-      const res = await fetch(`/api/households/${selectedHh.id}`, {
+      const res = await fetch(`${API_URL}/households/${selectedHh.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(payload),
@@ -2729,7 +2729,7 @@ function CadastroIndividualSection({ token, user, patients }) {
       ...(form.triaConsomiuApenasAlgunsDosAlimentos !== null ? { triaConsomiuApenasAlgunsDosAlimentos: form.triaConsomiuApenasAlgunsDosAlimentos } : {}),
     };
     try {
-      const res = await fetch(`/api/patients/${selectedPatient.id}/cadastro-individual`, {
+      const res = await fetch(`${API_URL}/patients/${selectedPatient.id}/cadastro-individual`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ ...payload, updatedAt: selectedPatient.updatedAt }),

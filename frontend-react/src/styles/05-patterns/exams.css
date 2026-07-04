@@ -371,6 +371,7 @@
 .req-queue__filters {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: var(--s-2);
   margin-bottom: var(--s-4);
 }

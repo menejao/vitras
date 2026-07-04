@@ -27,12 +27,22 @@
 
 /* ── Label de mês ────────────────────────────────────────── */
 .agenda-month-label {
-  padding: var(--s-2) var(--s-6) 0;
+  padding: 2px 4px;
   font: 600 var(--t-xs) var(--font-sans);
   color: var(--text-muted);
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  flex-shrink: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  border-radius: var(--r-sm);
+}
+.agenda-month-label:hover { background: var(--surface-hover); }
+
+.agenda-date-nav__month-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
 }
 
 /* ── Navegação de data ───────────────────────────────────── */
@@ -151,22 +161,32 @@
 /* ── Toolbar contextual da agenda ────────────────────────── */
 .agenda-toolbar {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--s-4);
+  flex-direction: column;
+  gap: var(--s-2);
   padding: var(--s-3) var(--s-6);
   border-top: 1px solid var(--border-subtle);
   border-bottom: 1px solid var(--border-subtle);
   flex-shrink: 0;
 }
 
-.agenda-toolbar__filters {
+.agenda-toolbar__search-row {
   display: flex;
   align-items: center;
   gap: var(--s-3);
 }
 
-.agenda-toolbar__filters .field {
+.agenda-toolbar__search-row .field {
+  flex: 1;
+  margin: 0;
+}
+
+.agenda-toolbar__filter-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.agenda-toolbar__filter-row .field {
   min-width: 180px;
   max-width: 240px;
   margin: 0;
@@ -546,7 +566,6 @@
   .agenda-week-strip {
     padding: var(--s-2) var(--s-4);
   }
-  .agenda-month-label,
   .agenda-toolbar,
   .agenda-timeline,
   .agenda-page > .page-header,
@@ -557,19 +576,10 @@
   .modal--agenda {
     max-width: 100%;
   }
-  .agenda-toolbar {
-    flex-direction: column;
-    align-items: stretch;
-    gap: var(--s-2);
-  }
-  .agenda-toolbar__filters {
-    flex-direction: column;
-  }
-  .agenda-toolbar__filters .field {
+  .agenda-toolbar__filter-row .field {
     min-width: 0;
     max-width: none;
   }
-  .agenda-toolbar__count { align-self: flex-end; }
 }
 
 

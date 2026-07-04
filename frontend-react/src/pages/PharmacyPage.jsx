@@ -916,11 +916,15 @@ function PharmacyPage({
     setExtError("");
     setExtSuccess("");
     const fe = {};
+    if (!extPaciente.nome.trim()) fe.pacienteNome = "Nome do paciente é obrigatório.";
+    if (!extPaciente.cpf.trim()) fe.pacienteCpf = "CPF é obrigatório.";
+    if (!extPaciente.telefone.trim()) fe.pacienteTelefone = "Telefone é obrigatório.";
     if (!extPrescritor.nome.trim()) fe.prescritorNome = "Nome do prescritor é obrigatório.";
     if (!extPrescritor.numero.trim()) fe.prescritorNumero = "Número do registro é obrigatório.";
     if (!extPrescritor.uf.trim()) fe.prescritorUf = "UF é obrigatória.";
     if (!extReceita.numero.trim()) fe.receitaNumero = "Número da receita é obrigatório.";
     if (!extReceita.dtEmissao) fe.receitaDt = "Data da receita é obrigatória.";
+    if (!extReceita.validade) fe.receitaValidade = "Validade é obrigatória.";
     const validItems = extItems.filter(it => it.stockItem);
     if (validItems.length === 0) fe.items = "Adicione ao menos um medicamento.";
     for (const it of validItems) {
@@ -1177,31 +1181,33 @@ function PharmacyPage({
           </>
         )}
         {pharmaTab === "prescricoes" && (
-          <div className="pharma-rx-layout">
-            {/* Column 1: Patient search + patient card + receitas */}
-            <div className="pharma-rx-left">
-              {/* 1. Buscar paciente */}
-              <div className="card" style={{ padding: "var(--s-5)" }}>
-                <div style={{ fontWeight: 700, fontSize: "var(--t-sm)", marginBottom: 10, color: "var(--navy)" }}>Buscar paciente</div>
-                <PatientSearchAutocomplete
-                  patients={patients}
-                  onSelect={p => {
-                    setDispError("");
-                    setDispSuccess("");
-                    setDispPatient(p);
-                    setDispModalReceita(null);
-                    loadReceitasForPatient(p.id);
-                  }}
-                />
-                {dispPatient && (
-                  <button type="button" onClick={() => { setDispPatient(null); setDispReceitas([]); setDispModalReceita(null); setDispError(""); setDispSuccess(""); }}
-                    style={{ marginTop: 8, background: "none", border: "none", cursor: "pointer", fontSize: "var(--t-xs)", color: "var(--text-2)", textDecoration: "underline" }}>
-                    Limpar seleção
-                  </button>
-                )}
-              </div>
+          <div className="pharma-rx-wrap">
+            {/* Buscar paciente — full width */}
+            <div className="card" style={{ padding: "var(--s-5)" }}>
+              <div style={{ fontWeight: 700, fontSize: "var(--t-sm)", marginBottom: 10, color: "var(--navy)" }}>Buscar paciente</div>
+              <PatientSearchAutocomplete
+                patients={patients}
+                onSelect={p => {
+                  setDispError("");
+                  setDispSuccess("");
+                  setDispPatient(p);
+                  setDispModalReceita(null);
+                  loadReceitasForPatient(p.id);
+                }}
+              />
+              {dispPatient && (
+                <button type="button" onClick={() => { setDispPatient(null); setDispReceitas([]); setDispModalReceita(null); setDispError(""); setDispSuccess(""); }}
+                  style={{ marginTop: 8, background: "none", border: "none", cursor: "pointer", fontSize: "var(--t-xs)", color: "var(--text-2)", textDecoration: "underline" }}>
+                  Limpar seleção
+                </button>
+              )}
+            </div>
 
-              {/* 2. Patient card */}
+            <div className="pharma-rx-layout">
+            {/* Column 1: Patient card + receitas */}
+            <div className="pharma-rx-left">
+
+              {/* Patient card */}
               {dispPatient && (
                 <div className="pharma-patient-card card">
                   <div className="pharma-patient-card__avatar">
@@ -1281,6 +1287,7 @@ function PharmacyPage({
             </div>
 
           </div>
+          </div>
         )}
 
         {pharmaTab === "dispensacao_externa" && canWrite && (
@@ -1295,16 +1302,19 @@ function PharmacyPage({
                 <div style={{ fontWeight: 700, fontSize: "var(--t-sm)", marginBottom: 14, color: "var(--navy)" }}>1. Paciente</div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
                   <div style={{ gridColumn: "1 / -1" }}>
-                    <label className="field-label">Nome</label>
+                    <label className="field-label">Nome *</label>
                     <Input value={extPaciente.nome} onChange={e => setExtPaciente(p => ({ ...p, nome: e.target.value }))} placeholder="Nome completo do paciente" />
+                    {extFieldErrors.pacienteNome && <div style={{ color: "var(--danger, #dc2626)", fontSize: "var(--t-xs)", marginTop: 4 }}>{extFieldErrors.pacienteNome}</div>}
                   </div>
                   <div>
-                    <label className="field-label">CPF</label>
+                    <label className="field-label">CPF *</label>
                     <Input value={extPaciente.cpf} onChange={e => setExtPaciente(p => ({ ...p, cpf: e.target.value }))} placeholder="000.000.000-00" />
+                    {extFieldErrors.pacienteCpf && <div style={{ color: "var(--danger, #dc2626)", fontSize: "var(--t-xs)", marginTop: 4 }}>{extFieldErrors.pacienteCpf}</div>}
                   </div>
                   <div>
-                    <label className="field-label">Telefone</label>
+                    <label className="field-label">Telefone *</label>
                     <Input value={extPaciente.telefone} onChange={e => setExtPaciente(p => ({ ...p, telefone: e.target.value }))} placeholder="(00) 00000-0000" />
+                    {extFieldErrors.pacienteTelefone && <div style={{ color: "var(--danger, #dc2626)", fontSize: "var(--t-xs)", marginTop: 4 }}>{extFieldErrors.pacienteTelefone}</div>}
                   </div>
                 </div>
               </div>
@@ -1324,8 +1334,9 @@ function PharmacyPage({
                     {extFieldErrors.receitaDt && <div style={{ color: "var(--danger, #dc2626)", fontSize: "var(--t-xs)", marginTop: 4 }}>{extFieldErrors.receitaDt}</div>}
                   </div>
                   <div>
-                    <label className="field-label">Validade</label>
+                    <label className="field-label">Validade *</label>
                     <Input type="date" value={extReceita.validade} onChange={e => setExtReceita(r => ({ ...r, validade: e.target.value }))} />
+                    {extFieldErrors.receitaValidade && <div style={{ color: "var(--danger, #dc2626)", fontSize: "var(--t-xs)", marginTop: 4 }}>{extFieldErrors.receitaValidade}</div>}
                   </div>
                 </div>
               </div>

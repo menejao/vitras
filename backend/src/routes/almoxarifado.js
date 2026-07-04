@@ -17,11 +17,11 @@ function canWriteAlmox(user) {
 }
 
 // GET /almoxarifado/requisicoes
-router.get("/almoxarifado/requisicoes", (req, res) => {
+router.get("/almoxarifado/requisicoes", async (req, res) => {
   const user = req.user;
   if (!canReadAlmox(user)) return res.status(403).json({ error: "Sem permissão" });
 
-  const db = readDb();
+  const db = await readDb();
   ensureDbShape(db);
 
   const teamId = user.teamId || "";

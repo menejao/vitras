@@ -39,26 +39,8 @@ const IconWarning = () => (
 
 function todayIso() { return new Date().toISOString().slice(0, 10); }
 
-function DateNav({ date, onChange }) {
-  function shift(days) {
-    const d = new Date(date + "T12:00:00");
-    d.setDate(d.getDate() + days);
-    onChange(d.toISOString().slice(0, 10));
-  }
-  const isToday = date === todayIso();
-  const label = new Date(date + "T12:00:00").toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" });
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: ".25rem" }}>
-      <button type="button" onClick={() => shift(-1)} style={{ background: "none", border: "1px solid var(--border)", borderRadius: "var(--r-sm)", padding: "3px 7px", cursor: "pointer", fontSize: ".8rem", color: "var(--text-2)" }}>‹</button>
-      <input type="date" value={date} onChange={e => onChange(e.target.value)} style={{ border: "1px solid var(--border)", borderRadius: "var(--r-sm)", padding: "3px 6px", fontSize: ".8rem", color: "var(--text)", background: "var(--surface)", cursor: "pointer" }} />
-      <button type="button" onClick={() => shift(1)} style={{ background: "none", border: "1px solid var(--border)", borderRadius: "var(--r-sm)", padding: "3px 7px", cursor: "pointer", fontSize: ".8rem", color: "var(--text-2)" }}>›</button>
-      {!isToday && <button type="button" onClick={() => onChange(todayIso())} style={{ background: "var(--color-primary)", color: "#fff", border: "none", borderRadius: "var(--r-sm)", padding: "3px 8px", cursor: "pointer", fontSize: ".75rem", fontWeight: 600 }}>Hoje</button>}
-    </div>
-  );
-}
-
 function QueuePage({ patients, users, user, token, agenda = [], onNewPatient }) {
-  const [queueDate, setQueueDate] = useState(todayIso());
+  const queueDate = todayIso();
 
   const {
     entries: queue,
@@ -260,7 +242,9 @@ function QueuePage({ patients, users, user, token, agenda = [], onNewPatient }) 
       </KpiGrid>
 
       <PageToolbar>
-        <DateNav date={queueDate} onChange={setQueueDate} />
+        <span style={{ fontSize: ".85rem", color: "var(--text-2)", whiteSpace: "nowrap" }}>
+          {new Date(queueDate + "T12:00:00").toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" })}
+        </span>
         <Select value={specialtyFilter} onChange={e => setSpecialtyFilter(e.target.value)} style={{ minWidth: 180 }}>
           <option value="">Todas as especialidades</option>
           {SPECIALTY_MAP.map(s => (

@@ -293,22 +293,26 @@ function AgendaPage({
       />
 
       <div className="agenda-date-nav">
-        <button type="button" className="agenda-date-nav__arrow" aria-label="Dia anterior"
-          onClick={() => { const d = new Date(selectedDate + "T12:00:00"); d.setDate(d.getDate() - 1); setSelectedDate(d.toISOString().slice(0, 10)); }}>
+        <button type="button" className="agenda-date-nav__arrow" aria-label="Mês anterior"
+          onClick={() => { const d = new Date(selectedDate + "T12:00:00"); d.setMonth(d.getMonth() - 1); setSelectedDate(d.toISOString().slice(0, 10)); }}>
           ‹
         </button>
-        <input type="date" className="agenda-date-nav__picker" value={selectedDate}
-          onChange={e => e.target.value && setSelectedDate(e.target.value)} />
-        <button type="button" className="agenda-date-nav__arrow" aria-label="Próximo dia"
-          onClick={() => { const d = new Date(selectedDate + "T12:00:00"); d.setDate(d.getDate() + 1); setSelectedDate(d.toISOString().slice(0, 10)); }}>
+        <div className="agenda-date-nav__month-wrap">
+          <button type="button" className="agenda-month-label" onClick={() => document.getElementById("agenda-date-picker").showPicker?.()}>
+            {monthLabel}
+          </button>
+          <input id="agenda-date-picker" type="date" value={selectedDate}
+            onChange={e => e.target.value && setSelectedDate(e.target.value)}
+            style={{ position: "absolute", opacity: 0, pointerEvents: "none", width: 0, height: 0 }} />
+        </div>
+        <button type="button" className="agenda-date-nav__arrow" aria-label="Próximo mês"
+          onClick={() => { const d = new Date(selectedDate + "T12:00:00"); d.setMonth(d.getMonth() + 1); setSelectedDate(d.toISOString().slice(0, 10)); }}>
           ›
         </button>
         {selectedDate !== todayStr && (
           <button type="button" className="agenda-date-nav__today" onClick={() => setSelectedDate(todayStr)}>Hoje</button>
         )}
       </div>
-
-      <div className="agenda-month-label">{monthLabel}</div>
 
       <div className="agenda-week-strip">
         {weekDays.map(d => {
@@ -343,21 +347,23 @@ function AgendaPage({
       </div>
 
       <div className="agenda-toolbar">
-        <div className="agenda-toolbar__filters">
+        <div className="agenda-toolbar__search-row">
           <Input
             value={apptSearch}
             onChange={e => setApptSearch(e.target.value)}
             placeholder="Buscar paciente por nome, CPF ou telefone..."
-            style={{ minWidth: 260 }}
+            style={{ flex: 1 }}
           />
+          <span className="agenda-toolbar__count">
+            {dayAppts.length} agendamento{dayAppts.length !== 1 ? "s" : ""}
+          </span>
+        </div>
+        <div className="agenda-toolbar__filter-row">
           <Select value={filterDoc} onChange={e => setFilterDoc(e.target.value)}>
             <option value="">Todos os profissionais</option>
             {doctors.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
           </Select>
         </div>
-        <span className="agenda-toolbar__count">
-          {dayAppts.length} agendamento{dayAppts.length !== 1 ? "s" : ""}
-        </span>
       </div>
 
       <div className="agenda-timeline">
