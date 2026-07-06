@@ -261,6 +261,15 @@ function AgendaPage({
     })
     .sort((a, b) => a.time.localeCompare(b.time));
 
+  const selD = new Date(selectedDate + "T12:00:00");
+  const weekDays = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(selD);
+    d.setDate(d.getDate() - d.getDay() + i);
+    return d.toISOString().slice(0, 10);
+  });
+  const countByDay = {};
+  weekDays.forEach(d => { countByDay[d] = agenda.filter(a => a.date === d).length; });
+
   const patDropRect = (showForm && patSearch.length >= 2 && !patSelected)
     ? patWrapRef.current?.getBoundingClientRect() ?? null
     : null;
@@ -283,26 +292,49 @@ function AgendaPage({
         }
       />
 
-      <div className="agenda-date-nav">
-        <button type="button" className="agenda-date-nav__arrow" aria-label="Mês anterior"
+      <div className="agenda-week-nav">
+        <button type="button" className="agenda-week-nav__arrow" aria-label="Mês anterior"
           onClick={() => { const d = new Date(selectedDate + "T12:00:00"); d.setMonth(d.getMonth() - 1); setSelectedDate(d.toISOString().slice(0, 10)); }}>
           ‹
         </button>
-        <div className="agenda-date-nav__month-wrap">
+
+        <div className="agenda-week-strip">
+          {weekDays.map(day => {
+            const d2 = new Date(day + "T12:00:00");
+            const wLabel = d2.toLocaleDateString("pt-BR", { weekday: "short" }).replace(".", "").toUpperCase();
+            const num = d2.getDate();
+            const isToday2 = day === todayStr;
+            const isSel = day === selectedDate;
+            const isUnavail = isUnavailableDay(day);
+            const cnt = countByDay[day] ?? 0;
+            return (
+              <button key={day} type="button"
+                className={`agenda-day-btn${isSel ? " is-sel" : ""}${isToday2 && !isSel ? " is-today" : ""}${isUnavail && !isSel ? " is-unavail" : ""}`}
+                onClick={() => setSelectedDate(day)}>
+                <span className="agenda-day-btn__weekday">{wLabel}</span>
+                <span className="agenda-day-btn__num">{num}</span>
+                {cnt > 0 && <span className="agenda-day-btn__tag">{cnt}</span>}
+              </button>
+            );
+          })}
+        </div>
+
+        <button type="button" className="agenda-week-nav__arrow" aria-label="Próximo mês"
+          onClick={() => { const d = new Date(selectedDate + "T12:00:00"); d.setMonth(d.getMonth() + 1); setSelectedDate(d.toISOString().slice(0, 10)); }}>
+          ›
+        </button>
+
+        <div className="agenda-week-nav__meta">
           <button type="button" className="agenda-month-label" onClick={() => document.getElementById("agenda-date-picker").showPicker?.()}>
             {monthLabel}
           </button>
           <input id="agenda-date-picker" type="month" value={selectedDate.slice(0, 7)}
             onChange={e => e.target.value && setSelectedDate(e.target.value + "-01")}
             style={{ position: "absolute", opacity: 0, pointerEvents: "none", width: 0, height: 0 }} />
+          {selectedDate !== todayStr && (
+            <button type="button" className="agenda-date-nav__today" onClick={() => setSelectedDate(todayStr)}>Hoje</button>
+          )}
         </div>
-        <button type="button" className="agenda-date-nav__arrow" aria-label="Próximo mês"
-          onClick={() => { const d = new Date(selectedDate + "T12:00:00"); d.setMonth(d.getMonth() + 1); setSelectedDate(d.toISOString().slice(0, 10)); }}>
-          ›
-        </button>
-        {selectedDate !== todayStr && (
-          <button type="button" className="agenda-date-nav__today" onClick={() => setSelectedDate(todayStr)}>Hoje</button>
-        )}
       </div>
 
       <div className="agenda-toolbar">
