@@ -78,6 +78,104 @@ function StatusBadge({ status }) {
 
 const MENU_WIDTH = 248; // px — must match .ref-status-menu min-width in CSS
 
+// ─── Patient autocomplete ──────────────────────────────────────────────────────
+
+function normalizeSearch(value) {
+  return String(value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .trim();
+}
+
+function PatientAutocomplete({ patients, onSelect }) {
+  const [query, setQuery] = useState("");
+  const [open, setOpen]   = useState(false);
+  const wrapRef = useRef(null);
+
+  const results = useMemo(() => {
+    const q = normalizeSearch(query);
+    if (q.length < 2) return [];
+    const digits = q.replace(/\D/g, "");
+    return patients.filter(p => {
+      if (normalizeSearch(p.name).includes(q)) return true;
+      if (p.phone && normalizeSearch(p.phone).includes(q)) return true;
+      if (digits.length >= 2) {
+        if (String(p.cpf  || "").replace(/\D/g, "").includes(digits)) return true;
+        if (String(p.cns  || "").replace(/\D/g, "").includes(digits)) return true;
+        if (String(p.phone|| "").replace(/\D/g, "").includes(digits)) return true;
+      }
+      return false;
+    }).slice(0, 8);
+  }, [patients, query]);
+
+  useEffect(() => {
+    function onOut(e) { if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false); }
+    document.addEventListener("mousedown", onOut);
+    return () => document.removeEventListener("mousedown", onOut);
+  }, []);
+
+  function docLine(p) {
+    const cpf = String(p.cpf || "").replace(/\D/g, "");
+    if (cpf.length === 11) return `CPF ${cpf.slice(0,3)}.***.***-${cpf.slice(9)}`;
+    const cns = String(p.cns || "").replace(/\D/g, "");
+    if (cns.length >= 15) return `CNS ${cns.slice(0,3)} ****.***.**** **`;
+    if (p.phone) return p.phone;
+    return null;
+  }
+
+  function inits(name) {
+    return String(name || "").split(" ").slice(0, 2).map(w => w[0] || "").join("").toUpperCase();
+  }
+
+  function pick(p) {
+    setQuery(p.name);
+    setOpen(false);
+    onSelect(p);
+  }
+
+  return (
+    <div ref={wrapRef} style={{ position: "relative" }}>
+      <Input
+        value={query}
+        onChange={e => { setQuery(e.target.value); setOpen(true); }}
+        onFocus={() => query.length >= 2 && setOpen(true)}
+        placeholder="Buscar paciente por nome, CPF ou CNS..."
+        autoComplete="off"
+      />
+      {open && query.length >= 2 && (
+        <div style={{
+          position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 9999,
+          background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 10,
+          maxHeight: 300, overflowY: "auto", boxShadow: "0 8px 24px rgba(0,0,0,.12)"
+        }}>
+          {results.length === 0 ? (
+            <div style={{ padding: "12px 14px", fontSize: "var(--t-sm)", color: "var(--text-2)" }}>
+              Nenhum paciente encontrado
+            </div>
+          ) : results.map(p => {
+            const doc = docLine(p);
+            return (
+              <div key={p.id} onClick={() => pick(p)}
+                style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", cursor: "pointer", borderBottom: "1px solid var(--border)" }}
+                onMouseEnter={e => e.currentTarget.style.background = "var(--surface-2)"}
+                onMouseLeave={e => e.currentTarget.style.background = ""}>
+                <div style={{ width: 34, height: 34, borderRadius: "50%", background: "var(--teal-100, #ccfbf1)", color: "var(--teal-700, #0f766e)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: ".75rem", flexShrink: 0 }}>
+                  {inits(p.name)}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 600, fontSize: "var(--t-sm)" }}>{p.name}</div>
+                  {doc && <div style={{ fontSize: "var(--t-xs)", color: "var(--text-2)" }}>{doc}</div>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // StatusPill: botão compacto + menu absoluto com flip automático de borda
 function StatusPill({ status, onChange, disabled }) {
   const [open, setOpen]       = useState(false);
@@ -505,17 +603,13 @@ function ReferralsPage({
           <form id="referral-form" onSubmit={submit} className="field-grid field-grid--no-pad">
             {/* Paciente — apenas em criação; no edit mostra nome do paciente como leitura */}
             {!editId ? (
-              <Select
-                className="field--span-2"
-                label="Paciente *"
-                value={form.patientId}
-                onChange={(e) => setForm((s) => ({ ...s, patientId: e.target.value }))}
-              >
-                <option value="">Selecionar paciente...</option>
-                {sortedPatients.map((p) => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
-                ))}
-              </Select>
+              <div className="field field--span-2">
+                <label className="field__label">Paciente *</label>
+                <PatientAutocomplete
+                  patients={patients}
+                  onSelect={(p) => setForm((s) => ({ ...s, patientId: p.id }))}
+                />
+              </div>
             ) : (
               <div className="field--span-2">
                 <label className="field__label">Paciente</label>
