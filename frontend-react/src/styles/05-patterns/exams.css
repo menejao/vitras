@@ -375,56 +375,75 @@
   gap: var(--s-2);
   margin-bottom: var(--s-4);
 }
-.req-queue__filters select,
-.req-queue__filters input {
-  max-width: 200px;
-}
 .req-queue__list {
   display: flex;
   flex-direction: column;
   gap: var(--s-3);
 }
 
-/* ── Request card ─────────────────────────────────────────────── */
-.req-card {
-  background: var(--surface-1);
-  border: 1px solid var(--border);
-  border-radius: var(--r-lg);
-  padding: var(--s-4);
+/* ── Fila do dia: seções ──────────────────────────────────────── */
+.req-queue__section {
+  margin-bottom: var(--s-5);
+}
+.req-queue__section--done {
+  opacity: .85;
+}
+.req-queue__section-label {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font: 600 var(--t-sm) var(--font-sans);
+  color: var(--text);
+  margin-bottom: var(--s-3);
+  padding-bottom: var(--s-2);
+  border-bottom: 2px solid var(--border-subtle);
+}
+.req-queue__section-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.req-queue__section-dot--waiting { background: var(--color-primary, #2563eb); }
+.req-queue__section-dot--done    { background: var(--success, #16a34a); }
+
+/* ── Day queue card ───────────────────────────────────────────── */
+.day-queue-card {
   display: flex;
   flex-direction: column;
   gap: var(--s-2);
 }
-.req-card__head {
+.day-queue-card--done {
+  opacity: .7;
+}
+.day-queue-card__head {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: var(--s-2);
   flex-wrap: wrap;
 }
-.req-card__patient {
+.day-queue-card__patient {
   font: 600 var(--t-sm) var(--font-sans);
   color: var(--text);
 }
-.req-card__chips {
+.day-queue-card__meta {
   display: flex;
-  gap: var(--s-1);
-  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
 }
-.req-card__priority, .req-card__status, .req-card__origin {
+.day-queue-card__time {
   font: 500 var(--t-xs) var(--font-sans);
+  color: var(--text-muted);
+}
+.day-queue-card__urgent {
+  font: 600 var(--t-xs) var(--font-sans);
+  color: #dc2626;
+  background: #fef2f2;
   padding: 2px var(--s-2);
   border-radius: var(--r-sm);
 }
-.req-card__priority--urgent { background: #fef2f2; color: #dc2626; }
-.req-card__priority--priority { background: #fff7ed; color: #ea580c; }
-.req-card__priority--routine { background: var(--surface-2); color: var(--text-muted); }
-.req-card__status--pending { background: #eff6ff; color: #2563eb; }
-.req-card__status--progress { background: #fefce8; color: #ca8a04; }
-.req-card__status--done { background: #f0fdf4; color: #16a34a; }
-.req-card__status--cancelled { background: var(--surface-2); color: var(--text-muted); text-decoration: line-through; }
-.req-card__origin { background: var(--surface-2); color: var(--text-muted); }
-.req-card__exams {
+.day-queue-card__exams {
   display: flex;
   flex-wrap: wrap;
   gap: var(--s-1);
@@ -437,22 +456,7 @@
   border-radius: var(--r-sm);
   color: var(--text);
 }
-.req-card__meta {
-  font: 400 var(--t-xs) var(--font-sans);
-  color: var(--text-muted);
-}
-.req-card__justif, .req-card__result {
-  font: 400 var(--t-xs) var(--font-sans);
-  color: var(--text-muted);
-  background: var(--surface-2);
-  padding: var(--s-2);
-  border-radius: var(--r-sm);
-}
-.req-card__result {
-  color: var(--text);
-  border-left: 3px solid var(--primary);
-}
-.req-card__actions {
+.day-queue-card__action {
   display: flex;
   justify-content: flex-end;
 }

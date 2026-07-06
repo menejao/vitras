@@ -326,55 +326,27 @@ function ExamExecutionModal({ request, token, onClose, onSuccess }) {
   );
 }
 
-// ─── RequestCard ──────────────────────────────────────────────────────────────
+// ─── DayQueueCard ─────────────────────────────────────────────────────────────
 
-function priorityClass(p) {
-  if (p === "urgente") return "req-card__priority--urgent";
-  if (p === "prioritario") return "req-card__priority--priority";
-  return "req-card__priority--routine";
-}
-
-function statusClass(s) {
-  if (s === "concluido") return "req-card__status--done";
-  if (s === "cancelado") return "req-card__status--cancelled";
-  if (["resultado_disponivel", "aguardando_resultado", "coletado"].includes(s)) return "req-card__status--progress";
-  return "req-card__status--pending";
-}
-
-function RequestCard({ req, canExecute, onExecute }) {
+function DayQueueCard({ req, canExecute, onExecute }) {
+  const isDone = ["concluido", "cancelado"].includes(req.status);
   return (
-    <div className="req-card">
-      <div className="req-card__head">
-        <div className="req-card__patient">{req.patientName || req.patientId}</div>
-        <div className="req-card__chips">
-          <span className={`req-card__priority ${priorityClass(req.priority)}`}>{PRIORITY_LABELS[req.priority] || req.priority}</span>
-          <span className={`req-card__status ${statusClass(req.status)}`}>{STATUS_LABELS[req.status] || req.status}</span>
-          {req.origin && req.origin !== "medicina" && (
-            <span className="req-card__origin">{ORIGIN_LABELS[req.origin] || req.origin}</span>
-          )}
+    <div className={`day-queue-card card${isDone ? " day-queue-card--done" : ""}`}>
+      <div className="day-queue-card__head">
+        <span className="day-queue-card__patient">{req.patientName || req.patientId}</span>
+        <div className="day-queue-card__meta">
+          {req.scheduledTime && <span className="day-queue-card__time">{req.scheduledTime}</span>}
+          {req.priority === "urgente" && <span className="day-queue-card__urgent">Urgente ⚡</span>}
         </div>
       </div>
-      <div className="req-card__exams">
+      <div className="day-queue-card__exams">
         {(req.exams || []).map((ex, i) => (
           <span key={i} className="req-card__exam-tag">{ex.name}{ex.urgency === "urgente" ? " ⚡" : ""}</span>
         ))}
       </div>
-      <div className="req-card__meta">
-        Solicitado por {req.requestedByName} · {fmtDate(String(req.requestedAt || "").slice(0, 10))}
-        {req.scheduledDate && ` · Agendado: ${fmtDate(req.scheduledDate)}`}
-        {req.executedByName && ` · Executado por ${req.executedByName}`}
-      </div>
-      {req.clinicalJustification && (
-        <div className="req-card__justif">{req.clinicalJustification}</div>
-      )}
-      {req.resultNotes && (
-        <div className="req-card__result">{req.resultNotes}</div>
-      )}
-      {canExecute && !["concluido", "cancelado"].includes(req.status) && (
-        <div className="req-card__actions">
-          <Button type="button" variant="secondary" size="sm" onClick={() => onExecute(req)}>
-            Atualizar
-          </Button>
+      {canExecute && !isDone && (
+        <div className="day-queue-card__action">
+          <Button type="button" variant="secondary" size="sm" onClick={() => onExecute(req)}>Atualizar</Button>
         </div>
       )}
     </div>
@@ -408,10 +380,7 @@ function ExamsPage({ patients, user, token, onNavigatePatient, deepLink, onClear
   const [requests, setRequests] = useState([]);
   const [reqLoading, setReqLoading] = useState(false);
   const [reqError, setReqError] = useState("");
-  const [filterStatus, setFilterStatus] = useState("");
-  const [filterPriority, setFilterPriority] = useState("");
-  const [filterOrigin, setFilterOrigin] = useState("");
-  const [filterDate, setFilterDate] = useState("");
+  const [filterDate, setFilterDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [execTarget, setExecTarget] = useState(null);
 
   const canManage = canManageExams(user);
@@ -428,12 +397,7 @@ function ExamsPage({ patients, user, token, onNavigatePatient, deepLink, onClear
     setReqLoading(true);
     setReqError("");
     try {
-      const params = {};
-      if (filterStatus) params.status = filterStatus;
-      if (filterPriority) params.priority = filterPriority;
-      if (filterOrigin) params.origin = filterOrigin;
-      if (filterDate) params.date = filterDate;
-      const res = await listExamRequests(token, params);
+      const res = await listExamRequests(token, {});
       setRequests(res?.data || []);
     } catch (e) {
       setReqError(e.message || "Erro ao carregar pedidos.");
@@ -441,7 +405,7 @@ function ExamsPage({ patients, user, token, onNavigatePatient, deepLink, onClear
     } finally {
       setReqLoading(false);
     }
-  }, [token, filterStatus, filterPriority, filterOrigin, filterDate]);
+  }, [token]);
 
   useEffect(() => {
     if (tab === "exames_do_dia") {
@@ -711,59 +675,46 @@ function ExamsPage({ patients, user, token, onNavigatePatient, deepLink, onClear
       {tab === "exames_do_dia" && (
         <div className="req-queue">
           <div className="req-queue__filters">
-            <Select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
-              <option value="">Todos os status</option>
-              {Object.entries(STATUS_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-            </Select>
-            <Select value={filterPriority} onChange={e => setFilterPriority(e.target.value)}>
-              <option value="">Todas as prioridades</option>
-              {Object.entries(PRIORITY_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-            </Select>
-            <Select value={filterOrigin} onChange={e => setFilterOrigin(e.target.value)}>
-              <option value="">Todas as origens</option>
-              {Object.entries(ORIGIN_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-            </Select>
-            <Input type="date" value={filterDate} onChange={e => setFilterDate(e.target.value)} placeholder="Data" />
+            <Input type="date" value={filterDate} onChange={e => setFilterDate(e.target.value)} />
             <Button type="button" variant="secondary" size="sm" onClick={loadRequests}>Atualizar</Button>
           </div>
 
           {reqError && <Alert tone="danger">{reqError}</Alert>}
 
           {reqLoading ? (
-            <p className="exams-section-empty">Carregando pedidos...</p>
+            <p className="exams-section-empty">Carregando fila...</p>
           ) : (() => {
-            const todayStr = new Date().toISOString().slice(0, 10);
-            const todayExams = requests.filter(r =>
-              r.scheduledDate === todayStr &&
-              !["concluido", "cancelado"].includes(r.status)
-            );
-            const otherRequests = requests.filter(r =>
-              !(r.scheduledDate === todayStr && !["concluido", "cancelado"].includes(r.status))
-            );
+            const targetDate = filterDate || new Date().toISOString().slice(0, 10);
+            const dayReqs = requests.filter(r => r.scheduledDate === targetDate);
+            const waiting = dayReqs.filter(r => !["concluido", "cancelado"].includes(r.status));
+            const done    = dayReqs.filter(r =>  ["concluido", "cancelado"].includes(r.status));
+
+            if (!dayReqs.length) {
+              return <p className="exams-section-empty">Nenhum exame agendado para esta data.</p>;
+            }
 
             return (
               <>
-                {todayExams.length > 0 && !filterDate && (
-                  <div className="req-queue__today">
-                    <div className="req-queue__today-label">
-                      <span className="req-queue__today-dot" />
-                      Exames agendados para hoje ({todayExams.length})
-                    </div>
-                    {todayExams.map(req => (
-                      <RequestCard key={req.id} req={req} canExecute={canExec} onExecute={setExecTarget} />
-                    ))}
+                <div className="req-queue__section">
+                  <div className="req-queue__section-label">
+                    <span className="req-queue__section-dot req-queue__section-dot--waiting" />
+                    Aguardando atendimento ({waiting.length})
                   </div>
-                )}
+                  {waiting.length === 0
+                    ? <p className="exams-section-empty">Nenhum paciente aguardando.</p>
+                    : <div className="req-queue__list">{waiting.map(req => <DayQueueCard key={req.id} req={req} canExecute={canExec} onExecute={setExecTarget} />)}</div>
+                  }
+                </div>
 
-                {otherRequests.length === 0 && todayExams.length === 0 && (
-                  <p className="exams-section-empty">Nenhum pedido encontrado.</p>
-                )}
-
-                {otherRequests.length > 0 && (
-                  <div className="req-queue__list">
-                    {otherRequests.map(req => (
-                      <RequestCard key={req.id} req={req} canExecute={canExec} onExecute={setExecTarget} />
-                    ))}
+                {done.length > 0 && (
+                  <div className="req-queue__section req-queue__section--done">
+                    <div className="req-queue__section-label">
+                      <span className="req-queue__section-dot req-queue__section-dot--done" />
+                      Exames realizados ({done.length})
+                    </div>
+                    <div className="req-queue__list">
+                      {done.map(req => <DayQueueCard key={req.id} req={req} canExecute={canExec} onExecute={setExecTarget} />)}
+                    </div>
                   </div>
                 )}
               </>
