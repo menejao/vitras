@@ -5,8 +5,7 @@
    Markup esperado:
      <div class="agenda-page">
        <header class="page-header agenda-page__header">…</header>
-       <div class="agenda-week-strip">…</div>
-       <div class="agenda-filters">…</div>
+         <div class="agenda-toolbar">…</div>
        <div class="agenda-timeline">
          <div class="agenda-appt agenda-appt--scheduled">…</div>
        </div>
@@ -84,112 +83,25 @@
 }
 .agenda-date-nav__today:hover { opacity: .85; }
 
-/* ── Tira semanal de navegação ───────────────────────────── */
-.agenda-week-strip {
-  display: flex;
-  gap: var(--s-1);
-  padding: var(--s-3) var(--s-6);
-  overflow-x: auto;
-  flex-shrink: 0;
-}
-
-.agenda-day-btn {
-  flex: 1 0 56px;
-  min-width: 56px;
-  /* Override .btn height: 32px — column layout needs auto height */
-  height: auto;
-  min-height: 64px;
-  padding: var(--s-2) var(--s-1);
-  white-space: normal;
-  line-height: 1.2;
-  border-radius: var(--r-md);
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text);
-  cursor: pointer;
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  transition:
-    background   var(--d-fast),
-    border-color var(--d-fast),
-    color        var(--d-fast);
-}
-
-.agenda-day-btn:hover:not(.is-unavail):not(.is-sel) {
-  background: var(--surface-2);
-  border-color: var(--border-strong);
-}
-
-.agenda-day-btn.is-today {
-  color: var(--accent-text);
-}
-
-.agenda-day-btn.is-sel {
-  background: var(--accent);
-  border-color: var(--accent-hover);
-  color: var(--text-on-accent);
-}
-
-.agenda-day-btn.is-unavail:not(.is-sel) {
-  background: var(--surface-2);
-  border-color: var(--border-subtle);
-  color: var(--text-dim);
-  opacity: .75;
-}
-
-.agenda-day-btn__weekday {
-  font: 600 var(--t-xs) var(--font-sans);
-  text-transform: uppercase;
-  letter-spacing: .05em;
-  opacity: .9;
-}
-
-.agenda-day-btn__num {
-  font: 800 var(--t-xl) var(--font-sans);
-  line-height: 1.1;
-}
-
-.agenda-day-btn__tag {
-  font: 500 var(--t-xs) var(--font-sans);
-  opacity: .8;
-}
-
 /* ── Toolbar contextual da agenda ────────────────────────── */
 .agenda-toolbar {
   display: flex;
-  flex-direction: column;
-  gap: var(--s-2);
+  align-items: center;
+  gap: var(--s-3);
   padding: var(--s-3) var(--s-6);
   border-top: 1px solid var(--border-subtle);
   border-bottom: 1px solid var(--border-subtle);
   flex-shrink: 0;
 }
 
-.agenda-toolbar__search-row {
-  display: flex;
-  align-items: center;
-  gap: var(--s-3);
-}
-
-.agenda-toolbar__search-row .field {
+.agenda-toolbar .field {
   flex: 1;
   margin: 0;
 }
 
-.agenda-toolbar__filter-row {
-  display: flex;
-  align-items: center;
-  gap: var(--s-3);
-}
-
-.agenda-toolbar__filter-row .field {
+.agenda-toolbar .field + .field {
+  flex: 0 0 auto;
   min-width: 180px;
-  max-width: 240px;
-  margin: 0;
 }
 
 .agenda-toolbar__count {
@@ -563,9 +475,6 @@
   .agenda-quick-patient__grid {
     grid-template-columns: 1fr;
   }
-  .agenda-week-strip {
-    padding: var(--s-2) var(--s-4);
-  }
   .agenda-toolbar,
   .agenda-timeline,
   .agenda-page > .page-header,
@@ -573,12 +482,15 @@
     padding-left: var(--s-4);
     padding-right: var(--s-4);
   }
+  .agenda-toolbar {
+    flex-wrap: wrap;
+  }
+  .agenda-toolbar .field + .field {
+    min-width: 0;
+    flex: 1 1 140px;
+  }
   .modal--agenda {
     max-width: 100%;
-  }
-  .agenda-toolbar__filter-row .field {
-    min-width: 0;
-    max-width: none;
   }
 }
 

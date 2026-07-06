@@ -261,15 +261,6 @@ function AgendaPage({
     })
     .sort((a, b) => a.time.localeCompare(b.time));
 
-  const selD = new Date(selectedDate + "T12:00:00");
-  const weekDays = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(selD);
-    d.setDate(d.getDate() - d.getDay() + i);
-    return d.toISOString().slice(0, 10);
-  });
-  const countByDay = {};
-  weekDays.forEach(d => { countByDay[d] = agenda.filter(a => a.date === d).length; });
-
   const patDropRect = (showForm && patSearch.length >= 2 && !patSelected)
     ? patWrapRef.current?.getBoundingClientRect() ?? null
     : null;
@@ -301,8 +292,8 @@ function AgendaPage({
           <button type="button" className="agenda-month-label" onClick={() => document.getElementById("agenda-date-picker").showPicker?.()}>
             {monthLabel}
           </button>
-          <input id="agenda-date-picker" type="date" value={selectedDate}
-            onChange={e => e.target.value && setSelectedDate(e.target.value)}
+          <input id="agenda-date-picker" type="month" value={selectedDate.slice(0, 7)}
+            onChange={e => e.target.value && setSelectedDate(e.target.value + "-01")}
             style={{ position: "absolute", opacity: 0, pointerEvents: "none", width: 0, height: 0 }} />
         </div>
         <button type="button" className="agenda-date-nav__arrow" aria-label="Próximo mês"
@@ -314,56 +305,19 @@ function AgendaPage({
         )}
       </div>
 
-      <div className="agenda-week-strip">
-        {weekDays.map(d => {
-          const dt = new Date(d + "T12:00:00");
-          const isToday    = d === todayStr;
-          const isSel      = d === selectedDate;
-          const unavailable = isUnavailableDay(d);
-          return (
-            <Button
-              key={d}
-              variant="ghost"
-              className={[
-                "agenda-day-btn",
-                isSel                    ? "is-sel"     : "",
-                isToday && !isSel        ? "is-today"   : "",
-                unavailable && !isSel   ? "is-unavail" : "",
-              ].filter(Boolean).join(" ")}
-              onClick={() => setSelectedDate(d)}
-            >
-              <span className="agenda-day-btn__weekday">
-                {dt.toLocaleDateString("pt-BR", { weekday: "short" })}
-              </span>
-              <span className="agenda-day-btn__num">{dt.getDate()}</span>
-              {unavailable && !isSel ? (
-                <span className="agenda-day-btn__tag">fechado</span>
-              ) : !unavailable && countByDay[d] > 0 ? (
-                <span className="agenda-day-btn__tag">{countByDay[d]}×</span>
-              ) : null}
-            </Button>
-          );
-        })}
-      </div>
-
       <div className="agenda-toolbar">
-        <div className="agenda-toolbar__search-row">
-          <Input
-            value={apptSearch}
-            onChange={e => setApptSearch(e.target.value)}
-            placeholder="Buscar paciente por nome, CPF ou telefone..."
-            style={{ flex: 1 }}
-          />
-          <span className="agenda-toolbar__count">
-            {dayAppts.length} agendamento{dayAppts.length !== 1 ? "s" : ""}
-          </span>
-        </div>
-        <div className="agenda-toolbar__filter-row">
-          <Select value={filterDoc} onChange={e => setFilterDoc(e.target.value)}>
-            <option value="">Todos os profissionais</option>
-            {doctors.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-          </Select>
-        </div>
+        <Input
+          value={apptSearch}
+          onChange={e => setApptSearch(e.target.value)}
+          placeholder="Buscar paciente por nome, CPF ou telefone..."
+        />
+        <Select value={filterDoc} onChange={e => setFilterDoc(e.target.value)}>
+          <option value="">Todos os profissionais</option>
+          {doctors.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+        </Select>
+        <span className="agenda-toolbar__count">
+          {dayAppts.length} agendamento{dayAppts.length !== 1 ? "s" : ""}
+        </span>
       </div>
 
       <div className="agenda-timeline">
