@@ -1893,9 +1893,6 @@ export default function OdontologiaPage({ patients, user, token }) {
               </>
             ) : (
               <>
-                <div style={{ padding: "var(--s-2) var(--s-3)", borderBottom: "1px solid var(--border)" }}>
-                  <span style={{ fontSize: ".7rem", fontWeight: 600, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: ".05em" }}>Fila de hoje</span>
-                </div>
                 <DentalQueueView
                   entries={queueEntries}
                   loading={queueLoading}
