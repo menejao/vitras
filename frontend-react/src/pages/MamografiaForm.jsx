@@ -8,61 +8,48 @@ import { buildMamografiaRecord, EMPTY_MAMOGRAFIA } from "./workflow/mamografia/m
 
 const LOCAL_OPTS = [
   { value: "ubs", label: "UBS" },
-  { value: "unidade_movel", label: "Unidade Móvel" },
+  { value: "unidade_movel", label: "Unidade móvel" },
   { value: "rua", label: "Rua" },
   { value: "domicilio", label: "Domicílio" },
   { value: "escola_creche", label: "Escola/Creche" },
-  { value: "polo_academia", label: "Polo/Academia da Saúde" },
-  { value: "instituicao_abrigo", label: "Instituição/Abrigo" },
-  { value: "unidade_prisional", label: "Unidade Prisional ou congêneres" },
-  { value: "unidade_socioeducativa", label: "Unidade Socioeducativa" },
   { value: "outros", label: "Outros" },
+  { value: "polo_academia", label: "Polo (Academia da Saúde)" },
+  { value: "instituicao_abrigo", label: "Instituição/Abrigo" },
+  { value: "unidade_prisional", label: "Unidade prisional ou congêneres" },
+  { value: "unidade_socioeducativa", label: "Unidade socioeducativa" },
 ];
 
 const TIPO_OPTS = [
   { value: "agendada_programada", label: "Consulta Agendada Programada / Cuidado Continuado" },
   { value: "agendada", label: "Consulta Agendada" },
-  { value: "demanda_espontanea_dia", label: "Demanda Espontânea / Consulta no Dia" },
-  { value: "demanda_espontanea_urgencia", label: "Demanda Espontânea / Atendimento de Urgência" },
-];
-
-const CARATER_OPTS = [
-  { value: "eletivo", label: "Eletivo" },
-  { value: "urgencia", label: "Urgência/Emergência" },
-];
-
-const LINHA_OPTS = [
-  { value: "saude_mulher", label: "Saúde da Mulher" },
-  { value: "rastreamento_mama", label: "Rastreamento de Câncer de Mama" },
-  { value: "doenca_cronica", label: "Doenças Crônicas" },
-  { value: "idoso", label: "Saúde do Idoso" },
-  { value: "outra", label: "Outra" },
+  { value: "demanda_espontanea_dia", label: "Demanda Espontânea/Consulta no Dia" },
+  { value: "demanda_espontanea_urgencia", label: "Demanda Espontânea/Atendimento de Urgência" },
 ];
 
 const PELE_OPTS = [
   { value: "normal", label: "Normal" },
   { value: "espessada", label: "Espessada" },
   { value: "retraida", label: "Retraída" },
-  { value: "sem_informacao", label: "Sem informação" },
+  { value: "sem_informacao", label: "Sem Informação" },
 ];
 
 const TIPO_MAMA_OPTS = [
   { value: "densa", label: "Densa" },
   { value: "adiposa", label: "Adiposa" },
-  { value: "predominantemente_densa", label: "Predominantemente densa" },
-  { value: "predominantemente_adiposa", label: "Predominantemente adiposa" },
-  { value: "parenquima_deslocado_implante", label: "Parênquima deslocado anteriormente pelo implante" },
-  { value: "mama_reconstruida", label: "Mama reconstruída" },
-  { value: "sem_informacao", label: "Sem informação" },
+  { value: "predominantemente_densa", label: "Predominantemente Densa" },
+  { value: "predominantemente_adiposa", label: "Predominantemente Adiposa" },
+  { value: "parenquima_deslocado_implante", label: "Parênquima Deslocado Anteriormente pelo Implante" },
+  { value: "mama_reconstruida", label: "Mama Reconstruída" },
+  { value: "sem_informacao", label: "Sem Informação" },
 ];
 
 const LINFONODO_OPTS = [
   { value: "normais", label: "Normais" },
-  { value: "nao_visualizados", label: "Não visualizados" },
+  { value: "nao_visualizados", label: "Não Visibilizados" },
   { value: "aumentados", label: "Aumentados" },
   { value: "densos", label: "Densos" },
   { value: "confluentes", label: "Confluentes" },
-  { value: "dilatacao_ductal_retroareolar", label: "Dilatação ductal isolada na região retroareolar" },
+  { value: "dilatacao_ductal_retroareolar", label: "Dilatação Ductal Isolada na Região Retroaerolar" },
 ];
 
 const SIM_NAO = [
@@ -86,13 +73,13 @@ const ACHADOS_OPTS = [
 ];
 
 const BIRADS_OPTS = [
-  { value: "0", label: "BI-RADS 0 — Inconclusivo" },
-  { value: "1", label: "BI-RADS 1 — Sem achados" },
-  { value: "2", label: "BI-RADS 2 — Achados benignos" },
-  { value: "3", label: "BI-RADS 3 — Achados provavelmente benignos" },
-  { value: "4", label: "BI-RADS 4 — Achados suspeitos de malignidade" },
-  { value: "5", label: "BI-RADS 5 — Achados altamente suspeitos de malignidade" },
-  { value: "6", label: "BI-RADS 6 — Diagnóstico de câncer comprovado histologicamente" },
+  { value: "0", label: "BI-RADS 0 (Inconclusivo)" },
+  { value: "1", label: "BI-RADS 1 (Sem achados)" },
+  { value: "2", label: "BI-RADS 2 (Achados benignos)" },
+  { value: "3", label: "BI-RADS 3 (Achados provavelmente benignos)" },
+  { value: "4", label: "BI-RADS 4 (Achados suspeitos de malignidade)" },
+  { value: "5", label: "BI-RADS 5 (Achados altamente suspeitos de malignidade)" },
+  { value: "6", label: "BI-RADS 6 (Diagnóstico de câncer comprovado histologicamente-Biópsia)" },
 ];
 
 const BIRADS_COLORS = {
@@ -124,12 +111,12 @@ const PROBLEMAS_OPTS = [
   { value: "rastreamento_colo_utero", label: "Rastreamento de câncer do colo do útero" },
   { value: "rastreamento_mama", label: "Rastreamento de câncer de mama" },
   { value: "rastreamento_cardiovascular", label: "Rastreamento de risco cardiovascular" },
-  { value: "outros", label: "Outros" },
+  { value: "outros", label: "OUTROS" },
 ];
 
 const DESFECHO_OPTS = [
   { value: "retorno_agendado", label: "Retorno para consulta agendada" },
-  { value: "cuidado_continuado", label: "Retorno para cuidado continuado/programado" },
+  { value: "cuidado_continuado", label: "Retorno para cuidado continuado / programado" },
   { value: "agendamento_grupos", label: "Agendamento para grupos" },
   { value: "agendamento_emulti", label: "Agendamento para eMulti" },
   { value: "alta_episodio", label: "Alta do episódio" },
@@ -143,20 +130,13 @@ const DESFECHO_OPTS = [
 ];
 
 const CID10 = [
-  { code: "Z12.4", desc: "Exame de rastreamento — neoplasia do colo uterino" },
-  { code: "N87.0", desc: "Displasia leve do colo uterino (NIC I)" },
-  { code: "N87.1", desc: "Displasia moderada do colo uterino (NIC II)" },
-  { code: "N87.9", desc: "Displasia do colo uterino, não especificada" },
-  { code: "D06.9", desc: "Carcinoma in situ do colo uterino, parte não especificada" },
-  { code: "C53.9", desc: "Neoplasia maligna do colo uterino, parte não especificada" },
-  { code: "N72",   desc: "Doença inflamatória do colo uterino" },
-  { code: "N76.0", desc: "Vaginite aguda" },
   { code: "Z12.3", desc: "Exame de rastreamento — neoplasia da mama" },
   { code: "C50.9", desc: "Neoplasia maligna da mama, parte não especificada" },
   { code: "D05.9", desc: "Carcinoma in situ da mama, parte não especificada" },
   { code: "N60.0", desc: "Cisto solitário da mama" },
   { code: "N60.1", desc: "Mastopatia fibrocística difusa" },
   { code: "N63",   desc: "Nódulo não especificado na mama" },
+  { code: "Z12.4", desc: "Exame de rastreamento — neoplasia do colo uterino" },
   { code: "I10",   desc: "Hipertensão essencial (primária)" },
   { code: "E11.9", desc: "Diabetes mellitus tipo 2 sem complicações" },
   { code: "E66.0", desc: "Obesidade por excesso de calorias" },
@@ -176,7 +156,6 @@ export default function MamografiaForm({ patient, user, token, users, onRecordSa
     return {
       ...EMPTY_MAMOGRAFIA,
       identificacao: { ...EMPTY_MAMOGRAFIA.identificacao, dataAtendimento: today, horaAtendimento: now, profissionalId: user?.id || "" },
-      procedimentos: { ...EMPTY_MAMOGRAFIA.procedimentos, dataColeta: today, responsavelId: user?.id || "" },
     };
   }
 
@@ -269,7 +248,6 @@ export default function MamografiaForm({ patient, user, token, users, onRecordSa
     }
   }
 
-  const clinicians = (users || []).filter(u => ["nurse_manager", "nursing_tech", "doctor"].includes(u.role));
   const birads = form.classificacao.birads;
   const biradsCor = BIRADS_COLORS[birads];
   const temEncInterno = (form.conduta.desfecho || []).includes("encaminhamento_interno");
@@ -277,9 +255,9 @@ export default function MamografiaForm({ patient, user, token, users, onRecordSa
   return (
     <form className="pap-form" onSubmit={handleSubmit}>
 
-      {/* ── CABEÇALHO DO ATENDIMENTO ── */}
+      {/* ── IDENTIFICAÇÃO ── */}
       <div className="pap-section">
-        <div className="pap-section__title">Cabeçalho do Atendimento</div>
+        <div className="pap-section__title">Identificação do Atendimento</div>
         <div className="pap-row">
           <div className="pap-field">
             <FieldLabel required>Data do atendimento</FieldLabel>
@@ -290,26 +268,27 @@ export default function MamografiaForm({ patient, user, token, users, onRecordSa
             <Input type="time" value={form.identificacao.horaAtendimento} onChange={e => sec("identificacao", "horaAtendimento", e.target.value)} style={{ maxWidth: 140 }} />
           </div>
         </div>
-        <RadioGroup label="Caráter do atendimento" name="carater" value={form.identificacao.carater} onChange={(_, v) => sec("identificacao", "carater", v)} options={CARATER_OPTS} />
-        <RadioGroup label="Linha de cuidado" name="linhaCuidado" value={form.identificacao.linhaCuidado} onChange={(_, v) => sec("identificacao", "linhaCuidado", v)} options={LINHA_OPTS} />
-        <div className="pap-field">
-          <FieldLabel required>Profissional responsável</FieldLabel>
-          <select className="select" value={form.identificacao.profissionalId} onChange={e => sec("identificacao", "profissionalId", e.target.value)} style={{ maxWidth: 400 }}>
-            <option value="">Selecionar profissional...</option>
-            {clinicians.map(u => <option key={u.id} value={u.id}>{u.name || u.username}</option>)}
-          </select>
-        </div>
       </div>
 
-      {/* ── SEÇÃO 1 — IDENTIFICAÇÃO ── */}
+      {/* ── LOCAL ── */}
       <div className="pap-section">
-        <div className="pap-section__title">Seção 1 — Identificação</div>
+        <div className="pap-section__title">Local de Atendimento</div>
+        <RadioGroup label="Local" name="localAtendimento" value={form.identificacao.localAtendimento} onChange={(_, v) => sec("identificacao", "localAtendimento", v)} options={LOCAL_OPTS} />
+      </div>
+
+      {/* ── TIPO ── */}
+      <div className="pap-section">
+        <div className="pap-section__title">Tipo de Atendimento (e-SUS)</div>
+        <RadioGroup label="Tipo" name="tipoAtendimento" value={form.identificacao.tipoAtendimento} onChange={(_, v) => sec("identificacao", "tipoAtendimento", v)} options={TIPO_OPTS} />
+      </div>
+
+      {/* ── DATA COLETA ── */}
+      <div className="pap-section">
+        <div className="pap-section__title">Data da Coleta</div>
         <div className="pap-field">
-          <FieldLabel>Data da coleta (mamografia)</FieldLabel>
+          <FieldLabel required>Data da coleta (mamografia)</FieldLabel>
           <Input type="date" value={form.identificacao.dataColeta} onChange={e => sec("identificacao", "dataColeta", e.target.value)} style={{ maxWidth: 200 }} />
         </div>
-        <RadioGroup label="Local de atendimento" name="localAtendimento" value={form.identificacao.localAtendimento} onChange={(_, v) => sec("identificacao", "localAtendimento", v)} options={LOCAL_OPTS} />
-        <RadioGroup label="Tipo de atendimento (e-SUS)" name="tipoAtendimento" value={form.identificacao.tipoAtendimento} onChange={(_, v) => sec("identificacao", "tipoAtendimento", v)} options={TIPO_OPTS} />
       </div>
 
       {/* ── PELE ── */}
@@ -327,35 +306,33 @@ export default function MamografiaForm({ patient, user, token, users, onRecordSa
       {/* ── ACHADOS GERAIS ── */}
       <div className="pap-section">
         <div className="pap-section__title">Achados Gerais</div>
-        <RadioGroup label="Nódulo identificado?" name="noduloIdentificado" value={form.imagem.noduloIdentificado} onChange={(_, v) => sec("imagem", "noduloIdentificado", v)} options={SIM_NAO} />
-        <RadioGroup label="Microcalcificação identificada?" name="microcalcificacaoIdentificada" value={form.imagem.microcalcificacaoIdentificada} onChange={(_, v) => sec("imagem", "microcalcificacaoIdentificada", v)} options={SIM_NAO} />
-        <RadioGroup label="Assimetria focal identificada?" name="assimetriaFocalIdentificada" value={form.imagem.assimetriaFocalIdentificada} onChange={(_, v) => sec("imagem", "assimetriaFocalIdentificada", v)} options={SIM_NAO} />
-        <RadioGroup label="Assimetria difusa identificada?" name="assimetriaDifusaIdentificada" value={form.imagem.assimetriaDifusaIdentificada} onChange={(_, v) => sec("imagem", "assimetriaDifusaIdentificada", v)} options={SIM_NAO} />
+        <RadioGroup label="Nódulo Identificado" name="noduloIdentificado" value={form.imagem.noduloIdentificado} onChange={(_, v) => sec("imagem", "noduloIdentificado", v)} options={SIM_NAO} />
+        <RadioGroup label="Microcalcificação Identificada" name="microcalcificacaoIdentificada" value={form.imagem.microcalcificacaoIdentificada} onChange={(_, v) => sec("imagem", "microcalcificacaoIdentificada", v)} options={SIM_NAO} />
+        <RadioGroup label="Assimetria Focal Identificada" name="assimetriaFocalIdentificada" value={form.imagem.assimetriaFocalIdentificada} onChange={(_, v) => sec("imagem", "assimetriaFocalIdentificada", v)} options={SIM_NAO} />
+        <RadioGroup label="Assimetria Difusa Identificada" name="assimetriaDifusaIdentificada" value={form.imagem.assimetriaDifusaIdentificada} onChange={(_, v) => sec("imagem", "assimetriaDifusaIdentificada", v)} options={SIM_NAO} />
       </div>
 
       {/* ── LINFONODOS ── */}
       <div className="pap-section">
         <div className="pap-section__title">Linfonodos Axilares</div>
-        <RadioGroup label="Linfonodos axilares" name="linfonodosAxilares" value={form.imagem.linfonodosAxilares} onChange={(_, v) => sec("imagem", "linfonodosAxilares", v)} options={LINFONODO_OPTS} />
+        <RadioGroup label="Linfonodos Axilares" name="linfonodosAxilares" value={form.imagem.linfonodosAxilares} onChange={(_, v) => sec("imagem", "linfonodosAxilares", v)} options={LINFONODO_OPTS} />
       </div>
 
       {/* ── MAMA DIREITA ── */}
       <div className="pap-section">
         <div className="pap-section__title">Mama Direita</div>
         <CheckboxGroup label="Achados — Mama Direita" name="mamaDireita" value={form.mamas.mamaDireita} onChange={(_, v) => sec("mamas", "mamaDireita", v)} options={ACHADOS_OPTS} />
-        {(form.mamas.mamaDireita || []).length === 0 && <p className="muted small">Nenhum achado selecionado para a mama direita.</p>}
       </div>
 
       {/* ── MAMA ESQUERDA ── */}
       <div className="pap-section">
         <div className="pap-section__title">Mama Esquerda</div>
         <CheckboxGroup label="Achados — Mama Esquerda" name="mamaEsquerda" value={form.mamas.mamaEsquerda} onChange={(_, v) => sec("mamas", "mamaEsquerda", v)} options={ACHADOS_OPTS} />
-        {(form.mamas.mamaEsquerda || []).length === 0 && <p className="muted small">Nenhum achado selecionado para a mama esquerda.</p>}
       </div>
 
       {/* ── BI-RADS ── */}
       <div className="pap-section">
-        <div className="pap-section__title">Classificação Radiológica — BI-RADS</div>
+        <div className="pap-section__title">Classificação Radiológica</div>
         <div className="pap-field">
           <FieldLabel required>BI-RADS</FieldLabel>
           <div className="pap-field__opts" style={{ flexDirection: "column", gap: "var(--s-2)" }}>
@@ -373,20 +350,18 @@ export default function MamografiaForm({ patient, user, token, users, onRecordSa
         </div>
         {birads && (
           <div className="wf-risco-badge" style={{ borderLeftColor: biradsCor, color: biradsCor }}>
-            <strong>BI-RADS {birads}</strong> — {BIRADS_OPTS.find(o => o.value === birads)?.label.split(" — ")[1]}
-            {["4", "5", "6"].includes(birads) && (
-              <div style={{ marginTop: "var(--s-1)", fontWeight: 400 }}>Recomenda-se encaminhamento para avaliação especializada.</div>
-            )}
+            <strong>BI-RADS {birads}</strong>{["4", "5", "6"].includes(birads) && " — Recomenda-se encaminhamento para avaliação especializada."}
           </div>
         )}
       </div>
 
+      {/* ── USG ── */}
       <div className="pap-section">
-        <div className="pap-section__title">Ultrassonografia</div>
-        <RadioGroup label="Apresentou resultado de ultrassonografia das mamas nesta consulta?" name="ultrassonografia" value={form.classificacao.ultrassonografia} onChange={(_, v) => sec("classificacao", "ultrassonografia", v)} options={[{ value: "sim", label: "Sim" }, { value: "nao", label: "Não" }]} />
+        <div className="pap-section__title">Apresentou Resultado de Ultrassonografia de Mamas Nesta Consulta</div>
+        <RadioGroup label="Ultrassonografia" name="ultrassonografia" value={form.classificacao.ultrassonografia} onChange={(_, v) => sec("classificacao", "ultrassonografia", v)} options={SIM_NAO} />
       </div>
 
-      {/* ── PROBLEMA / CONDIÇÃO AVALIADA ── */}
+      {/* ── PROBLEMA / CONDIÇÃO ── */}
       <div className="pap-section">
         <div className="pap-section__title">Problema / Condição Avaliada</div>
         <CheckboxGroup label="Condições avaliadas" name="problemasCondicoes" value={form.classificacao.problemasCondicoes} onChange={(_, v) => sec("classificacao", "problemasCondicoes", v)} options={PROBLEMAS_OPTS} />
@@ -394,82 +369,27 @@ export default function MamografiaForm({ patient, user, token, users, onRecordSa
 
       {/* ── CONDUTA / ORIENTAÇÃO ── */}
       <div className="pap-section">
-        <div className="pap-section__title">Conduta / Orientação</div>
+        <div className="pap-section__title">Conduta/Orientação</div>
         <div className="pap-field">
-          <FieldLabel>Orientações fornecidas</FieldLabel>
-          <Textarea value={form.conduta.orientacao} onChange={e => sec("conduta", "orientacao", e.target.value)} placeholder="Descreva as orientações, recomendações e condutas adotadas..." rows={5} />
+          <Textarea value={form.conduta.orientacao} onChange={e => sec("conduta", "orientacao", e.target.value)} placeholder="Orientações, recomendações e condutas adotadas..." rows={4} />
         </div>
       </div>
 
+      {/* ── CONDUTA / DESFECHO ── */}
       <div className="pap-section">
         <div className="pap-section__title">Conduta / Desfecho</div>
-        <CheckboxGroup label="Condutas adotadas (selecione uma ou mais)" name="desfecho" value={form.conduta.desfecho} onChange={(_, v) => sec("conduta", "desfecho", v)} options={DESFECHO_OPTS} />
+        <CheckboxGroup label="Condutas adotadas" name="desfecho" value={form.conduta.desfecho} onChange={(_, v) => sec("conduta", "desfecho", v)} options={DESFECHO_OPTS} />
         {temEncInterno && (
           <div className="pap-field">
             <FieldLabel>Destino do encaminhamento interno</FieldLabel>
             <Input value={form.conduta.encaminhamentoInternoDestino} onChange={e => sec("conduta", "encaminhamentoInternoDestino", e.target.value)} placeholder="Ex: Médico de referência, Ginecologista, Mastologista..." style={{ maxWidth: 400 }} />
           </div>
         )}
-        <div className="pap-field">
-          <FieldLabel>Observações</FieldLabel>
-          <Textarea value={form.conduta.observacoes} onChange={e => sec("conduta", "observacoes", e.target.value)} placeholder="Observações adicionais sobre a conduta..." rows={2} />
-        </div>
-      </div>
-
-      {/* ── DIAGNÓSTICOS ── */}
-      <div className="pap-section">
-        <div className="pap-section__title">Problemas e Diagnósticos (CID-10)</div>
-        <div className="pap-field">
-          <FieldLabel>Buscar CID-10</FieldLabel>
-          <div style={{ position: "relative", maxWidth: 480 }}>
-            <Input value={cidQ} onChange={e => setCidQ(e.target.value)} placeholder="Ex: C50, mama, neoplasia..." />
-            {cidResults.length > 0 && (
-              <div className="ins-pat-results">
-                {cidResults.map(r => (
-                  <Button key={r.code} variant="ghost" className="ins-pat-opt" onClick={() => addCid(r)} type="button">
-                    <div className="ins-pat-opt__name"><span className="pap-code" style={{ marginRight: "var(--s-2)" }}>{r.code}</span>{r.desc}</div>
-                  </Button>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-        {(form.diagnosticos.itens || []).length > 0 && (
-          <div className="pap-field">
-            <FieldLabel>Diagnósticos selecionados</FieldLabel>
-            <div style={{ display: "flex", flexDirection: "column", gap: "var(--s-2)" }}>
-              {form.diagnosticos.itens.map(item => (
-                <div key={item.code} className={`wf-diag-item${item.code === form.diagnosticos.principalCode ? " is-principal" : ""}`}>
-                  <label style={{ flex: 1, display: "flex", alignItems: "center", gap: "var(--s-2)", cursor: "pointer" }}>
-                    <input type="radio" name="principalCodeMamo" checked={item.code === form.diagnosticos.principalCode} onChange={() => setForm(prev => ({ ...prev, diagnosticos: { ...prev.diagnosticos, principalCode: item.code } }))} />
-                    <span className="pap-code">{item.code}</span>
-                    <span>{item.desc}</span>
-                    {item.code === form.diagnosticos.principalCode && <span className="badge badge--primary" style={{ marginLeft: "auto" }}>Principal</span>}
-                  </label>
-                  <Button variant="ghost" size="sm" type="button" iconOnly style={{ color: "var(--danger)" }} onClick={() => removeCid(item.code)}>×</Button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
 
       {/* ── PROCEDIMENTOS ── */}
       <div className="pap-section">
-        <div className="pap-section__title">Procedimentos Realizados</div>
-        <div className="pap-row">
-          <div className="pap-field">
-            <FieldLabel>Data do procedimento</FieldLabel>
-            <Input type="date" value={form.procedimentos.dataColeta} onChange={e => sec("procedimentos", "dataColeta", e.target.value)} style={{ maxWidth: 200 }} />
-          </div>
-          <div className="pap-field" style={{ flex: 1 }}>
-            <FieldLabel>Profissional responsável</FieldLabel>
-            <select className="select" value={form.procedimentos.responsavelId} onChange={e => sec("procedimentos", "responsavelId", e.target.value)} style={{ maxWidth: 400 }}>
-              <option value="">Selecionar...</option>
-              {clinicians.map(u => <option key={u.id} value={u.id}>{u.name || u.username}</option>)}
-            </select>
-          </div>
-        </div>
+        <div className="pap-section__title">Novo Procedimento</div>
         <div className="pap-field">
           <FieldLabel>Buscar procedimento</FieldLabel>
           <div style={{ position: "relative", maxWidth: 480 }}>
@@ -502,20 +422,58 @@ export default function MamografiaForm({ patient, user, token, users, onRecordSa
             </div>
           </div>
         )}
+      </div>
+
+      {/* ── DIAGNÓSTICOS ── */}
+      <div className="pap-section">
+        <div className="pap-section__title">Adicionar Diagnóstico ao Atendimento</div>
         <div className="pap-field">
-          <label className={`pap-opt${form.procedimentos.siscan ? " is-active" : ""}`} style={{ display: "inline-flex" }}>
-            <input type="checkbox" checked={!!form.procedimentos.siscan} onChange={e => sec("procedimentos", "siscan", e.target.checked)} />
-            Registrado no SISCAN
-          </label>
+          <FieldLabel>Buscar CID-10</FieldLabel>
+          <div style={{ position: "relative", maxWidth: 480 }}>
+            <Input value={cidQ} onChange={e => setCidQ(e.target.value)} placeholder="Ex: C50, mama, neoplasia..." />
+            {cidResults.length > 0 && (
+              <div className="ins-pat-results">
+                {cidResults.map(r => (
+                  <Button key={r.code} variant="ghost" className="ins-pat-opt" onClick={() => addCid(r)} type="button">
+                    <div className="ins-pat-opt__name"><span className="pap-code" style={{ marginRight: "var(--s-2)" }}>{r.code}</span>{r.desc}</div>
+                  </Button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+        {(form.diagnosticos.itens || []).length > 0 && (
+          <div className="pap-field">
+            <FieldLabel>Diagnósticos</FieldLabel>
+            <div style={{ display: "flex", flexDirection: "column", gap: "var(--s-2)" }}>
+              {form.diagnosticos.itens.map(item => (
+                <div key={item.code} className={`wf-diag-item${item.code === form.diagnosticos.principalCode ? " is-principal" : ""}`}>
+                  <label style={{ flex: 1, display: "flex", alignItems: "center", gap: "var(--s-2)", cursor: "pointer" }}>
+                    <input type="radio" name="principalCodeMamo" checked={item.code === form.diagnosticos.principalCode} onChange={() => setForm(prev => ({ ...prev, diagnosticos: { ...prev.diagnosticos, principalCode: item.code } }))} />
+                    <span className="pap-code">{item.code}</span>
+                    <span>{item.desc}</span>
+                    {item.code === form.diagnosticos.principalCode && <span className="badge badge--primary" style={{ marginLeft: "auto" }}>Principal</span>}
+                  </label>
+                  <Button variant="ghost" size="sm" type="button" iconOnly style={{ color: "var(--danger)" }} onClick={() => removeCid(item.code)}>×</Button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── LINHA DE CUIDADO ── */}
+      <div className="pap-section">
+        <div className="pap-section__title">Linha de Cuidado</div>
+        <div className="pap-field">
+          <FieldLabel>Linha de Cuidado</FieldLabel>
+          <Input value={form.diagnosticos.linhaCuidado} onChange={e => sec("diagnosticos", "linhaCuidado", e.target.value)} placeholder="Ex: Rastreamento de Câncer de Mama, Saúde da Mulher..." style={{ maxWidth: 480 }} />
         </div>
       </div>
 
       {/* ── DOCUMENTOS ── */}
       <div className="pap-section">
-        <div className="pap-section__title">Documentos do Atendimento</div>
-        <div className="pap-field__hint" style={{ marginBottom: "var(--s-4)" }}>
-          Registre os documentos relacionados a este atendimento.
-        </div>
+        <div className="pap-section__title">Anexar Arquivos</div>
         <div className="pap-row" style={{ alignItems: "flex-end" }}>
           <div className="pap-field" style={{ flex: 1 }}>
             <FieldLabel>Nome / descrição do documento</FieldLabel>
@@ -531,7 +489,7 @@ export default function MamografiaForm({ patient, user, token, users, onRecordSa
         </div>
         {(form.documentos.arquivos || []).length > 0 && (
           <div className="pap-field">
-            <FieldLabel>Documentos registrados</FieldLabel>
+            <FieldLabel>Documentos</FieldLabel>
             <div style={{ display: "flex", flexDirection: "column", gap: "var(--s-2)" }}>
               {form.documentos.arquivos.map((a, i) => (
                 <div key={i} className="wf-proc-item">
@@ -543,10 +501,6 @@ export default function MamografiaForm({ patient, user, token, users, onRecordSa
             </div>
           </div>
         )}
-        <div className="pap-field">
-          <FieldLabel>Observações sobre documentos</FieldLabel>
-          <Textarea value={form.documentos.observacoes} onChange={e => sec("documentos", "observacoes", e.target.value)} placeholder="Observações sobre os documentos deste atendimento..." rows={2} />
-        </div>
       </div>
 
       {/* ── AÇÕES ── */}
