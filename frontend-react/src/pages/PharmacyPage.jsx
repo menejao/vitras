@@ -1051,7 +1051,7 @@ function PharmacyPage({
                     <th style={{ textAlign: "center" }}>Estoque</th>
                     <th style={{ textAlign: "center" }}>Minimo</th>
                     <th>Localizacao</th>
-                    {canUseWriteFlow ? <th style={{ textAlign: "center" }}>Acoes</th> : null}
+                    {canUseWriteFlow ? <th style={{ textAlign: "center" }}>Ações</th> : null}
                   </tr>
                 </thead>
                 <tbody>
@@ -1080,9 +1080,9 @@ function PharmacyPage({
                         {canUseWriteFlow ? (
                           <td style={{ textAlign: "center" }}>
                             <div style={{ display: "flex", gap: "var(--s-1)", justifyContent: "center" }}>
-                              <Button variant="ghost" size="sm" onClick={() => setEditItem({ item, mode: "entrada" })}>+ Entrada</Button>
-                              <Button variant="ghost" size="sm" onClick={() => setEditItem({ item, mode: "adjust" })}>± Ajustar</Button>
-                              <Button variant="ghost" size="sm" onClick={() => setEditItem({ item, mode: "edit" })}>Editar</Button>
+                              <Button variant="secondary" size="sm" onClick={() => setEditItem({ item, mode: "entrada" })}>+ Entrada</Button>
+                              <Button variant="secondary" size="sm" onClick={() => setEditItem({ item, mode: "adjust" })}>± Ajustar</Button>
+                              <Button variant="secondary" size="sm" onClick={() => setEditItem({ item, mode: "edit" })}>Editar</Button>
                             </div>
                           </td>
                         ) : null}
@@ -1237,12 +1237,12 @@ function PharmacyPage({
                   </div>
                   {dispReceitasLoading && <div style={{ color: "var(--text-2)", fontSize: "var(--t-sm)" }}>Carregando...</div>}
                   {!dispReceitasLoading && dispReceitas.length === 0 && (
-                    <div className="pharma-rx-empty">
-                      <div className="pharma-rx-empty__icon">
-                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none"><rect x="5" y="3" width="14" height="18" rx="2" stroke="currentColor" strokeWidth="1.3"/><path d="M8 8h8M8 12h5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
+                    <div className="empty" style={{ padding: "2rem 1rem" }}>
+                      <div className="empty__icon empty__icon--neutral">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><rect x="5" y="3" width="14" height="18" rx="2" stroke="currentColor" strokeWidth="1.3"/><path d="M8 8h8M8 12h5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
                       </div>
-                      <div className="pharma-rx-empty__title">Nenhuma receita ativa</div>
-                      <div className="pharma-rx-empty__text">Este paciente não possui prescrições pendentes de dispensação.</div>
+                      <h3 className="empty__title">Nenhuma receita ativa</h3>
+                      <p className="empty__desc">Este paciente não possui prescrições pendentes de dispensação.</p>
                     </div>
                   )}
                   {!dispReceitasLoading && dispReceitas.map(r => {

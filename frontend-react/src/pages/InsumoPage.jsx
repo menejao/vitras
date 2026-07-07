@@ -456,78 +456,82 @@ function InsumoPage({
 
         {insumoTab === "estoque" && (
           <div className="card card--noPad overflow-hidden">
-            <div className="ins-toolbar">
-              <div style={{ flex: "1 1 200px", maxWidth: 320 }}>
+            <div className="pharma-toolbar">
+              <div className="pharma-search">
                 <Input value={stockSearch} onChange={(event) => { setStockSearch(event.target.value); setStockPageIns(1); }} placeholder="Buscar insumo..." />
               </div>
-              <div style={{ flex: "0 0 auto" }}>
+              <div className="pharma-filter-cat">
                 <Select value={stockCat} onChange={(event) => { setStockCat(event.target.value); setStockPageIns(1); }}>
                   {categories.map((category) => <option key={category}>{category}</option>)}
                 </Select>
               </div>
               {canWrite && (
-                <div style={{ flex: "0 0 auto" }}>
-                  <Button size="sm" onClick={() => { setShowNewInsumo(true); setNewInsumoErr(""); }}>+ Novo insumo</Button>
-                </div>
+                <Button size="sm" onClick={() => { setShowNewInsumo(true); setNewInsumoErr(""); }}>+ Novo insumo</Button>
               )}
             </div>
 
-            <div style={{ overflowX: "auto" }}>
-              <table className="ins-table">
-                <thead>
+            <table className="patients-table" style={{ width: "100%" }}>
+              <thead>
+                <tr>
+                  <th>Insumo</th>
+                  <th>Categoria</th>
+                  <th>Unidade</th>
+                  <th style={{ textAlign: "center" }}>Qtd Máx</th>
+                  <th style={{ textAlign: "center" }}>Estoque</th>
+                  {canWrite && <th style={{ textAlign: "center", width: 110 }}>Ações</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {!loading && filteredStock.length === 0 ? (
                   <tr>
-                    {["Insumo", "Categoria", "Unidade", "Qtd Max", "Estoque atual", "Situacao", ""].map((header) => (
-                      <th key={header} className="ins-table__th">{header}</th>
-                    ))}
+                    <td colSpan={canWrite ? 6 : 5} style={{ padding: "3rem 2rem", textAlign: "center" }}>
+                      <div className="empty__icon empty__icon--neutral" style={{ margin: "0 auto 0.75rem" }}>
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/>
+                        </svg>
+                      </div>
+                      <div className="empty__title">Nenhum insumo encontrado</div>
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {pagedStockIns.map((item) => {
-                    const st = Number(item.qty || 0);
-                    const pct = Number(item.maxQty || 0) > 0 ? Math.round((st / Number(item.maxQty || 1)) * 100) : 0;
-                    const sc = sitClass(st, pct);
-                    return (
-                      <tr key={item.id}>
-                        <td className="ins-table__td ins-table__td--name">
-                          {item.name}
-                          {item.notes && <div className="ins-table__td--obs">{item.notes}</div>}
+                ) : pagedStockIns.map((item) => {
+                  const st = Number(item.qty || 0);
+                  const maxQty = Number(item.maxQty || 0);
+                  const statusCls = st === 0 ? "zero" : (maxQty > 0 && st / maxQty <= 0.2) ? "low" : "ok";
+                  return (
+                    <tr key={item.id}>
+                      <td style={{ fontWeight: 600, fontSize: "var(--t-sm)" }}>
+                        {item.name}
+                        {item.notes && <div className="muted" style={{ fontSize: "var(--t-xs)", fontWeight: 400, marginTop: 2 }}>{item.notes}</div>}
+                      </td>
+                      <td className="muted small">{item.category}</td>
+                      <td className="muted small">{item.unit}</td>
+                      <td className="muted small" style={{ textAlign: "center" }}>{item.maxQty || "—"}</td>
+                      <td style={{ textAlign: "center" }}>
+                        <span className={`pharma-stock-badge pharma-stock-badge--${statusCls}`}>
+                          {st} {item.unit}
+                        </span>
+                      </td>
+                      {canWrite && (
+                        <td style={{ textAlign: "center" }}>
+                          <Button variant="secondary" size="sm" onClick={() => { setEditStockItem(item); setEditQty(""); }}>
+                            + Entrada
+                          </Button>
                         </td>
-                        <td className="ins-table__td">{item.category}</td>
-                        <td className="ins-table__td">{item.unit}</td>
-                        <td className="ins-table__td ins-table__td--mono">{item.maxQty}</td>
-                        <td className="ins-table__td">
-                          <div className="ins-stk-qty">
-                            <span className={`ins-stk-num ins-stk-num--${sc}`}>{st}</span>
-                            <div className="ins-stk-bar">
-                              <div className={`ins-stk-bar__fill ins-stk-bar__fill--${sc}`} style={{ width: `${Math.min(pct, 100)}%` }} />
-                            </div>
-                          </div>
-                        </td>
-                        <td className="ins-table__td">
-                          <span className={`ins-sit ins-sit--${sc}`}>{sitLabel(st, pct)}</span>
-                        </td>
-                        <td className="ins-table__td">
-                          {canWrite && (
-                            <Button variant="ghost" size="sm" onClick={() => { setEditStockItem(item); setEditQty(""); }}>
-                              + Entrada
-                            </Button>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-              {stockTotalPagesIns > 1 && (
-                <div className="table-pagination">
-                  <span>{filteredStock.length} itens — página {stockPageIns} de {stockTotalPagesIns}</span>
-                  <div style={{ display: "flex", gap: "var(--s-2)" }}>
-                    <Button variant="secondary" size="sm" disabled={stockPageIns <= 1} onClick={() => setStockPageIns(p => p - 1)}>← Anterior</Button>
-                    <Button variant="secondary" size="sm" disabled={stockPageIns >= stockTotalPagesIns} onClick={() => setStockPageIns(p => p + 1)}>Próxima →</Button>
-                  </div>
+                      )}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            {stockTotalPagesIns > 1 && (
+              <div className="table-pagination">
+                <span>{filteredStock.length} itens — página {stockPageIns} de {stockTotalPagesIns}</span>
+                <div style={{ display: "flex", gap: "var(--s-2)" }}>
+                  <Button variant="secondary" size="sm" disabled={stockPageIns <= 1} onClick={() => setStockPageIns(p => p - 1)}>← Anterior</Button>
+                  <Button variant="secondary" size="sm" disabled={stockPageIns >= stockTotalPagesIns} onClick={() => setStockPageIns(p => p + 1)}>Próxima →</Button>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         )}
 

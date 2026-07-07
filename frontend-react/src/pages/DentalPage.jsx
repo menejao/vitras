@@ -55,6 +55,9 @@ export default function DentalPage({ user, token }) {
   const [opBusy, setOpBusy] = useState(false);
   const [opError, setOpError] = useState("");
 
+  const [stockSearch, setStockSearch] = useState("");
+  const [stockCat, setStockCat] = useState("Todas");
+
   async function loadAll() {
     setLoading(true);
     setError("");
@@ -156,6 +159,16 @@ export default function DentalPage({ user, token }) {
 
   const lowCount = stock.filter(s => s.qty > 0 && s.qty <= s.minQty).length;
   const zeroCount = stock.filter(s => s.qty === 0).length;
+
+  const dentalCategories = ["Todas", ...Array.from(new Set(stock.map(s => s.category).filter(Boolean))).sort()];
+  const filteredDentalStock = stock.filter(s => {
+    if (stockCat !== "Todas" && s.category !== stockCat) return false;
+    if (stockSearch) {
+      const q = stockSearch.toLowerCase();
+      return s.name.toLowerCase().includes(q) || (s.category || "").toLowerCase().includes(q);
+    }
+    return true;
+  });
   const opModeLabel = opMode === "entrada" ? "Registrar Entrada" : opMode === "saida" ? "Registrar Saída" : "Ajuste de Estoque";
 
   const heroActions = canWrite ? (
@@ -205,6 +218,16 @@ export default function DentalPage({ user, token }) {
               </div>
             ) : (
               <div className="card card--noPad overflow-hidden">
+                <div className="pharma-toolbar">
+                  <div className="pharma-search">
+                    <Input value={stockSearch} onChange={(e) => setStockSearch(e.target.value)} placeholder="Buscar insumo..." />
+                  </div>
+                  <div className="pharma-filter-cat">
+                    <Select value={stockCat} onChange={(e) => setStockCat(e.target.value)}>
+                      {dentalCategories.map(c => <option key={c}>{c}</option>)}
+                    </Select>
+                  </div>
+                </div>
                 <table className="patients-table" style={{ width: "100%" }}>
                   <thead>
                     <tr>
@@ -216,7 +239,13 @@ export default function DentalPage({ user, token }) {
                     </tr>
                   </thead>
                   <tbody>
-                    {stock.map(s => {
+                    {filteredDentalStock.length === 0 ? (
+                      <tr>
+                        <td colSpan={canWrite ? 5 : 4} className="muted small" style={{ textAlign: "center", padding: "2rem" }}>
+                          Nenhum insumo encontrado.
+                        </td>
+                      </tr>
+                    ) : filteredDentalStock.map(s => {
                       const statusCls = s.qty === 0 ? "zero" : s.qty <= s.minQty ? "low" : "ok";
                       return (
                         <tr key={s.id}>
