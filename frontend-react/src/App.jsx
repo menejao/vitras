@@ -23,7 +23,7 @@ import { usePatientActivity } from "./hooks/usePatientActivity";
 import { useAiHandlers } from "./hooks/useAiHandlers";
 import { usePatientAlerts } from "./hooks/usePatientAlerts";
 import { useIdleTimeout } from "./hooks/useIdleTimeout";
-import { listNotifications } from "./api";
+import { listNotifications, api } from "./api";
 import ReceptionistApp from "./pages/ReceptionistApp";
 import AuthScreen from "./pages/AuthScreen";
 import ActivateAccountPage from "./pages/ActivateAccountPage";
@@ -107,9 +107,9 @@ function AppInner() {
   const [enabledModules, setEnabledModules] = useState(null);
   useEffect(() => {
     if (!token) return;
-    fetch(`${import.meta.env.VITE_API_URL || "https://api.vitras.com.br"}/me/unit-modules`, {
-      headers: { Authorization: `Bearer ${token}` }
-    }).then(r => r.ok ? r.json() : null).then(d => { if (d?.enabledModules) setEnabledModules(d.enabledModules); }).catch(() => {});
+    api("/me/unit-modules", {}, token)
+      .then(d => { if (d?.enabledModules) setEnabledModules(d.enabledModules); })
+      .catch(() => {});
   }, [token]);
 
   const [mobileNavOpen, setMobileNavOpen] = useState(false);

@@ -5,19 +5,9 @@ import Input from "../components/ui/Input";
 import Select from "../components/ui/Select";
 import { Tabs, Tab } from "../components/ui/Tabs";
 import KPI from "../components/ui/KPI";
-import { API_URL } from "../api.js";
+import { api } from "../api.js";
 
 const UNIT_OPTIONS = ["unidade", "caixa", "pacote", "frasco", "ampola", "rolo", "par", "kit", "envelope", "tubo", "seringa"];
-
-async function apiFetch(path, token, opts = {}) {
-  const r = await fetch(`${API_URL}${path}`, {
-    ...opts,
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, ...(opts.headers || {}) },
-  });
-  const json = await r.json();
-  if (!r.ok) throw new Error(json.error || "Erro ao processar solicitação");
-  return json;
-}
 
 function fmtTs(ts) {
   if (!ts) return "—";
@@ -70,13 +60,13 @@ export default function DentalPage({ user, token }) {
     setError("");
     try {
       const [s, l] = await Promise.all([
-        apiFetch("/dental/stock", token),
-        apiFetch("/dental/logs", token),
+        api("/dental/stock", {}, token),
+        api("/dental/logs", {}, token),
       ]);
       setStock(s.data || []);
       setLogs(l.data || []);
-    } catch {
-      setError("Não foi possível carregar os dados.");
+    } catch (err) {
+      setError(err?.message || "Não foi possível carregar os dados.");
     } finally {
       setLoading(false);
     }
@@ -90,7 +80,7 @@ export default function DentalPage({ user, token }) {
     if (!newForm.category.trim()) return setNewError("Categoria é obrigatória.");
     setNewBusy(true);
     try {
-      await apiFetch("/dental/stock", token, {
+      await api("/dental/stock", {
         method: "POST",
         body: JSON.stringify({
           name: newForm.name.trim(),
@@ -106,12 +96,12 @@ export default function DentalPage({ user, token }) {
             newForm.notes.trim(),
           ].filter(Boolean).join(" · ") || undefined,
         }),
-      });
+      }, token);
       setShowNew(false);
       setNewForm({ codigo: "", name: "", category: "", unit: "unidade", qty: 0, minQty: 0, localizacao: "", lote: "", validade: "", notes: "" });
       await loadAll();
-    } catch {
-      setNewError("Não foi possível criar o insumo. Tente novamente.");
+    } catch (err) {
+      setNewError(err?.message || "Não foi possível criar o insumo.");
     } finally {
       setNewBusy(false);
     }
@@ -144,7 +134,7 @@ export default function DentalPage({ user, token }) {
     if (!opForm.reason.trim()) return setOpError("Motivo é obrigatório.");
     setOpBusy(true);
     try {
-      await apiFetch(`/dental/stock/${opItem.id}/adjust`, token, {
+      await api(`/dental/stock/${opItem.id}/adjust`, {
         method: "POST",
         body: JSON.stringify({
           delta,
@@ -154,11 +144,11 @@ export default function DentalPage({ user, token }) {
           validade: opForm.validade || undefined,
           obs: opForm.obs || undefined,
         }),
-      });
+      }, token);
       setOpItem(null);
       await loadAll();
-    } catch {
-      setOpError("Não foi possível registrar a operação. Tente novamente.");
+    } catch (err) {
+      setOpError(err?.message || "Não foi possível registrar a operação.");
     } finally {
       setOpBusy(false);
     }

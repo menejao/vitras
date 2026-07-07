@@ -4,17 +4,7 @@ import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
 import Select from "../components/ui/Select";
 import { Tabs, Tab } from "../components/ui/Tabs";
-import { API_URL } from "../api.js";
-
-async function apiFetch(path, token, opts = {}) {
-  const r = await fetch(`${API_URL}${path}`, {
-    ...opts,
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, ...(opts.headers || {}) },
-  });
-  const json = await r.json();
-  if (!r.ok) throw new Error(json.error || "Erro ao processar solicitação");
-  return json;
-}
+import { api } from "../api.js";
 
 function fmtTs(ts) {
   if (!ts) return "—";
@@ -55,7 +45,7 @@ function ItemAutocomplete({ dominio, value, onSelect, token }) {
       setBusy(true);
       try {
         const params = new URLSearchParams({ q, domain: dominio });
-        const json = await apiFetch(`/catalog/items?${params}`, token);
+        const json = await api(`/catalog/items?${params}`, {}, token);
         setResults(json.data || []);
         setOpen(true);
       } catch {
@@ -153,10 +143,10 @@ export default function AlmoxarifadoPage({ user, token }) {
     setLoading(true);
     setError("");
     try {
-      const json = await apiFetch("/almoxarifado/requisicoes", token);
+      const json = await api("/almoxarifado/requisicoes", {}, token);
       setRequisicoes(json.data || []);
-    } catch {
-      setError("Não foi possível carregar as requisições. Tente novamente.");
+    } catch (err) {
+      setError(err?.message || "Não foi possível carregar as requisições.");
     } finally {
       setLoading(false);
     }
@@ -218,17 +208,17 @@ export default function AlmoxarifadoPage({ user, token }) {
         obs: it.obs || undefined,
       }));
       const body = { itens, obs: modalObs || undefined };
-      const created = await apiFetch("/almoxarifado/requisicoes", token, {
+      const created = await api("/almoxarifado/requisicoes", {
         method: "POST",
         body: JSON.stringify(body),
-      });
+      }, token);
       if (enviar && created.data?.id) {
-        await apiFetch(`/almoxarifado/requisicoes/${created.data.id}/enviar`, token, { method: "POST", body: "{}" });
+        await api(`/almoxarifado/requisicoes/${created.data.id}/enviar`, { method: "POST", body: "{}" }, token);
       }
       setShowModal(false);
       await loadRequisicoes();
-    } catch {
-      setModalError("Não foi possível criar a requisição. Tente novamente.");
+    } catch (err) {
+      setModalError(err?.message || "Não foi possível criar a requisição.");
     } finally {
       setModalBusy(false);
     }
@@ -236,10 +226,10 @@ export default function AlmoxarifadoPage({ user, token }) {
 
   async function enviarRequisicao(id) {
     try {
-      await apiFetch(`/almoxarifado/requisicoes/${id}/enviar`, token, { method: "POST", body: "{}" });
+      await api(`/almoxarifado/requisicoes/${id}/enviar`, { method: "POST", body: "{}" }, token);
       await loadRequisicoes();
-    } catch {
-      setError("Não foi possível enviar a requisição. Tente novamente.");
+    } catch (err) {
+      setError(err?.message || "Não foi possível enviar a requisição.");
     }
   }
 
@@ -261,7 +251,7 @@ export default function AlmoxarifadoPage({ user, token }) {
     setRecvError("");
     setRecvBusy(true);
     try {
-      await apiFetch(`/almoxarifado/requisicoes/${recvReq.id}/receber`, token, {
+      await api(`/almoxarifado/requisicoes/${recvReq.id}/receber`, {
         method: "POST",
         body: JSON.stringify({
           itens: recvItens.map(it => ({
@@ -272,11 +262,11 @@ export default function AlmoxarifadoPage({ user, token }) {
           })),
           obs: recvObs || undefined,
         }),
-      });
+      }, token);
       setRecvReq(null);
       await loadRequisicoes();
-    } catch {
-      setRecvError("Não foi possível registrar o recebimento. Tente novamente.");
+    } catch (err) {
+      setRecvError(err?.message || "Não foi possível registrar o recebimento.");
     } finally {
       setRecvBusy(false);
     }
