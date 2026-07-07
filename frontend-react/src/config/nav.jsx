@@ -89,7 +89,7 @@ export function buildNavItems(user, canManageUser, enabledModules) {
       nutricao: "Nutrição", psicologia: "Psicologia", fisioterapia: "Fisioterapia",
       servico_social: "Serviço Social", terapia_ocupacional: "Terapia Ocupacional", fonoaudiologia: "Fonoaudiologia"
     };
-    const activeModules = Array.isArray(enabledModules) ? enabledModules : ALL_SPECIALTY_IDS;
+    const activeModules = Array.isArray(enabledModules) && enabledModules.length > 0 ? enabledModules : ALL_SPECIALTY_IDS;
     const specItems = [];
     for (const id of ALL_SPECIALTY_IDS) {
       if (!activeModules.includes(id)) continue;
