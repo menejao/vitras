@@ -504,7 +504,7 @@ export default function MamografiaForm({ patient, user, token, users, onRecordSa
       </div>
 
       {/* ── AÇÕES ── */}
-      <div className="pap-section" style={{ border: "none", paddingTop: 0 }}>
+      <div className="pap-section pap-section--actions">
         {err && <div className="alert alert--danger" style={{ marginBottom: "var(--s-3)" }}>{err}</div>}
         {ok && <div className="alert alert--success" style={{ marginBottom: "var(--s-3)" }}>Atendimento salvo com sucesso no prontuário.</div>}
         <div style={{ display: "flex", gap: "var(--s-3)", justifyContent: "flex-end" }}>

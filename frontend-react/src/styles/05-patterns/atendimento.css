@@ -47,19 +47,58 @@
 }
 
 .pap-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-xs);
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  gap: var(--s-4);
+  padding: 0;
+  gap: 0;
+}
+
+.pap-section--actions {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
+  overflow: visible;
 }
 
 .pap-section__title {
-  font-weight: 700;
-  font-size: var(--t-sm);
-  color: var(--navy);
-  padding-bottom: var(--s-2);
-  border-bottom: 2px solid var(--primary);
-  text-transform: uppercase;
-  letter-spacing: .04em;
+  padding: var(--s-3) var(--s-5);
+  border-bottom: 1px solid var(--border-subtle);
+  font: 600 var(--t-sm) var(--font-sans);
+  letter-spacing: var(--ls-base);
+  color: var(--text);
+}
+
+/* Horizontal padding for all content (not title) */
+.pap-section > *:not(.pap-section__title) {
+  padding-left: var(--s-5);
+  padding-right: var(--s-5);
+}
+
+/* Spacing from title to first content item */
+.pap-section > .pap-section__title + * {
+  padding-top: var(--s-5);
+}
+
+/* Gap between consecutive content items */
+.pap-section > *:not(.pap-section__title) + *:not(.pap-section__title) {
+  margin-top: var(--s-4);
+}
+
+/* Bottom padding on last item */
+.pap-section > *:last-child:not(.pap-section__title) {
+  padding-bottom: var(--s-5);
+}
+
+/* Actions section: no horizontal padding, clean spacing */
+.pap-section--actions > * {
+  padding-left: 0;
+  padding-right: 0;
 }
 
 .pap-field {
@@ -69,9 +108,8 @@
 }
 
 .pap-field__label {
-  font-size: var(--t-sm);
-  font-weight: 600;
-  color: var(--text);
+  font: 500 var(--t-sm) var(--font-sans);
+  color: var(--text-muted);
 }
 
 .pap-field__hint {

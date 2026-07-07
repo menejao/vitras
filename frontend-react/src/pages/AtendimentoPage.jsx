@@ -77,10 +77,11 @@ export default function AtendimentoPage({ patients, user, token, users, onRecord
 
       <div className="atendimento-body">
         {/* Seleção de paciente */}
-        <div className="card" style={{ padding: "var(--s-4)" }}>
-          <div style={{ fontWeight: 600, fontSize: "var(--t-sm)", marginBottom: "var(--s-2)", color: "var(--navy)" }}>
-            Paciente
+        <div className="card">
+          <div className="card__header">
+            <span className="card__title">Paciente</span>
           </div>
+          <div className="card__body">
 
           {!patient ? (
             <div style={{ position: "relative", maxWidth: 480 }}>
@@ -118,6 +119,7 @@ export default function AtendimentoPage({ patients, user, token, users, onRecord
               </Button>
             </div>
           )}
+          </div>
         </div>
 
         {/* Workspace por perfil */}
