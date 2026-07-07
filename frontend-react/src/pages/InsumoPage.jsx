@@ -54,7 +54,6 @@ function InsumoPage({
   const [patSearch, setPatSearch] = useState("");
   const [patSelected, setPatSelected] = useState(null);
   const [isContinuo, setIsContinuo] = useState(false);
-  const [catFilter, setCatFilter] = useState("Todas");
   const [itens, setItens] = useState({});
   const [obsDispensa, setObsDispensa] = useState("");
   const [dispErr, setDispErr] = useState("");
@@ -71,7 +70,9 @@ function InsumoPage({
   const [newInsumoErr, setNewInsumoErr] = useState("");
   const [logSearch, setLogSearch] = useState("");
   const [logFilter, setLogFilter] = useState("all");
-  const [dispPage, setDispPage] = useState(1);
+  const [insumoSearch, setInsumoSearch] = useState("");
+  const [showInsumoDropdown, setShowInsumoDropdown] = useState(false);
+  const [selectedIds, setSelectedIds] = useState([]);
   const [stockPageIns, setStockPageIns] = useState(1);
   const [logPageIns, setLogPageIns] = useState(1);
   const INS_PAGE_SIZE = 20;
@@ -117,12 +118,16 @@ function InsumoPage({
     return log.filter((entry) => String(entry.date || entry.ts || "").slice(0, 10) === today && entry.type === "dispensa").length;
   }, [log]);
 
-  const dispCatFiltered = useMemo(() =>
-    stock.filter((item) => catFilter === "Todas" || item.category === catFilter),
-    [stock, catFilter]
-  );
-  const dispTotalPages = Math.max(1, Math.ceil(dispCatFiltered.length / INS_PAGE_SIZE));
-  const pagedDispStock = dispCatFiltered.slice((dispPage - 1) * INS_PAGE_SIZE, dispPage * INS_PAGE_SIZE);
+  const insumoResults = useMemo(() => {
+    const q = insumoSearch.trim().toLowerCase();
+    if (q.length < 2) return [];
+    return stock.filter(item => {
+      if (selectedIds.includes(item.id)) return false;
+      return String(item.name || "").toLowerCase().includes(q)
+        || String(item.category || "").toLowerCase().includes(q)
+        || String(item.notes || "").toLowerCase().includes(q);
+    }).slice(0, 8);
+  }, [insumoSearch, stock, selectedIds]);
 
   const stockTotalPagesIns = Math.max(1, Math.ceil(filteredStock.length / INS_PAGE_SIZE));
   const pagedStockIns = filteredStock.slice((stockPageIns - 1) * INS_PAGE_SIZE, stockPageIns * INS_PAGE_SIZE);
@@ -139,16 +144,21 @@ function InsumoPage({
 
   function selectPat(patient) {
     setPatSelected(patient);
-    setPatSearch(patient.name);
+    setPatSearch("");
     setItens({});
     setDispErr("");
     setDispOk(false);
+    setInsumoSearch("");
+    setShowInsumoDropdown(false);
     const continuousEntry = continuousByPatient.get(patient.id);
     if (continuousEntry) {
       setIsContinuo(true);
-      setItens(Object.fromEntries((continuousEntry.items || []).map((item) => [item.id, item.qty])));
+      const contItems = continuousEntry.items || [];
+      setItens(Object.fromEntries(contItems.map((item) => [item.id, item.qty])));
+      setSelectedIds(contItems.map(i => i.id));
     } else {
       setIsContinuo(false);
+      setSelectedIds([]);
     }
   }
 
@@ -161,6 +171,21 @@ function InsumoPage({
     setItens((prev) => ({ ...prev, [id]: normalized || undefined }));
     setDispErr("");
     setDispOk(false);
+  }
+
+  function addInsumo(item) {
+    if (!selectedIds.includes(item.id)) {
+      setSelectedIds(prev => [...prev, item.id]);
+    }
+    setItem(item.id, (itens[item.id] || 0) + 1);
+    setInsumoSearch("");
+    setShowInsumoDropdown(false);
+  }
+
+  function removeInsumo(id) {
+    setSelectedIds(prev => prev.filter(s => s !== id));
+    setItens(prev => { const next = { ...prev }; delete next[id]; return next; });
+    setDispErr("");
   }
 
   function validarDispensa() {
@@ -206,6 +231,7 @@ function InsumoPage({
       setDispOk(true);
       setDispErr("");
       setItens({});
+      setSelectedIds([]);
       setObsDispensa("");
       window.setTimeout(() => {
         setDispOk(false);
@@ -320,21 +346,29 @@ function InsumoPage({
             <div className="ins-disp-side">
               <div className="card" style={{ padding: "var(--s-4)" }}>
                 <div className="ins-pat-title">Paciente</div>
-                <Input value={patSearch} onChange={(event) => setPatSearch(event.target.value)} placeholder="Buscar paciente..." />
-                {patResults.length > 0 && (
-                  <div className="ins-pat-results">
-                    {patResults.map((patient) => {
-                      const currentContinuous = continuousByPatient.get(patient.id);
-                      return (
-                        <Button key={patient.id} variant="ghost" className="ins-pat-opt" onClick={() => selectPat(patient)}>
-                          <div className="ins-pat-opt__name">{patient.name}</div>
-                          <div className="ins-pat-opt__sub">{patient.cpf ? maskCpf(patient.cpf) : ""}{currentContinuous ? " · Continuo" : ""}</div>
-                        </Button>
-                      );
-                    })}
+                {!patSelected ? (
+                  <div style={{ position: "relative" }}>
+                    <Input
+                      value={patSearch}
+                      onChange={(event) => setPatSearch(event.target.value)}
+                      placeholder="Nome, CPF ou CNS..."
+                      style={{ width: "100%" }}
+                    />
+                    {patResults.length > 0 && (
+                      <div className="ins-pat-results">
+                        {patResults.map((patient) => {
+                          const currentContinuous = continuousByPatient.get(patient.id);
+                          return (
+                            <Button key={patient.id} variant="ghost" className="ins-pat-opt" onClick={() => selectPat(patient)}>
+                              <div className="ins-pat-opt__name">{patient.name}</div>
+                              <div className="ins-pat-opt__sub">{patient.cpf ? maskCpf(patient.cpf) : ""}{currentContinuous ? " · Continuo" : ""}</div>
+                            </Button>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
-                )}
-                {patSelected && (
+                ) : (
                   <div className="ins-pat-card">
                     <div className="ins-pat-card__name">{patSelected.name}</div>
                     <div className="ins-pat-card__meta">
@@ -342,6 +376,10 @@ function InsumoPage({
                       {patSelected.cpf ? ` · CPF: ${maskCpf(patSelected.cpf)}` : ""}
                     </div>
                     {continuousByPatient.get(patSelected.id) && <div className="ins-pat-card__cont">Paciente continuo ativo</div>}
+                    <Button variant="ghost" size="sm" style={{ marginTop: "var(--s-2)", color: "var(--text-2)" }}
+                      onClick={() => { setPatSelected(null); setPatSearch(""); setItens({}); setSelectedIds([]); setDispErr(""); setDispOk(false); }}>
+                      Trocar paciente
+                    </Button>
                   </div>
                 )}
               </div>
@@ -376,70 +414,98 @@ function InsumoPage({
                 <span>As quantidades maximas seguem os limites operacionais do catalogo institucional. O backend valida estoque, paciente e equipe em cada retirada.</span>
               </div>
 
-              <div className="ins-cat-filters">
-                {categories.map((category) => (
-                  <Button key={category} variant="ghost" className={`ins-cat-btn${catFilter === category ? " is-active" : ""}`} onClick={() => setCatFilter(category)}>
-                    {category}
-                  </Button>
-                ))}
+              {/* Autocomplete de insumo */}
+              <div style={{ position: "relative", marginBottom: "var(--s-4)" }}>
+                <Input
+                  value={insumoSearch}
+                  onChange={(e) => { setInsumoSearch(e.target.value); setShowInsumoDropdown(true); }}
+                  onFocus={() => { if (insumoSearch.length >= 2) setShowInsumoDropdown(true); }}
+                  onBlur={() => setTimeout(() => setShowInsumoDropdown(false), 160)}
+                  placeholder={patSelected ? "Buscar insumo por nome ou categoria..." : "Selecione um paciente antes de buscar insumos"}
+                  disabled={!patSelected}
+                />
+                {showInsumoDropdown && insumoSearch.trim().length >= 2 && (
+                  <div className="ins-pat-results">
+                    {insumoResults.length === 0 ? (
+                      <div style={{ padding: "var(--s-3)", color: "var(--text-2)", fontSize: "var(--t-sm)" }}>Nenhum insumo encontrado.</div>
+                    ) : insumoResults.map((item) => {
+                      const estq = Number(item.qty || 0);
+                      return (
+                        <Button key={item.id} variant="ghost" className="ins-pat-opt" onClick={() => addInsumo(item)}>
+                          <div className="ins-pat-opt__name">{item.name}</div>
+                          <div className="ins-pat-opt__sub">{item.category} · Estoque: {estq} {item.unit}{estq === 0 ? " · Sem estoque" : ""}</div>
+                        </Button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
-              <div className="ins-grid">
-                {pagedDispStock.map((item) => {
-                  const qty = itens[item.id] || 0;
-                  const estq = Number(item.qty || 0);
-                  const semEstoque = estq === 0;
-                  const currentContinuous = continuousByPatient.get(patSelected?.id);
-                  const continuousLimit = currentContinuous?.items?.find((entry) => entry.id === item.id)?.qty;
-                  const limite = Number(continuousLimit || item.maxQty || 0);
-                  return (
-                    <div key={item.id} className={`ins-item${qty > 0 ? " is-selected" : ""}${semEstoque ? " is-empty" : ""}`}>
-                      <div className="ins-item__body">
-                        <div className="ins-item__name">{item.name}</div>
-                        <div className="ins-item__meta">
-                          <span className="ins-item__tag">{item.category}</span>
-                          <span className="ins-item__tag">Max: {limite} {item.unit}</span>
-                          <span className={`ins-item__stk ins-item__stk--${stkClass(semEstoque, estq)}`}>Estoque: {estq} {item.unit}</span>
-                        </div>
-                        {item.notes && <div className="ins-item__obs">Info: {item.notes}</div>}
-                      </div>
-                      <div className="ins-qty-ctrl">
-                        <Button variant="ghost" className="ins-qty-btn" onClick={() => setItem(item.id, qty - 1)} disabled={!patSelected || qty <= 0}>-</Button>
-                        <Input
-                          type="number"
-                          min={0}
-                          max={limite}
-                          value={qty || ""}
-                          onChange={(event) => setItem(item.id, event.target.value)}
-                          disabled={!patSelected || semEstoque}
-                          placeholder="0"
-                          inputClassName={`ins-qty-input${qty > 0 ? " is-selected" : ""}`}
-                        />
-                        <Button variant="ghost" className="ins-qty-btn" onClick={() => setItem(item.id, qty + 1)} disabled={!patSelected || qty >= limite || semEstoque}>+</Button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-              {dispTotalPages > 1 && (
-                <div className="table-pagination">
-                  <span>{dispCatFiltered.length} insumos — página {dispPage} de {dispTotalPages}</span>
-                  <div style={{ display: "flex", gap: "var(--s-2)" }}>
-                    <Button variant="secondary" size="sm" disabled={dispPage <= 1} onClick={() => { setDispPage(p => p - 1); }}>← Anterior</Button>
-                    <Button variant="secondary" size="sm" disabled={dispPage >= dispTotalPages} onClick={() => { setDispPage(p => p + 1); }}>Próxima →</Button>
+              {/* Lista de insumos selecionados */}
+              {selectedIds.length === 0 ? (
+                <div className="empty" style={{ padding: "2.5rem 1rem" }}>
+                  <div className="empty__icon empty__icon--neutral">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35M11 8v6M8 11h6"/>
+                    </svg>
                   </div>
+                  <h3 className="empty__title">Nenhum insumo selecionado</h3>
+                  <p className="empty__desc">Busque um insumo pelo nome ou categoria para adicionar à dispensação.</p>
+                </div>
+              ) : (
+                <div className="ins-grid">
+                  {selectedIds.map((id) => {
+                    const item = stock.find((entry) => entry.id === id);
+                    if (!item) return null;
+                    const qty = itens[id] || 0;
+                    const estq = Number(item.qty || 0);
+                    const semEstoque = estq === 0;
+                    const currentContinuous = continuousByPatient.get(patSelected?.id);
+                    const continuousLimit = currentContinuous?.items?.find((entry) => entry.id === id)?.qty;
+                    const limite = Number(continuousLimit || item.maxQty || 999);
+                    return (
+                      <div key={id} className={`ins-item${qty > 0 ? " is-selected" : ""}${semEstoque ? " is-empty" : ""}`}>
+                        <div className="ins-item__body">
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                            <div className="ins-item__name">{item.name}</div>
+                            <Button variant="ghost" size="sm" onClick={() => removeInsumo(id)} style={{ color: "var(--text-2)", lineHeight: 1, padding: "0 var(--s-1)" }}>✕</Button>
+                          </div>
+                          <div className="ins-item__meta">
+                            <span className="ins-item__tag">{item.category}</span>
+                            {limite < 999 && <span className="ins-item__tag">Max: {limite} {item.unit}</span>}
+                            <span className={`ins-item__stk ins-item__stk--${stkClass(semEstoque, estq)}`}>Estoque: {estq} {item.unit}</span>
+                          </div>
+                          {item.notes && <div className="ins-item__obs">Info: {item.notes}</div>}
+                        </div>
+                        <div className="ins-qty-ctrl">
+                          <Button variant="ghost" className="ins-qty-btn" onClick={() => setItem(id, qty - 1)} disabled={qty <= 0}>-</Button>
+                          <Input
+                            type="number"
+                            min={0}
+                            max={limite < 999 ? limite : undefined}
+                            value={qty || ""}
+                            onChange={(event) => setItem(id, event.target.value)}
+                            disabled={semEstoque}
+                            placeholder="0"
+                            inputClassName={`ins-qty-input${qty > 0 ? " is-selected" : ""}`}
+                          />
+                          <Button variant="ghost" className="ins-qty-btn" onClick={() => setItem(id, qty + 1)} disabled={qty >= limite || semEstoque}>+</Button>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
 
-              {Object.values(itens).some((value) => value > 0) && (
-                <div className="ins-summary">
+              {selectedIds.length > 0 && (
+                <div className="ins-summary" style={{ marginTop: "var(--s-4)" }}>
                   <div className="ins-summary__title">Resumo da dispensacao</div>
-                  {Object.entries(itens).filter(([, value]) => value > 0).map(([id, qty]) => {
+                  {selectedIds.filter(id => (itens[id] || 0) > 0).map((id) => {
                     const item = stock.find((entry) => entry.id === id);
                     return (
                       <div key={id} className="ins-summary__row">
                         <span>{item?.name}</span>
-                        <span>{qty} {item?.unit}</span>
+                        <span>{itens[id]} {item?.unit}</span>
                       </div>
                     );
                   })}
