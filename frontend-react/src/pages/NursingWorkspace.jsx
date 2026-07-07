@@ -4,6 +4,7 @@ import AcolhimentoForm from "./AcolhimentoForm";
 import PapanicolauForm from "./PapanicolauForm";
 import MamografiaForm from "./MamografiaForm";
 import PuerperioForm from "./PuerperioForm";
+import ConsultaEnfermagemForm from "./ConsultaEnfermagemForm";
 
 const NURSING_TABS = [
   { id: "acolhimento",  label: "Acolhimento" },
@@ -56,7 +57,7 @@ export default function NursingWorkspace({ patient, user, token, users, onRecord
         {activeTab === "pre_natal"    && <PlaceholderTab label="Pré-Natal" />}
         {activeTab === "puericultura" && <PlaceholderTab label="Puericultura" />}
         {activeTab === "curativo"     && <PlaceholderTab label="Curativo" />}
-        {activeTab === "consulta"     && <PlaceholderTab label="Consulta de Enfermagem" />}
+        {activeTab === "consulta"     && <ConsultaEnfermagemForm key="cons" {...sharedProps} />}
       </div>
     </div>
   );
