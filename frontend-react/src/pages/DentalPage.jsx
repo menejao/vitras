@@ -83,7 +83,7 @@ export default function DentalPage({ user, token }) {
     }
   }
 
-  useEffect(() => { loadAll(); }, []);
+  useEffect(() => { if (token) loadAll(); }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function submitNovoInsumo() {
     setNewError("");

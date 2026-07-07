@@ -330,7 +330,6 @@ export default function AlmoxarifadoPage({ user, token }) {
                 </div>
                 <h3 className="empty__title">Nenhuma requisição em aberto</h3>
                 <p className="empty__desc">Crie uma nova requisição para solicitar materiais ao almoxarifado.</p>
-                {canWrite && <Button onClick={openModal}>+ Nova Requisição</Button>}
               </div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
