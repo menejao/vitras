@@ -3,11 +3,13 @@ import { Tabs, Tab } from "../components/ui/Tabs";
 import WorkflowWizard from "./workflow/WorkflowWizard";
 import { PAPANICOLAU_STEPS, EMPTY_PAPANICOLAU, buildPapanicolauRecord } from "./workflow/papanicolau/papanicolauWorkflow";
 import { ACOLHIMENTO_STEPS, EMPTY_ACOLHIMENTO, buildAcolhimentoRecord } from "./workflow/acolhimento/acolhimentoWorkflow";
+import { MAMOGRAFIA_STEPS, EMPTY_MAMOGRAFIA, buildMamografiaRecord } from "./workflow/mamografia/mamografiaWorkflow";
 import { api } from "../api.js";
 
 const NURSING_TABS = [
   { id: "acolhimento",  label: "Acolhimento" },
   { id: "papanicolau",  label: "Papanicolau" },
+  { id: "mamografia",   label: "Resultado de Mamografia" },
   { id: "pre_natal",    label: "Pré-Natal" },
   { id: "puericultura", label: "Puericultura" },
   { id: "curativo",     label: "Curativo" },
@@ -64,6 +66,11 @@ export default function NursingWorkspace({ patient, user, token, users, onRecord
 
   const pap = useWorkflowState(user, makeEmptyPapanicolau);
   const acol = useWorkflowState(user, makeEmptyAcolhimento);
+  const mamo = useWorkflowState(user, (u) => {
+    const today = new Date().toISOString().slice(0, 10);
+    const now = new Date().toTimeString().slice(0, 5);
+    return { ...EMPTY_MAMOGRAFIA, identificacao: { ...EMPTY_MAMOGRAFIA.identificacao, dataAtendimento: today, horaAtendimento: now, profissionalId: u?.id || "" }, procedimentos: { ...EMPTY_MAMOGRAFIA.procedimentos, dataColeta: today, responsavelId: u?.id || "" } };
+  });
 
   async function submitWorkflow(buildRecord, state, makeEmpty) {
     state.setBusy(true);
@@ -121,6 +128,26 @@ export default function NursingWorkspace({ patient, user, token, users, onRecord
             error={pap.err}
             saved={pap.saved}
             onDismissSaved={() => pap.setSaved(false)}
+            patient={patient}
+            user={user}
+            token={token}
+            users={users}
+          />
+        )}
+        {activeTab === "mamografia" && (
+          <WorkflowWizard
+            steps={MAMOGRAFIA_STEPS}
+            formData={mamo.formData}
+            onChange={mamo.setFormData}
+            onSubmit={() => submitWorkflow(buildMamografiaRecord, mamo, (u) => {
+              const today = new Date().toISOString().slice(0, 10);
+              const now = new Date().toTimeString().slice(0, 5);
+              return { ...EMPTY_MAMOGRAFIA, identificacao: { ...EMPTY_MAMOGRAFIA.identificacao, dataAtendimento: today, horaAtendimento: now, profissionalId: u?.id || "" }, procedimentos: { ...EMPTY_MAMOGRAFIA.procedimentos, dataColeta: today, responsavelId: u?.id || "" } };
+            })}
+            busy={mamo.busy}
+            error={mamo.err}
+            saved={mamo.saved}
+            onDismissSaved={() => mamo.setSaved(false)}
             patient={patient}
             user={user}
             token={token}
