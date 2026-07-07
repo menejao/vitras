@@ -12,6 +12,15 @@ import { parseLocalDate } from "../utils/dates";
 import { fmtDate, initials, maskCpf, formatPhone } from "../utils/formatting";
 import { matchesPatientSearch, ageInMonths } from "../utils/clinical";
 
+const addrStr = (a) => {
+  if (!a) return "";
+  if (typeof a === "string") return a;
+  if (typeof a === "object")
+    return [a.street, a.logradouro, a.number, a.neighborhood, a.bairro, a.city, a.complement, a.area, a.microarea]
+      .filter(Boolean).join(" ");
+  return "";
+};
+
 const TASK_TYPES = {
   home_visit:      { label: "Visita Domiciliar",  color: "blue"   },
   active_search:   { label: "Busca Ativa",         color: "amber"  },
@@ -414,12 +423,12 @@ function FamilyGroupsSection({ token, user, patients, onNavigatePatient, onStart
   }, [groups]);
 
   const ungrouped = useMemo(() =>
-    myPatients.filter(p => !groupedIds.has(p.id) && p.address?.trim()),
+    myPatients.filter(p => !groupedIds.has(p.id) && addrStr(p.address).trim()),
     [myPatients, groupedIds]
   );
 
   const noAddress = useMemo(() =>
-    myPatients.filter(p => !p.address?.trim()),
+    myPatients.filter(p => !addrStr(p.address).trim()),
     [myPatients]
   );
 
@@ -427,7 +436,7 @@ function FamilyGroupsSection({ token, user, patients, onNavigatePatient, onStart
   const filteredGroups = useMemo(() => {
     if (!q) return groups;
     return groups.filter(g => {
-      if ((g.address || "").toLowerCase().includes(q)) return true;
+      if (addrStr(g.address).toLowerCase().includes(q)) return true;
       if ((g.microArea || "").toLowerCase().includes(q)) return true;
       return (g.memberPatientIds || []).some(id => {
         const p = patientMap[id];
@@ -781,7 +790,7 @@ function PatientSelector({ patients, onSelect, onCancel }) {
       const social = (p.socialName    || "").toLowerCase();
       const cpf    = (p.cpf           || "").replace(/\D/g, "");
       const cns    = (p.cns           || "").replace(/\D/g, "");
-      const addr   = (p.address       || "").toLowerCase();
+      const addr   = addrStr(p.address).toLowerCase();
       const term_d = term.replace(/\D/g, "");
       return name.includes(term) || social.includes(term) ||
              (term_d && (cpf.includes(term_d) || cns.includes(term_d))) ||
