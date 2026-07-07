@@ -1,10 +1,8 @@
 import { useState } from "react";
 import { Tabs, Tab } from "../components/ui/Tabs";
-import WorkflowWizard from "./workflow/WorkflowWizard";
-import { PAPANICOLAU_STEPS, EMPTY_PAPANICOLAU, buildPapanicolauRecord } from "./workflow/papanicolau/papanicolauWorkflow";
-import { ACOLHIMENTO_STEPS, EMPTY_ACOLHIMENTO, buildAcolhimentoRecord } from "./workflow/acolhimento/acolhimentoWorkflow";
-import { MAMOGRAFIA_STEPS, EMPTY_MAMOGRAFIA, buildMamografiaRecord } from "./workflow/mamografia/mamografiaWorkflow";
-import { api } from "../api.js";
+import AcolhimentoForm from "./AcolhimentoForm";
+import PapanicolauForm from "./PapanicolauForm";
+import MamografiaForm from "./MamografiaForm";
 
 const NURSING_TABS = [
   { id: "acolhimento",  label: "Acolhimento" },
@@ -33,63 +31,10 @@ function PlaceholderTab({ label }) {
   );
 }
 
-function makeEmptyPapanicolau(user) {
-  const today = new Date().toISOString().slice(0, 10);
-  const now = new Date().toTimeString().slice(0, 5);
-  return {
-    ...EMPTY_PAPANICOLAU,
-    atendimento: { ...EMPTY_PAPANICOLAU.atendimento, dataAtendimento: today, horaAtendimento: now, profissionalId: user?.id || "" },
-    procedimentos: { ...EMPTY_PAPANICOLAU.procedimentos, dataColeta: today, responsavelId: user?.id || "" },
-  };
-}
-
-function makeEmptyAcolhimento(user) {
-  const today = new Date().toISOString().slice(0, 10);
-  const now = new Date().toTimeString().slice(0, 5);
-  return {
-    ...EMPTY_ACOLHIMENTO,
-    atendimento: { ...EMPTY_ACOLHIMENTO.atendimento, dataAtendimento: today, horaAtendimento: now, profissionalId: user?.id || "" },
-    procedimentos: { ...EMPTY_ACOLHIMENTO.procedimentos, dataColeta: today, responsavelId: user?.id || "" },
-  };
-}
-
-function useWorkflowState(user, makeEmpty) {
-  const [formData, setFormData] = useState(() => makeEmpty(user));
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState("");
-  const [saved, setSaved] = useState(false);
-  return { formData, setFormData, busy, setBusy, err, setErr, saved, setSaved };
-}
-
 export default function NursingWorkspace({ patient, user, token, users, onRecordSaved }) {
   const [activeTab, setActiveTab] = useState("acolhimento");
 
-  const pap = useWorkflowState(user, makeEmptyPapanicolau);
-  const acol = useWorkflowState(user, makeEmptyAcolhimento);
-  const mamo = useWorkflowState(user, (u) => {
-    const today = new Date().toISOString().slice(0, 10);
-    const now = new Date().toTimeString().slice(0, 5);
-    return { ...EMPTY_MAMOGRAFIA, identificacao: { ...EMPTY_MAMOGRAFIA.identificacao, dataAtendimento: today, horaAtendimento: now, profissionalId: u?.id || "" }, procedimentos: { ...EMPTY_MAMOGRAFIA.procedimentos, dataColeta: today, responsavelId: u?.id || "" } };
-  });
-
-  async function submitWorkflow(buildRecord, state, makeEmpty) {
-    state.setBusy(true);
-    state.setErr("");
-    try {
-      const record = buildRecord(state.formData, patient, users);
-      await api(`/patients/${patient.id}/records`, {
-        method: "POST",
-        body: JSON.stringify(record),
-      }, token);
-      state.setSaved(true);
-      onRecordSaved?.();
-      state.setFormData(makeEmpty(user));
-    } catch (e) {
-      state.setErr(e?.message || "Erro ao salvar atendimento.");
-    } finally {
-      state.setBusy(false);
-    }
-  }
+  const sharedProps = { patient, user, token, users, onRecordSaved };
 
   return (
     <div className="nursing-workspace">
@@ -102,58 +47,9 @@ export default function NursingWorkspace({ patient, user, token, users, onRecord
       </div>
 
       <div className="nursing-workspace__body">
-        {activeTab === "acolhimento" && (
-          <WorkflowWizard
-            steps={ACOLHIMENTO_STEPS}
-            formData={acol.formData}
-            onChange={acol.setFormData}
-            onSubmit={() => submitWorkflow(buildAcolhimentoRecord, acol, makeEmptyAcolhimento)}
-            busy={acol.busy}
-            error={acol.err}
-            saved={acol.saved}
-            onDismissSaved={() => acol.setSaved(false)}
-            patient={patient}
-            user={user}
-            token={token}
-            users={users}
-          />
-        )}
-        {activeTab === "papanicolau" && (
-          <WorkflowWizard
-            steps={PAPANICOLAU_STEPS}
-            formData={pap.formData}
-            onChange={pap.setFormData}
-            onSubmit={() => submitWorkflow(buildPapanicolauRecord, pap, makeEmptyPapanicolau)}
-            busy={pap.busy}
-            error={pap.err}
-            saved={pap.saved}
-            onDismissSaved={() => pap.setSaved(false)}
-            patient={patient}
-            user={user}
-            token={token}
-            users={users}
-          />
-        )}
-        {activeTab === "mamografia" && (
-          <WorkflowWizard
-            steps={MAMOGRAFIA_STEPS}
-            formData={mamo.formData}
-            onChange={mamo.setFormData}
-            onSubmit={() => submitWorkflow(buildMamografiaRecord, mamo, (u) => {
-              const today = new Date().toISOString().slice(0, 10);
-              const now = new Date().toTimeString().slice(0, 5);
-              return { ...EMPTY_MAMOGRAFIA, identificacao: { ...EMPTY_MAMOGRAFIA.identificacao, dataAtendimento: today, horaAtendimento: now, profissionalId: u?.id || "" }, procedimentos: { ...EMPTY_MAMOGRAFIA.procedimentos, dataColeta: today, responsavelId: u?.id || "" } };
-            })}
-            busy={mamo.busy}
-            error={mamo.err}
-            saved={mamo.saved}
-            onDismissSaved={() => mamo.setSaved(false)}
-            patient={patient}
-            user={user}
-            token={token}
-            users={users}
-          />
-        )}
+        {activeTab === "acolhimento"  && <AcolhimentoForm  key="acol" {...sharedProps} />}
+        {activeTab === "papanicolau"  && <PapanicolauForm  key="pap"  {...sharedProps} />}
+        {activeTab === "mamografia"   && <MamografiaForm   key="mamo" {...sharedProps} />}
         {activeTab === "pre_natal"    && <PlaceholderTab label="Pré-Natal" />}
         {activeTab === "puericultura" && <PlaceholderTab label="Puericultura" />}
         {activeTab === "curativo"     && <PlaceholderTab label="Curativo" />}
