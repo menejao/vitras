@@ -212,7 +212,7 @@ export default function DentalPage({ user, token }) {
                       <th>Categoria</th>
                       <th>Estoque</th>
                       <th>Mín.</th>
-                      {canWrite && <th style={{ width: 220 }}>Operações</th>}
+                      {canWrite && <th style={{ width: 220 }}>Ações</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -233,10 +233,10 @@ export default function DentalPage({ user, token }) {
                           <td className="muted small">{s.minQty} {s.unit}</td>
                           {canWrite && (
                             <td>
-                              <div style={{ display: "flex", gap: 4 }}>
-                                <Button size="sm" variant="ghost" onClick={() => openOp(s, "entrada")}>Entrada</Button>
-                                <Button size="sm" variant="ghost" onClick={() => openOp(s, "saida")}>Saída</Button>
-                                <Button size="sm" variant="ghost" onClick={() => openOp(s, "ajuste")}>Ajuste</Button>
+                              <div style={{ display: "flex", gap: 6 }}>
+                                <Button size="sm" variant="secondary" onClick={() => openOp(s, "entrada")}>Entrada</Button>
+                                <Button size="sm" variant="secondary" onClick={() => openOp(s, "saida")}>Saída</Button>
+                                <Button size="sm" variant="secondary" onClick={() => openOp(s, "ajuste")}>Ajuste</Button>
                               </div>
                             </td>
                           )}
