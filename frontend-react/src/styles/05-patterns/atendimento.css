@@ -277,6 +277,26 @@
   font-weight: 500;
 }
 
+/* ── Acolhimento / Risco ─────────────── */
+.wf-risco-badge {
+  padding: var(--s-3) var(--s-4);
+  border-left: 4px solid;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, currentColor 8%, var(--surface));
+  font-size: var(--t-sm);
+}
+
+.wf-imc-badge {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-3);
+  background: var(--surface-2, #f8fafc);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-top: var(--s-1);
+}
+
 /* ── Responsive 360px ─────────────────── */
 @media (max-width: 480px) {
   .pap-field__opts {
