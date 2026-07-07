@@ -4,6 +4,7 @@ import Input from "../components/ui/Input";
 import Button from "../components/ui/Button";
 import { matchesPatientSearch } from "../utils/clinical";
 import { maskCpf, fmtDate } from "../utils/formatting";
+import { isAdmin } from "../utils/roles";
 import NursingWorkspace from "./NursingWorkspace";
 
 const NURSING_ROLES = new Set(["nurse_manager", "nursing_tech"]);
@@ -11,7 +12,7 @@ const DOCTOR_ROLES  = new Set(["doctor"]);
 
 function resolveWorkspace(user) {
   const role = String(user?.role || "");
-  if (user?.isAdmin || user?.role === "support_admin") return "nursing";
+  if (isAdmin(user) || role === "support_admin") return "nursing";
   if (NURSING_ROLES.has(role)) return "nursing";
   if (DOCTOR_ROLES.has(role))  return "doctor";
   return "none";
