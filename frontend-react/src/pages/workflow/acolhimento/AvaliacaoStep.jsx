@@ -10,7 +10,7 @@ const PROBLEMAS_OPTS = [
   { value: "obesidade", label: "Obesidade" },
   { value: "pre_natal", label: "Pré-natal" },
   { value: "puericultura", label: "Puericultura" },
-  { value: "puerperio", label: "Puerpério até 42 dias" },
+  { value: "puerperio", label: "Puerpério até 30 dias" },
   { value: "saude_sexual_reprodutiva", label: "Saúde sexual e reprodutiva" },
   { value: "tabagismo", label: "Tabagismo" },
   { value: "alcool", label: "Usuário de álcool" },
