@@ -47,7 +47,7 @@ function GlobalSearch({ patients, templates, onNavigate }) {
           <div ref={ref} className="global-search__panel" onClick={e=>e.stopPropagation()}>
             <div className="global-search__input-row">
               <IconSearch/>
-              <Input ref={inputRef} inputClassName="global-search__input" value={q} onChange={e=>setQ(e.target.value)} placeholder="Nome, CPF, CNS ou telefone..."/>
+              <Input ref={inputRef} inputClassName="global-search__input" value={q} onChange={e=>setQ(e.target.value)} placeholder="Nome, CPF, CNS ou telefone..." autoComplete="off" autoCorrect="off" autoCapitalize="none" spellCheck={false}/>
               <Button className="icon-btn" variant="ghost" size="sm" iconOnly onClick={()=>setOpen(false)}>
                 <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
                   <path d="M2 2l12 12M14 2L2 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>

@@ -23,6 +23,7 @@ export default function PatientsToolbar({
         placeholder="Buscar por nome, CPF, CNS ou telefone"
         value={query}
         onChange={(event) => setQuery(event.target.value)}
+        autoComplete="off" autoCorrect="off" autoCapitalize="none" spellCheck={false}
       />
       <div className="patients-toolbar__actions">
         <span className="patients-toolbar__meta">{selectedCount} paciente(s)</span>

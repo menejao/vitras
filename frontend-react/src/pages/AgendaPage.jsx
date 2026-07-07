@@ -344,6 +344,7 @@ function AgendaPage({
           value={apptSearch}
           onChange={e => setApptSearch(e.target.value)}
           placeholder="Buscar paciente por nome, CPF ou telefone..."
+          autoComplete="off" autoCorrect="off" autoCapitalize="none" spellCheck={false}
         />
         <Select value={filterDoc} onChange={e => setFilterDoc(e.target.value)}>
           <option value="">Todos os profissionais</option>

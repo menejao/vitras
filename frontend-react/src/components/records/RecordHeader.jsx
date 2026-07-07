@@ -15,6 +15,7 @@ export default function RecordHeader({
         placeholder="Digite nome, CPF ou CNS"
         value={query}
         onChange={(event) => setQuery(event.target.value)}
+        autoComplete="off" autoCorrect="off" autoCapitalize="none" spellCheck={false}
       />
       <Select label="Paciente" value={selectedPatientId} onChange={(event) => onSelectPatient(event.target.value)}>
         <option value="">Selecione</option>

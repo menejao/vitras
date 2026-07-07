@@ -491,6 +491,7 @@ function FamilyGroupsSection({ token, user, patients, onNavigatePatient, onStart
           onChange={e => setSearch(e.target.value)}
           placeholder="Buscar por endereço, nome, CNS ou CPF..."
           aria-label="Buscar grupo familiar"
+          autoComplete="off" autoCorrect="off" autoCapitalize="none" spellCheck={false}
         />
       </div>
 
@@ -825,6 +826,7 @@ function PatientSelector({ patients, onSelect, onCancel }) {
           onChange={e => setQ(e.target.value)}
           placeholder="Nome, nome social, CPF, CNS, endereço..."
           aria-label="Buscar paciente"
+          autoComplete="off" autoCorrect="off" autoCapitalize="none" spellCheck={false}
         />
       </div>
 

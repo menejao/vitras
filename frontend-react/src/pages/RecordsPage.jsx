@@ -359,6 +359,7 @@ export default function RecordsPage({
             onFocus={() => setShowDropdown(true)}
             onBlur={() => setTimeout(() => setShowDropdown(false), 150)}
             placeholder="Pesquisar paciente por nome, CPF ou CNS..."
+            autoComplete="off" autoCorrect="off" autoCapitalize="none" spellCheck={false}
             disabled={chartUnlocked && Boolean(selectedPatient)}
           />
           {showDropdown && filteredPatients.length > 0 && (

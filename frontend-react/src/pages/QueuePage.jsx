@@ -378,6 +378,7 @@ function QueuePage({ patients, users, user, token, agenda = [], onNewPatient }) 
                     }}
                     placeholder="Nome, CPF ou telefone..."
                     autoFocus
+                    autoComplete="off" autoCorrect="off" autoCapitalize="none" spellCheck={false}
                   />
                 </div>
               </div>

@@ -164,6 +164,7 @@ export default function PatientsPage(props) {
               placeholder="Buscar por nome, telefone..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
+              autoComplete="off" autoCorrect="off" autoCapitalize="none" spellCheck={false}
             />
 
             <div className="patients-toolbar__filter-wrap" ref={filterRef}>

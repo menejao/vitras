@@ -441,6 +441,7 @@ function ReceptionistApp({ recUser, patients, users, templates, token, onLogout 
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Buscar paciente por nome, CPF ou CNS…"
                 autoFocus
+                autoComplete="off" autoCorrect="off" autoCapitalize="none" spellCheck={false}
               />
             </div>
 
