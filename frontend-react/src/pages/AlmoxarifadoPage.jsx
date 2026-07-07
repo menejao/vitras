@@ -4,11 +4,10 @@ import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
 import Select from "../components/ui/Select";
 import { Tabs, Tab } from "../components/ui/Tabs";
-
-const API = () => import.meta.env.VITE_API_URL || "";
+import { API_URL } from "../api.js";
 
 async function apiFetch(path, token, opts = {}) {
-  const r = await fetch(`${API()}${path}`, {
+  const r = await fetch(`${API_URL}${path}`, {
     ...opts,
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, ...(opts.headers || {}) },
   });
@@ -388,16 +387,16 @@ export default function AlmoxarifadoPage({ user, token }) {
 
       {/* Modal Nova Requisição */}
       {showModal && (
-        <div className="modal-overlay" onClick={() => setShowModal(false)}>
+        <div className="modal-backdrop" onClick={() => setShowModal(false)}>
           <div
-            className="modal-box almox-modal--wide"
+            className="modal almox-modal--wide"
             onClick={e => e.stopPropagation()}
           >
-            <div className="modal-header">
+            <div className="modal__header">
               <span className="modal-title">Nova Requisição ao Almoxarifado</span>
               <Button size="sm" variant="ghost" iconOnly onClick={() => setShowModal(false)}>✕</Button>
             </div>
-            <div className="modal-body" style={{ overflowY: "auto", flex: 1 }}>
+            <div className="modal__body" style={{ overflowY: "auto", flex: 1 }}>
               {modalError && <div className="error-banner" style={{ marginBottom: 12 }}>{modalError}</div>}
 
               <div style={{ marginBottom: 16 }}>
@@ -452,7 +451,7 @@ export default function AlmoxarifadoPage({ user, token }) {
                 <Input value={modalObs} onChange={e => setModalObs(e.target.value)} placeholder="Opcional" />
               </div>
             </div>
-            <div className="modal-footer" style={{ justifyContent: "flex-end", gap: 8 }}>
+            <div className="modal__footer" style={{ justifyContent: "flex-end", gap: 8 }}>
               <Button variant="ghost" size="sm" onClick={() => setShowModal(false)}>Cancelar</Button>
               <Button variant="ghost" size="sm" onClick={submitRascunho} disabled={modalBusy}>Salvar rascunho</Button>
               <Button variant="primary" size="sm" onClick={submitEnviar} disabled={modalBusy}>
@@ -465,13 +464,13 @@ export default function AlmoxarifadoPage({ user, token }) {
 
       {/* Modal Recebimento */}
       {recvReq && (
-        <div className="modal-overlay" onClick={() => setRecvReq(null)}>
-          <div className="modal-box" onClick={e => e.stopPropagation()} style={{ width: "min(600px, 92vw)", maxHeight: "90vh", display: "flex", flexDirection: "column" }}>
-            <div className="modal-header">
+        <div className="modal-backdrop" onClick={() => setRecvReq(null)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ width: "min(600px, 92vw)", maxHeight: "90vh", display: "flex", flexDirection: "column" }}>
+            <div className="modal__header">
               <span className="modal-title">Registrar Recebimento</span>
               <Button size="sm" variant="ghost" iconOnly onClick={() => setRecvReq(null)}>✕</Button>
             </div>
-            <div className="modal-body" style={{ overflowY: "auto", flex: 1 }}>
+            <div className="modal__body" style={{ overflowY: "auto", flex: 1 }}>
               {recvError && <div className="error-banner" style={{ marginBottom: 12 }}>{recvError}</div>}
               <table className="patients-table" style={{ width: "100%", marginBottom: 16 }}>
                 <thead>
@@ -512,7 +511,7 @@ export default function AlmoxarifadoPage({ user, token }) {
                 <Input value={recvObs} onChange={e => setRecvObs(e.target.value)} placeholder="Opcional" />
               </div>
             </div>
-            <div className="modal-footer">
+            <div className="modal__footer">
               <Button variant="ghost" size="sm" onClick={() => setRecvReq(null)}>Cancelar</Button>
               <Button variant="primary" size="sm" onClick={submitRecebimento} disabled={recvBusy}>
                 {recvBusy ? "Salvando..." : "Confirmar Recebimento"}

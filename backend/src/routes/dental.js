@@ -55,11 +55,11 @@ function ensureTeamDentalStock(db, teamId, actorId = "") {
 }
 
 // GET /dental/stock
-router.get("/dental/stock", (req, res) => {
+router.get("/dental/stock", async (req, res) => {
   const user = req.user;
   if (!canReadDental(user)) return res.status(403).json({ error: "Sem permissão" });
 
-  const db = readDb();
+  const db = await readDb();
   ensureDbShape(db);
 
   const teamId = user.teamId || "";
@@ -189,11 +189,11 @@ router.post("/dental/dispense", validate(DentalDispenseSchema), (req, res) => {
 });
 
 // GET /dental/logs
-router.get("/dental/logs", (req, res) => {
+router.get("/dental/logs", async (req, res) => {
   const user = req.user;
   if (!canReadDental(user)) return res.status(403).json({ error: "Sem permissão" });
 
-  const db = readDb();
+  const db = await readDb();
   ensureDbShape(db);
 
   const teamId = user.teamId || "";

@@ -5,13 +5,12 @@ import Input from "../components/ui/Input";
 import Select from "../components/ui/Select";
 import { Tabs, Tab } from "../components/ui/Tabs";
 import KPI from "../components/ui/KPI";
-
-const API = () => import.meta.env.VITE_API_URL || "";
+import { API_URL } from "../api.js";
 
 const UNIT_OPTIONS = ["unidade", "caixa", "pacote", "frasco", "ampola", "rolo", "par", "kit", "envelope", "tubo", "seringa"];
 
 async function apiFetch(path, token, opts = {}) {
-  const r = await fetch(`${API()}${path}`, {
+  const r = await fetch(`${API_URL}${path}`, {
     ...opts,
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, ...(opts.headers || {}) },
   });
@@ -316,13 +315,13 @@ export default function DentalPage({ user, token }) {
       </div>
 
       {showNew && (
-        <div className="modal-overlay" onClick={() => setShowNew(false)}>
-          <div className="modal-box dental-modal--wide" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
+        <div className="modal-backdrop" onClick={() => setShowNew(false)}>
+          <div className="modal dental-modal--wide" onClick={e => e.stopPropagation()}>
+            <div className="modal__header">
               <span className="modal-title">Novo Insumo Odontológico</span>
               <Button size="sm" variant="ghost" iconOnly onClick={() => setShowNew(false)}>✕</Button>
             </div>
-            <div className="modal-body" style={{ overflowY: "auto", flex: 1 }}>
+            <div className="modal__body" style={{ overflowY: "auto", flex: 1 }}>
               {newError && <div className="error-banner" style={{ marginBottom: 12 }}>{newError}</div>}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
                 <div>
@@ -369,7 +368,7 @@ export default function DentalPage({ user, token }) {
                 </div>
               </div>
             </div>
-            <div className="modal-footer">
+            <div className="modal__footer">
               <Button variant="ghost" size="sm" onClick={() => setShowNew(false)} disabled={newBusy}>Cancelar</Button>
               <Button variant="primary" size="sm" onClick={submitNovoInsumo} disabled={newBusy}>
                 {newBusy ? "Salvando..." : "Salvar Insumo"}
@@ -380,13 +379,13 @@ export default function DentalPage({ user, token }) {
       )}
 
       {opItem && (
-        <div className="modal-overlay" onClick={() => setOpItem(null)}>
-          <div className="modal-box" onClick={e => e.stopPropagation()} style={{ width: "min(560px, 90vw)", maxHeight: "90vh", display: "flex", flexDirection: "column" }}>
-            <div className="modal-header">
+        <div className="modal-backdrop" onClick={() => setOpItem(null)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ width: "min(560px, 90vw)", maxHeight: "90vh", display: "flex", flexDirection: "column" }}>
+            <div className="modal__header">
               <span className="modal-title">{opModeLabel} — {opItem.name}</span>
               <Button size="sm" variant="ghost" iconOnly onClick={() => setOpItem(null)}>✕</Button>
             </div>
-            <div className="modal-body" style={{ overflowY: "auto", flex: 1 }}>
+            <div className="modal__body" style={{ overflowY: "auto", flex: 1 }}>
               {opError && <div className="error-banner" style={{ marginBottom: 12 }}>{opError}</div>}
               <div style={{ color: "var(--text-2)", fontSize: "var(--t-sm)", marginBottom: 12 }}>
                 Estoque atual: <strong>{opItem.qty} {opItem.unit}</strong>
@@ -420,7 +419,7 @@ export default function DentalPage({ user, token }) {
                 </div>
               </div>
             </div>
-            <div className="modal-footer">
+            <div className="modal__footer">
               <Button variant="ghost" size="sm" onClick={() => setOpItem(null)}>Cancelar</Button>
               <Button variant="primary" size="sm" onClick={submitOp} disabled={opBusy}>
                 {opBusy ? "Salvando..." : "Confirmar"}
