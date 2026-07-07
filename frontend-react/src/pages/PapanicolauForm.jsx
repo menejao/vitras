@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
+import Select from "../components/ui/Select";
 import Textarea from "../components/ui/Textarea";
 import { RadioGroup, CheckboxGroup, FieldLabel } from "./workflow/shared.jsx";
 import { api } from "../api.js";
@@ -264,10 +265,10 @@ export default function PapanicolauForm({ patient, user, token, users, onRecordS
         <RadioGroup label="Tipo de atendimento (e-SUS)" name="tipoAtendimento" value={form.atendimento.tipoAtendimento} onChange={(_, v) => sec("atendimento", "tipoAtendimento", v)} options={TIPO_ATENDIMENTO_OPTS} />
         <div className="pap-field">
           <FieldLabel required>Profissional responsável</FieldLabel>
-          <select className="select" value={form.atendimento.profissionalId} onChange={e => sec("atendimento", "profissionalId", e.target.value)} style={{ maxWidth: 400 }}>
+          <Select value={form.atendimento.profissionalId} onChange={e => sec("atendimento", "profissionalId", e.target.value)} placeholder="Selecionar profissional..." style={{ maxWidth: 400 }}>
             <option value="">Selecionar profissional...</option>
             {clinicians.map(u => <option key={u.id} value={u.id}>{u.name || u.username}</option>)}
-          </select>
+          </Select>
         </div>
       </div>
 
@@ -396,10 +397,10 @@ export default function PapanicolauForm({ patient, user, token, users, onRecordS
           </div>
           <div className="pap-field" style={{ flex: 1 }}>
             <FieldLabel required>Profissional responsável</FieldLabel>
-            <select className="select" value={form.procedimentos.responsavelId} onChange={e => sec("procedimentos", "responsavelId", e.target.value)} style={{ maxWidth: 400 }}>
+            <Select value={form.procedimentos.responsavelId} onChange={e => sec("procedimentos", "responsavelId", e.target.value)} placeholder="Selecionar..." style={{ maxWidth: 400 }}>
               <option value="">Selecionar...</option>
               {clinicians.map(u => <option key={u.id} value={u.id}>{u.name || u.username}</option>)}
-            </select>
+            </Select>
           </div>
         </div>
         <div className="pap-field">
@@ -523,13 +524,13 @@ export default function PapanicolauForm({ patient, user, token, users, onRecordS
         <div className="pap-row" style={{ alignItems: "flex-end" }}>
           <div className="pap-field" style={{ flex: 1 }}>
             <FieldLabel>Nome / descrição do documento</FieldLabel>
-            <input className="input" value={docName} onChange={e => setDocName(e.target.value)} placeholder="Ex: Laudo citopatológico 06/2026" onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addDoc())} />
+            <Input value={docName} onChange={e => setDocName(e.target.value)} placeholder="Ex: Laudo citopatológico 06/2026" onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addDoc())} />
           </div>
           <div className="pap-field">
             <FieldLabel>Tipo</FieldLabel>
-            <select className="select" value={docType} onChange={e => setDocType(e.target.value)}>
+            <Select value={docType} onChange={e => setDocType(e.target.value)}>
               {Object.entries(FILE_TYPE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-            </select>
+            </Select>
           </div>
           <Button variant="secondary" size="sm" type="button" onClick={addDoc} style={{ marginBottom: 1 }}>+ Registrar</Button>
         </div>

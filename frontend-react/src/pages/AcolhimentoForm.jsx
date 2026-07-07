@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
+import Select from "../components/ui/Select";
 import Textarea from "../components/ui/Textarea";
 import { RadioGroup, CheckboxGroup, FieldLabel } from "./workflow/shared.jsx";
 import { api } from "../api.js";
@@ -406,9 +407,9 @@ export default function AcolhimentoForm({ patient, user, token, users, onRecordS
         {temEncInterno && (
           <div className="pap-field">
             <FieldLabel>Encaminhamento Interno</FieldLabel>
-            <select className="select" value={form.classificacaoConduta.observacoes} onChange={e => sec("classificacaoConduta", "observacoes", e.target.value)} style={{ maxWidth: 360 }}>
+            <Select value={form.classificacaoConduta.observacoes} onChange={e => sec("classificacaoConduta", "observacoes", e.target.value)} placeholder="Selecione o destino..." style={{ maxWidth: 360 }}>
               {ENC_INTERNO_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
+            </Select>
           </div>
         )}
       </div>
@@ -506,13 +507,13 @@ export default function AcolhimentoForm({ patient, user, token, users, onRecordS
         <div className="pap-row" style={{ alignItems: "flex-end" }}>
           <div className="pap-field" style={{ flex: 1 }}>
             <FieldLabel>Nome / descrição do documento</FieldLabel>
-            <input className="input" value={docName} onChange={e => setDocName(e.target.value)} placeholder="Ex: Laudo citopatológico 06/2026" onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addDoc())} />
+            <Input value={docName} onChange={e => setDocName(e.target.value)} placeholder="Ex: Laudo citopatológico 06/2026" onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addDoc())} />
           </div>
           <div className="pap-field">
             <FieldLabel>Tipo</FieldLabel>
-            <select className="select" value={docType} onChange={e => setDocType(e.target.value)}>
+            <Select value={docType} onChange={e => setDocType(e.target.value)}>
               {Object.entries(FILE_TYPE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-            </select>
+            </Select>
           </div>
           <Button variant="secondary" size="sm" type="button" onClick={addDoc} style={{ marginBottom: 1 }}>+ Registrar</Button>
         </div>

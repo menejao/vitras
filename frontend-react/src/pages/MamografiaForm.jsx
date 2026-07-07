@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
+import Select from "../components/ui/Select";
 import Textarea from "../components/ui/Textarea";
 import { RadioGroup, CheckboxGroup, FieldLabel } from "./workflow/shared.jsx";
 import { api } from "../api.js";
@@ -477,13 +478,13 @@ export default function MamografiaForm({ patient, user, token, users, onRecordSa
         <div className="pap-row" style={{ alignItems: "flex-end" }}>
           <div className="pap-field" style={{ flex: 1 }}>
             <FieldLabel>Nome / descrição do documento</FieldLabel>
-            <input className="input" value={docName} onChange={e => setDocName(e.target.value)} placeholder="Ex: Laudo mamografia 06/2026" onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addDoc())} />
+            <Input value={docName} onChange={e => setDocName(e.target.value)} placeholder="Ex: Laudo mamografia 06/2026" onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addDoc())} />
           </div>
           <div className="pap-field">
             <FieldLabel>Tipo</FieldLabel>
-            <select className="select" value={docType} onChange={e => setDocType(e.target.value)}>
+            <Select value={docType} onChange={e => setDocType(e.target.value)}>
               {Object.entries(FILE_TYPE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-            </select>
+            </Select>
           </div>
           <Button variant="secondary" size="sm" type="button" onClick={addDoc} style={{ marginBottom: 1 }}>+ Registrar</Button>
         </div>

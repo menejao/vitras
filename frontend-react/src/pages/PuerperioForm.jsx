@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
+import Select from "../components/ui/Select";
 import Textarea from "../components/ui/Textarea";
 import { RadioGroup, CheckboxGroup, FieldLabel } from "./workflow/shared.jsx";
 import { api } from "../api.js";
@@ -185,11 +186,11 @@ export default function PuerperioForm({ patient, user, token, onRecordSaved }) {
         <div className="pap-row">
           <div className="pap-field">
             <FieldLabel required>Data do atendimento</FieldLabel>
-            <Input type="date" value={form.atendimento.dataAtendimento} onChange={e => sec("atendimento", "dataAtendimento", e.target.value)} />
+            <Input type="date" value={form.atendimento.dataAtendimento} onChange={e => sec("atendimento", "dataAtendimento", e.target.value)} style={{ maxWidth: 200 }} />
           </div>
           <div className="pap-field">
             <FieldLabel>Hora</FieldLabel>
-            <Input type="time" value={form.atendimento.horaAtendimento} onChange={e => sec("atendimento", "horaAtendimento", e.target.value)} />
+            <Input type="time" value={form.atendimento.horaAtendimento} onChange={e => sec("atendimento", "horaAtendimento", e.target.value)} style={{ maxWidth: 140 }} />
           </div>
         </div>
         <RadioGroup
@@ -393,15 +394,15 @@ export default function PuerperioForm({ patient, user, token, onRecordSaved }) {
         {temEncInterno && (
           <div className="pap-field">
             <FieldLabel>Encaminhamento interno — destino</FieldLabel>
-            <select
-              className="select"
+            <Select
               value={form.conduta.observacoes}
               onChange={e => sec("conduta", "observacoes", e.target.value)}
+              placeholder="Selecione o destino..."
               style={{ maxWidth: 360 }}
             >
               <option value="">Selecione o destino...</option>
               {ENC_INTERNO_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
+            </Select>
           </div>
         )}
       </div>
