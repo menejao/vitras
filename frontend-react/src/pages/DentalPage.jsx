@@ -171,17 +171,12 @@ export default function DentalPage({ user, token }) {
   });
   const opModeLabel = opMode === "entrada" ? "Registrar Entrada" : opMode === "saida" ? "Registrar Saída" : "Ajuste de Estoque";
 
-  const heroActions = canWrite ? (
-    <Button size="sm" variant="primary" onClick={() => { setShowNew(true); setNewError(""); }}>+ Novo Insumo</Button>
-  ) : null;
-
   return (
     <div className="dental-page">
       <PageHeader
         eyebrow="INSUMOS ODONTOLÓGICOS"
         title="Insumos Odontológicos"
         subtitle="Controle de estoque e movimentações da equipe de saúde bucal"
-        actions={heroActions}
       />
 
       <div className="dental-kpis">
@@ -227,6 +222,9 @@ export default function DentalPage({ user, token }) {
                       {dentalCategories.map(c => <option key={c}>{c}</option>)}
                     </Select>
                   </div>
+                  {canWrite && (
+                    <Button size="sm" onClick={() => { setShowNew(true); setNewError(""); }}>+ Novo Insumo</Button>
+                  )}
                 </div>
                 <table className="patients-table" style={{ width: "100%" }}>
                   <thead>
@@ -263,9 +261,8 @@ export default function DentalPage({ user, token }) {
                           {canWrite && (
                             <td>
                               <div style={{ display: "flex", gap: 6 }}>
-                                <Button size="sm" variant="secondary" onClick={() => openOp(s, "entrada")}>Entrada</Button>
-                                <Button size="sm" variant="secondary" onClick={() => openOp(s, "saida")}>Saída</Button>
-                                <Button size="sm" variant="secondary" onClick={() => openOp(s, "ajuste")}>Ajuste</Button>
+                                <Button size="sm" variant="secondary" onClick={() => openOp(s, "entrada")}>+ Entrada</Button>
+                                <Button size="sm" variant="secondary" onClick={() => openOp(s, "ajuste")}>± Ajustar</Button>
                               </div>
                             </td>
                           )}

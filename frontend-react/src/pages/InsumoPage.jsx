@@ -132,7 +132,7 @@ function InsumoPage({
 
   const tabs = [
     canDispense && ["dispensar", "Nova Dispensação"],
-    ["estoque", "Estoque de Insumos"],
+    ["estoque", "Estoque"],
     (canDispense || canViewAll) && ["log", "Histórico de Saídas"],
     ["continuos", "Pacientes Contínuos"],
   ].filter(Boolean);
