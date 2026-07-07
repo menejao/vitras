@@ -1,0 +1,140 @@
+.atendimento-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+/* ── Nursing Workspace ─────────────────── */
+.nursing-workspace {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.nursing-workspace__tabs {
+  margin-bottom: var(--s-2);
+}
+
+.nursing-workspace__body {
+  flex: 1;
+}
+
+/* ── Papanicolau Form ─────────────────── */
+.pap-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-5);
+}
+
+.pap-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.pap-section__title {
+  font-weight: 700;
+  font-size: var(--t-sm);
+  color: var(--navy);
+  padding-bottom: var(--s-2);
+  border-bottom: 2px solid var(--primary);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.pap-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.pap-field__label {
+  font-size: var(--t-sm);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.pap-field__hint {
+  padding: var(--s-2) var(--s-3);
+  background: var(--warning-soft, #fef3cd);
+  border-left: 3px solid var(--warning, #f59e0b);
+  border-radius: var(--radius-sm);
+  font-size: var(--t-xs);
+  font-weight: 600;
+  color: var(--warning-text, #92400e);
+}
+
+.pap-field__opts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+
+.pap-opt {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-3);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  font-size: var(--t-sm);
+  cursor: pointer;
+  background: var(--surface);
+  color: var(--text);
+  transition: border-color .12s, background .12s;
+  user-select: none;
+}
+
+.pap-opt input[type="radio"],
+.pap-opt input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
+.pap-opt:hover {
+  border-color: var(--primary);
+  background: var(--primary-soft, #eff6ff);
+}
+
+.pap-opt.is-active {
+  border-color: var(--primary);
+  background: var(--primary-soft, #eff6ff);
+  color: var(--primary-dark, var(--primary));
+  font-weight: 600;
+}
+
+.pap-row {
+  display: flex;
+  gap: var(--s-4);
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+.pap-procedure-code {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-3);
+  background: var(--surface-2, #f8fafc);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.pap-code {
+  font-family: var(--font-mono, monospace);
+  font-size: var(--t-sm);
+  font-weight: 700;
+  color: var(--primary);
+}
+
+/* ── Responsive 360px ─────────────────── */
+@media (max-width: 480px) {
+  .pap-field__opts {
+    flex-direction: column;
+  }
+  .pap-row {
+    flex-direction: column;
+  }
+}

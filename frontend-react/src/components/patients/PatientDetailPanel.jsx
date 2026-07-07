@@ -1411,7 +1411,6 @@ function HouseholdTab({ patient, token }) {
 // Tab IDs válidos — igual ao monolito 58ae55c
 const DETAIL_TABS = [
   { id: "protocol",     label: "Protocolo" },
-  { id: "followup",     label: "Atendimento" },
   { id: "appointments", label: "Histórico" },
   { id: "tasks",        label: "Tarefas" },
   { id: "exams",        label: "Ações clínicas" },
@@ -1536,20 +1535,6 @@ export default function PatientDetailPanel({
       <div className="panel-block">
         {activeTab === "protocol" && (
           <ProtocolTab patient={patient} alerts={sortedSpecialAlerts} protocolSummary={patientProtocolSummary} loading={patientDataLoading} />
-        )}
-
-        {activeTab === "followup" && (
-          <FollowupTab
-            patient={patient}
-            users={users}
-            recordForm={recordForm}
-            setRecordForm={setRecordForm}
-            recordVaccines={recordVaccines}
-            setRecordVaccines={setRecordVaccines}
-            onSubmitRecord={onSubmitRecord}
-            canWriteRecords={canWriteRecords}
-            userObj={userObj}
-          />
         )}
 
         {activeTab === "appointments" && (
