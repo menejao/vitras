@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Tabs, Tab } from "../components/ui/Tabs";
-import PapanicolauForm from "./PapanicolauForm";
+import WorkflowWizard from "./workflow/WorkflowWizard";
+import { PAPANICOLAU_STEPS, EMPTY_PAPANICOLAU, buildPapanicolauRecord } from "./workflow/papanicolau/papanicolauWorkflow";
+import { api } from "../api.js";
 
 const NURSING_TABS = [
   { id: "papanicolau", label: "Papanicolau" },
@@ -27,8 +29,50 @@ function PlaceholderTab({ label }) {
   );
 }
 
+function makeEmptyForm(user) {
+  const today = new Date().toISOString().slice(0, 10);
+  const now = new Date().toTimeString().slice(0, 5);
+  return {
+    ...EMPTY_PAPANICOLAU,
+    atendimento: {
+      ...EMPTY_PAPANICOLAU.atendimento,
+      dataAtendimento: today,
+      horaAtendimento: now,
+      profissionalId: user?.id || "",
+    },
+    procedimentos: {
+      ...EMPTY_PAPANICOLAU.procedimentos,
+      dataColeta: today,
+      responsavelId: user?.id || "",
+    },
+  };
+}
+
 export default function NursingWorkspace({ patient, user, token, users, onRecordSaved }) {
   const [activeTab, setActiveTab] = useState("papanicolau");
+  const [formData, setFormData] = useState(() => makeEmptyForm(user));
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const [saved, setSaved] = useState(false);
+
+  async function handleSubmit() {
+    setBusy(true);
+    setErr("");
+    try {
+      const record = buildPapanicolauRecord(formData, patient, users);
+      await api(`/patients/${patient.id}/records`, {
+        method: "POST",
+        body: JSON.stringify(record),
+      }, token);
+      setSaved(true);
+      onRecordSaved?.();
+      setFormData(makeEmptyForm(user));
+    } catch (e) {
+      setErr(e?.message || "Erro ao salvar atendimento.");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   return (
     <div className="nursing-workspace">
@@ -42,25 +86,21 @@ export default function NursingWorkspace({ patient, user, token, users, onRecord
 
       <div className="nursing-workspace__body">
         {activeTab === "papanicolau" && (
-          <div className="card" style={{ padding: "var(--s-5)" }}>
-            <div style={{ marginBottom: "var(--s-4)" }}>
-              <div style={{ fontWeight: 700, fontSize: "var(--t-md)", color: "var(--navy)", marginBottom: 4 }}>
-                Coleta de Citopatológico de Colo do Útero
-              </div>
-              <div className="muted small">
-                Paciente: <strong>{patient.name}</strong>
-              </div>
-            </div>
-            <PapanicolauForm
-              patient={patient}
-              user={user}
-              token={token}
-              users={users}
-              onSuccess={onRecordSaved}
-            />
-          </div>
+          <WorkflowWizard
+            steps={PAPANICOLAU_STEPS}
+            formData={formData}
+            onChange={setFormData}
+            onSubmit={handleSubmit}
+            busy={busy}
+            error={err}
+            saved={saved}
+            onDismissSaved={() => setSaved(false)}
+            patient={patient}
+            user={user}
+            token={token}
+            users={users}
+          />
         )}
-
         {activeTab === "pre_natal"    && <PlaceholderTab label="Pré-Natal" />}
         {activeTab === "puericultura" && <PlaceholderTab label="Puericultura" />}
         {activeTab === "curativo"     && <PlaceholderTab label="Curativo" />}

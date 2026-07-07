@@ -1,0 +1,121 @@
+import Input from "../../../components/ui/Input";
+import { RadioGroup, FieldLabel } from "../shared.jsx";
+
+const CARATER_OPTS = [
+  { value: "eletivo", label: "Eletivo" },
+  { value: "urgencia", label: "Urgência/Emergência" },
+];
+
+const LINHA_CUIDADO_OPTS = [
+  { value: "saude_mulher", label: "Saúde da Mulher" },
+  { value: "crianca", label: "Saúde da Criança" },
+  { value: "idoso", label: "Saúde do Idoso" },
+  { value: "doenca_cronica", label: "Doenças Crônicas (Hiperdia)" },
+  { value: "saude_mental", label: "Saúde Mental" },
+  { value: "saude_bucal", label: "Saúde Bucal" },
+  { value: "pre_natal", label: "Pré-natal" },
+  { value: "dst_ist", label: "DST/IST" },
+  { value: "outra", label: "Outra" },
+];
+
+const LOCAL_OPTS = [
+  { value: "ubs", label: "UBS" },
+  { value: "domicilio", label: "Domicílio" },
+  { value: "escola", label: "Escola" },
+  { value: "polo_academia", label: "Polo Academia" },
+  { value: "outros_espacos", label: "Outros espaços sociais" },
+];
+
+const TIPO_ATENDIMENTO_OPTS = [
+  { value: "consulta_agendada", label: "Consulta agendada" },
+  { value: "consulta_nao_agendada", label: "Consulta não agendada (demanda espontânea)" },
+  { value: "atendimento_urgencia", label: "Atendimento de urgência" },
+  { value: "escuta_orientacao", label: "Escuta inicial/orientação" },
+  { value: "procedimento", label: "Procedimento" },
+];
+
+export default function AtendimentoStep({ data, onChange, users }) {
+  function set(field, val) {
+    onChange({ ...data, [field]: val });
+  }
+
+  const clinicians = (users || []).filter(u =>
+    ["nurse_manager", "nursing_tech", "doctor", "dentist"].includes(u.role)
+  );
+
+  return (
+    <div className="pap-form">
+      <div className="pap-section">
+        <div className="pap-section__title">Dados do Atendimento</div>
+
+        <div className="pap-row">
+          <div className="pap-field">
+            <FieldLabel required>Data do atendimento</FieldLabel>
+            <Input
+              type="date"
+              value={data.dataAtendimento || ""}
+              onChange={e => set("dataAtendimento", e.target.value)}
+              style={{ maxWidth: 200 }}
+            />
+          </div>
+          <div className="pap-field">
+            <FieldLabel>Hora</FieldLabel>
+            <Input
+              type="time"
+              value={data.horaAtendimento || ""}
+              onChange={e => set("horaAtendimento", e.target.value)}
+              style={{ maxWidth: 140 }}
+            />
+          </div>
+        </div>
+
+        <RadioGroup
+          label="Caráter do atendimento"
+          name="carater"
+          value={data.carater || ""}
+          onChange={set}
+          options={CARATER_OPTS}
+        />
+
+        <RadioGroup
+          label="Linha de cuidado"
+          name="linhaCuidado"
+          value={data.linhaCuidado || ""}
+          onChange={set}
+          options={LINHA_CUIDADO_OPTS}
+        />
+
+        <RadioGroup
+          label="Local de atendimento"
+          name="localAtendimento"
+          value={data.localAtendimento || ""}
+          onChange={set}
+          options={LOCAL_OPTS}
+        />
+
+        <RadioGroup
+          label="Tipo de atendimento (e-SUS)"
+          name="tipoAtendimento"
+          value={data.tipoAtendimento || ""}
+          onChange={set}
+          options={TIPO_ATENDIMENTO_OPTS}
+        />
+
+        <div className="pap-field">
+          <FieldLabel required>Profissional responsável</FieldLabel>
+          <select
+            className="select"
+            value={data.profissionalId || ""}
+            onChange={e => set("profissionalId", e.target.value)}
+            style={{ maxWidth: 400 }}
+          >
+            <option value="">Selecionar profissional...</option>
+            {clinicians.map(u => (
+              <option key={u.id} value={u.id}>{u.name || u.username}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+    </div>
+  );
+}

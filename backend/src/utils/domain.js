@@ -212,6 +212,28 @@ const CATALOG_SEED = [
   { code: "ODONT-0013", name: "Fio Dental", domain: "dental", category: "Higiene", unit: "rolo", allowedUnits: ["rolo", "caixa"], controlsLote: false, controlsValidade: false, minQty: 10 },
   { code: "ODONT-0014", name: "Gaze Estéril", domain: "dental", category: "Descartável", unit: "pacote", allowedUnits: ["pacote"], controlsLote: false, controlsValidade: true, minQty: 5 },
   { code: "ODONT-0015", name: "Sugador Descartável", domain: "dental", category: "Descartável", unit: "unidade", allowedUnits: ["unidade", "pacote"], controlsLote: false, controlsValidade: false, minQty: 50 },
+  // Procedimentos clínicos (catálogo institucional — domain: procedure)
+  { code: "02.01.02.003-3", name: "Coleta de citopatológico de colo uterino", domain: "procedure", category: "Ginecologia" },
+  { code: "02.11.06.014-2", name: "Teste rápido para HIV", domain: "procedure", category: "DST/IST" },
+  { code: "02.11.06.028-2", name: "Teste rápido para Sífilis", domain: "procedure", category: "DST/IST" },
+  { code: "02.11.06.015-0", name: "Teste rápido para Gravidez (HCG)", domain: "procedure", category: "Ginecologia" },
+  { code: "02.11.35.020-5", name: "Exame do pé diabético", domain: "procedure", category: "Diabetes" },
+  { code: "07.01.01.009-4", name: "Estratificação de risco cardiovascular", domain: "procedure", category: "Cardiovascular" },
+  { code: "01.01.01.003-3", name: "Consulta de enfermagem", domain: "procedure", category: "Enfermagem" },
+  { code: "01.01.03.006-8", name: "Consulta médica em atenção básica", domain: "procedure", category: "Médico" },
+  { code: "04.01.01.001-7", name: "Curativo simples", domain: "procedure", category: "Curativo" },
+  { code: "04.01.01.003-3", name: "Administração de medicamentos", domain: "procedure", category: "Enfermagem" },
+  { code: "02.01.05.006-7", name: "Coleta de sangue venoso", domain: "procedure", category: "Enfermagem" },
+  { code: "07.01.01.004-3", name: "Monitoramento de glicemia capilar", domain: "procedure", category: "Diabetes" },
+  { code: "02.02.02.035-7", name: "Consulta pré-natal de retorno", domain: "procedure", category: "Pré-natal" },
+  { code: "02.02.02.001-2", name: "Consulta pré-natal (1ª consulta)", domain: "procedure", category: "Pré-natal" },
+  { code: "04.01.01.010-5", name: "Retirada de pontos de cirurgia", domain: "procedure", category: "Curativo" },
+  { code: "02.11.35.018-3", name: "Aferição de pressão arterial", domain: "procedure", category: "Enfermagem" },
+  { code: "02.11.35.019-1", name: "Antropometria", domain: "procedure", category: "Enfermagem" },
+  { code: "07.01.01.008-6", name: "Visita domiciliar por profissional de saúde", domain: "procedure", category: "Atenção Domiciliar" },
+  { code: "04.01.01.015-6", name: "Nebulização/aerossolterapia", domain: "procedure", category: "Enfermagem" },
+  { code: "02.11.06.036-3", name: "Teste rápido para Hepatite B", domain: "procedure", category: "DST/IST" },
+  { code: "02.11.06.037-1", name: "Teste rápido para Hepatite C", domain: "procedure", category: "DST/IST" },
 ];
 
 function seedCatalog(db) {
