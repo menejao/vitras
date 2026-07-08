@@ -26,7 +26,7 @@ function stripSslParams(url) {
   if (!url) return url;
   try {
     const u = new URL(url);
-    ["sslmode", "sslcert", "sslkey", "sslrootcert", "sslpassword"].forEach((p) => u.searchParams.delete(p));
+    ["sslmode", "sslcert", "sslkey", "sslrootcert", "sslpassword", "channel_binding"].forEach((p) => u.searchParams.delete(p));
     return u.toString();
   } catch {
     return url;
