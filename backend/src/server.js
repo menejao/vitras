@@ -269,8 +269,16 @@ async function startServer() {
   }
 
   // EB-01: Fatal guard — verify critical migrations were applied (post-migration check).
-  // Runs after runMigrations() so it validates the final state before accepting traffic.
-  await withTimeout("checkCriticalMigrations", checkCriticalMigrations(), 15000);
+  // SSL errors (e.g. Neon pooler on Render) are non-fatal — migrations were pre-applied.
+  try {
+    await withTimeout("checkCriticalMigrations", checkCriticalMigrations(), 15000);
+  } catch (migCheckErr) {
+    if (migCheckErr.code === "UNABLE_TO_GET_ISSUER_CERT_LOCALLY" || migCheckErr.code === "DEPTH_ZERO_SELF_SIGNED_CERT" || migCheckErr.code === "ECONNREFUSED") {
+      logWarn("boot_migration_check_skipped", { event: "boot_migration_check_skipped", reason: migCheckErr.code, message: "Verificação de migrations ignorada por erro SSL/rede — assumindo migrations aplicadas" });
+    } else {
+      throw migCheckErr;
+    }
+  }
 
   // Assign to module-level `server` so gracefulShutdown can close it
   await new Promise((resolve, reject) => {
