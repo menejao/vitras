@@ -28,23 +28,9 @@
 export const id = "008_drop_ciphertext_indexes_concurrently";
 
 export async function up(client) {
-  try {
-    await client.query(`DROP INDEX CONCURRENTLY IF EXISTS idx_app_patients_cpf_unique`);
-    await client.query(`DROP INDEX CONCURRENTLY IF EXISTS idx_app_patients_cns_unique`);
-  } catch (err) {
-    // CONCURRENTLY failed — likely because we are inside a transaction (runner wraps in BEGIN).
-    // Check whether the indexes still exist; if not, 007 already cleaned them up — safe to proceed.
-    const check = await client.query(`
-      SELECT indexname FROM pg_indexes
-      WHERE tablename = 'app_patients'
-      AND indexname IN ('idx_app_patients_cpf_unique', 'idx_app_patients_cns_unique')
-    `);
-    if (check.rows.length === 0) {
-      // Indexes are gone (dropped by migration 007) — this migration is a no-op. Done.
-      return;
-    }
-    // Indexes still exist and CONCURRENTLY failed — rethrow so the operator notices.
-    // Run the manual fallback above outside a transaction to resolve.
-    throw err;
-  }
+  // DROP INDEX CONCURRENTLY cannot run inside a transaction block (runner uses BEGIN/COMMIT).
+  // Migration 007 already dropped these indexes with a plain DROP INDEX IF EXISTS.
+  // Use plain DROP INDEX IF EXISTS here as fallback — safe since 007 runs first.
+  await client.query(`DROP INDEX IF EXISTS idx_app_patients_cpf_unique`);
+  await client.query(`DROP INDEX IF EXISTS idx_app_patients_cns_unique`);
 }

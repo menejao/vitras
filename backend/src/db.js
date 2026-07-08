@@ -61,11 +61,12 @@ if (DATABASE_URL_CLEAN && !_rdsCaBundle && !IS_DEV) {
 
 // KI-03: Returns the SSL config object for pg.Pool — exported so startup checks and migrations use the same config.
 // When CA bundle is present: explicit cert pinning. When absent: system trust store with rejectUnauthorized:true.
-// Never use rejectUnauthorized:false in production — disables TLS cert validation.
+// Set DB_SSL_REJECT_UNAUTHORIZED=false only when host CA chain is incomplete (e.g. Render + Neon pooler).
+const _rejectUnauthorized = process.env.DB_SSL_REJECT_UNAUTHORIZED === "false" ? false : true;
 function getPoolSslConfig() {
   const bundle = loadRdsCaBundle();
   if (bundle) return { rejectUnauthorized: true, ca: bundle };
-  return { rejectUnauthorized: true }; // system trust store — still validates cert
+  return { rejectUnauthorized: _rejectUnauthorized };
 }
 
 const pool = DATABASE_URL_CLEAN
@@ -73,7 +74,7 @@ const pool = DATABASE_URL_CLEAN
       connectionString: DATABASE_URL_CLEAN,
       ssl: _rdsCaBundle
         ? { rejectUnauthorized: true, ca: _rdsCaBundle }
-        : { rejectUnauthorized: true }, // system trust store
+        : { rejectUnauthorized: _rejectUnauthorized },
       max: 10,
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 5000,
@@ -81,7 +82,7 @@ const pool = DATABASE_URL_CLEAN
   : null;
 
 if (pool) {
-  logInfo("db_pool_created", { event: "db_pool_created", message: "SSL enabled — rejectUnauthorized=true (system trust store or CA bundle)" });
+  logInfo("db_pool_created", { event: "db_pool_created", message: `SSL enabled — rejectUnauthorized=${_rejectUnauthorized} (system trust store or CA bundle)` });
   pool.on("error", (err) => {
     logError("db_pool_idle_error", { event: "db_pool_idle_error", message: err.message, code: err.code });
   });
