@@ -1,0 +1,88 @@
+services:
+  - type: web
+    name: vitras-backend
+    runtime: node
+    region: oregon
+    plan: free
+    rootDir: backend
+    buildCommand: npm install --production=false
+    startCommand: npm start
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      # ── Obrigatórias ──────────────────────────────────────────────────────────
+      - key: NODE_ENV
+        value: production
+
+      - key: DATABASE_URL
+        sync: false   # definir no dashboard do Render (Neon connection string)
+
+      - key: JWT_SECRET
+        generateValue: false
+        sync: false   # definir no dashboard do Render
+
+      - key: DATA_ENCRYPTION_KEY
+        sync: false   # 32+ chars, definir no dashboard
+
+      - key: PATIENT_LOOKUP_HASH_KEY
+        sync: false   # 32+ chars, definir no dashboard
+
+      - key: BACKUP_EXPORT_KEY
+        sync: false   # senha para GET /admin/backup/export
+
+      - key: ADMIN_SEED_KEY
+        sync: false   # chave para seed inicial de admin
+
+      # ── CORS ─────────────────────────────────────────────────────────────────
+      - key: FRONTEND_ORIGINS
+        sync: false   # Ex.: https://vitras.vercel.app,https://vitras-portal.vercel.app
+
+      # ── Cookies cross-origin (Vercel <-> Render = domínios diferentes) ───────
+      # SameSite=None + Secure é obrigatório para cookies em requisições
+      # cross-origin (fetch com credentials:include de Vercel para Render).
+      - key: COOKIE_SAME_SITE
+        value: none
+
+      - key: COOKIE_SECURE
+        value: "true"
+
+      # ── Migrations ───────────────────────────────────────────────────────────
+      # Definir como "true" apenas no primeiro deploy ou quando houver migrations novas.
+      # Após aplicadas, remover ou deixar "false" para evitar lock na inicialização.
+      - key: RUN_MIGRATIONS
+        value: "true"
+
+      # ── Segurança opcional ────────────────────────────────────────────────────
+      - key: ENABLE_ADMIN_SEED
+        value: "false"
+
+      - key: SEED_DEMO_DATA
+        value: "false"
+
+      - key: READ_ONLY_MODE
+        value: "false"
+
+      # ── Logs ─────────────────────────────────────────────────────────────────
+      - key: LOG_FORMAT
+        value: json
+
+      - key: REQUEST_LOG_ENABLED
+        value: "true"
+
+      # ── Rate limits (ajustáveis conforme uso) ─────────────────────────────────
+      - key: GLOBAL_RATE_LIMIT_MAX
+        value: "600"
+
+      - key: AUTH_MAX_ATTEMPTS
+        value: "20"
+
+      # ── Município (obrigatório para dados e-SUS) ──────────────────────────────
+      - key: MUNICIPALITY_ID
+        sync: false   # IBGE code ex.: "3550308" para São Paulo
+
+      # ── Tokens ───────────────────────────────────────────────────────────────
+      - key: ACCESS_TOKEN_EXPIRES_IN
+        value: 15m
+
+      - key: REFRESH_TOKEN_EXPIRES_IN
+        value: 7d

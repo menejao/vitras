@@ -8,152 +8,229 @@ Sistema clínico para APS/ESF com frontend React + Vite, backend Node.js + Expre
 
 O Vitras apoia fluxos clínicos e operacionais de atenção primária, incluindo pacientes, agenda, fila/recepção, prontuário, exames, encaminhamentos, vacinas, farmácia, insumos, auditoria e controle de acesso.
 
-Premissas deste repositório:
+---
 
-- preservar comportamento já em uso operacional;
-- documentar infraestrutura oficial atual;
-- separar artefatos legados sem apagar histórico;
-- evitar segredos em código e em versionamento;
-- facilitar onboarding e manutenção por novos devs.
+## Arquitetura atual
 
-## Arquitetura oficial
-
-- Frontend: AWS Amplify
-- Backend: AWS Elastic Beanstalk
-- Banco: AWS Aurora PostgreSQL ou Amazon RDS for PostgreSQL
-- Rede, DNS, CDN e WAF: Cloudflare
+| Serviço        | Plataforma                    | Plano  |
+|----------------|-------------------------------|--------|
+| Frontend       | Vercel                        | Free   |
+| Portal Cidadão | Vercel (projeto separado)     | Free   |
+| Backend API    | Render (Web Service)          | Free   |
+| Banco de dados | Neon (PostgreSQL serverless)  | Free   |
+| DNS / edge     | Cloudflare (opcional)         | Free   |
 
 Fluxo macro:
 
-1. Usuário acessa domínio protegido por Cloudflare.
-2. Cloudflare entrega frontend publicado no Amplify.
-3. Frontend consome API publicada no Elastic Beanstalk.
-4. Backend persiste dados em Aurora/RDS.
+```
+Usuário → Vercel (frontend-react) → Render (backend) → Neon (PostgreSQL)
+```
 
-Detalhes: [docs/architecture/overview.md](/C:/dev/vitras/docs/architecture/overview.md)
+---
 
-## Stack utilizada
+## Stack
 
-| Camada | Stack |
-|---|---|
-| Frontend | React 18, Vite 5 |
-| Backend | Node.js 20+, Express 4, ESM |
-| Banco em desenvolvimento | JSON local opcional ou PostgreSQL |
-| Banco oficial | AWS Aurora/RDS PostgreSQL |
-| Segurança | JWT, TOTP, Helmet, CORS, rate limit, criptografia AES-256-GCM |
-| Deploy frontend | AWS Amplify |
-| Deploy backend | AWS Elastic Beanstalk |
-| Edge | Cloudflare |
+| Camada    | Stack                                                    |
+|-----------|----------------------------------------------------------|
+| Frontend  | React 18, Vite 5                                         |
+| Backend   | Node.js 22, Express 4, ESM                               |
+| Banco     | PostgreSQL (Neon serverless) / JSON local (dev)          |
+| Segurança | JWT, TOTP, Helmet, CORS, rate limit, AES-256-GCM         |
+| Deploy    | Vercel (frontend) + Render (backend) + Neon (DB)         |
+
+---
 
 ## Como rodar localmente
 
-Pré-requisitos:
-
-- Node.js 20+
-- npm 10+
-
-Instalação rápida:
+Pré-requisitos: Node.js 22+, npm 10+
 
 ```bash
+# Backend
 cd backend
+cp .env.example .env   # editar DATABASE_URL, JWT_SECRET, etc.
 npm install
+npm run dev            # http://localhost:3001
 
-cd ../frontend-react
-npm install
-```
-
-Backend:
-
-```bash
-cd backend
-cp .env.example .env
-npm run dev
-```
-
-Frontend:
-
-```bash
+# Frontend
 cd frontend-react
-cp .env.example .env.development
-npm run dev
+cp .env.example .env.development.local
+# Editar VITE_API_URL=http://localhost:3001
+npm install
+npm run dev            # http://localhost:5174
 ```
 
-Endereços padrão:
-
-- API: `http://localhost:3001`
-- Frontend: `http://localhost:5174`
+---
 
 ## Variáveis de ambiente
 
-Backend:
+### Backend (Render)
 
-- usar [backend/.env.example](/C:/dev/vitras/backend/.env.example) como base;
-- em produção, definir variáveis no Elastic Beanstalk e, quando aplicável, em AWS Secrets Manager ou SSM Parameter Store;
-- não commitar `.env`.
+| Variável                    | Obrigatória | Descrição                                                   |
+|-----------------------------|-------------|-------------------------------------------------------------|
+| `DATABASE_URL`              | ✅ Sim       | Connection string do Neon (inclui `?sslmode=require`)       |
+| `JWT_SECRET`                | ✅ Sim       | Segredo para assinar JWT (mín. 32 chars)                    |
+| `DATA_ENCRYPTION_KEY`       | ✅ Sim       | Chave de criptografia AES-256 de dados sensíveis (32+ chars)|
+| `PATIENT_LOOKUP_HASH_KEY`   | ✅ Sim       | Chave HMAC para lookup de CPF/CNS (32+ chars)               |
+| `BACKUP_EXPORT_KEY`         | ✅ Sim       | Senha para rota de export de backup                         |
+| `ADMIN_SEED_KEY`            | ✅ Sim       | Chave para seed de admin inicial                            |
+| `FRONTEND_ORIGINS`          | ✅ Sim       | Origins permitidas por CORS, separadas por vírgula          |
+| `COOKIE_SAME_SITE`          | ✅ Sim       | Deve ser `none` (cross-origin Vercel → Render)              |
+| `COOKIE_SECURE`             | ✅ Sim       | Deve ser `true`                                             |
+| `NODE_ENV`                  | ✅ Sim       | `production`                                                |
+| `RUN_MIGRATIONS`            | ⚠️ 1º deploy | `true` no primeiro deploy, depois remover                   |
+| `MUNICIPALITY_ID`           | Recomendada | Código IBGE do município (ex.: `3550308`)                   |
+| `ENABLE_ADMIN_SEED`         | Opcional    | `false` em produção                                         |
+| `LOG_FORMAT`                | Opcional    | `json` (padrão em produção)                                 |
 
-Frontend:
+Exemplo `FRONTEND_ORIGINS`:
+```
+https://vitras.vercel.app,https://vitras-portal.vercel.app
+```
 
-- usar [frontend-react/.env.example](/C:/dev/vitras/frontend-react/.env.example);
-- `VITE_API_URL` deve apontar para backend correto por ambiente.
+### Frontend (Vercel)
 
-## Como fazer deploy
+| Variável               | Obrigatória | Descrição                             |
+|------------------------|-------------|---------------------------------------|
+| `VITE_API_URL`         | ✅ Sim       | URL do backend no Render              |
+| `VITE_IDLE_LOGOUT_ENABLED` | Opcional | `true` em produção                   |
 
-Deploy padronizado:
+Exemplo:
+```
+VITE_API_URL=https://vitras-backend.onrender.com
+```
 
-- frontend via AWS Amplify;
-- backend via AWS Elastic Beanstalk;
-- banco em Aurora/RDS;
-- proteção de borda e DNS via Cloudflare.
+---
 
-Guia oficial: [docs/deployment/aws-cloudflare.md](/C:/dev/vitras/docs/deployment/aws-cloudflare.md)
+## Deploy — Passo a passo
+
+### 1. Neon (banco)
+
+1. Acesse [neon.tech](https://neon.tech) → criar conta → **New Project**
+2. Selecionar região mais próxima (ex.: `aws-us-east-2`)
+3. Copiar a **Connection string** (formato `postgres://...?sslmode=require`)
+4. Rodar migração de dados (se houver dados existentes):
+   ```bash
+   SOURCE_URL="<url-rds-atual>" TARGET_URL="<url-neon>" bash scripts/neon-migrate.sh
+   ```
+   Se ambiente novo (sem dados), o backend cria o schema automaticamente no primeiro start com `RUN_MIGRATIONS=true`.
+
+### 2. Render (backend)
+
+1. Acesse [render.com](https://render.com) → **New Web Service**
+2. Conectar repositório GitHub → selecionar `vitras`
+3. Configurações:
+   - **Root Directory:** `backend`
+   - **Build Command:** `npm install --production=false`
+   - **Start Command:** `npm start`
+   - **Node Version:** `22`
+   - **Health Check Path:** `/health`
+4. Adicionar todas as env vars da tabela acima
+5. No primeiro deploy: `RUN_MIGRATIONS=true`
+6. Aguardar build e verificar `/health` → `{"status":"ok"}`
+7. Após validação: remover `RUN_MIGRATIONS` ou setar `false`
+
+### 3. Vercel (frontend)
+
+1. Acesse [vercel.com](https://vercel.com) → **Add New Project**
+2. Importar repositório → selecionar `vitras`
+3. Configurações do projeto principal (`frontend-react`):
+   - **Root Directory:** `frontend-react`
+   - **Build Command:** `npm run build`
+   - **Output Directory:** `dist`
+   - **Framework Preset:** Vite
+4. Env vars:
+   ```
+   VITE_API_URL=https://vitras-backend.onrender.com
+   VITE_IDLE_LOGOUT_ENABLED=true
+   ```
+5. Deploy → verificar login, rotas, refresh de página
+
+Para o portal cidadão (`frontend-portal`): repetir com Root Directory `frontend-portal`.
+
+---
+
+## Observações importantes — CORS e cookies
+
+Frontend e backend estão em domínios diferentes (Vercel ≠ Render).
+Isso exige `SameSite=None; Secure` nos cookies de autenticação — já configurado via:
+
+```
+COOKIE_SAME_SITE=none
+COOKIE_SECURE=true
+```
+
+O backend aceita CSRF via header `X-CSRF-Token` (já implementado no frontend).
+
+---
+
+## Limitações do plano gratuito
+
+| Serviço | Limitação                                                     |
+|---------|---------------------------------------------------------------|
+| Render  | 512 MB RAM, 0.1 CPU, **spin down após 15 min de inatividade** |
+| Neon    | 0.5 GB storage, **scale to zero após inatividade**            |
+| Vercel  | 100 GB bandwidth/mês, builds ilimitados                       |
+
+O Render Free **hiberna** o backend após inatividade. O primeiro request após hibernação leva 30–60 s (cold start). Para evitar, use um serviço de ping (ex.: UptimeRobot pinga `/health` a cada 10 min).
+
+---
 
 ## Estrutura do projeto
 
 ```text
 vitras/
-├── backend/
-├── frontend-react/
-├── docs/
-│   ├── architecture/
-│   ├── deployment/
-│   ├── security/
-│   ├── runbooks/
-│   ├── onboarding/
-│   └── legacy/
+├── backend/              ← API Node.js + Express
+│   ├── src/
+│   ├── certs/            ← cert RDS (legado, não usado no Neon)
+│   ├── .platform/        ← hooks EB (legado, ignorado no Render)
+│   ├── Procfile          ← web: npm start (compatível com Render)
+│   └── .node-version     ← pina Node 22 para Render
+├── frontend-react/       ← App clínico principal (React + Vite)
+│   └── vercel.json       ← SPA rewrites + cache headers
+├── frontend-portal/      ← Portal do cidadão (React + Vite)
+│   └── vercel.json       ← SPA rewrites
+├── render.yaml           ← Configuração do Render Web Service
 ├── scripts/
-├── .github/
+│   └── neon-migrate.sh   ← Export RDS → Import Neon
 └── README.md
 ```
 
-Observações:
+---
 
-- `docs/legacy/` guarda configs e artefatos de deploy antigos, sem uso oficial atual;
-- `organization/` mantém material institucional e de operação não diretamente ligado ao código;
-- `artifacts/` guarda evidências de validação já produzidas.
+## Smoke tests
+
+```bash
+# Substituir pela URL real do Render
+BASE_URL=https://vitras-backend.onrender.com npm run smoke
+```
+
+---
+
+## Futuros deploys
+
+- **Frontend**: push para `main` → Vercel detecta e faz deploy automático
+- **Backend**: push para `main` → Render detecta e faz deploy automático
+- **Migrations novas**: setar `RUN_MIGRATIONS=true` no Render antes do deploy → reverter após
+- **Backup do banco**: usar `GET /admin/backup/export` com `BACKUP_EXPORT_KEY` ou pg_dump direto no Neon
+
+---
+
+## Histórico de infraestrutura
+
+A infraestrutura anterior utilizava AWS (Amplify + Elastic Beanstalk + RDS).
+Arquivos legados preservados mas não utilizados:
+
+- `backend/.platform/` — hooks EB
+- `backend/certs/rds-ca-bundle.pem` — CA bundle RDS
+- `docs/deployment/aws-cloudflare.md` — guia deploy anterior
+
+---
 
 ## Checklist básico de desenvolvimento
 
 1. Ler `AGENTS.md` e arquivos obrigatórios em `agents/`.
 2. Entender fluxo afetado antes de editar.
 3. Fazer mudança pequena e segura.
-4. Evitar alterar comportamento sem justificativa.
-5. Validar build, lint e testes quando disponíveis.
-6. Registrar riscos, pendências e impacto.
-
-## Convenções do projeto
-
-- preservar compatibilidade funcional;
-- priorizar estabilidade e segurança sobre refactors amplos;
-- separar documentação operacional de documentação histórica;
-- manter nomes claros e consistentes em arquivos, funções e módulos;
-- comentar apenas lógica que não seja óbvia;
-- não hardcodar segredos, tokens ou senhas reais;
-- reutilizar padrões existentes de arquitetura e Design System.
-
-## Documentação relacionada
-
-- Arquitetura: [docs/architecture/overview.md](/C:/dev/vitras/docs/architecture/overview.md)
-- Deploy: [docs/deployment/aws-cloudflare.md](/C:/dev/vitras/docs/deployment/aws-cloudflare.md)
-- Runbook de observabilidade: [docs/runbooks/observability.md](/C:/dev/vitras/docs/runbooks/observability.md)
-- Onboarding inicial: [docs/onboarding/first-admin.md](/C:/dev/vitras/docs/onboarding/first-admin.md)
-- Legado arquivado: [docs/legacy/README.md](/C:/dev/vitras/docs/legacy/README.md)
+4. Validar build, lint e testes quando disponíveis.
+5. Não hardcodar segredos, tokens ou senhas reais.
+6. Reutilizar padrões existentes de arquitetura e Design System.
