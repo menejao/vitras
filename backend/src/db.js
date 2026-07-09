@@ -64,17 +64,18 @@ if (DATABASE_URL_CLEAN && !_rdsCaBundle && !IS_DEV) {
 // Set DB_SSL_REJECT_UNAUTHORIZED=false only when host CA chain is incomplete (e.g. Render + Neon pooler).
 const _rejectUnauthorized = process.env.DB_SSL_REJECT_UNAUTHORIZED === "false" ? false : true;
 function getPoolSslConfig() {
+  if (!_rejectUnauthorized) return { rejectUnauthorized: false };
   const bundle = loadRdsCaBundle();
   if (bundle) return { rejectUnauthorized: true, ca: bundle };
-  return { rejectUnauthorized: _rejectUnauthorized };
+  return { rejectUnauthorized: true };
 }
+
+const _poolSslConfig = getPoolSslConfig();
 
 const pool = DATABASE_URL_CLEAN
   ? new Pool({
       connectionString: DATABASE_URL_CLEAN,
-      ssl: _rdsCaBundle
-        ? { rejectUnauthorized: true, ca: _rdsCaBundle }
-        : { rejectUnauthorized: _rejectUnauthorized },
+      ssl: _poolSslConfig,
       max: 10,
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 5000,
@@ -82,7 +83,7 @@ const pool = DATABASE_URL_CLEAN
   : null;
 
 if (pool) {
-  logInfo("db_pool_created", { event: "db_pool_created", message: `SSL enabled — rejectUnauthorized=${_rejectUnauthorized} (system trust store or CA bundle)` });
+  logInfo("db_pool_created", { event: "db_pool_created", message: `SSL enabled — rejectUnauthorized=${_poolSslConfig.rejectUnauthorized}${_poolSslConfig.ca ? " (CA bundle)" : " (no bundle)"}` });
   pool.on("error", (err) => {
     logError("db_pool_idle_error", { event: "db_pool_idle_error", message: err.message, code: err.code });
   });
