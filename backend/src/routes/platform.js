@@ -109,16 +109,31 @@ function enrichUnit(u, db) {
     municipalityName: u.municipalityName || "",
     uf:               u.uf               || "",
     municipalityId:   u.municipalityId   || "",
+    // Legacy single-field address kept for backward compat
     address:          u.address          || "",
-    contactEmail:     u.contactEmail     || "",
-    phone:            u.phone            || "",
+    // Structured address fields — must be included so TerritoryTab re-syncs correctly
+    cep:              u.cep              || null,
+    street:           u.street          || "",
+    streetNumber:     u.streetNumber    || "",
+    neighborhood:     u.neighborhood    || "",
+    complement:       u.complement      || null,
+    reference:        u.reference       || null,
+    lat:              u.lat             ?? null,
+    lng:              u.lng             ?? null,
+    geocodingStatus:  u.geocodingStatus || "none",
+    geocodedAt:       u.geocodedAt      || null,
+    contactEmail:     u.contactEmail    || "",
+    phone:            u.phone           || "",
     status:           VALID_STATUSES.includes(u.status) ? u.status : "draft",
-    createdAt:        u.createdAt        || "",
-    updatedAt:        u.updatedAt        || "",
-    createdBy:        u.createdBy        || "",
+    createdAt:        u.createdAt       || "",
+    updatedAt:        u.updatedAt       || "",
+    createdBy:        u.createdBy       || "",
     createdByName:    creator ? (creator.name || creator.email || "") : "system",
-    activatedAt:      u.activatedAt      || "",
-    suspendedAt:      u.suspendedAt      || "",
+    activatedAt:      u.activatedAt     || "",
+    suspendedAt:      u.suspendedAt     || "",
+    enabledModules:   u.enabledModules  || [],
+    configuration:    u.configuration   || {},
+    operationalRules: u.operationalRules || {},
     ...stats
   };
 }
@@ -473,7 +488,9 @@ router.patch("/platform/units/:unitId", async (req, res) => {
     const { status, message, blocked } = result.error;
     return res.status(status).json({ error: message, ...(blocked ? { blocked } : {}) });
   }
-  return res.json(result.unit);
+  // Return enriched unit (same shape as GET) so frontend can re-sync without a second request
+  const db2 = await readDb();
+  return res.json(enrichUnit(result.unit, db2));
 });
 
 // ── Unit Modules ───────────────────────────────────────────────────────────

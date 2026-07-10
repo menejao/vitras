@@ -1179,7 +1179,8 @@ function TerritoryTab({ token, unit, onRefresh }) {
   }
 
   const [form, setForm] = useState(() => formFromUnit(unit));
-  // autoFilled removed — now using autoFilledKeys inside TerritoryTab
+  // Track last updatedAt we synced from — prevents double-reset after PATCH + onRefresh
+  const syncedAtRef = useRef(unit.updatedAt || "");
   const [saving,   setSaving]   = useState(false);
   const [saved,    setSaved]    = useState(false);
   const [saveError, setSaveError] = useState("");
@@ -1196,8 +1197,11 @@ function TerritoryTab({ token, unit, onRefresh }) {
 
   const geoDebounceRef = useRef(null);
 
-  // Re-sync form when unit prop changes (after onRefresh)
+  // Re-sync form when unit prop changes (after onRefresh),
+  // but skip if we already synced from a PATCH response with the same updatedAt.
   useEffect(() => {
+    if (unit.updatedAt && unit.updatedAt === syncedAtRef.current) return;
+    syncedAtRef.current = unit.updatedAt || "";
     setForm(formFromUnit(unit));
     setAutoFilledKeys([]);
     setCepStatus(""); setCepError("");
@@ -1298,12 +1302,18 @@ function TerritoryTab({ token, unit, onRefresh }) {
     e.preventDefault();
     setSaving(true); setSaveError(""); setSaved(false);
     try {
-      await apiFetch(`/platform/units/${unit.id}`, token, {
+      const saved = await apiFetch(`/platform/units/${unit.id}`, token, {
         method: "PATCH",
         body: JSON.stringify(buildPayload()),
       });
+      // Sync form from the persisted data returned by backend (source of truth)
+      syncedAtRef.current = saved.updatedAt || "";
+      setForm(formFromUnit(saved));
+      setAutoFilledKeys([]);
       setSaved(true);
-      setTimeout(() => setSaved(false), 4000);
+      setTimeout(() => setSaved(false), 5000);
+      // Refresh parent to update stats/header/gestors — won't re-trigger useEffect
+      // since unit.updatedAt will match what was returned above
       onRefresh();
     } catch (err) {
       setSaveError(err.message || "Erro ao salvar endereço");
