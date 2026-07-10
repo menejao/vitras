@@ -727,4 +727,263 @@ router.post("/platform/units/:unitId/initial-manager/:userId/reset-password", as
   });
 });
 
+// ── Unit General Configuration (operational toggles) ──────────────────────
+
+export const DEFAULT_UNIT_CONFIG = {
+  general: {
+    ativo: true,
+    atendimentoHabilitado: true,
+    cadastroPacientes: true,
+    cadastroFamilias: true,
+    cadastroTerritorial: true,
+    operacaoPorEquipes: true,
+    operacaoPorMicroareas: false,
+    atendimentoEspontaneo: true,
+    atendimentoAgendado: false,
+    visitasDomiciliares: true,
+    triagem: false,
+    acompanhamentoLongitudinal: true,
+    encaminhamentos: false,
+    notificacoesInternas: true,
+  }
+};
+
+export const DEFAULT_OPERATIONAL_RULES = {
+  agendas: {
+    maxAgendasPorProfissional: 20,
+    antecedenciaMinDias: 1,
+    antecedenciaMaxDias: 30,
+    duracaoPadraoConsultaMin: 20,
+    toleranciaAtrasoMin: 15,
+    confirmacaoObrigatoria: false,
+    cancelamentoPermitido: true,
+    remarcacaoPermitida: true,
+    limiteEncaixes: 2,
+    listaEspera: false,
+  },
+  visitas: {
+    frequenciaMaxMensal: 4,
+    registroObrigatorio: true,
+  },
+  atribuicao: {
+    porEquipe: true,
+    porMicroarea: false,
+    maxPacientesPorAcs: 750,
+  }
+};
+
+function mergeConfigDeep(defaults, stored) {
+  if (!stored || typeof stored !== "object") return { ...defaults };
+  const result = {};
+  for (const key of Object.keys(defaults)) {
+    if (defaults[key] !== null && typeof defaults[key] === "object" && !Array.isArray(defaults[key])) {
+      result[key] = mergeConfigDeep(defaults[key], stored[key]);
+    } else {
+      result[key] = (stored && key in stored) ? stored[key] : defaults[key];
+    }
+  }
+  return result;
+}
+
+router.get("/platform/units/:unitId/configuration", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.read")) return res.status(403).json({ error: "Sem permissão" });
+  const db = await readDb();
+  ensureDbShape(db);
+  const unit = (db.units || []).find((u) => u.id === req.params.unitId);
+  if (!unit) return res.status(404).json({ error: "UBS não encontrada" });
+
+  const unitOverrides = unit.configuration || {};
+  const effective = mergeConfigDeep(DEFAULT_UNIT_CONFIG, unitOverrides);
+  return res.json({ unitId: unit.id, systemDefaults: DEFAULT_UNIT_CONFIG, unitOverrides, effective, hasOverrides: Object.keys(unitOverrides).length > 0 });
+});
+
+router.put("/platform/units/:unitId/configuration", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.update")) return res.status(403).json({ error: "Sem permissão" });
+  const { unitId } = req.params;
+  const payload = req.body || {};
+
+  const result = await withDb((db) => {
+    ensureDbShape(db);
+    const idx = (db.units || []).findIndex((u) => u.id === unitId);
+    if (idx < 0) return { error: { status: 404, message: "UBS não encontrada" } };
+    const current = db.units[idx];
+    const nextConfig = { ...(current.configuration || {}) };
+    for (const section of Object.keys(payload)) {
+      if (payload[section] && typeof payload[section] === "object") {
+        nextConfig[section] = { ...(nextConfig[section] || {}), ...payload[section] };
+      }
+    }
+    db.units[idx] = { ...current, configuration: nextConfig, updatedAt: new Date().toISOString() };
+    addAuditLog(db, req.user, "PLATFORM_UNIT_CONFIGURATION_UPDATED", "platform_unit", unitId, {
+      changedSections: Object.keys(payload), unitName: current.name, outcome: "success"
+    });
+    return { unitOverrides: nextConfig, effective: mergeConfigDeep(DEFAULT_UNIT_CONFIG, nextConfig) };
+  });
+
+  if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
+  return res.json(result);
+});
+
+// ── Operational Rules ──────────────────────────────────────────────────────
+
+router.get("/platform/units/:unitId/operational-rules", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.read")) return res.status(403).json({ error: "Sem permissão" });
+  const db = await readDb();
+  ensureDbShape(db);
+  const unit = (db.units || []).find((u) => u.id === req.params.unitId);
+  if (!unit) return res.status(404).json({ error: "UBS não encontrada" });
+
+  const unitRules = unit.operationalRules || {};
+  const effective = mergeConfigDeep(DEFAULT_OPERATIONAL_RULES, unitRules);
+  return res.json({ unitId: unit.id, systemDefaults: DEFAULT_OPERATIONAL_RULES, unitRules, effective, hasOverrides: Object.keys(unitRules).length > 0 });
+});
+
+router.put("/platform/units/:unitId/operational-rules", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.update")) return res.status(403).json({ error: "Sem permissão" });
+  const { unitId } = req.params;
+  const payload = req.body || {};
+
+  const result = await withDb((db) => {
+    ensureDbShape(db);
+    const idx = (db.units || []).findIndex((u) => u.id === unitId);
+    if (idx < 0) return { error: { status: 404, message: "UBS não encontrada" } };
+    const current = db.units[idx];
+    const nextRules = { ...(current.operationalRules || {}) };
+    for (const section of Object.keys(payload)) {
+      if (payload[section] && typeof payload[section] === "object") {
+        nextRules[section] = { ...(nextRules[section] || {}), ...payload[section] };
+      }
+    }
+    db.units[idx] = { ...current, operationalRules: nextRules, updatedAt: new Date().toISOString() };
+    addAuditLog(db, req.user, "PLATFORM_UNIT_RULES_UPDATED", "platform_unit", unitId, {
+      changedSections: Object.keys(payload), unitName: current.name, outcome: "success"
+    });
+    return { unitRules: nextRules, effective: mergeConfigDeep(DEFAULT_OPERATIONAL_RULES, nextRules) };
+  });
+
+  if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
+  return res.json(result);
+});
+
+// ── Unit Users list ────────────────────────────────────────────────────────
+
+router.get("/platform/units/:unitId/users", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.read")) return res.status(403).json({ error: "Sem permissão" });
+  const db = await readDb();
+  ensureDbShape(db);
+  const unit = (db.units || []).find((u) => u.id === req.params.unitId);
+  if (!unit) return res.status(404).json({ error: "UBS não encontrada" });
+
+  const users = (db.users || [])
+    .filter((u) => (u.unitId || "") === unit.id && !isPlatformRole(u.role))
+    .map((u) => {
+      const team = u.teamId ? (db.teams || []).find((t) => t.id === u.teamId) : null;
+      return {
+        id: u.id,
+        vitrasId: u.vitrasId || "",
+        name: u.name || "",
+        role: canonicalRole(u.role),
+        teamId: u.teamId || "",
+        teamName: team ? team.name : "",
+        email: u.email || "",
+        inactive: !!u.inactive,
+        forcePasswordChange: !!u.forcePasswordChange,
+        lastLoginAt: u.lastLoginAt || null,
+        createdAt: u.createdAt || "",
+      };
+    });
+
+  users.sort((a, b) => {
+    const order = { gestor: 0, medico: 1, enfermeiro: 2, acs: 3 };
+    const aOrd = order[a.role] ?? 9;
+    const bOrd = order[b.role] ?? 9;
+    if (aOrd !== bOrd) return aOrd - bOrd;
+    return String(a.name).localeCompare(String(b.name), "pt-BR");
+  });
+
+  return res.json({ users, total: users.length });
+});
+
+// ── Team edit ──────────────────────────────────────────────────────────────
+
+router.patch("/platform/units/:unitId/teams/:teamId", async (req, res) => {
+  if (!hasCapability(req.user, "platform.team.create")) return res.status(403).json({ error: "Sem permissão" });
+  const { unitId, teamId } = req.params;
+  const payload = req.body || {};
+
+  const result = await withDb((db) => {
+    ensureDbShape(db);
+    if (!(db.units || []).some((u) => u.id === unitId)) return { error: { status: 404, message: "UBS não encontrada" } };
+    const idx = (db.teams || []).findIndex((t) => t.id === teamId && (t.unitId || "") === unitId);
+    if (idx < 0) return { error: { status: 404, message: "Equipe não encontrada nesta UBS" } };
+    const current = db.teams[idx];
+    const next = { ...current, updatedAt: new Date().toISOString() };
+    if (payload.name !== undefined) next.name = String(payload.name || "").trim();
+    if (payload.ine !== undefined) next.ine = String(payload.ine || "").trim();
+    if (payload.tipoEquipe !== undefined) next.tipoEquipe = String(payload.tipoEquipe || "").trim();
+    if (payload.inactive !== undefined) next.inactive = !!payload.inactive;
+    db.teams[idx] = next;
+    addAuditLog(db, req.user, "PLATFORM_TEAM_UPDATED", "platform_team", teamId, {
+      changedFields: Object.keys(payload), unitId, outcome: "success"
+    });
+    return { team: next };
+  });
+
+  if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
+  return res.json(result.team);
+});
+
+// ── Unit Audit Log ─────────────────────────────────────────────────────────
+
+const PLATFORM_UNIT_AUDIT_ACTIONS = new Set([
+  "PLATFORM_UNIT_CREATED", "PLATFORM_UNIT_UPDATED",
+  "PLATFORM_MODULE_ENABLED", "PLATFORM_MODULE_DISABLED",
+  "PLATFORM_TEAM_CREATED", "PLATFORM_TEAM_UPDATED",
+  "PLATFORM_INITIAL_MANAGER_CREATED", "USER_PASSWORD_RESET",
+  "PLATFORM_HOMOLOGATION_CHECKLIST_UPDATED",
+  "PLATFORM_UNIT_CONFIGURATION_UPDATED", "PLATFORM_UNIT_RULES_UPDATED",
+  "CITIZEN_PORTAL_UNIT_CONFIG_UPDATED",
+]);
+
+router.get("/platform/units/:unitId/audit-log", async (req, res) => {
+  if (!hasCapability(req.user, "platform.audit.read")) return res.status(403).json({ error: "Sem permissão" });
+  const { unitId } = req.params;
+  const db = await readDb();
+  ensureDbShape(db);
+  const unit = (db.units || []).find((u) => u.id === unitId);
+  if (!unit) return res.status(404).json({ error: "UBS não encontrada" });
+
+  const since = req.query.since || null;
+  const until = req.query.until || null;
+  const limit = Math.min(200, Math.max(1, parseInt(req.query.limit || "50", 10) || 50));
+
+  const logs = Array.isArray(db.auditLogs) ? db.auditLogs : [];
+  const filtered = logs.filter((e) => {
+    if (!PLATFORM_UNIT_AUDIT_ACTIONS.has(e.action)) return false;
+    if (e.entityId !== unitId && e.details?.unitId !== unitId) return false;
+    if (since && String(e.createdAt || "") < since) return false;
+    if (until && String(e.createdAt || "") > until) return false;
+    return true;
+  });
+
+  filtered.sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+  const paged = filtered.slice(0, limit);
+
+  const enriched = paged.map((e) => {
+    const actor = e.userId ? (db.users || []).find((u) => u.id === e.userId) : null;
+    return {
+      id: e.id || "",
+      action: e.action || "",
+      entityId: e.entityId || "",
+      userId: e.userId || "",
+      userName: actor ? (actor.name || actor.email || e.userId) : (e.userId || "system"),
+      details: e.details || {},
+      createdAt: e.createdAt || "",
+    };
+  });
+
+  return res.json({ entries: enriched, total: filtered.length, limit });
+});
+
 export default router;
+

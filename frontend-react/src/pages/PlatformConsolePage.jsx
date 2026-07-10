@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { api } from "../api";
+import UnitDetailTabbed from "./platform/UnitDetail";
 import { lookupCep, formatCep } from "../services/cepService";
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
@@ -763,7 +764,12 @@ function AddressRows({ unit }) {
 
 // ── Unit Detail ────────────────────────────────────────────────────────────
 
-function UnitDetail({ token, unitId, onBack }) {
+function UnitDetail(props) {
+  return <UnitDetailTabbed {...props} />;
+}
+
+// ── UnitDetail (legacy inline — removida, substituída por ./platform/UnitDetail.jsx)
+function _UnitDetailLegacyStub({ token, unitId, onBack }) {
   const [unit, setUnit]     = useState(null);
   const [view, setView]     = useState("detail");
   const [loading, setLoading] = useState(true);
