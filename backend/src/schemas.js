@@ -5,9 +5,17 @@ const optionalShortString = (max) => shortString(max).optional();
 const optionalDateString = () => z.string().trim().max(50).optional();
 const optionalNumberLike = () => z.union([z.string(), z.number()]).nullable().optional();
 
+// Legacy seed compatibility map for sexAtBirth (old format → canonical)
+const SEX_LEGACY_MAP = { male: "M", female: "F", intersex: "I" };
+
 // F2-02/F2-03: enum fields with empty/null → undefined (not stored) preprocessing
 const optionalEnumField = (...values) => z.preprocess(
-  (v) => (v === "" || v === null || v === undefined ? undefined : v),
+  (v) => {
+    if (v === "" || v === null || v === undefined) return undefined;
+    // map legacy sexAtBirth values from old seed format
+    if (typeof v === "string" && SEX_LEGACY_MAP[v]) return SEX_LEGACY_MAP[v];
+    return v;
+  },
   z.enum(values).optional()
 );
 
@@ -211,8 +219,9 @@ const PatientBaseShape = {
     relationship: optionalShortString(100)
   }).optional(),
   // APS-01J-C: TRIA — Triagem de Insegurança Alimentar (2 perguntas e-SUS CDS)
-  triaAlimentosAcabaram: z.boolean().optional(),
-  triaConsomiuApenasAlgunsDosAlimentos: z.boolean().optional(),
+  triaAlimentosAcabaram: z.boolean().nullable().optional(),
+  triaConsomiuApenasAlgunsDosAlimentos: z.boolean().nullable().optional(),
+  triaTipoUnico: z.boolean().nullable().optional(),
   // APS-01J-E: link para Domicílio compartilhado (householdId da coleção households)
   householdId: optionalShortString(100),
 };
@@ -359,8 +368,9 @@ const PatientUpdateSchema = z.object({
     relationship: optionalShortString(100)
   }).optional(),
   // APS-01J-C: TRIA — Triagem de Insegurança Alimentar
-  triaAlimentosAcabaram: z.boolean().optional(),
-  triaConsomiuApenasAlgunsDosAlimentos: z.boolean().optional(),
+  triaAlimentosAcabaram: z.boolean().nullable().optional(),
+  triaConsomiuApenasAlgunsDosAlimentos: z.boolean().nullable().optional(),
+  triaTipoUnico: z.boolean().nullable().optional(),
 }).strict();
 
 // APS-01J-C: CI schema — subset of fields ACS is allowed to update via PATCH /patients/:id/cadastro-individual
@@ -390,8 +400,8 @@ const PatientCIUpdateSchema = z.object({
     "TABAGISMO", "ALCOOL_DROGAS", "DST", "VULNERABILIDADE_SOCIAL", "OUTRO"
   ])).max(17).optional(),
   situacaoRua: z.boolean().optional(),
-  triaAlimentosAcabaram: z.boolean().optional(),
-  triaConsomiuApenasAlgunsDosAlimentos: z.boolean().optional(),
+  triaAlimentosAcabaram: z.boolean().nullable().optional(),
+  triaConsomiuApenasAlgunsDosAlimentos: z.boolean().nullable().optional(),
   updatedAt: z.string().optional(),
 }).strict();
 

@@ -330,9 +330,9 @@ router.get("/patients/protocol-summaries", async (req, res) => {
   for (const patient of allowedPatients) {
     const history = buildPatientHistory(db, patient.id);
     const summary = buildProtocolSummary(patient, history, protocolMap);
-    summaries[patient.id] = patient.teamId && patient.teamId !== req.user.teamId
-      ? restrictSummaryAlertsForForeignTeam(summary)
-      : summary;
+    const isOwnTeam = !patient.teamId || patient.teamId === req.user.teamId;
+    const canSeeAllAlerts = hasCapability(req.user, "patients.read.all") || req.user.role === "break_glass_admin";
+    summaries[patient.id] = isOwnTeam || canSeeAllAlerts ? summary : restrictSummaryAlertsForForeignTeam(summary);
   }
 
   await withDb((auditDb) => {
