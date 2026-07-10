@@ -1,0 +1,11 @@
+import pg from "pg";
+const url = process.env.DATABASE_URL.replace(/[?&]channel_binding=[^&]*/g, "").replace(/[?&]sslmode=[^&]*/g, "");
+const client = new pg.Client({ connectionString: url, ssl: { rejectUnauthorized: false } });
+await client.connect();
+const r = await client.query("SELECT data->'users' AS users FROM app_state WHERE id = 1");
+const users = (r.rows[0]?.users || []);
+console.log("Total usuários em app_state:", users.length);
+users.forEach(u => console.log(" -", u.vitrasId, u.role, u.name));
+const r2 = await client.query("SELECT COUNT(*) FROM app_users");
+console.log("Linhas em app_users:", r2.rows[0].count);
+await client.end();

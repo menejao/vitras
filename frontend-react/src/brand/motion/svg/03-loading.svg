@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 80" width="320" height="80">
+
+<rect class="bar" x="0" y="38" width="320" height="4" rx="2"></rect>
+<g style="clip-path:inset(0 0 0 0 round 2px)"><rect class="fill" y="38" width="128" height="4" rx="2"></rect></g>
+</svg>

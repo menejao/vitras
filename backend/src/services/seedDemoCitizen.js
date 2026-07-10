@@ -20,7 +20,8 @@ const DEMO_PASSWORD   = "Demo@123";
 const DEMO_UNIT_ID    = "unit-default";
 
 export async function initDemoCitizen() {
-  if (IS_PROD) return; // nunca criar backdoor em produção
+  const seedAllowed = !IS_PROD || process.env.SEED_DEMO_CITIZEN === "true";
+  if (!seedAllowed) return;
 
   await withDb(async (db) => {
     if (!Array.isArray(db.citizenUsers)) db.citizenUsers = [];

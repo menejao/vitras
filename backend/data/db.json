@@ -63,7 +63,7 @@
   "users": [
     {
       "id": "beb297a9-0b8a-44ad-8c8e-7dd14305d6ee",
-      "name": "João Pedro",
+      "name": "JoÃ£o Pedro",
       "email": "joaoomenegucci@gmail.com",
       "role": "support_admin",
       "password": "s1$0d4587e0ef63db2ddb0b391c848f9d4a$9e85d0122ba35562fcc8f3d1d111a4d8f6b44506a3663213904bcbfddc63c2656b3383c896a2302fdcc58d8e251974db2569f00e642cf920159c3f2ef7c67650",
@@ -84,17 +84,27 @@
       "createdAt": "2026-06-22T13:49:53.997Z",
       "updatedAt": "2026-06-24T17:13:53.421Z",
       "vitrasId": "101391569"
+    },
+    {
+      "id": "seed-breakglass-admin",
+      "vitrasId": "999000001",
+      "name": "Admin Bootstrap",
+      "email": "admin@vitras.internal",
+      "role": "break_glass_admin",
+      "password": "s1$e29976c02ddfc2792809228d971751f0$017cb8ae4baa3c2c5b0d95867e3577ef4e309deed7920b7f50cffedf0f51a0c8f9febaba5edcef5c1abfb47abaaed3d4260eb5023d0dc6f8435c07d9815a9f2f",
+      "forcePasswordChange": false,
+      "createdAt": "2026-07-03T21:03:08.575Z"
     }
   ],
   "patients": [
     {
-      "name": "Paciente Sintético 5000",
+      "name": "Paciente SintÃ©tico 5000",
       "birthDate": "1990-06-23",
-      "motherName": "Mãe Sintética 5000",
+      "motherName": "MÃ£e SintÃ©tica 5000",
       "cpf": "",
       "cns": "700000000005000",
       "phone": "11900005000",
-      "address": "Rua Sintética, 5000",
+      "address": "Rua SintÃ©tica, 5000",
       "municipalityId": "3550308",
       "teamId": "team-commit-test",
       "unitId": "unit-commit-test",
@@ -120,13 +130,13 @@
       "nis": ""
     },
     {
-      "name": "Paciente Sintético 5001",
+      "name": "Paciente SintÃ©tico 5001",
       "birthDate": "1988-06-23",
-      "motherName": "Mãe Sintética 5001",
+      "motherName": "MÃ£e SintÃ©tica 5001",
       "cpf": "",
       "cns": "700000000005001",
       "phone": "11900005001",
-      "address": "Rua Sintética, 5001",
+      "address": "Rua SintÃ©tica, 5001",
       "municipalityId": "3550308",
       "teamId": "team-commit-test",
       "unitId": "unit-commit-test",
@@ -152,13 +162,13 @@
       "nis": ""
     },
     {
-      "name": "Paciente Sintético 5002",
+      "name": "Paciente SintÃ©tico 5002",
       "birthDate": "1990-06-23",
-      "motherName": "Mãe Sintética 5002",
+      "motherName": "MÃ£e SintÃ©tica 5002",
       "cpf": "",
       "cns": "700000000005002",
       "phone": "11900005002",
-      "address": "Rua Sintética, 5002",
+      "address": "Rua SintÃ©tica, 5002",
       "municipalityId": "3550308",
       "teamId": "team-commit-test",
       "unitId": "unit-commit-test",
@@ -184,13 +194,13 @@
       "nis": ""
     },
     {
-      "name": "Paciente Sintético 5003",
+      "name": "Paciente SintÃ©tico 5003",
       "birthDate": "1990-06-23",
-      "motherName": "Mãe Sintética 5003",
+      "motherName": "MÃ£e SintÃ©tica 5003",
       "cpf": "",
       "cns": "700000000005003",
       "phone": "11900005003",
-      "address": "Rua Sintética, 5003",
+      "address": "Rua SintÃ©tica, 5003",
       "municipalityId": "3550308",
       "teamId": "team-commit-test",
       "unitId": "unit-commit-test",
@@ -216,13 +226,13 @@
       "nis": ""
     },
     {
-      "name": "Paciente Sintético 5004",
+      "name": "Paciente SintÃ©tico 5004",
       "birthDate": "1987-06-23",
-      "motherName": "Mãe Sintética 5004",
+      "motherName": "MÃ£e SintÃ©tica 5004",
       "cpf": "",
       "cns": "700000000005004",
       "phone": "11900005004",
-      "address": "Rua Sintética, 5004",
+      "address": "Rua SintÃ©tica, 5004",
       "municipalityId": "3550308",
       "teamId": "team-commit-test",
       "unitId": "unit-commit-test",
@@ -248,13 +258,13 @@
       "nis": ""
     },
     {
-      "name": "Paciente Sintético 9001",
+      "name": "Paciente SintÃ©tico 9001",
       "birthDate": "1988-06-23",
-      "motherName": "Mãe Sintética 9001",
+      "motherName": "MÃ£e SintÃ©tica 9001",
       "cpf": "",
       "cns": "700000000009001",
       "phone": "11900009001",
-      "address": "Rua Sintética, 9001",
+      "address": "Rua SintÃ©tica, 9001",
       "municipalityId": "3550308",
       "teamId": "team-lifecycle",
       "unitId": "unit-lifecycle",
@@ -281,9 +291,9 @@
     },
     {
       "id": "a64ca1d4-b9e1-44ca-9b30-15f66d8d5b3b",
-      "name": "Paciente Demonstração",
+      "name": "Paciente DemonstraÃ§Ã£o",
       "birthDate": "1990-01-01",
-      "motherName": "Mãe Demonstração",
+      "motherName": "MÃ£e DemonstraÃ§Ã£o",
       "cpf": "00000000191",
       "cns": null,
       "unitId": "unit-default",
@@ -323,7 +333,7 @@
       "unitId": "",
       "details": {
         "email": "joaoomenegucci@gmail.com",
-        "name": "João Pedro",
+        "name": "JoÃ£o Pedro",
         "method": "bootstrap-cli",
         "outcome": "success"
       },
@@ -368,7 +378,7 @@
       "vaccines": [
         "Influenza"
       ],
-      "authority": "Ministério da Saúde",
+      "authority": "MinistÃ©rio da SaÃºde",
       "reference": "https://bvsms.saude.gov.br/bvs/publicacoes/politica_nacional_atencao_basica_2017.pdf",
       "version": "PNAB-2017"
     },
@@ -391,13 +401,13 @@
         "COVID-19",
         "Hepatite B"
       ],
-      "authority": "Ministério da Saúde",
+      "authority": "MinistÃ©rio da SaÃºde",
       "reference": "https://bvsms.saude.gov.br/bvs/saudelegis/gm/2011/prt1459_24_06_2011.html",
       "version": "Rede Cegonha"
     },
     {
       "category": "puerperal",
-      "label": "Puérpera",
+      "label": "PuÃ©rpera",
       "targets": {
         "visits": 1,
         "consultations": 1,
@@ -409,7 +419,7 @@
         "vaccines": 0
       },
       "vaccines": [],
-      "authority": "Ministério da Saúde",
+      "authority": "MinistÃ©rio da SaÃºde",
       "reference": "https://bvsms.saude.gov.br/bvs/saudelegis/gm/2011/prt1459_24_06_2011.html",
       "version": "Rede Cegonha"
     },
@@ -432,20 +442,20 @@
         "Penta",
         "VIP",
         "Pneumo 10",
-        "Rotavírus",
-        "Meningocócica",
+        "RotavÃ­rus",
+        "MeningocÃ³cica",
         "Influenza",
         "COVID",
         "Febre amarela",
         "ACWY",
-        "Tríplice viral",
+        "TrÃ­plice viral",
         "DTP",
         "Varicela",
         "Hepatite A"
       ],
-      "authority": "Ministério da Saúde",
+      "authority": "MinistÃ©rio da SaÃºde",
       "reference": "https://www.gov.br/saude/pt-br/vacinacao/calendario",
-      "version": "Calendário PNI"
+      "version": "CalendÃ¡rio PNI"
     },
     {
       "category": "elderly",
@@ -463,13 +473,13 @@
       "vaccines": [
         "Influenza"
       ],
-      "authority": "Ministério da Saúde",
+      "authority": "MinistÃ©rio da SaÃºde",
       "reference": "https://www.gov.br/saude/pt-br/assuntos/saude-de-a-a-z/s/saude-da-pessoa-idosa",
       "version": "Cuidado da Pessoa Idosa"
     },
     {
       "category": "chronic",
-      "label": "Condição Crônica",
+      "label": "CondiÃ§Ã£o CrÃ´nica",
       "targets": {
         "visits": 3,
         "consultations": 3,
@@ -484,7 +494,7 @@
         "Influenza",
         "COVID-19"
       ],
-      "authority": "Ministério da Saúde",
+      "authority": "MinistÃ©rio da SaÃºde",
       "reference": "https://bvsms.saude.gov.br/bvs/publicacoes/plano_acoes_estrategicas_enfrentamento_dc_nt_2021_2030.pdf",
       "version": "DCNT 2021-2030"
     }
@@ -498,7 +508,7 @@
   "units": [
     {
       "id": "unit-default",
-      "name": "Unidade Padrão",
+      "name": "Unidade PadrÃ£o",
       "createdAt": "2026-05-26T00:06:49.810Z",
       "cnes": null
     },
@@ -1258,9 +1268,9 @@
   "citizenPortalCampaigns": [
     {
       "id": "camp-1",
-      "titulo": "Vacinação contra Influenza",
-      "descricao": "Campanha de vacinação anual. Compareça à sua UBS. Público-alvo: crianças, idosos e gestantes.",
-      "icone": "💉",
+      "titulo": "VacinaÃ§Ã£o contra Influenza",
+      "descricao": "Campanha de vacinaÃ§Ã£o anual. CompareÃ§a Ã  sua UBS. PÃºblico-alvo: crianÃ§as, idosos e gestantes.",
+      "icone": "ðŸ’‰",
       "cor": "#2563eb",
       "ativa": true,
       "ordem": 1,
@@ -1270,8 +1280,8 @@
     {
       "id": "camp-2",
       "titulo": "Outubro Rosa",
-      "descricao": "Mês de conscientização sobre o câncer de mama. Agende sua mamografia e preventivo na UBS.",
-      "icone": "🎀",
+      "descricao": "MÃªs de conscientizaÃ§Ã£o sobre o cÃ¢ncer de mama. Agende sua mamografia e preventivo na UBS.",
+      "icone": "ðŸŽ€",
       "cor": "#db2777",
       "ativa": true,
       "ordem": 2,
@@ -1280,9 +1290,9 @@
     },
     {
       "id": "camp-3",
-      "titulo": "Combate à Dengue",
-      "descricao": "Elimine os focos do mosquito Aedes aegypti. Verifique sua residência e vizinhança.",
-      "icone": "🦟",
+      "titulo": "Combate Ã  Dengue",
+      "descricao": "Elimine os focos do mosquito Aedes aegypti. Verifique sua residÃªncia e vizinhanÃ§a.",
+      "icone": "ðŸ¦Ÿ",
       "cor": "#d97706",
       "ativa": true,
       "ordem": 3,
@@ -1295,7 +1305,7 @@
     {
       "id": "dc1f5bae-73d0-4355-b89f-9fba80e4f689",
       "patientId": "a64ca1d4-b9e1-44ca-9b30-15f66d8d5b3b",
-      "nome": "Paciente Demonstração",
+      "nome": "Paciente DemonstraÃ§Ã£o",
       "cpfHash": "dbd0a6615e92e3e3b9856ae347ed9d989f8db44af36717e63e6b396be0230cc7",
       "passwordHash": "s1$b6c5a9386a446382856f60b441553d58$ee63fbdb57dbc1c3f3616f211c4cd0598ae549ee64ce061d3603899f5b6899549b6995daca6deb60f6ec2fce9bfa2facf140a63ce4cb4ad7b7bd8c63b31caaa2",
       "unitId": "unit-default",
@@ -1305,3 +1315,4 @@
     }
   ]
 }
+
