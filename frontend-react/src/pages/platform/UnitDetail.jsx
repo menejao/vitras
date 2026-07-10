@@ -13,6 +13,7 @@ import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
 import Alert from "../../components/ui/Alert";
 import { lookupCep, formatCep } from "../../services/cepService";
+import { geocodeAddress } from "../../services/geocodingService";
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
@@ -1111,35 +1112,49 @@ function GestorsTab({ token, unit, gestors, onAddManager, onRefresh }) {
 
 // ── Tab: Território ────────────────────────────────────────────────────────
 
-function CepField({ value, onChange, onAutoFill }) {
-  const [cepLoading, setCepLoading] = useState(false);
-  const [cepError, setCepError] = useState("");
-  const [autoFilled, setAutoFilled] = useState(false);
+// CepField — only input + lookup. Geocoding is handled by TerritoryTab.
+function CepField({ value, onRawChange, onAutoFill, cepStatus, cepError }) {
+  // cepStatus: "" | "searching" | "found" | "error"
+  const debounceRef = useRef(null);
 
-  async function handleCepChange(e) {
+  function handleChange(e) {
     const raw = e.target.value;
-    setCepError(""); setAutoFilled(false);
-    onChange(raw);
+    onRawChange(raw);
     const digits = raw.replace(/\D/g, "");
     if (digits.length !== 8) return;
-    setCepLoading(true);
-    try {
-      const addr = await lookupCep(digits);
-      onAutoFill(addr);
-      setAutoFilled(true);
-    } catch (err) { setCepError(err.message); }
-    finally { setCepLoading(false); }
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => onAutoFill(digits), 400);
   }
+
+  function handleBlur(e) {
+    const digits = e.target.value.replace(/\D/g, "");
+    if (digits.length === 8) {
+      clearTimeout(debounceRef.current);
+      onAutoFill(digits);
+    }
+  }
+
+  const statusLabel = {
+    searching: " buscando endereço…",
+    found: " ✓ endereço encontrado",
+    error: "",
+  }[cepStatus] || "";
 
   return (
     <div className="field">
       <label className="field__label">
-        CEP *
-        {cepLoading && <span className="console-cep-loading"> consultando...</span>}
-        {autoFilled && !cepLoading && <span className="console-cep-ok"> ✓ preenchido</span>}
+        CEP
+        {cepStatus === "searching" && <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>{statusLabel}</span>}
+        {cepStatus === "found"     && <span style={{ color: "var(--success)",    fontWeight: 400 }}>{statusLabel}</span>}
       </label>
       <div className="input">
-        <input value={formatCep(value)} onChange={handleCepChange} placeholder="00000-000" maxLength={9} />
+        <input
+          value={formatCep(value)}
+          onChange={handleChange}
+          onBlur={handleBlur}
+          placeholder="00000-000"
+          maxLength={9}
+        />
       </div>
       {cepError && <span className="field__error">{cepError} — preencha manualmente.</span>}
     </div>
@@ -1147,57 +1162,168 @@ function CepField({ value, onChange, onAutoFill }) {
 }
 
 function TerritoryTab({ token, unit, onRefresh }) {
-  const [form, setForm] = useState({
-    cep: unit.cep || "", street: unit.street || "", streetNumber: unit.streetNumber || "",
-    neighborhood: unit.neighborhood || "", municipalityName: unit.municipalityName || "",
-    uf: unit.uf || "", municipalityId: unit.municipalityId || "", complement: unit.complement || "",
-    reference: unit.reference || "", lat: unit.lat != null ? String(unit.lat) : "", lng: unit.lng != null ? String(unit.lng) : "",
-    populacaoEstimada: unit.populacaoEstimada || "", areaCobertura: unit.areaCobertura || "",
-  });
-  const [autoFilled, setAutoFilled] = useState([]);
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [error, setError] = useState("");
-
-  function setField(key, val) { setForm((f) => ({ ...f, [key]: val })); setSaved(false); }
-
-  function handleAutoFill(addr) {
-    setField("street", addr.street);
-    setField("neighborhood", addr.neighborhood);
-    setField("municipalityName", addr.municipalityName);
-    setField("uf", addr.uf);
-    if (addr.municipalityId) setField("municipalityId", addr.municipalityId);
-    setAutoFilled(["street","neighborhood","municipalityName","uf","municipalityId"]);
+  function formFromUnit(u) {
+    return {
+      cep:             u.cep           || "",
+      street:          u.street        || "",
+      streetNumber:    u.streetNumber  || "",
+      neighborhood:    u.neighborhood  || "",
+      municipalityName:u.municipalityName || "",
+      uf:              u.uf            || "",
+      municipalityId:  u.municipalityId || "",
+      complement:      u.complement    || "",
+      reference:       u.reference     || "",
+      lat:             u.lat  != null ? String(u.lat)  : "",
+      lng:             u.lng  != null ? String(u.lng)  : "",
+    };
   }
 
-  const hl = (k) => autoFilled.includes(k) ? { background: "var(--success-soft, #f0fdf4)" } : {};
+  const [form, setForm] = useState(() => formFromUnit(unit));
+  // autoFilled removed — now using autoFilledKeys inside TerritoryTab
+  const [saving,   setSaving]   = useState(false);
+  const [saved,    setSaved]    = useState(false);
+  const [saveError, setSaveError] = useState("");
 
+  // CEP lookup state
+  const [cepStatus, setCepStatus] = useState(""); // "" | "searching" | "found" | "error"
+  const [cepError,  setCepError]  = useState("");
+  const [autoFilledKeys, setAutoFilledKeys] = useState([]);
+
+  // Geocoding state (lat/lng)
+  const [geoStatus,  setGeoStatus]  = useState(""); // "" | "searching" | "found" | "error"
+  const [geoError,   setGeoError]   = useState("");
+  const [geoApprox,  setGeoApprox]  = useState(false);
+
+  const geoDebounceRef = useRef(null);
+
+  // Re-sync form when unit prop changes (after onRefresh)
+  useEffect(() => {
+    setForm(formFromUnit(unit));
+    setAutoFilledKeys([]);
+    setCepStatus(""); setCepError("");
+    setGeoStatus(""); setGeoError("");
+    setSaved(false); setSaveError("");
+  }, [unit.id, unit.updatedAt]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function setField(key, val) {
+    setForm((f) => ({ ...f, [key]: val }));
+    setSaved(false);
+    // Trigger geocoding when address fields change
+    if (["street", "streetNumber", "neighborhood", "municipalityName", "uf"].includes(key)) {
+      scheduleGeocode({ ...form, [key]: val });
+    }
+  }
+
+  function scheduleGeocode(f) {
+    clearTimeout(geoDebounceRef.current);
+    // Only geocode when municipality + uf are present
+    if (!f.municipalityName || !f.uf) return;
+    geoDebounceRef.current = setTimeout(() => runGeocode(f), 800);
+  }
+
+  async function runGeocode(f) {
+    setGeoStatus("searching"); setGeoError(""); setGeoApprox(false);
+    try {
+      const result = await geocodeAddress({
+        street:           f.street,
+        streetNumber:     f.streetNumber,
+        neighborhood:     f.neighborhood,
+        municipalityName: f.municipalityName,
+        uf:               f.uf,
+        cep:              f.cep,
+      });
+      setForm((prev) => ({ ...prev, lat: String(result.lat), lng: String(result.lng) }));
+      setGeoStatus("found");
+      setGeoApprox(!!result.approximate);
+      setSaved(false);
+    } catch (e) {
+      setGeoStatus("error");
+      setGeoError(e.message || "Não foi possível localizar as coordenadas");
+    }
+  }
+
+  async function handleCepLookup(digits) {
+    setCepStatus("searching"); setCepError("");
+    try {
+      const addr = await lookupCep(digits);
+      // Batch all auto-fill in one setForm to avoid race conditions
+      setForm((prev) => ({
+        ...prev,
+        street:           addr.street        || prev.street,
+        neighborhood:     addr.neighborhood  || prev.neighborhood,
+        municipalityName: addr.municipalityName || prev.municipalityName,
+        uf:               addr.uf            || prev.uf,
+        municipalityId:   addr.municipalityId || prev.municipalityId,
+      }));
+      setAutoFilledKeys(["street", "neighborhood", "municipalityName", "uf", "municipalityId"]);
+      setCepStatus("found");
+      setSaved(false);
+      // Trigger geocoding after CEP fill
+      scheduleGeocode({
+        ...form,
+        street:           addr.street        || form.street,
+        neighborhood:     addr.neighborhood  || form.neighborhood,
+        municipalityName: addr.municipalityName || form.municipalityName,
+        uf:               addr.uf            || form.uf,
+        cep:              digits,
+      });
+    } catch (e) {
+      setCepStatus("error");
+      setCepError(e.message || "CEP não encontrado");
+    }
+  }
+
+  const hl = (k) => autoFilledKeys.includes(k) ? { background: "var(--success-soft, #f0fdf4)" } : {};
   const addressComplete = form.street && form.streetNumber && form.neighborhood && form.municipalityName && form.uf;
+
+  function buildPayload() {
+    const latRaw = form.lat !== "" && form.lat != null ? parseFloat(String(form.lat)) : null;
+    const lngRaw = form.lng !== "" && form.lng != null ? parseFloat(String(form.lng)) : null;
+    return {
+      cep:              String(form.cep || "").replace(/\D/g, "") || null,
+      street:           form.street,
+      streetNumber:     form.streetNumber,
+      neighborhood:     form.neighborhood,
+      municipalityName: form.municipalityName,
+      uf:               form.uf,
+      municipalityId:   form.municipalityId || null,
+      complement:       form.complement || null,
+      reference:        form.reference  || null,
+      lat:              (latRaw !== null && !isNaN(latRaw)) ? latRaw : null,
+      lng:              (lngRaw !== null && !isNaN(lngRaw)) ? lngRaw : null,
+    };
+  }
 
   async function handleSave(e) {
     e.preventDefault();
-    setSaving(true); setError(""); setSaved(false);
+    setSaving(true); setSaveError(""); setSaved(false);
     try {
       await apiFetch(`/platform/units/${unit.id}`, token, {
         method: "PATCH",
-        body: JSON.stringify({
-          ...form,
-          cep: form.cep.replace(/\D/g, ""),
-          lat: form.lat !== "" ? parseFloat(form.lat) : null,
-          lng: form.lng !== "" ? parseFloat(form.lng) : null,
-        }),
+        body: JSON.stringify(buildPayload()),
       });
-      setSaved(true); setTimeout(() => setSaved(false), 3000);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 4000);
       onRefresh();
-    } catch (e) { setError(e.message); }
-    finally { setSaving(false); }
+    } catch (err) {
+      setSaveError(err.message || "Erro ao salvar endereço");
+    } finally {
+      setSaving(false);
+    }
   }
+
+  // Geocoding status label
+  const geoLabel = {
+    searching: "Buscando coordenadas…",
+    found:     geoApprox ? "Localização aproximada" : "Coordenadas encontradas",
+    error:     geoError,
+  }[geoStatus] || "";
 
   return (
     <form onSubmit={handleSave}>
-      {!addressComplete && (
+      {!addressComplete && !saving && (
         <Alert type="warn" style={{ marginBottom: "var(--s-4)" }}>
-          <IcoWarning /> Endereço incompleto — preencha todos os campos obrigatórios para habilitar o Mapa Territorial.
+          <IcoWarning /> Endereço incompleto — preencha logradouro, número, bairro, município e UF.
         </Alert>
       )}
 
@@ -1205,41 +1331,87 @@ function TerritoryTab({ token, unit, onRefresh }) {
         <div className="console-section__header">Endereço</div>
         <div className="console-section__body">
           <div className="field-grid">
-            <CepField value={form.cep} onChange={(v) => setField("cep", v)} onAutoFill={handleAutoFill} />
-            <div style={hl("street")}><Input label="Logradouro *" value={form.street} onChange={(e) => setField("street", e.target.value)} placeholder="Rua das Flores" /></div>
-            <Input label="Número *" value={form.streetNumber} onChange={(e) => setField("streetNumber", e.target.value)} placeholder="123" />
-            <div style={hl("neighborhood")}><Input label="Bairro *" value={form.neighborhood} onChange={(e) => setField("neighborhood", e.target.value)} placeholder="Centro" /></div>
-            <div style={hl("municipalityName")}><Input label="Município *" value={form.municipalityName} onChange={(e) => setField("municipalityName", e.target.value)} placeholder="Recife" /></div>
+            <CepField
+              value={form.cep}
+              onRawChange={(v) => { setForm((f) => ({ ...f, cep: v })); setSaved(false); }}
+              onAutoFill={handleCepLookup}
+              cepStatus={cepStatus}
+              cepError={cepError}
+            />
+            <div style={hl("street")}>
+              <Input label="Logradouro" value={form.street}
+                onChange={(e) => setField("street", e.target.value)} placeholder="Rua das Flores" />
+            </div>
+            <Input label="Número" value={form.streetNumber}
+              onChange={(e) => setField("streetNumber", e.target.value)} placeholder="123" />
+            <div style={hl("neighborhood")}>
+              <Input label="Bairro" value={form.neighborhood}
+                onChange={(e) => setField("neighborhood", e.target.value)} placeholder="Centro" />
+            </div>
+            <div style={hl("municipalityName")}>
+              <Input label="Município" value={form.municipalityName}
+                onChange={(e) => setField("municipalityName", e.target.value)} placeholder="Recife" />
+            </div>
             <div className="field" style={hl("uf")}>
-              <label className="field__label">UF *</label>
-              <select className="console-filter-select" style={{ height: 34, width: "100%" }} value={form.uf} onChange={(e) => setField("uf", e.target.value)}>
+              <label className="field__label">UF</label>
+              <select className="console-filter-select" style={{ height: 34, width: "100%" }}
+                value={form.uf} onChange={(e) => setField("uf", e.target.value)}>
                 <option value="">Selecionar UF</option>
                 {UF_OPTIONS.map(uf => <option key={uf} value={uf}>{uf}</option>)}
               </select>
             </div>
-            <div style={hl("municipalityId")}><Input label="Código IBGE (7 dígitos)" value={form.municipalityId} onChange={(e) => setField("municipalityId", e.target.value)} placeholder="2611606" /></div>
-            <Input label="Complemento" value={form.complement} onChange={(e) => setField("complement", e.target.value)} placeholder="Ap. 10" />
-            <Input label="Referência" value={form.reference} onChange={(e) => setField("reference", e.target.value)} placeholder="Próximo à Praça Central" />
+            <div style={hl("municipalityId")}>
+              <Input label="Código IBGE (7 dígitos)" value={form.municipalityId}
+                onChange={(e) => setField("municipalityId", e.target.value)} placeholder="2611606" />
+            </div>
+            <Input label="Complemento" value={form.complement}
+              onChange={(e) => { setForm((f) => ({ ...f, complement: e.target.value })); setSaved(false); }}
+              placeholder="Ap. 10" />
+            <Input label="Referência" value={form.reference}
+              onChange={(e) => { setForm((f) => ({ ...f, reference: e.target.value })); setSaved(false); }}
+              placeholder="Próximo à Praça Central" />
           </div>
         </div>
       </div>
 
       <div className="console-section" style={{ marginBottom: "var(--s-4)" }}>
-        <div className="console-section__header">Coordenadas e Cobertura <span style={{ fontWeight: 400, fontSize: "0.8em", opacity: 0.7 }}>(opcional)</span></div>
+        <div className="console-section__header">
+          Coordenadas
+          <span style={{ fontWeight: 400, fontSize: "var(--t-sm)", textTransform: "none", letterSpacing: 0, color: "var(--text-muted)" }}>
+            {geoStatus === "searching" && <span style={{ color: "var(--text-muted)" }}> buscando coordenadas…</span>}
+            {geoStatus === "found"     && <span style={{ color: geoApprox ? "var(--warning)" : "var(--success)" }}> {geoLabel}</span>}
+            {geoStatus === "error"     && <span style={{ color: "var(--warning)" }}> Não foi possível localizar as coordenadas — edite manualmente</span>}
+          </span>
+        </div>
         <div className="console-section__body">
           <div className="field-grid">
-            <Input label="Latitude" value={form.lat} onChange={(e) => setField("lat", e.target.value)} placeholder="-8.0476" type="number" step="any" />
-            <Input label="Longitude" value={form.lng} onChange={(e) => setField("lng", e.target.value)} placeholder="-34.8770" type="number" step="any" />
-            <Input label="População estimada" value={form.populacaoEstimada} onChange={(e) => setField("populacaoEstimada", e.target.value)} placeholder="12000" type="number" />
-            <Input label="Área de cobertura (km²)" value={form.areaCobertura} onChange={(e) => setField("areaCobertura", e.target.value)} placeholder="4.5" type="number" step="any" />
+            <Input label="Latitude" value={form.lat}
+              onChange={(e) => { setForm((f) => ({ ...f, lat: e.target.value })); setSaved(false); setGeoStatus(""); }}
+              placeholder="-8.0476" type="number" step="any" min="-90" max="90" />
+            <Input label="Longitude" value={form.lng}
+              onChange={(e) => { setForm((f) => ({ ...f, lng: e.target.value })); setSaved(false); setGeoStatus(""); }}
+              placeholder="-34.8770" type="number" step="any" min="-180" max="180" />
           </div>
+          {geoApprox && geoStatus === "found" && (
+            <p style={{ fontSize: "var(--t-xs)", color: "var(--warning)", marginTop: "var(--s-2)" }}>
+              Localização aproximada — adicione o número para maior precisão.
+            </p>
+          )}
         </div>
       </div>
 
-      {error && <Alert type="error" style={{ marginBottom: "var(--s-3)" }}>{error}</Alert>}
-      <div style={{ display: "flex", alignItems: "center", gap: "var(--s-3)" }}>
-        <Button type="submit" loading={saving}>Salvar território</Button>
-        {saved && <span style={{ fontSize: "var(--t-sm)", color: "var(--success)" }}>✓ Salvo</span>}
+      {saveError && <Alert type="error" style={{ marginBottom: "var(--s-3)" }}>{saveError}</Alert>}
+
+      <div style={{ display: "flex", alignItems: "center", gap: "var(--s-3)", padding: "var(--s-3) 0" }}>
+        <Button type="submit" loading={saving} disabled={saving}>
+          {saving ? "Salvando…" : "Salvar endereço"}
+        </Button>
+        {saved && !saving && (
+          <span style={{ fontSize: "var(--t-sm)", color: "var(--success)" }}>✓ Endereço salvo com sucesso</span>
+        )}
+        {!saved && !saving && (
+          <span style={{ fontSize: "var(--t-sm)", color: "var(--text-muted)" }}>Alterações pendentes</span>
+        )}
       </div>
     </form>
   );
