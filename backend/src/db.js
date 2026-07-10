@@ -189,11 +189,26 @@ function cloneState(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
+let _decryptErrorLogged = false;
 function transformSensitiveState(state, mode) {
   const data = cloneState(state || {});
   const transform = mode === "encrypt"
     ? (value) => encryptText(value)
-    : (value) => decryptText(value);
+    : (value) => {
+        try {
+          return decryptText(value);
+        } catch (e) {
+          if (!_decryptErrorLogged) {
+            _decryptErrorLogged = true;
+            logError("db_decrypt_field_failed", {
+              event: "db_decrypt_field_failed",
+              message: "DATA_ENCRYPTION_KEY incorreta — dados não podem ser descriptografados. Corrija a env var no Render.",
+              error: e.message,
+            });
+          }
+          return null;
+        }
+      };
 
   if (Array.isArray(data.patients)) {
     data.patients = data.patients.map((patient) => {
@@ -1351,6 +1366,18 @@ async function initialize() {
       logInfo("db_init_sync_shadow_start", { event: "db_init_sync_shadow_start" });
       await syncShadowTables(client, snapshot);
       logInfo("db_init_sync_shadow_ok", { event: "db_init_sync_shadow_ok" });
+    } catch (initErr) {
+      // Decryption errors (wrong DATA_ENCRYPTION_KEY) must not crash-loop the server.
+      // Mark initialized=true so retries don't pile up, then re-throw so callers get 500.
+      if (initErr.message && initErr.message.includes("unable to authenticate data")) {
+        logError("db_init_decrypt_failed", {
+          event: "db_init_decrypt_failed",
+          message: "DATA_ENCRYPTION_KEY não corresponde aos dados em app_state — verifique a variável no Render",
+          error: initErr.message,
+        });
+        initialized = true; // prevent crash-loop; server stays up returning 500 on data routes
+      }
+      throw initErr;
     } finally {
       client.release();
       logInfo("db_init_client_released", { event: "db_init_client_released" });
