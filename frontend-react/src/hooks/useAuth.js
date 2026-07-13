@@ -97,7 +97,7 @@ export function useAuth({ onSessionExpired, onLoginSuccess } = {}) {
       onLoginSuccess?.(payload.user);
     } catch {
       setLoginChallenge(null);
-      setError("E-mail ou senha incorretos.");
+      setError("ID ou senha incorretos.");
     } finally {
       setBusy(false);
     }
