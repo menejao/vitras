@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from "uuid";
 import { readDb, withDb } from "../db.js";
 import { validate, AgendaCreateSchema, AgendaPatchSchema } from "../schemas.js";
 import { ensureDbShape } from "../utils/domain.js";
-import { hasCapability, normalizeDemandType } from "../utils/helpers.js";
+import { hasCapability, normalizeDemandType, canAccessTeamScope, canonicalRole } from "../utils/helpers.js";
 import { addAuditLog } from "../services/audit.js";
 import { getAvailableSlots, isSlotAvailable } from "../services/availabilityService.js";
 
@@ -41,11 +41,6 @@ function canWriteAgenda(user) {
   return hasCapability(user, "agenda.write");
 }
 
-function canAccessTeam(user, teamId) {
-  const currentTeamId = String(user?.teamId || "").trim();
-  if (!currentTeamId) return false; // fail-safe: no teamId = no access
-  return currentTeamId === String(teamId || "").trim();
-}
 
 function normalizeAgendaStatus(value) {
   const raw = String(value || "").trim().toLowerCase();
@@ -118,7 +113,7 @@ function listScopedAgendaEntries(db, user, filters = {}) {
   return db.agendaEntries
     .filter((entry) => {
       if (!canReadAgenda(user)) return false;
-      if (!canAccessTeam(user, entry.teamId)) return false;
+      if (!canAccessTeamScope(user, entry.teamId)) return false;
       if (String(entry.status || "") === "cancelled") return false;
       if (from && String(entry.date || "") < from) return false;
       if (to && String(entry.date || "") > to) return false;
@@ -170,8 +165,14 @@ router.post("/agenda", validate(AgendaCreateSchema), async (req, res) => {
     ensureDbShape(db);
     const patient = db.patients.find((item) => item.id === String(payload.patientId || ""));
     if (!patient) return { error: { status: 404, message: "Paciente não encontrado" } };
-    if (!canAccessTeam(req.user, patient.teamId)) {
+    if (!canAccessTeamScope(req.user, patient.teamId)) {
       return { error: { status: 403, message: "Paciente fora da equipe atual" } };
+    }
+    if (canonicalRole(req.user?.role) === "break_glass_admin") {
+      addAuditLog(db, req.user, "BREAK_GLASS_PATIENT_SCOPE_BYPASS", "agenda_entry", patient.id, {
+        actorId: req.user.id, patientId: patient.id,
+        unitId: req.user.unitId || "", endpoint: "POST /agenda", action: "create_agenda_entry"
+      });
     }
 
     const doctorId = String(payload.doctorId || "").trim();
@@ -293,8 +294,14 @@ router.patch("/agenda/:id", validate(AgendaPatchSchema), async (req, res) => {
     if (index < 0) return { error: { status: 404, message: "Agendamento não encontrado" } };
 
     const current = db.agendaEntries[index];
-    if (!canAccessTeam(req.user, current.teamId)) {
+    if (!canAccessTeamScope(req.user, current.teamId)) {
       return { error: { status: 403, message: "Sem permissão para este agendamento" } };
+    }
+    if (canonicalRole(req.user?.role) === "break_glass_admin") {
+      addAuditLog(db, req.user, "BREAK_GLASS_PATIENT_SCOPE_BYPASS", "agenda_entry", current.id, {
+        actorId: req.user.id, patientId: current.patientId,
+        unitId: req.user.unitId || "", endpoint: "PATCH /agenda/:id", action: "update_agenda_entry"
+      });
     }
 
     const doctorId = req.body.doctorId !== undefined ? String(req.body.doctorId || "").trim() : String(current.doctorId || "");
@@ -349,8 +356,14 @@ router.delete("/agenda/:id", async (req, res) => {
     if (index < 0) return { error: { status: 404, message: "Agendamento não encontrado" } };
 
     const removed = db.agendaEntries[index];
-    if (!canAccessTeam(req.user, removed.teamId)) {
+    if (!canAccessTeamScope(req.user, removed.teamId)) {
       return { error: { status: 403, message: "Sem permissão para este agendamento" } };
+    }
+    if (canonicalRole(req.user?.role) === "break_glass_admin") {
+      addAuditLog(db, req.user, "BREAK_GLASS_PATIENT_SCOPE_BYPASS", "agenda_entry", removed.id, {
+        actorId: req.user.id, patientId: removed.patientId,
+        unitId: req.user.unitId || "", endpoint: "DELETE /agenda/:id", action: "cancel_agenda_entry"
+      });
     }
 
     const now = new Date().toISOString();
@@ -387,8 +400,14 @@ router.post("/agenda/:id/dar-entrada", async (req, res) => {
     if (agendaIndex < 0) return { error: { status: 404, message: "Agendamento não encontrado" } };
 
     const appt = db.agendaEntries[agendaIndex];
-    if (!canAccessTeam(req.user, appt.teamId)) {
+    if (!canAccessTeamScope(req.user, appt.teamId)) {
       return { error: { status: 403, message: "Sem permissão para este agendamento" } };
+    }
+    if (canonicalRole(req.user?.role) === "break_glass_admin") {
+      addAuditLog(db, req.user, "BREAK_GLASS_PATIENT_SCOPE_BYPASS", "agenda_entry", appt.id, {
+        actorId: req.user.id, patientId: appt.patientId,
+        unitId: req.user.unitId || "", endpoint: "POST /agenda/:id/dar-entrada", action: "dar_entrada"
+      });
     }
     if (appt.status !== "scheduled") {
       return { error: { status: 409, message: "Agendamento já foi processado" } };

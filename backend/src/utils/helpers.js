@@ -509,6 +509,16 @@ function canAccessAllPatients(user) {
   return canonicalRole(user?.role) === "break_glass_admin";
 }
 
+// Centralized team-scope check with break_glass_admin bypass.
+// break_glass_admin has UBS-wide access and is not bound to any clinical team.
+// All other roles: require user.teamId === targetTeamId.
+function canAccessTeamScope(user, targetTeamId) {
+  if (canonicalRole(user?.role) === "break_glass_admin") return true;
+  const userTeamId = String(user?.teamId || "").trim();
+  if (!userTeamId) return false;
+  return userTeamId === String(targetTeamId || "").trim();
+}
+
 function canAccessScopedPatients(user) {
   return hasCapability(user, "patients.read.scoped");
 }
@@ -830,6 +840,7 @@ export {
   isGestor,
   canAccessUnit,
   canAccessAllPatients,
+  canAccessTeamScope,
   canAccessScopedPatients,
   isAnaAdminUser,
   isSupportAdmin,
