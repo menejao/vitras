@@ -289,6 +289,7 @@ function ensureDbShape(db) {
   ensureArray(db, "acsVisits");
   ensureArray(db, "microAreas");
   ensureArray(db, "labIntegrations");
+  ensureArray(db, "labOrders");
   ensureArray(db, "odontograms");
   ensureArray(db, "odontoProcedures");
   ensureArray(db, "dentalEncounters");

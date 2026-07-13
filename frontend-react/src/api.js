@@ -769,3 +769,17 @@ export async function listExamRequests(token, params = {}) {
 export async function updateExamRequestStatus(token, id, payload) {
   return api(`/exam-requests/${id}/status`, { method: "PATCH", body: JSON.stringify(payload) }, token);
 }
+
+// ─── Laboratory Labels ────────────────────────────────────────────────────────
+
+export async function prepareLaboratoryLabels(token, examRequestId, payload) {
+  return api(`/laboratory/orders/${examRequestId}/labels/prepare`, { method: "POST", body: JSON.stringify(payload) }, token);
+}
+
+export async function printLaboratoryLabels(token, examRequestId, payload) {
+  return api(`/laboratory/orders/${examRequestId}/labels/print`, { method: "POST", body: JSON.stringify(payload) }, token);
+}
+
+export async function getLaboratoryLabels(token, examRequestId) {
+  return api(`/laboratory/orders/${examRequestId}/labels`, { method: "GET" }, token);
+}

@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useState } from "react";
 import Button from "./ui/Button";
 import ProtocolsTab from "./ProtocolsTab";
 import { isAdmin, isGestor } from "../utils/roles";
@@ -72,6 +72,13 @@ export function TabContent({
   const navigatePatient = (id) => { setTab("patients"); setSelectedPatientId(id); };
   const usersResolved = allUsers && allUsers.length ? allUsers : users;
 
+  // Counter to signal AgendaPage to auto-open in exam mode
+  const [examModeRequest, setExamModeRequest] = useState(0);
+  function handleScheduleExam() {
+    setTab("agenda");
+    setExamModeRequest(n => n + 1);
+  }
+
   const SPECIALTY_LABELS = {
     nutricao: "Nutrição", psicologia: "Psicologia", fisioterapia: "Fisioterapia",
     servico_social: "Serviço Social", terapia_ocupacional: "Terapia Ocupacional", fonoaudiologia: "Fonoaudiologia"
@@ -101,6 +108,7 @@ export function TabContent({
         onNewPatient={p => setPatients(prev => [...prev, p])} onPatientCreated={loadAll} onNavigatePatient={navigatePatient}
         agenda={agendaEntries} agendaLoading={agendaLoading} agendaError={agendaError} setAgendaError={setAgendaError}
         createEntry={createAgendaEntry} patchEntry={patchAgendaEntry} removeEntry={removeAgendaEntry}
+        examModeRequest={examModeRequest}
       />}
 
       {tab === "referrals" && (
@@ -113,7 +121,7 @@ export function TabContent({
 
       {tab === "acs_tasks" && <AcsTasksPage patients={patients} users={users} user={user} token={token} onNavigatePatient={navigatePatient}/>}
       {tab === "chart" && <RecordsPage patients={patients} users={users} user={user} token={token} onApplySessionPayload={applySessionFromPayload} selectedPatientId={selectedPatientId} onSelectPatientId={setSelectedPatientId} onNavigatePatient={navigatePatient}/>}
-      {tab === "exams_page" && <ExamsPage patients={patients} users={users} user={user} token={token} onNavigatePatient={navigatePatient}/>}
+      {tab === "exams_page" && <ExamsPage patients={patients} users={users} user={user} token={token} onNavigatePatient={navigatePatient} onScheduleExam={handleScheduleExam}/>}
 
       {tab === "gestor" && <GestorPage patients={patients} users={users} templates={templates} protocolByPatient={protocolByPatient} agenda={agendaEntries} referrals={referralEntries} pharmacyStock={pharmacyStock} pharmacyLog={pharmacyLog} token={token} user={user}/>}
 

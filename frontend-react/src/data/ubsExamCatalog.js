@@ -2,6 +2,9 @@
  * Catálogo de exames/procedimentos realizados na própria UBS.
  * Todos com performedAtUnit: true, active: true.
  * Exames externos NÃO devem aparecer aqui.
+ *
+ * isLaboratorial: true  → exige coleta de amostra biológica → exibido no agendamento de exames
+ * isLaboratorial: false → procedimento/aferimento → NÃO aparece no modal de agendamento de exame
  */
 export const UBS_EXAM_CATALOG = [
   {
@@ -14,6 +17,9 @@ export const UBS_EXAM_CATALOG = [
     responsibleTeam: "enfermagem",
     requiresPreparation: false,
     preparationInstructions: "",
+    isLaboratorial: true,
+    specimenType: "sangue_digital",
+    containerType: "microtubo_capilar",
   },
   {
     examTypeId: "teste_rapido_sifilis",
@@ -25,6 +31,9 @@ export const UBS_EXAM_CATALOG = [
     responsibleTeam: "enfermagem",
     requiresPreparation: false,
     preparationInstructions: "",
+    isLaboratorial: true,
+    specimenType: "sangue_digital",
+    containerType: "microtubo_capilar",
   },
   {
     examTypeId: "teste_rapido_hepatite_b",
@@ -36,6 +45,9 @@ export const UBS_EXAM_CATALOG = [
     responsibleTeam: "enfermagem",
     requiresPreparation: false,
     preparationInstructions: "",
+    isLaboratorial: true,
+    specimenType: "sangue_digital",
+    containerType: "microtubo_capilar",
   },
   {
     examTypeId: "teste_rapido_hepatite_c",
@@ -47,6 +59,9 @@ export const UBS_EXAM_CATALOG = [
     responsibleTeam: "enfermagem",
     requiresPreparation: false,
     preparationInstructions: "",
+    isLaboratorial: true,
+    specimenType: "sangue_digital",
+    containerType: "microtubo_capilar",
   },
   {
     examTypeId: "teste_gravidez",
@@ -58,6 +73,9 @@ export const UBS_EXAM_CATALOG = [
     responsibleTeam: "enfermagem",
     requiresPreparation: false,
     preparationInstructions: "",
+    isLaboratorial: true,
+    specimenType: "urina",
+    containerType: "copo_coletor",
   },
   {
     examTypeId: "glicemia_capilar",
@@ -69,6 +87,9 @@ export const UBS_EXAM_CATALOG = [
     responsibleTeam: "enfermagem",
     requiresPreparation: true,
     preparationInstructions: "Jejum de 8 horas para glicemia de jejum.",
+    isLaboratorial: true,
+    specimenType: "sangue_digital",
+    containerType: "microtubo_capilar",
   },
   {
     examTypeId: "coleta_sangue",
@@ -80,6 +101,9 @@ export const UBS_EXAM_CATALOG = [
     responsibleTeam: "enfermagem",
     requiresPreparation: true,
     preparationInstructions: "Verificar jejum conforme exame solicitado.",
+    isLaboratorial: true,
+    specimenType: "sangue_venoso",
+    containerType: "tubo_vacutainer",
   },
   {
     examTypeId: "pressao_arterial",
@@ -91,6 +115,9 @@ export const UBS_EXAM_CATALOG = [
     responsibleTeam: "enfermagem",
     requiresPreparation: false,
     preparationInstructions: "",
+    isLaboratorial: false,
+    specimenType: null,
+    containerType: null,
   },
   {
     examTypeId: "ecg",
@@ -102,6 +129,9 @@ export const UBS_EXAM_CATALOG = [
     responsibleTeam: "enfermagem",
     requiresPreparation: false,
     preparationInstructions: "",
+    isLaboratorial: false,
+    specimenType: null,
+    containerType: null,
   },
   {
     examTypeId: "preventivo",
@@ -113,6 +143,9 @@ export const UBS_EXAM_CATALOG = [
     responsibleTeam: "enfermagem",
     requiresPreparation: true,
     preparationInstructions: "Não realizar relação sexual 48h antes. Não usar duchas, cremes ou medicamentos vaginais.",
+    isLaboratorial: true,
+    specimenType: "celulas_cervicais",
+    containerType: "lamina_frasco",
   },
   {
     examTypeId: "curativo",
@@ -124,6 +157,9 @@ export const UBS_EXAM_CATALOG = [
     responsibleTeam: "enfermagem",
     requiresPreparation: false,
     preparationInstructions: "",
+    isLaboratorial: false,
+    specimenType: null,
+    containerType: null,
   },
   {
     examTypeId: "vacina",
@@ -135,6 +171,9 @@ export const UBS_EXAM_CATALOG = [
     responsibleTeam: "enfermagem",
     requiresPreparation: false,
     preparationInstructions: "",
+    isLaboratorial: false,
+    specimenType: null,
+    containerType: null,
   },
   {
     examTypeId: "inalacao",
@@ -146,6 +185,9 @@ export const UBS_EXAM_CATALOG = [
     responsibleTeam: "enfermagem",
     requiresPreparation: false,
     preparationInstructions: "",
+    isLaboratorial: false,
+    specimenType: null,
+    containerType: null,
   },
   {
     examTypeId: "verificacao_saturacao",
@@ -157,6 +199,9 @@ export const UBS_EXAM_CATALOG = [
     responsibleTeam: "enfermagem",
     requiresPreparation: false,
     preparationInstructions: "",
+    isLaboratorial: false,
+    specimenType: null,
+    containerType: null,
   },
   {
     examTypeId: "antropometria",
@@ -168,6 +213,9 @@ export const UBS_EXAM_CATALOG = [
     responsibleTeam: "enfermagem",
     requiresPreparation: false,
     preparationInstructions: "",
+    isLaboratorial: false,
+    specimenType: null,
+    containerType: null,
   },
 ];
 
@@ -180,9 +228,14 @@ export const UBS_EXAM_CATEGORY_LABELS = {
   procedimento: "Procedimento",
 };
 
-/** Returns only active exams performed at the unit. */
+/** Returns all active exams performed at the unit. */
 export function getUbsExams() {
   return UBS_EXAM_CATALOG.filter(e => e.performedAtUnit && e.active);
+}
+
+/** Returns only active laboratorial exams (require specimen collection → eligible for label printing). */
+export function getLabExams() {
+  return UBS_EXAM_CATALOG.filter(e => e.performedAtUnit && e.active && e.isLaboratorial);
 }
 
 /** Lookup by examTypeId. */

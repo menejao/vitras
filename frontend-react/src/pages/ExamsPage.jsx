@@ -11,6 +11,8 @@ import Modal from "../components/ui/Modal";
 import Select from "../components/ui/Select";
 import Textarea from "../components/ui/Textarea";
 import { Tabs, Tab } from "../components/ui/Tabs";
+import EmptyState from "../components/ui/EmptyState";
+import LabelPrintModal from "./LabelPrintModal";
 
 const EXAM_TYPES = ["Hemograma completo", "Glicemia em jejum", "HbA1c", "Colesterol total e frações", "Triglicerídeos", "Creatinina", "Ureia", "TGO/TGP", "TSH/T4 livre", "Urina rotina (EAS)", "Urocultura", "Raio-X tórax", "Ultrassonografia abdominal", "Ultrassonografia obstétrica", "ECG", "Espirometria", "Mamografia", "Papanicolau", "PSA", "Ferritina/Ferro sérico", "Vitamina D", "Coagulograma", "Outros"];
 
@@ -328,8 +330,9 @@ function ExamExecutionModal({ request, token, onClose, onSuccess }) {
 
 // ─── DayQueueCard ─────────────────────────────────────────────────────────────
 
-function DayQueueCard({ req, canExecute, onExecute }) {
+function DayQueueCard({ req, canExecute, onExecute, onPrintLabel }) {
   const isDone = ["concluido", "cancelado"].includes(req.status);
+  const canLabel = !["pendente", "cancelado"].includes(req.status);
   return (
     <div className={`day-queue-card card${isDone ? " day-queue-card--done" : ""}`}>
       <div className="day-queue-card__head">
@@ -344,18 +347,23 @@ function DayQueueCard({ req, canExecute, onExecute }) {
           <span key={i} className="req-card__exam-tag">{ex.name}{ex.urgency === "urgente" ? " ⚡" : ""}</span>
         ))}
       </div>
-      {canExecute && !isDone && (
-        <div className="day-queue-card__action">
+      <div className="day-queue-card__action">
+        {canExecute && !isDone && (
           <Button type="button" variant="secondary" size="sm" onClick={() => onExecute(req)}>Atualizar</Button>
-        </div>
-      )}
+        )}
+        {canLabel && onPrintLabel && (
+          <Button type="button" variant="ghost" size="sm" onClick={() => onPrintLabel(req)}>
+            🏷 Imprimir etiqueta
+          </Button>
+        )}
+      </div>
     </div>
   );
 }
 
 // ─── ExamsPage ────────────────────────────────────────────────────────────────
 
-function ExamsPage({ patients, user, token, onNavigatePatient, deepLink, onClearDeepLink }) {
+function ExamsPage({ patients, user, token, onNavigatePatient, deepLink, onClearDeepLink, onScheduleExam }) {
   const [tab, setTab] = useState("exames_do_dia");
 
   // ── Exames tab state ──
@@ -382,6 +390,7 @@ function ExamsPage({ patients, user, token, onNavigatePatient, deepLink, onClear
   const [reqError, setReqError] = useState("");
   const [filterDate, setFilterDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [execTarget, setExecTarget] = useState(null);
+  const [labelTarget, setLabelTarget] = useState(null);
 
   const canManage = canManageExams(user);
   const canExec = canExecuteExams(user);
@@ -397,7 +406,7 @@ function ExamsPage({ patients, user, token, onNavigatePatient, deepLink, onClear
     setReqLoading(true);
     setReqError("");
     try {
-      const res = await listExamRequests(token, {});
+      const res = await listExamRequests(token, { date: filterDate });
       setRequests(res?.data || []);
     } catch (e) {
       setReqError(e.message || "Erro ao carregar pedidos.");
@@ -405,7 +414,7 @@ function ExamsPage({ patients, user, token, onNavigatePatient, deepLink, onClear
     } finally {
       setReqLoading(false);
     }
-  }, [token]);
+  }, [token, filterDate]);
 
   useEffect(() => {
     if (tab === "exames_do_dia") {
@@ -690,7 +699,17 @@ function ExamsPage({ patients, user, token, onNavigatePatient, deepLink, onClear
             const done    = dayReqs.filter(r =>  ["concluido", "cancelado"].includes(r.status));
 
             if (!dayReqs.length) {
-              return <p className="exams-section-empty">Nenhum exame agendado para esta data.</p>;
+              return (
+                <EmptyState
+                  title="Nenhum exame agendado"
+                  description={`Não há exames agendados para ${targetDate.split("-").reverse().join("/")}.`}
+                  action={onScheduleExam ? (
+                    <button className="btn btn--primary btn--sm" type="button" onClick={onScheduleExam}>
+                      Agendar exame
+                    </button>
+                  ) : null}
+                />
+              );
             }
 
             return (
@@ -702,7 +721,7 @@ function ExamsPage({ patients, user, token, onNavigatePatient, deepLink, onClear
                   </div>
                   {waiting.length === 0
                     ? <p className="exams-section-empty">Nenhum paciente aguardando.</p>
-                    : <div className="req-queue__list">{waiting.map(req => <DayQueueCard key={req.id} req={req} canExecute={canExec} onExecute={setExecTarget} />)}</div>
+                    : <div className="req-queue__list">{waiting.map(req => <DayQueueCard key={req.id} req={req} canExecute={canExec} onExecute={setExecTarget} onPrintLabel={setLabelTarget} />)}</div>
                   }
                 </div>
 
@@ -713,7 +732,7 @@ function ExamsPage({ patients, user, token, onNavigatePatient, deepLink, onClear
                       Exames realizados ({done.length})
                     </div>
                     <div className="req-queue__list">
-                      {done.map(req => <DayQueueCard key={req.id} req={req} canExecute={canExec} onExecute={setExecTarget} />)}
+                      {done.map(req => <DayQueueCard key={req.id} req={req} canExecute={canExec} onExecute={setExecTarget} onPrintLabel={setLabelTarget} />)}
                     </div>
                   </div>
                 )}
@@ -795,6 +814,14 @@ function ExamsPage({ patients, user, token, onNavigatePatient, deepLink, onClear
             setExecTarget(null);
             loadRequests();
           }}
+        />
+      )}
+
+      {labelTarget && (
+        <LabelPrintModal
+          request={labelTarget}
+          token={token}
+          onClose={() => setLabelTarget(null)}
         />
       )}
     </div>

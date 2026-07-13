@@ -7,8 +7,8 @@ import { isUnavailableDay, unavailableReason } from "../utils/dates";
 import { formatCpf, formatPhone, initials, maskCpf } from "../utils/formatting";
 import { hasCapability } from "../utils/roles";
 import { SPECIALTY_MAP, specialtyLabel, normalizeToSpecialtyKey } from "../utils/specialty";
-import { AGENDA_HOURS, AGENDA_STATUS_LABELS, AGENDA_PROCEDURE_SUBTYPES, describeAgendaType } from "../utils/agenda";
-import { getUbsExams, getUbsExamById } from "../data/ubsExamCatalog";
+import { AGENDA_HOURS, AGENDA_STATUS_LABELS, describeAgendaType } from "../utils/agenda";
+import { getLabExams, getUbsExamById } from "../data/ubsExamCatalog";
 import Button from "../components/ui/Button";
 import Alert from "../components/ui/Alert";
 import Input from "../components/ui/Input";
@@ -17,7 +17,7 @@ import Modal from "../components/ui/Modal";
 import EmptyState from "../components/ui/EmptyState";
 import PageHeader from "../components/layout/PageHeader";
 
-const UBS_EXAMS = getUbsExams();
+const LAB_EXAMS = getLabExams();
 
 const IconPlus = () => (
   <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
@@ -84,6 +84,7 @@ function AgendaPage({
   onNewPatient, onPatientCreated, onNavigatePatient, teams = [],
   agenda = [], agendaLoading = false, agendaError = "", setAgendaError = () => {},
   createEntry, patchEntry, removeEntry,
+  examModeRequest = 0,
 }) {
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [showForm, setShowForm]         = useState(false);
@@ -104,6 +105,15 @@ function AgendaPage({
   const patWrapRef = useRef(null);
 
   const isExamAppt = form.appointmentType === "exam";
+
+  // Auto-open in exam mode when examModeRequest counter increments (from ExamsPage CTA)
+  useEffect(() => {
+    if (!examModeRequest) return;
+    setForm({ ...emptyForm(), appointmentType: "exam", date: selectedDate });
+    setPatSearch(""); setPatSelected(null);
+    setProcedureSubtype("");
+    setEditId(null); setShowForm(true);
+  }, [examModeRequest]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!showForm || !form.date) { setAvailableSlots(null); return; }
@@ -227,7 +237,16 @@ function AgendaPage({
       resolvedPatientId = created?.id || form.patientId;
     }
 
-    const payload = { ...form, patientId: resolvedPatientId };
+    // Strip cross-domain fields from payload per spec GOV-01 constraints
+    const basePayload = { ...form, patientId: resolvedPatientId };
+    let payload;
+    if (basePayload.appointmentType === "exam") {
+      const { doctorId: _d, specialty: _s, type: _t, ...rest } = basePayload;
+      payload = { ...rest, doctorId: "", specialty: "", type: "procedure" };
+    } else {
+      const { examTypeId: _e, examName: _n, ...rest } = basePayload;
+      payload = { ...rest, examTypeId: "", examName: "" };
+    }
     try {
       if (editId) await patchEntry(editId, payload);
       else await createEntry(payload);
@@ -750,7 +769,7 @@ function AgendaPage({
                   error={!form.examTypeId && agendaError ? "Obrigatório" : ""}
                 >
                   <option value="">Selecionar exame da UBS...</option>
-                  {UBS_EXAMS.map(ex => (
+                  {LAB_EXAMS.map(ex => (
                     <option key={ex.examTypeId} value={ex.examTypeId}>{ex.name}</option>
                   ))}
                 </Select>
@@ -768,16 +787,6 @@ function AgendaPage({
                   );
                 })()}
 
-                {/* Profissional/equipe executante (opcional) */}
-                <Select
-                  label="Profissional executante (opcional)"
-                  className="field--span-2"
-                  value={form.doctorId}
-                  onChange={e => setForm(s => ({ ...s, doctorId: e.target.value }))}
-                >
-                  <option value="">Equipe de enfermagem</option>
-                  {doctors.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                </Select>
               </>
             )}
 
@@ -805,37 +814,6 @@ function AgendaPage({
                   {doctors.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                 </Select>
 
-                <Select
-                  label="Tipo"
-                  value={form.type}
-                  onChange={e => {
-                    setForm(s => ({ ...s, type: e.target.value, notes: "" }));
-                    setProcedureSubtype("");
-                  }}
-                >
-                  <option value="consultation">Consulta</option>
-                  <option value="return">Retorno</option>
-                  <option value="procedure">Procedimento / Exame</option>
-                  <option value="other">Outro</option>
-                </Select>
-
-                {form.type === "procedure" && (
-                  <Select
-                    label="Procedimento / Exame"
-                    value={procedureSubtype}
-                    onChange={e => {
-                      const v = e.target.value;
-                      setProcedureSubtype(v);
-                      const lbl = AGENDA_PROCEDURE_SUBTYPES.find(s => s.value === v)?.label || "";
-                      setForm(s => ({ ...s, notes: lbl }));
-                    }}
-                  >
-                    <option value="">Selecionar...</option>
-                    {AGENDA_PROCEDURE_SUBTYPES.map(s => (
-                      <option key={s.value} value={s.value}>{s.label}</option>
-                    ))}
-                  </Select>
-                )}
               </>
             )}
 
