@@ -143,7 +143,7 @@ router.post("/laboratory/orders/:examRequestId/labels/print", async (req, res) =
   if (!canAccessLab(user)) return res.status(403).json({ error: "Sem permissão." });
 
   const { examRequestId } = req.params;
-  const { labelIds = [], labelSize = "50x30" } = req.body || {};
+  const { labelIds = [], labelSize, templateId, selectedCount, pageCount, startPosition } = req.body || {};
 
   if (!Array.isArray(labelIds) || !labelIds.length) {
     return res.status(400).json({ error: "Selecione ao menos uma etiqueta." });
@@ -172,7 +172,7 @@ router.post("/laboratory/orders/:examRequestId/labels/print", async (req, res) =
           printCount: (label.printCount || 0) + 1,
           lastPrintedAt: now,
           lastPrintedBy: user.id,
-          lastLabelSize: labelSize,
+          lastTemplateId: templateId || labelSize || null,
         };
       });
 
@@ -184,7 +184,11 @@ router.post("/laboratory/orders/:examRequestId/labels/print", async (req, res) =
 
       const auditAction = isReprint ? "LAB_LABEL_REPRINTED" : "LAB_LABEL_PRINTED";
       addAuditLog(db, user, auditAction, "exam_request", examRequestId, {
-        labelIds, labelSize, orderId: order.id,
+        orderId: order.id,
+        templateId: templateId || labelSize || null,
+        selectedCount: selectedCount || labelIds.length,
+        pageCount: pageCount || null,
+        startPosition: startPosition || 1,
       });
     });
 

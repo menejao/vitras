@@ -1,147 +1,465 @@
-/* label-print.css — Estilos do modal de impressão de etiquetas laboratoriais */
+/* label-print.css — Modal de impressão de etiquetas laboratoriais (Sprint 4) */
 
-/* ── Modal container ── */
+/* ── Modal container: altura fixa, sem scroll externo ── */
 .modal--label-print {
-  width: min(720px, 92vw);
-  max-height: 90vh;
-  overflow-y: auto;
+  width: min(900px, 95vw);
+  height: min(82vh, 680px);
+  overflow: hidden;
+  padding: 0;
+  gap: 0;
+  display: flex;
+  flex-direction: column;
 }
 
-/* ── Loading / Empty ── */
+.modal--label-print .modal__header {
+  padding: var(--s-4) var(--s-6);
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+
+.modal--label-print .modal__body {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0;
+  gap: 0;
+}
+
+.modal--label-print .modal__footer {
+  border-top: 1px solid var(--border);
+  background: var(--surface-2);
+  padding: var(--s-3) var(--s-6);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* ── Body principal ── */
+.label-print-body {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* ── Loading / Empty / Error ── */
 .label-print__loading,
 .label-print__empty {
   color: var(--text-muted);
   font-size: var(--t-sm);
   text-align: center;
-  padding: var(--s-6) 0;
+  padding: var(--s-8) var(--s-6);
 }
 
-/* ── Section ── */
-.label-print__section {
-  margin-bottom: var(--s-6);
-}
-
-.label-print__section-title {
-  display: block;
-  font-size: var(--t-sm);
-  font-weight: 600;
-  color: var(--text-muted);
-  margin-bottom: var(--s-2);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-/* ── Size selector ── */
-.label-print__sizes {
+.label-print__error-wrap {
+  padding: var(--s-6);
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: var(--s-3);
 }
 
-.label-print__size-option {
-  display: flex;
-  align-items: center;
-  gap: var(--s-2);
-  cursor: pointer;
-  font-size: var(--t-sm);
-  padding: var(--s-2) var(--s-3);
-  border: 1px solid var(--border);
-  border-radius: var(--r-md);
-  background: var(--surface-1);
-  transition: border-color 0.15s;
+/* ── Cabeçalho resumo ── */
+.label-print__summary {
+  padding: var(--s-3) var(--s-6) var(--s-2);
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
 }
 
-.label-print__size-option:has(input:checked) {
-  border-color: var(--brand);
-  background: var(--brand-subtle, color-mix(in srgb, var(--brand) 8%, transparent));
-}
-
-.label-print__size-option input[type="radio"] {
-  accent-color: var(--brand);
-}
-
-/* ── Label preview grid ── */
-.label-print__previews {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: var(--s-3);
-}
-
-/* ── Label preview card ── */
-.label-preview {
-  cursor: pointer;
-  display: block;
-}
-
-.label-preview__checkbox {
-  display: none;
-}
-
-.label-preview__card {
-  border: 2px solid var(--border);
-  border-radius: var(--r-md);
-  padding: var(--s-3);
-  background: var(--surface-1);
-  transition: border-color 0.15s, box-shadow 0.15s;
-  font-size: 0.78rem;
-  line-height: 1.4;
-}
-
-.label-preview--selected .label-preview__card {
-  border-color: var(--brand);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand) 18%, transparent);
-}
-
-.label-preview__patient {
+.label-print__summary-patient {
   font-weight: 700;
-  font-size: var(--t-sm);
+  font-size: var(--t-base);
   color: var(--text);
-  margin-bottom: 2px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.label-preview__dob,
-.label-preview__date {
+.label-print__summary-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  margin-top: 2px;
+  font-size: var(--t-sm);
+  color: var(--text-muted);
+  flex-wrap: wrap;
+}
+
+.label-print__template-tag {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 1px 6px;
   font-size: 0.72rem;
   color: var(--text-muted);
 }
 
-.label-preview__exam {
-  font-weight: 600;
-  color: var(--text);
-  margin: var(--s-1) 0;
+/* ── Painel dividido ── */
+.label-print__panel {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* ── Coluna lista (esquerda) ── */
+.label-print__list-col {
+  flex: 0 0 55%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-right: 1px solid var(--border-subtle);
+}
+
+/* Ações em massa */
+.label-print__bulk {
+  display: flex;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-4);
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.label-print__bulk-btn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 2px 8px;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: border-color 0.12s, color 0.12s;
+}
+
+.label-print__bulk-btn:hover {
+  border-color: var(--brand);
+  color: var(--brand);
+}
+
+/* Busca */
+.label-print__search {
+  padding: var(--s-2) var(--s-4);
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+
+.label-print__search .input__control {
+  width: 100%;
   font-size: var(--t-sm);
 }
 
-.label-preview__specimen {
-  font-size: 0.72rem;
-  color: var(--text-muted);
-  margin-bottom: var(--s-1);
+/* Posição de início */
+.label-print__start-pos {
+  padding: var(--s-2) var(--s-4);
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
 }
 
-.label-preview__barcode {
-  margin: var(--s-2) 0;
+.label-print__start-pos-label {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.label-print__start-pos-select {
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--surface-1);
+  color: var(--text);
+  font-size: 0.72rem;
+  padding: 1px 4px;
+  cursor: pointer;
+}
+
+/* Lista de itens */
+.label-print__list {
+  flex: 1;
+  overflow-y: auto;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.label-print__list-empty {
+  padding: var(--s-4) var(--s-6);
+  color: var(--text-muted);
+  font-size: var(--t-sm);
+  text-align: center;
+}
+
+.label-print__item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-4);
+  border-bottom: 1px solid var(--border-subtle);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.label-print__item:hover {
+  background: var(--surface-2);
+}
+
+.label-print__item--active {
+  background: color-mix(in srgb, var(--brand) 6%, transparent);
+  border-left: 2px solid var(--brand);
+  padding-left: calc(var(--s-4) - 2px);
+}
+
+.label-print__item--reprint {
+  opacity: 0.75;
+}
+
+.label-print__item-cb {
+  flex-shrink: 0;
+  margin-top: 2px;
+  accent-color: var(--brand);
+  cursor: pointer;
+}
+
+.label-print__item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.label-print__item-name {
+  font-size: var(--t-sm);
+  font-weight: 600;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.label-print__reprint-badge {
+  font-size: 0.65rem;
+  font-weight: 600;
+  background: var(--warning-subtle, #fff3cd);
+  color: var(--warning, #856404);
+  border-radius: var(--r-sm);
+  padding: 0 5px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.label-print__item-meta {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+
+.label-print__item-acc {
+  font-size: 0.65rem;
+  color: var(--text-subtle, var(--text-muted));
+  font-family: monospace;
+  margin-top: 1px;
+}
+
+/* ── Coluna preview (direita) ── */
+.label-print__preview-col {
+  flex: 0 0 45%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--s-4);
+  overflow-y: auto;
+  gap: var(--s-3);
+  background: var(--surface-2);
+}
+
+.label-print__preview-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  width: 100%;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.label-print__nav-btn {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  cursor: pointer;
+  color: var(--text);
+  transition: border-color 0.12s;
+}
+
+.label-print__nav-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.label-print__nav-btn:not(:disabled):hover {
+  border-color: var(--brand);
+}
+
+.label-print__nav-pos {
+  font-size: var(--t-sm);
+  color: var(--text-muted);
+  min-width: 80px;
+  text-align: center;
+}
+
+.label-print__preview-empty {
+  color: var(--text-muted);
+  font-size: var(--t-sm);
+  text-align: center;
+  padding: var(--s-8) var(--s-4);
+}
+
+.label-print__print-hint {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 0 var(--s-2);
+  margin-top: auto;
+}
+
+/* ── Preview de etiqueta única ── */
+.label-single-preview {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: var(--s-3) var(--s-4);
+  width: 100%;
+  max-width: 280px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  box-shadow: var(--shadow-sm);
+  font-size: var(--t-sm);
+}
+
+.label-single-preview__patient {
+  font-weight: 700;
+  font-size: var(--t-sm);
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.label-single-preview__dob,
+.label-single-preview__date {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.label-single-preview__exam {
+  font-weight: 600;
+  color: var(--text);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.label-single-preview__specimen {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.label-single-preview__barcode {
+  margin: var(--s-2) 0 2px;
   line-height: 0;
 }
 
-.label-preview__barcode svg {
+.label-single-preview__barcode svg {
   max-width: 100%;
   height: auto;
+  display: block;
 }
 
-/* ── Responsive: stack on mobile ── */
-@media (max-width: 412px) {
-  .label-print__previews {
-    grid-template-columns: 1fr;
-  }
+.label-single-preview__acc {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  text-align: center;
+  font-family: monospace;
+}
 
+/* ── Footer ── */
+.label-print__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: var(--s-4);
+}
+
+.label-print__footer-info {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--t-sm);
+  color: var(--text-muted);
+}
+
+.label-print__page-pill {
+  background: var(--surface-3, var(--surface-2));
+  border: 1px solid var(--border);
+  border-radius: var(--r-full);
+  padding: 1px 8px;
+  font-size: 0.72rem;
+}
+
+.label-print__footer-btns {
+  display: flex;
+  gap: var(--s-2);
+}
+
+/* ── Mobile ── */
+@media (max-width: 600px) {
   .modal--label-print {
-    width: 95vw;
+    width: 98vw;
+    height: 94vh;
   }
 
-  .label-print__sizes {
+  .label-print__panel {
     flex-direction: column;
+  }
+
+  .label-print__list-col {
+    flex: 0 0 auto;
+    max-height: 50%;
+    border-right: none;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .label-print__preview-col {
+    flex: 1;
+  }
+
+  .label-print__footer {
+    flex-wrap: wrap;
+    gap: var(--s-2);
+  }
+
+  .label-print__footer-btns {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}
+
+@media (max-width: 412px) {
+  .modal--label-print .modal__header {
+    padding: var(--s-3) var(--s-4);
+  }
+
+  .modal--label-print .modal__footer {
+    padding: var(--s-3) var(--s-4);
   }
 }
