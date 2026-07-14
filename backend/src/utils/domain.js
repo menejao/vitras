@@ -303,6 +303,8 @@ function ensureDbShape(db) {
   ensureArray(db, "loginChallenges");
   ensureArray(db, "refreshTokens");
   ensureArray(db, "exportHistory");
+  ensureArray(db, "professionalSchedules");
+  ensureArray(db, "scheduleBlocks");
 
   if (!db.teams.length) {
     const defaultTeamId = "team-default";

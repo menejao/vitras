@@ -122,7 +122,10 @@ const ROLE_CAPABILITIES = {
     "admin.seed",
     "metrics.internal.read",
     "cds.export",
-    "acs.visit.read"
+    "acs.visit.read",
+    "schedule.configuration.read",
+    "schedule.configuration.update",
+    "schedule.block.manage"
   ],
   acs: [
     "dashboard.read",
@@ -399,7 +402,10 @@ const ROLE_CAPABILITIES = {
     "platform.audit.read",
     "platform.health.read",
     "platform.citizen_portal.read",
-    "platform.citizen_portal.update"
+    "platform.citizen_portal.update",
+    "schedule.configuration.read",
+    "schedule.configuration.update",
+    "schedule.block.manage"
   ]
 };
 

@@ -6,6 +6,7 @@ import { ensureDbShape } from "../utils/domain.js";
 import { hasCapability, normalizeDemandType, canAccessTeamScope, canonicalRole } from "../utils/helpers.js";
 import { addAuditLog } from "../services/audit.js";
 import { getAvailableSlots, isSlotAvailable } from "../services/availabilityService.js";
+import { getSlotCapacityInfo } from "../services/scheduleEngine.js";
 
 function normalizeAppointmentType(value) {
   const raw = String(value || "").trim().toLowerCase();
@@ -137,11 +138,13 @@ router.get("/availability", async (req, res) => {
     return res.status(403).json({ error: "Sem permissão" });
   }
   const db = await readDb();
-  const { date, specialtyKey, doctorId } = req.query;
+  const { date, specialtyKey, doctorId, channel } = req.query;
   const slots = getAvailableSlots(db, {
     date: String(date || "").trim(),
     specialtyKey: String(specialtyKey || "").trim(),
     doctorId: String(doctorId || "").trim(),
+    unitId: String(req.user.unitId || ""),
+    channel: channel ? String(channel).trim() : undefined,
   });
   return res.json({ date, slots });
 });
@@ -183,25 +186,28 @@ router.post("/agenda", validate(AgendaCreateSchema), async (req, res) => {
 
     const apptDate = String(payload.date || "").trim();
     const apptTime = String(payload.time || "").trim();
-
-    if (apptDate) {
-      const d = new Date(apptDate + "T12:00:00");
-      const dow = d.getDay();
-      if (dow === 0 || dow === 6) {
-        return { error: { status: 409, message: "Agendamentos não são permitidos em fins de semana" } };
-      }
-    }
+    const bookingChannel = ["portal", "reception", "nursing", "reserve"].includes(payload.bookingChannel)
+      ? payload.bookingChannel
+      : "reception";
+    const unitId = String(req.user.unitId || "");
 
     if (doctorId && apptDate && apptTime) {
-      const doctorConflict = db.agendaEntries.find(
-        (item) =>
-          item.doctorId === doctorId &&
-          String(item.date || "") === apptDate &&
-          String(item.time || "") === apptTime &&
-          item.status !== "cancelled"
-      );
-      if (doctorConflict) {
-        return { error: { status: 409, message: "Profissional já tem agendamento neste horário" } };
+      const available = isSlotAvailable(db, {
+        date: apptDate,
+        time: apptTime,
+        doctorId,
+        unitId,
+        channel: bookingChannel,
+      });
+      if (!available) {
+        const info = getSlotCapacityInfo(db, { date: apptDate, time: apptTime, doctorId, unitId });
+        if (info?.blocked) {
+          return { error: { status: 409, message: "Horário bloqueado para este profissional nesta data" } };
+        }
+        if (info?.booked >= info?.capacity) {
+          return { error: { status: 409, message: "Horário sem disponibilidade: capacidade esgotada" } };
+        }
+        return { error: { status: 409, message: "Horário não disponível para este profissional" } };
       }
     }
 
@@ -226,6 +232,7 @@ router.post("/agenda", validate(AgendaCreateSchema), async (req, res) => {
       specialty: String(payload.specialty || "").trim(),
       notes: String(payload.notes || "").trim(),
       status: normalizeAgendaStatus(payload.status),
+      bookingChannel,
       incompletePatient: Boolean(patient.incompleteProfile),
       summary: buildAgendaSummary(payload.type, payload.notes),
       createdAt: now,

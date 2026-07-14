@@ -44,6 +44,7 @@ import productionRouter from "./routes/production.js";
 import swaggerRouter from "./routes/swagger.js";
 import platformRouter from "./routes/platform.js";
 import importRouter from "./routes/import.js";
+import scheduleRouter from "./routes/schedule.js";
 import laboratoryRouter from "./routes/laboratory.js";
 import territorialRouter from "./routes/territorial.js";
 import citizenPortalRouter     from "./routes/citizen-portal.js";
@@ -85,7 +86,8 @@ app.use(citizenPortalAppointmentsRouter);
 app.use(citizenPortalUnitRouter);
 app.use(citizenPortalProfileRouter);
 app.use(requireAuth);
-app.use(importRouter);  // MIG-01: before blockSupportAdminFromClinical — import is support_admin territory
+app.use(importRouter);    // MIG-01: before blockSupportAdminFromClinical — import is support_admin territory
+app.use(scheduleRouter); // SPRINT-5: before blockSupportAdminFromClinical — schedule config is administrative
 app.use(blockSupportAdminFromClinical);  // IAM-01
 app.use(requireCsrfForCookieAuth);
 app.use((req, res, next) => {

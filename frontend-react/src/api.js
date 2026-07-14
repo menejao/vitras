@@ -783,3 +783,42 @@ export async function printLaboratoryLabels(token, examRequestId, payload) {
 export async function getLaboratoryLabels(token, examRequestId) {
   return api(`/laboratory/orders/${examRequestId}/labels`, { method: "GET" }, token);
 }
+
+// ── Schedule configuration (Sprint 5) ────────────────────────────────────────
+
+export async function listScheduleConfigurations(token, unitId) {
+  return api(`/schedule/configurations?unitId=${encodeURIComponent(unitId)}`, { method: "GET" }, token);
+}
+
+export async function getScheduleConfiguration(token, id) {
+  return api(`/schedule/configurations/${encodeURIComponent(id)}`, { method: "GET" }, token);
+}
+
+export async function saveScheduleConfiguration(token, payload) {
+  return api("/schedule/configurations", { method: "POST", body: JSON.stringify(payload) }, token);
+}
+
+export async function updateScheduleConfiguration(token, id, payload) {
+  return api(`/schedule/configurations/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(payload) }, token);
+}
+
+export async function setScheduleStatus(token, id, status, reason) {
+  return api(`/schedule/configurations/${encodeURIComponent(id)}/status`, { method: "POST", body: JSON.stringify({ status, reason }) }, token);
+}
+
+export async function listScheduleBlocks(token, params = {}) {
+  const qs = new URLSearchParams(params).toString();
+  return api(`/schedule/blocks${qs ? "?" + qs : ""}`, { method: "GET" }, token);
+}
+
+export async function createScheduleBlock(token, payload) {
+  return api("/schedule/blocks", { method: "POST", body: JSON.stringify(payload) }, token);
+}
+
+export async function updateScheduleBlock(token, id, payload) {
+  return api(`/schedule/blocks/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(payload) }, token);
+}
+
+export async function deleteScheduleBlock(token, id) {
+  return api(`/schedule/blocks/${encodeURIComponent(id)}`, { method: "DELETE" }, token);
+}
