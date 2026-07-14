@@ -22,14 +22,17 @@ const SPECIMEN_LABELS = {
   sangue_venoso:     "Sangue venoso",
   urina:             "Urina",
   celulas_cervicais: "Células cervicais",
+  fezes:             "Fezes",
 };
 
 // Container type labels
 const CONTAINER_LABELS = {
-  microtubo_capilar: "Microtubo capilar",
-  tubo_vacutainer:   "Tubo vacutainer",
-  copo_coletor:      "Copo coletor",
-  lamina_frasco:     "Lâmina / frasco",
+  microtubo_capilar:     "Microtubo capilar",
+  tubo_vacutainer:       "Tubo vacutainer",
+  tubo_edta:             "Tubo com EDTA",
+  copo_coletor:          "Copo coletor",
+  lamina_frasco:         "Lâmina / frasco",
+  frasco_coletor_fezes:  "Frasco coletor (fezes)",
 };
 
 const LABEL_SIZE_OPTIONS = [

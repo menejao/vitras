@@ -101,12 +101,8 @@ router.post("/laboratory/orders/:examRequestId/labels/prepare", async (req, res)
       db.labOrders.push(order);
       result = order;
 
-      await addAuditLog(db, {
-        action: "LAB_LABEL_PREPARED",
-        userId: user.id,
-        targetType: "examRequest",
-        targetId: examRequestId,
-        meta: { labelCount: labels.length, orderId: order.id },
+      addAuditLog(db, user, "LAB_LABEL_PREPARED", "exam_request", examRequestId, {
+        labelCount: labels.length, orderId: order.id,
       });
     });
 
@@ -187,12 +183,8 @@ router.post("/laboratory/orders/:examRequestId/labels/print", async (req, res) =
       db.labOrders[orderIdx] = order;
 
       const auditAction = isReprint ? "LAB_LABEL_REPRINTED" : "LAB_LABEL_PRINTED";
-      await addAuditLog(db, {
-        action: auditAction,
-        userId: user.id,
-        targetType: "examRequest",
-        targetId: examRequestId,
-        meta: { labelIds, labelSize, orderId: order.id },
+      addAuditLog(db, user, auditAction, "exam_request", examRequestId, {
+        labelIds, labelSize, orderId: order.id,
       });
     });
 

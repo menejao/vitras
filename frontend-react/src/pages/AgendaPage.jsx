@@ -537,18 +537,40 @@ function AgendaPage({
 
             {/* Tipo de agendamento */}
             <div className="field field--span-2">
-              <span className="field__label">Tipo de agendamento</span>
-              <div className="btn-group">
+              <span className="field__label" id="appt-type-label">Tipo de agendamento</span>
+              <div
+                className="agenda-type-tabs"
+                role="tablist"
+                aria-labelledby="appt-type-label"
+                onKeyDown={e => {
+                  if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+                    e.preventDefault();
+                    const next = isExamAppt ? "clinical" : "exam";
+                    if (next === "clinical") setForm(s => ({ ...s, appointmentType: "clinical", examTypeId: "", examName: "" }));
+                    else setForm(s => ({ ...s, appointmentType: "exam", specialty: "", type: "procedure" }));
+                  }
+                }}
+              >
                 <button
                   type="button"
-                  className={`btn btn--sm${!isExamAppt ? " is-active" : ""}`}
+                  role="tab"
+                  id="tab-clinical"
+                  aria-selected={!isExamAppt}
+                  aria-controls="tabpanel-clinical"
+                  tabIndex={!isExamAppt ? 0 : -1}
+                  className={`agenda-type-tab${!isExamAppt ? " agenda-type-tab--active" : ""}`}
                   onClick={() => setForm(s => ({ ...s, appointmentType: "clinical", examTypeId: "", examName: "" }))}
                 >
                   Atendimento
                 </button>
                 <button
                   type="button"
-                  className={`btn btn--sm${isExamAppt ? " is-active" : ""}`}
+                  role="tab"
+                  id="tab-exam"
+                  aria-selected={isExamAppt}
+                  aria-controls="tabpanel-exam"
+                  tabIndex={isExamAppt ? 0 : -1}
+                  className={`agenda-type-tab${isExamAppt ? " agenda-type-tab--active" : ""}`}
                   onClick={() => setForm(s => ({ ...s, appointmentType: "exam", specialty: "", type: "procedure" }))}
                 >
                   Exame

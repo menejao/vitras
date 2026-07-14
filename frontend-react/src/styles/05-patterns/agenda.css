@@ -573,3 +573,53 @@
 }
 
 
+
+/* ── Appointment type tab switcher ─────────────────────────── */
+.agenda-type-tabs {
+  display: inline-flex;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 3px;
+  gap: 2px;
+}
+
+.agenda-type-tab {
+  flex: 1;
+  padding: var(--s-1) var(--s-4);
+  border: 1.5px solid transparent;
+  border-radius: calc(var(--r-lg) - 3px);
+  background: transparent;
+  color: var(--text-muted);
+  font: 500 var(--t-sm) var(--font-sans);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+
+.agenda-type-tab:hover:not(.agenda-type-tab--active) {
+  background: var(--surface-1);
+  color: var(--text);
+}
+
+.agenda-type-tab--active {
+  background: var(--surface-1);
+  color: var(--text);
+  border-color: var(--border);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  font-weight: 600;
+}
+
+.agenda-type-tab:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 1px;
+}
+
+@media (max-width: 412px) {
+  .agenda-type-tabs {
+    width: 100%;
+  }
+  .agenda-type-tab {
+    padding: var(--s-2) var(--s-3);
+  }
+}

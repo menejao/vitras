@@ -23,7 +23,7 @@ const STATUS_LABELS = {
   coletado: "Coletado",
   aguardando_resultado: "Aguardando resultado",
   resultado_disponivel: "Resultado disponível",
-  concluido: "Concluído",
+  concluido: "Finalizado",
   cancelado: "Cancelado",
 };
 
@@ -209,45 +209,44 @@ function ExamCard({ exam, canManage, onDelete, onPreview, onViewResult, highligh
 
 // ─── ExamExecutionModal ───────────────────────────────────────────────────────
 
-const NEXT_STATUSES = {
-  pendente: ["agendado", "em_execucao", "cancelado"],
-  agendado: ["em_execucao", "cancelado"],
-  em_execucao: ["coletado", "aguardando_resultado", "cancelado"],
-  coletado: ["aguardando_resultado", "resultado_disponivel", "concluido", "cancelado"],
-  aguardando_resultado: ["resultado_disponivel", "concluido", "cancelado"],
-  resultado_disponivel: ["concluido"],
-  concluido: [],
-  cancelado: [],
-};
+// Only active (non-final) states can be transitioned — always to concluido or cancelado only.
+const FINAL_STATUSES = new Set(["concluido", "cancelado"]);
+
+const CANCELLATION_REASONS = [
+  "Paciente não compareceu",
+  "Cancelado pelo paciente",
+  "Cancelado pela unidade",
+  "Impossibilidade de coleta",
+  "Material ou preparo inadequado",
+  "Outro motivo",
+];
 
 function ExamExecutionModal({ request, token, onClose, onSuccess }) {
-  const today = new Date().toISOString().slice(0, 10);
-  const nextOptions = NEXT_STATUSES[request.status] || [];
-  const [status, setStatus] = useState(nextOptions[0] || "");
-  const [resultNotes, setResultNotes] = useState(request.resultNotes || "");
-  const [scheduledDate, setScheduledDate] = useState(request.scheduledDate || "");
-  const [scheduledTime, setScheduledTime] = useState(request.scheduledTime || "");
+  const isFinal = FINAL_STATUSES.has(request.status);
+  const [status, setStatus] = useState("");
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancelNotes, setCancelNotes] = useState("");
   const [notes, setNotes] = useState(request.notes || "");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
 
-  const needsResult = ["resultado_disponivel", "concluido"].includes(status);
-  const needsSchedule = status === "agendado";
+  const isCancelling = status === "cancelado";
+  const needsOtherNotes = isCancelling && cancelReason === "Outro motivo";
 
   async function submit(e) {
     e.preventDefault();
     if (!status) { setErr("Selecione o novo status."); return; }
+    if (isCancelling && !cancelReason) { setErr("Selecione o motivo do cancelamento."); return; }
+    if (needsOtherNotes && !cancelNotes.trim()) { setErr("Descreva o motivo do cancelamento."); return; }
     setBusy(true); setErr("");
     try {
-      await updateExamRequestStatus(token, request.id, {
+      const res = await updateExamRequestStatus(token, request.id, {
         status,
-        resultNotes: resultNotes || undefined,
-        resultDate: needsResult ? today : undefined,
-        scheduledDate: scheduledDate || undefined,
-        scheduledTime: scheduledTime || undefined,
         notes: notes || undefined,
+        cancellationReason: isCancelling ? cancelReason : undefined,
+        cancellationNotes: (isCancelling && cancelNotes.trim()) ? cancelNotes.trim() : undefined,
       });
-      onSuccess();
+      onSuccess(res?.data || null);
     } catch (error) {
       setErr(error?.message || "Erro ao atualizar.");
     } finally {
@@ -257,12 +256,12 @@ function ExamExecutionModal({ request, token, onClose, onSuccess }) {
 
   return (
     <Modal
-      title="Executar / atualizar pedido"
+      title="Atualizar pedido de exame"
       onClose={onClose}
       actions={
         <>
           <Button type="button" variant="secondary" size="sm" onClick={onClose} disabled={busy}>Cancelar</Button>
-          <Button type="submit" form="exec-form" variant="primary" size="sm" disabled={busy || !status}>
+          <Button type="submit" form="exec-form" variant={isCancelling ? "danger" : "primary"} size="sm" disabled={busy || !status}>
             {busy ? "Salvando..." : "Confirmar"}
           </Button>
         </>
@@ -284,45 +283,51 @@ function ExamExecutionModal({ request, token, onClose, onSuccess }) {
           )}
         </div>
 
-        <form id="exec-form" onSubmit={submit} className="exam-exec-modal__form">
-          <div className="field">
-            <span className="field__label">Novo status *</span>
-            {nextOptions.length === 0 ? (
-              <p style={{ color: "var(--text-muted)", fontSize: "var(--t-sm)" }}>Pedido em estado final — sem transições disponíveis.</p>
-            ) : (
-              <Select value={status} onChange={e => setStatus(e.target.value)}>
+        {isFinal ? (
+          <p style={{ color: "var(--text-muted)", fontSize: "var(--t-sm)" }}>
+            Pedido já encerrado ({STATUS_LABELS[request.status] || request.status}) — sem transições disponíveis.
+          </p>
+        ) : (
+          <form id="exec-form" onSubmit={submit} className="exam-exec-modal__form">
+            <div className="field">
+              <span className="field__label">Novo status *</span>
+              <Select value={status} onChange={e => { setStatus(e.target.value); setCancelReason(""); setCancelNotes(""); setErr(""); }}>
                 <option value="">Selecione...</option>
-                {nextOptions.map(s => <option key={s} value={s}>{STATUS_LABELS[s] || s}</option>)}
+                <option value="concluido">Finalizado</option>
+                <option value="cancelado">Cancelado</option>
               </Select>
-            )}
-          </div>
-
-          {needsSchedule && (
-            <div className="exam-exec-modal__row">
-              <Input label="Data agendada" type="date" value={scheduledDate} onChange={e => setScheduledDate(e.target.value)} />
-              <Input label="Horário" type="time" value={scheduledTime} onChange={e => setScheduledTime(e.target.value)} />
             </div>
-          )}
 
-          {needsResult && (
-            <Textarea
-              label="Resultado / laudo *"
-              value={resultNotes}
-              onChange={e => setResultNotes(e.target.value)}
-              placeholder="Descreva o resultado ou laudo obtido..."
-              rows={4}
+            {isCancelling && (
+              <div className="field">
+                <span className="field__label">Motivo do cancelamento *</span>
+                <Select value={cancelReason} onChange={e => { setCancelReason(e.target.value); setErr(""); }}>
+                  <option value="">Selecione o motivo...</option>
+                  {CANCELLATION_REASONS.map(r => <option key={r} value={r}>{r}</option>)}
+                </Select>
+              </div>
+            )}
+
+            {needsOtherNotes && (
+              <Textarea
+                label="Descreva o motivo *"
+                value={cancelNotes}
+                onChange={e => setCancelNotes(e.target.value.slice(0, 500))}
+                placeholder="Descreva o motivo do cancelamento..."
+                rows={3}
+              />
+            )}
+
+            <Input
+              label="Observações operacionais"
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              placeholder="Obs. operacional..."
             />
-          )}
 
-          <Input
-            label="Observações"
-            value={notes}
-            onChange={e => setNotes(e.target.value)}
-            placeholder="Obs. operacional..."
-          />
-
-          {err && <Alert tone="danger">{err}</Alert>}
-        </form>
+            {err && <Alert tone="danger">{err}</Alert>}
+          </form>
+        )}
       </div>
     </Modal>
   );
@@ -332,7 +337,7 @@ function ExamExecutionModal({ request, token, onClose, onSuccess }) {
 
 function DayQueueCard({ req, canExecute, onExecute, onPrintLabel }) {
   const isDone = ["concluido", "cancelado"].includes(req.status);
-  const canLabel = !["pendente", "cancelado"].includes(req.status);
+  const canLabel = req.status !== "cancelado";
   return (
     <div className={`day-queue-card card${isDone ? " day-queue-card--done" : ""}`}>
       <div className="day-queue-card__head">
@@ -810,9 +815,13 @@ function ExamsPage({ patients, user, token, onNavigatePatient, deepLink, onClear
           request={execTarget}
           token={token}
           onClose={() => setExecTarget(null)}
-          onSuccess={() => {
+          onSuccess={(updated) => {
             setExecTarget(null);
-            loadRequests();
+            if (updated) {
+              setRequests(prev => prev.map(r => r.id === updated.id ? updated : r));
+            } else {
+              loadRequests();
+            }
           }}
         />
       )}

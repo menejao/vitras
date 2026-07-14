@@ -118,6 +118,9 @@ router.get("/exam-requests/:id", async (req, res) => {
   return res.json({ data: item });
 });
 
+// Statuses that cannot be transitioned away from
+const FINAL_STATUSES = new Set(["concluido", "cancelado"]);
+
 // PATCH /exam-requests/:id/status
 router.patch("/exam-requests/:id/status", async (req, res) => {
   if (!canExecute(req.user)) return res.status(403).json({ error: "Sem permissão para executar exames" });
@@ -127,12 +130,27 @@ router.patch("/exam-requests/:id/status", async (req, res) => {
     return res.status(400).json({ error: `Status inválido. Aceitos: ${VALID_STATUSES.join(", ")}` });
   }
 
+  // Only concluido and cancelado allowed as new terminal transitions via this interface
+  if (!FINAL_STATUSES.has(body.status)) {
+    return res.status(400).json({ error: "Apenas Finalizado ou Cancelado são permitidos por esta interface." });
+  }
+
+  if (body.status === "cancelado" && !body.cancellationReason) {
+    return res.status(400).json({ error: "Motivo do cancelamento é obrigatório." });
+  }
+
   const result = await withDb(async db => {
     ensureDbShape(db);
     const idx = (db.examRequests || []).findIndex(r => r.id === req.params.id);
     if (idx < 0) return { error: "Pedido não encontrado", status: 404 };
 
     const current = db.examRequests[idx];
+
+    // Block transitions from final states
+    if (FINAL_STATUSES.has(current.status)) {
+      return { error: `Pedido já encerrado (${current.status}). Transição não permitida.`, status: 409 };
+    }
+
     const now = new Date().toISOString();
     const next = {
       ...current,
@@ -140,30 +158,29 @@ router.patch("/exam-requests/:id/status", async (req, res) => {
       updatedAt: now,
     };
 
-    if (body.status === "em_execucao" || body.status === "coletado") {
-      next.executedById = req.user.id;
-      next.executedByName = req.user.name || req.user.username || null;
-      next.executedAt = body.executedAt || now;
+    if (body.status === "concluido") {
+      next.completedAt = now;
+      next.completedBy = req.user.id;
+      next.completedByName = req.user.name || req.user.username || null;
     }
-    if (body.status === "resultado_disponivel" || body.status === "concluido") {
-      next.resultNotes = body.resultNotes || current.resultNotes || null;
-      next.resultDate = body.resultDate || now.slice(0, 10);
-      if (!next.executedById) {
-        next.executedById = req.user.id;
-        next.executedByName = req.user.name || req.user.username || null;
-        next.executedAt = body.executedAt || now;
-      }
+    if (body.status === "cancelado") {
+      next.cancelledAt = now;
+      next.cancelledBy = req.user.id;
+      next.cancelledByName = req.user.name || req.user.username || null;
+      next.cancellationReason = String(body.cancellationReason || "").trim();
+      if (body.cancellationNotes) next.cancellationNotes = String(body.cancellationNotes || "").slice(0, 500).trim();
     }
-    if (body.scheduledDate) next.scheduledDate = body.scheduledDate;
-    if (body.scheduledTime) next.scheduledTime = body.scheduledTime;
-    if (body.executionType) next.executionType = body.executionType;
     if (body.notes !== undefined) next.notes = String(body.notes || "").trim();
 
     db.examRequests[idx] = next;
-    addAuditLog(db, req.user, "exam_request.status_updated", "exam_request", req.params.id, {
+
+    const auditAction = body.status === "concluido" ? "LAB_ORDER_COMPLETED" : "LAB_ORDER_CANCELLED";
+    addAuditLog(db, req.user, auditAction, "exam_request", req.params.id, {
       patientId: current.patientId,
-      from: current.status,
-      to: body.status,
+      unitId: req.user.unitId || "",
+      previousStatus: current.status,
+      newStatus: body.status,
+      cancellationReason: next.cancellationReason || undefined,
     });
     return { data: next };
   });
