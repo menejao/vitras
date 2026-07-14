@@ -8,13 +8,13 @@
  *
  * Impressão não altera status de coleta (collectedAt permanece inalterado).
  *
- * Formatos suportados: 50×30mm, 50×25mm, A4 fallback
+ * Formatos suportados: 50×30mm, 50×25mm, A4
  */
 import { useState, useEffect, useCallback } from "react";
-import { createPortal } from "react-dom";
 import { generateCode128SVG } from "../utils/barcode128";
 import { prepareLaboratoryLabels, printLaboratoryLabels } from "../api";
 import Button from "../components/ui/Button";
+import Modal from "../components/ui/Modal";
 
 // Specimen type labels
 const SPECIMEN_LABELS = {
@@ -43,30 +43,35 @@ const LABEL_SIZE_OPTIONS = [
 
 export default function LabelPrintModal({ request, token, onClose }) {
   const [labelData, setLabelData] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true); // true so modal shows loading immediately
   const [printing, setPrinting] = useState(false);
   const [error, setError] = useState("");
   const [selectedSize, setSelectedSize] = useState("50x30");
   const [selectedExams, setSelectedExams] = useState([]);
 
-  const exams = request?.exams || [];
+  const examRequestId = request?.id;
 
-  // Prepare labels on mount: backend generates accession numbers
   const prepare = useCallback(async () => {
+    if (!examRequestId) {
+      setError("Pedido sem identificador. Feche e tente novamente.");
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError("");
     try {
-      const res = await prepareLaboratoryLabels(token, request.id, {
-        examIds: exams.map(ex => ex.id || ex.examTypeId),
+      const exams = request?.exams || [];
+      const res = await prepareLaboratoryLabels(token, examRequestId, {
+        examIds: exams.map(ex => ex.examTypeId || ex.id).filter(Boolean),
       });
       setLabelData(res);
       setSelectedExams((res?.labels || []).map(l => l.id));
     } catch (e) {
-      setError(e.message || "Erro ao preparar etiquetas.");
+      setError(e.message || "Não foi possível preparar as etiquetas. Tente novamente.");
     } finally {
       setLoading(false);
     }
-  }, [token, request.id, exams]);
+  }, [token, examRequestId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { prepare(); }, [prepare]);
 
@@ -80,14 +85,13 @@ export default function LabelPrintModal({ request, token, onClose }) {
     setPrinting(true);
     setError("");
     try {
-      await printLaboratoryLabels(token, request.id, {
+      await printLaboratoryLabels(token, examRequestId, {
         labelIds: selectedExams,
         labelSize: selectedSize,
       });
-      // Generate print window
       doPrint();
     } catch (e) {
-      setError(e.message || "Erro ao registrar impressão.");
+      setError(e.message || "Erro ao registrar impressão. Tente novamente.");
     } finally {
       setPrinting(false);
     }
@@ -107,85 +111,90 @@ export default function LabelPrintModal({ request, token, onClose }) {
 
   const labels = labelData?.labels || [];
 
-  return createPortal(
-    <div className="modal-overlay" role="dialog" aria-modal="true" aria-label="Imprimir etiquetas de amostra">
-      <div className="modal modal--label-print">
-        <div className="modal__header">
-          <h2 className="modal__title">Imprimir etiquetas</h2>
-          <button className="modal__close" onClick={onClose} aria-label="Fechar">✕</button>
-        </div>
-
-        <div className="modal__body">
-          {loading && <p className="label-print__loading">Preparando etiquetas...</p>}
-
-          {error && (
-            <div className="alert alert--danger" role="alert">{error}</div>
-          )}
-
-          {!loading && labels.length > 0 && (
-            <>
-              {/* Format selector */}
-              <div className="label-print__section">
-                <label className="label-print__section-title">Formato de etiqueta</label>
-                <div className="label-print__sizes">
-                  {LABEL_SIZE_OPTIONS.map(opt => (
-                    <label key={opt.value} className="label-print__size-option">
-                      <input
-                        type="radio"
-                        name="label_size"
-                        value={opt.value}
-                        checked={selectedSize === opt.value}
-                        onChange={() => setSelectedSize(opt.value)}
-                      />
-                      {opt.label}
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              {/* Label previews */}
-              <div className="label-print__section">
-                <label className="label-print__section-title">
-                  Selecionar etiquetas ({selectedExams.length}/{labels.length})
-                </label>
-                <div className="label-print__previews">
-                  {labels.map(label => (
-                    <LabelPreview
-                      key={label.id}
-                      label={label}
-                      request={request}
-                      selected={selectedExams.includes(label.id)}
-                      onToggle={() => toggleExam(label.id)}
-                      size={selectedSize}
-                    />
-                  ))}
-                </div>
-              </div>
-            </>
-          )}
-
-          {!loading && labels.length === 0 && !error && (
-            <p className="label-print__empty">Nenhuma etiqueta disponível para este pedido.</p>
-          )}
-        </div>
-
-        <div className="modal__footer">
-          <Button variant="secondary" onClick={onClose}>Fechar</Button>
+  return (
+    <Modal
+      title="Imprimir etiquetas de coleta"
+      onClose={onClose}
+      className="modal--label-print"
+      actions={
+        <>
+          <Button variant="secondary" size="sm" onClick={onClose} disabled={printing}>Fechar</Button>
           <Button
             variant="primary"
+            size="sm"
             onClick={handlePrint}
             disabled={printing || loading || selectedExams.length === 0}
           >
-            {printing ? "Imprimindo..." : `Imprimir ${selectedExams.length > 0 ? `(${selectedExams.length})` : ""}`}
+            {printing ? "Imprimindo..." : `Imprimir${selectedExams.length > 0 ? ` (${selectedExams.length})` : ""}`}
           </Button>
-        </div>
+        </>
+      }
+    >
+      <div className="label-print-body">
+        {loading && (
+          <p className="label-print__loading">Preparando etiquetas...</p>
+        )}
+
+        {!loading && error && (
+          <div className="label-print__error">
+            <div className="alert alert--danger" role="alert">{error}</div>
+            <Button variant="secondary" size="sm" onClick={prepare} style={{ marginTop: "var(--s-3)" }}>
+              Tentar novamente
+            </Button>
+          </div>
+        )}
+
+        {!loading && !error && labels.length === 0 && (
+          <p className="label-print__empty">Nenhuma etiqueta disponível para este pedido.</p>
+        )}
+
+        {!loading && !error && labels.length > 0 && (
+          <>
+            {/* Format selector */}
+            <div className="label-print__section">
+              <label className="label-print__section-title">Formato de etiqueta</label>
+              <div className="label-print__sizes">
+                {LABEL_SIZE_OPTIONS.map(opt => (
+                  <label key={opt.value} className="label-print__size-option">
+                    <input
+                      type="radio"
+                      name="label_size"
+                      value={opt.value}
+                      checked={selectedSize === opt.value}
+                      onChange={() => setSelectedSize(opt.value)}
+                    />
+                    {opt.label}
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Label previews */}
+            <div className="label-print__section">
+              <label className="label-print__section-title">
+                Selecionar etiquetas ({selectedExams.length}/{labels.length})
+              </label>
+              <div className="label-print__previews">
+                {labels.map(label => (
+                  <LabelPreview
+                    key={label.id}
+                    label={label}
+                    request={request}
+                    selected={selectedExams.includes(label.id)}
+                    onToggle={() => toggleExam(label.id)}
+                    size={selectedSize}
+                  />
+                ))}
+              </div>
+            </div>
+          </>
+        )}
       </div>
-    </div>,
-    document.body
+    </Modal>
   );
 }
 
-function LabelPreview({ label, request, selected, onToggle, size }) {
+function LabelPreview({ label, request, selected, onToggle }) {
   const barcodeSvg = generateCode128SVG(label.accessionNumber || "", {
     moduleWidth: 1.5,
     barHeight: 30,
