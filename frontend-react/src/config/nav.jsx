@@ -29,6 +29,7 @@ export const NAV_ICON = {
   reports: <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M3 2h10v12H3z" stroke="currentColor" strokeWidth="1.4"/><path d="M6 6h5M6 8.5h5M6 11h3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/><path d="M5 5.5l.5.5 1-1" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>,
   gestor: <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M2.5 4.5h11v8h-11z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/><path d="M2.5 7.5h11" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/><path d="M5 11h2M9 11h2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/><path d="M6 2.5h4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>,
   ai: <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M8 1l1.5 3h3l-2.5 2 1 3L8 7.5 5 9l1-3L3.5 4h3L8 1z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/><path d="M3 12h10M5 14h6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>,
+  schedule_config: <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><rect x="1.5" y="2.5" width="13" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.4"/><path d="M4.5 1.5v2M11.5 1.5v2M1.5 6.5h13" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><circle cx="11" cy="11" r="2.5" fill="var(--surface)" stroke="currentColor" strokeWidth="1.3"/><path d="M10 11h2M11 10v2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>,
   exams_page: <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M3 2h7l3 3v9H3V2z" stroke="currentColor" strokeWidth="1.4"/><path d="M10 2v3h3" stroke="currentColor" strokeWidth="1.4"/><path d="M5.5 6h5M5.5 8.5h5M5.5 11h3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/><circle cx="11.5" cy="11.5" r="2.8" fill="var(--surface)" stroke="currentColor" strokeWidth="1.3"/><path d="M10.5 11.5h2M11.5 10.5v2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>,
   diagnostics: <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M2 2h12v12H2z" stroke="currentColor" strokeWidth="1.4"/><path d="M4.5 11V8.5M8 11V5M11.5 11V7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><path d="M4 4h8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>,
   acs_tasks: <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M3 3h10v10H3z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/><path d="M5.5 8l2 2 3-3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>,
@@ -63,6 +64,9 @@ export function buildNavItems(user, canManageUser, enabledModules) {
     items.push({ id: "reports", label: "Relatórios", section: "" });
     items.push({ id: "diagnostics", label: "Diagnósticos", section: "" });
     items.push({ id: "patients", label: "Pacientes", section: "Visualização" });
+    if (hasCapability(user, "schedule.configuration.read")) {
+      items.push({ id: "schedule_config", label: "Config. Agenda", section: "Configurações" });
+    }
     items.push({ id: "ai", label: "IA Assistida", section: "" });
     return items;
   }
@@ -119,6 +123,9 @@ export function buildNavItems(user, canManageUser, enabledModules) {
   items.push({ id: "territorial_map", label: "Mapa Territorial", section: "" });
 
   if (canManageUser || admin) items.push({ id: "gestor", label: "Gestão à Vista", section: "Gestão" });
+  if (hasCapability(user, "schedule.configuration.read") && !isGestor(user)) {
+    items.push({ id: "schedule_config", label: "Config. Agenda", section: "" });
+  }
   if (canReadReports) items.push({ id: "reports", label: "Relatórios", section: "" });
   if (canManageUser || admin || isGestor(user) || canReadDiagnostics) items.push({ id: "diagnostics", label: "Diagnósticos", section: "" });
   if (canReadAuditLog) items.push({ id: "audit_log", label: "Auditoria", section: "" });

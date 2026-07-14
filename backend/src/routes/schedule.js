@@ -1,14 +1,12 @@
 /**
  * schedule.js — Rotas de configuração de agenda do VITRAS.
  *
- * Registrado ANTES de blockSupportAdminFromClinical (app.js) para que
- * support_admin possa configurar agendas via Console Nacional.
- * Configuração de agenda é administrativa, não dados clínicos de pacientes.
+ * Domínio operacional da UBS — não pertence ao Console Nacional.
+ * Registrado APÓS blockSupportAdminFromClinical: support_admin recebe 403.
  *
  * LGPD: não armazena dados de pacientes nessas coleções.
  * RBAC: capabilities schedule.configuration.* validadas em cada rota.
- * Isolamento por UBS: professionalId só vale dentro da unitId do solicitante
- *   (exceto support_admin, que pode especificar qualquer unitId).
+ * Isolamento por UBS: unitId sempre resolve do próprio user.unitId (sem override externo).
  */
 
 import express from "express";
@@ -41,13 +39,11 @@ function canManageBlocks(user) {
 }
 
 /**
- * Resolve a unitId que o usuário tem permissão de acessar.
- * support_admin pode especificar qualquer unitId via query/body.
- * Outros usuários ficam restritos ao próprio unitId.
+ * Resolve unitId sempre do próprio user.unitId.
+ * Support_admin não chega aqui (bloqueado por blockSupportAdminFromClinical).
+ * Parâmetro requestedUnitId ignorado — proteção contra IDOR.
  */
-function resolveUnitId(user, requestedUnitId) {
-  const isSupport = user?.role === "support_admin";
-  if (isSupport && requestedUnitId) return String(requestedUnitId);
+function resolveUnitId(user, _ignored) {
   return String(user?.unitId || "");
 }
 
@@ -86,7 +82,7 @@ router.get("/schedule/configurations/:id", async (req, res) => {
   if (!config) return res.status(404).json({ error: "Configuração não encontrada" });
 
   const unitId = resolveUnitId(req.user, null);
-  if (req.user?.role !== "support_admin" && config.unitId !== unitId) {
+  if (config.unitId !== unitId) {
     return res.status(403).json({ error: "Sem permissão para esta UBS" });
   }
 
@@ -202,7 +198,7 @@ router.put("/schedule/configurations/:id", async (req, res) => {
     if (idx < 0) return { error: "Configuração não encontrada", status: 404 };
 
     const current = db.professionalSchedules[idx];
-    if (req.user?.role !== "support_admin" && current.unitId !== unitId) {
+    if (current.unitId !== unitId) {
       return { error: "Sem permissão para esta UBS", status: 403 };
     }
 
@@ -248,7 +244,7 @@ router.post("/schedule/configurations/:id/status", async (req, res) => {
 
     const unitId = resolveUnitId(req.user, null);
     const current = db.professionalSchedules[idx];
-    if (req.user?.role !== "support_admin" && current.unitId !== unitId) {
+    if (current.unitId !== unitId) {
       return { error: "Sem permissão para esta UBS", status: 403 };
     }
 
@@ -390,7 +386,7 @@ router.put("/schedule/blocks/:id", async (req, res) => {
 
     const current = db.scheduleBlocks[idx];
     const unitId = resolveUnitId(req.user, null);
-    if (req.user?.role !== "support_admin" && current.unitId !== unitId) {
+    if (current.unitId !== unitId) {
       return { error: "Sem permissão para este bloqueio", status: 403 };
     }
 
@@ -432,7 +428,7 @@ router.delete("/schedule/blocks/:id", async (req, res) => {
 
     const current = db.scheduleBlocks[idx];
     const unitId = resolveUnitId(req.user, null);
-    if (req.user?.role !== "support_admin" && current.unitId !== unitId) {
+    if (current.unitId !== unitId) {
       return { error: "Sem permissão para este bloqueio", status: 403 };
     }
 

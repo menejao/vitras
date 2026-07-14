@@ -33,6 +33,7 @@ const TerapiaOcupacionalPage = lazy(() => import("../pages/TerapiaOcupacionalPag
 const FonoaudiologiaPage = lazy(() => import("../pages/FonoaudiologiaPage"));
 const OdontologiaPage    = lazy(() => import("../pages/OdontologiaPage"));
 const AtendimentoPage   = lazy(() => import("../pages/AtendimentoPage"));
+const ScheduleConfigurationPage = lazy(() => import("../pages/ScheduleConfigurationPage"));
 
 export function TabContent({
   tab, error, setError, busy,
@@ -124,6 +125,8 @@ export function TabContent({
       {tab === "exams_page" && <ExamsPage patients={patients} users={users} user={user} token={token} onNavigatePatient={navigatePatient} onScheduleExam={handleScheduleExam}/>}
 
       {tab === "gestor" && <GestorPage patients={patients} users={users} templates={templates} protocolByPatient={protocolByPatient} agenda={agendaEntries} referrals={referralEntries} pharmacyStock={pharmacyStock} pharmacyLog={pharmacyLog} token={token} user={user}/>}
+
+      {tab === "schedule_config" && <ScheduleConfigurationPage user={user} token={token} />}
 
       {tab === "audit_log" && canReadAuditLog && <AuditLogPanel />}
       {tab === "reports" && <ReportsPage patients={patients} users={allUsers && allUsers.length ? allUsers : users} templates={templates} protocolByPatient={protocolByPatient} agenda={agendaEntries} referrals={referralEntries} pharmacyStock={pharmacyStock} pharmacyLog={pharmacyLog} suppliesStock={suppliesStock} suppliesLog={suppliesLog} token={token}/>}

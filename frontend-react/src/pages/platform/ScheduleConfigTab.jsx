@@ -1,8 +1,9 @@
 /**
- * ScheduleConfigTab — Configuração de escalas e bloqueios de agenda por profissional.
- * Exclusivo do Console Nacional (support_admin) e gestores com capability schedule.configuration.read/update.
+ * ScheduleConfigTab — Configuração operacional de escalas e bloqueios por profissional.
+ * Domínio da UBS — acessado pelo gestor e perfis autorizados no módulo operacional.
+ * Reutilizável: aceita { token, unitId, canEdit } ou { token, unit } para compat.
  *
- * Regras implementadas (Sprint 5 / GOV-01 GO WITH LIMITS):
+ * Regras (Sprint 5 + Relocation):
  *   - Toda lógica de slots permanece no backend (scheduleEngine.js)
  *   - Canal: portal, reception, nursing, reserve (valores absolutos)
  *   - Soma dos canais ≤ capacidade do período (validado no backend)
@@ -320,8 +321,8 @@ function BlockForm({ unitId, professionalId, onSave, onCancel, saving, error }) 
 
 // ── Main component ─────────────────────────────────────────────────────────────
 
-export default function ScheduleConfigTab({ token, unit }) {
-  const unitId = unit?.id || "";
+export default function ScheduleConfigTab({ token, unit, unitId: unitIdProp, canEdit = true }) {
+  const unitId = unitIdProp || unit?.id || "";
 
   const [users, setUsers] = useState([]);
   const [configs, setConfigs] = useState([]);
@@ -475,12 +476,12 @@ export default function ScheduleConfigTab({ token, unit }) {
               <h4>Escala Semanal</h4>
               {activeConfig && <StatusBadge status={activeConfig.status} />}
               <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
-                {activeConfig && (
+                {canEdit && activeConfig && (
                   <button type="button" className="btn btn--secondary btn--sm" onClick={handleToggleStatus}>
                     {activeConfig.status === "open" ? "Fechar agenda" : "Abrir agenda"}
                   </button>
                 )}
-                <button
+                {canEdit && <button
                   type="button"
                   className="btn btn--primary btn--sm"
                   onClick={() =>
@@ -490,7 +491,7 @@ export default function ScheduleConfigTab({ token, unit }) {
                   }
                 >
                   {activeConfig ? "Editar escala" : "Configurar escala"}
-                </button>
+                </button>}
               </div>
             </div>
 
@@ -531,14 +532,14 @@ export default function ScheduleConfigTab({ token, unit }) {
           <section className="schedule-section">
             <div className="schedule-section__header">
               <h4>Bloqueios de Agenda</h4>
-              <button
+              {canEdit && <button
                 type="button"
                 className="btn btn--secondary btn--sm"
                 style={{ marginLeft: "auto" }}
                 onClick={() => setShowBlockForm(v => !v)}
               >
                 {showBlockForm ? "Cancelar" : "+ Novo bloqueio"}
-              </button>
+              </button>}
             </div>
 
             {conflicts && conflicts.length > 0 && (
@@ -601,13 +602,13 @@ export default function ScheduleConfigTab({ token, unit }) {
                         </td>
                         <td>{b.reason || "—"}</td>
                         <td>
-                          <button
+                          {canEdit && <button
                             type="button"
                             className="btn-link btn-link--danger"
                             onClick={() => handleDeleteBlock(b.id)}
                           >
                             Remover
-                          </button>
+                          </button>}
                         </td>
                       </tr>
                     ))}

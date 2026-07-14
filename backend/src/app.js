@@ -86,8 +86,7 @@ app.use(citizenPortalAppointmentsRouter);
 app.use(citizenPortalUnitRouter);
 app.use(citizenPortalProfileRouter);
 app.use(requireAuth);
-app.use(importRouter);    // MIG-01: before blockSupportAdminFromClinical — import is support_admin territory
-app.use(scheduleRouter); // SPRINT-5: before blockSupportAdminFromClinical — schedule config is administrative
+app.use(importRouter);  // MIG-01: before blockSupportAdminFromClinical — import is support_admin territory
 app.use(blockSupportAdminFromClinical);  // IAM-01
 app.use(requireCsrfForCookieAuth);
 app.use((req, res, next) => {
@@ -103,6 +102,7 @@ app.use(seedAdminRouter);
 app.use(patientsRouter);
 app.use(queueRouter);
 app.use(agendaRouter);
+app.use(scheduleRouter); // schedule config: operacional da UBS, após blockSupportAdminFromClinical
 app.use(referralsRouter);
 app.use(pharmacyRouter);
 app.use(pharmacyReceitasRouter);

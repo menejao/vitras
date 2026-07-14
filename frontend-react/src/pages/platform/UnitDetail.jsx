@@ -9,7 +9,6 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { api } from "../../api";
-import ScheduleConfigTab from "./ScheduleConfigTab";
 import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
 import Alert from "../../components/ui/Alert";
@@ -86,7 +85,6 @@ const TABS = [
   { id: "territory",  label: "Território"    },
   { id: "integrations",label: "Integrações" },
   { id: "security",   label: "Segurança"     },
-  { id: "agenda",     label: "Agenda"        },
   { id: "audit",      label: "Auditoria"     },
 ];
 
@@ -1824,7 +1822,6 @@ export default function UnitDetail({ token, unitId, onBack }) {
           {activeTab === "territory"   && <TerritoryTab  token={token} unit={unit} onRefresh={loadUnit} />}
           {activeTab === "integrations"&& <IntegrationsTab unit={unit} />}
           {activeTab === "security"    && <SecurityTab   unit={unit} />}
-          {activeTab === "agenda"      && <ScheduleConfigTab token={token} unit={unit} />}
           {activeTab === "audit"       && <AuditTab      token={token} unit={unit} />}
         </>
       )}
