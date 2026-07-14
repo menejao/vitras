@@ -18,7 +18,8 @@ import {
   roleNeedsCouncil,
   councilTypeForRole,
   getClientIp,
-  hasCapability
+  hasCapability,
+  isPlatformRole
 } from "../utils/helpers.js";
 import { ensureDbShape, buildAccessContextUser } from "../utils/domain.js";
 import { validateCouncilData, verifyCouncilExternally } from "../utils/council.js";
@@ -406,6 +407,30 @@ router.post("/auth/login", authRateLimit, validate(LoginSchema), async (req, res
   }
 
   trackLoginAttempt(true);
+
+  // Sprint B: multi-unit selection gate.
+  // Platform roles (support_admin, etc.) skip membership check — they go to Console Nacional.
+  if (!isPlatformRole(user)) {
+    const activeMemberships = (db.userUnitMemberships || [])
+      .filter((m) => m.userId === user.id && m.status === "active");
+    if (activeMemberships.length > 1) {
+      // Issue initial JWT with user's current unitId so requireAuth works on select-unit.
+      const unitMap = new Map((db.units || []).map((u) => [u.id, u]));
+      const teamMap = new Map((db.teams || []).map((t) => [t.id, t]));
+      const session = issueSession(res, user, db, {}, refresh.raw, refresh.sessionId);
+      const availableUnits = activeMemberships.map((m) => ({
+        membershipId: m.id,
+        unitId: m.unitId,
+        unitName: unitMap.get(m.unitId)?.name || m.unitId,
+        teamId: m.teamId || "",
+        teamName: teamMap.get(m.teamId)?.name || "",
+        role: canonicalRole(user.role),
+        primary: Boolean(m.primary)
+      }));
+      return res.json({ ...session, requiresUnitSelection: true, availableUnits });
+    }
+  }
+
   return res.json(issueSession(res, user, db, {}, refresh.raw, refresh.sessionId));
 });
 
@@ -697,6 +722,64 @@ router.post("/auth/change-password-required", requireAuth, async (req, res) => {
   });
 
   return res.json(issueSession(res, latestUser, latestDb, {}, refresh.raw, refresh.sessionId));
+});
+
+// Sprint B: shared logic for select-unit and switch-unit.
+// Validates membership, issues new JWT with membership's unitId/teamId.
+async function handleUnitSwitch(req, res, auditAction) {
+  const unitId = String(req.body?.unitId || "").trim();
+  if (!unitId) return res.status(400).json({ error: "unitId obrigatório" });
+
+  const db = await readDb();
+  ensureDbShape(db);
+
+  const membership = (db.userUnitMemberships || []).find(
+    (m) => m.userId === req.user.id && m.unitId === unitId && m.status === "active"
+  );
+  if (!membership) {
+    await withDb((auditDb) => {
+      ensureDbShape(auditDb);
+      addAuditLog(auditDb, req.user, "USER_UNIT_SELECTION_DENIED", "auth", req.user.id, {
+        requestedUnitId: unitId,
+        reason: "membership_not_found_or_inactive"
+      });
+    });
+    return res.status(403).json({ error: "Você não possui acesso ativo a esta unidade." });
+  }
+
+  const user = db.users.find((u) => u.id === req.user.id);
+  if (!user) return res.status(404).json({ error: "Usuário não encontrado" });
+
+  // Build user-context override with membership's unitId and teamId.
+  const team = (db.teams || []).find((t) => t.id === membership.teamId);
+  const contextUser = {
+    ...user,
+    unitId: membership.unitId,
+    teamId: membership.teamId || user.teamId || "",
+    teamName: team?.name || user.teamName || ""
+  };
+
+  const { raw: refreshRaw, sessionId } = await withDb((mutableDb) => {
+    ensureDbShape(mutableDb);
+    const tokenRecord = createRefreshToken(user.id, getClientIp(req), mutableDb);
+    addAuditLog(mutableDb, req.user, auditAction, "auth", tokenRecord.sessionId, {
+      membershipId: membership.id,
+      previousUnitId: req.user.unitId || "",
+      newUnitId: unitId,
+      sessionId: tokenRecord.sessionId
+    });
+    return tokenRecord;
+  });
+
+  return res.json(issueSession(res, contextUser, db, {}, refreshRaw, sessionId));
+}
+
+router.post("/auth/select-unit", requireAuth, async (req, res) => {
+  return handleUnitSwitch(req, res, "USER_UNIT_SELECTED");
+});
+
+router.post("/auth/switch-unit", requireAuth, async (req, res) => {
+  return handleUnitSwitch(req, res, "USER_UNIT_SWITCHED");
 });
 
 // Sprint A: list UBS memberships for the authenticated user.

@@ -29,6 +29,7 @@ import AuthScreen from "./pages/AuthScreen";
 import ActivateAccountPage from "./pages/ActivateAccountPage";
 import ChangePasswordRequiredPage from "./pages/ChangePasswordRequiredPage";
 import PlatformConsolePage from "./pages/PlatformConsolePage";
+import UnitSelectionPage from "./pages/UnitSelectionPage";
 import AppErrorBoundary from "./components/feedback/AppErrorBoundary";
 import OfflineBanner from "./components/feedback/OfflineBanner";
 import ComplianceBadge from "./components/feedback/ComplianceBadge";
@@ -51,6 +52,11 @@ function AppInner() {
     handleApiError, applySessionFromPayload, refreshUserFromBoot,
     persistCookieSession,
     logout,
+    pendingUnitSelection,
+    availableUnitsForSelection,
+    handleSelectUnit,
+    handleSwitchUnit,
+    openUnitSwitcher,
   } = useAuth({
     onSessionExpired: () => { sessionExpiredRef.current?.(); },
     onLoginSuccess: (nextUser) => {
@@ -252,6 +258,23 @@ function AppInner() {
     );
   }
 
+  // Sprint B: pending unit selection — user logged in but hasn't picked which UBS
+  if (isAuthenticated && pendingUnitSelection) {
+    const isSwitch = Boolean(user?.unitId);
+    return (
+      <UnitSelectionPage
+        user={user}
+        availableUnits={availableUnitsForSelection || []}
+        onSelectUnit={isSwitch
+          ? (uid) => handleSwitchUnit(uid, { resetBootstrap })
+          : handleSelectUnit}
+        onLogout={logout}
+        busy={busy}
+        error={error}
+      />
+    );
+  }
+
   // IAM-01: support_admin → Console Nacional only
   if (isAuthenticated && String(user?.role || "") === "support_admin") {
     return <PlatformConsolePage token={token} onLogout={logout} user={user} />;
@@ -298,6 +321,10 @@ function AppInner() {
           apiHealth={apiHealth}
           onNavigatePatient={(id)=>{ setTab("patients"); setSelectedPatientId(id); }}
           theme={theme} onToggleTheme={toggleTheme}
+          unitName={unitName}
+          availableUnits={availableUnitsForSelection}
+          onSwitchUnit={(uid) => handleSwitchUnit(uid, { resetBootstrap })}
+          onOpenUnitSwitcher={() => openUnitSwitcher(availableUnitsForSelection)}
         />}
         sidebar={<Sidebar
           tab={tab} setTab={setTab}

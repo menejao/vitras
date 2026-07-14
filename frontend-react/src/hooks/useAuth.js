@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { login, verifyLogin2fa, register, refreshSession, logoutApi, setOnAuthRefreshed } from "../api";
+import { login, verifyLogin2fa, register, refreshSession, logoutApi, setOnAuthRefreshed, selectUnit, switchUnit } from "../api";
 import { readSession } from "../utils/storage";
 import { SESSION_KEY, UI_STATE_KEY, RECEPTION_KEY, IDLE_ACTIVITY_KEY, IDLE_LOGOUT_KEY } from "../config/constants";
 import { onlyDigits } from "../utils/formatting";
@@ -30,50 +30,60 @@ export function useAuth({ onSessionExpired, onLoginSuccess } = {}) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [loginChallenge, setLoginChallenge] = useState(null);
+  // Sprint B: unit selection state
+  const [pendingUnitSelection, setPendingUnitSelection] = useState(() => {
+    // If session has requiresUnitSelection persisted (e.g. after page reload mid-selection)
+    try { return readSession()?.requiresUnitSelection || false; } catch { return false; }
+  });
+  const [availableUnitsForSelection, setAvailableUnitsForSelection] = useState(() => {
+    try { return readSession()?.availableUnits || null; } catch { return null; }
+  });
 
-  function persistCookieSession(nextUser, csrfToken = "") {
+  function persistCookieSession(nextUser, csrfToken = "", extra = {}) {
     const previous = readSession();
     sessionStorage.setItem(SESSION_KEY, JSON.stringify({
       mode: "cookie",
       user: nextUser,
       csrfToken: String(csrfToken || previous?.csrfToken || "").trim(),
+      ...extra,
     }));
   }
 
-  function persistBearerSession(nextUser, nextToken, nextRefreshToken = "") {
+  function persistBearerSession(nextUser, nextToken, nextRefreshToken = "", extra = {}) {
     sessionStorage.setItem(SESSION_KEY, JSON.stringify({
       token: String(nextToken || "").trim(),
       refreshToken: String(nextRefreshToken || "").trim(),
       user: nextUser,
+      ...extra,
     }));
   }
 
-  function applyCookieSession(nextUser, csrfToken = "") {
+  function applyCookieSession(nextUser, csrfToken = "", extra = {}) {
     setToken(COOKIE_SESSION_SENTINEL);
     setUser(nextUser);
-    persistCookieSession(nextUser, csrfToken);
+    persistCookieSession(nextUser, csrfToken, extra);
   }
 
-  function applyBearerSession(nextUser, nextToken, nextRefreshToken = "") {
+  function applyBearerSession(nextUser, nextToken, nextRefreshToken = "", extra = {}) {
     setToken(String(nextToken || "").trim());
     setUser(nextUser);
-    persistBearerSession(nextUser, nextToken, nextRefreshToken);
+    persistBearerSession(nextUser, nextToken, nextRefreshToken, extra);
   }
 
-  function applySessionFromPayload(payload) {
+  function applySessionFromPayload(payload, extra = {}) {
     const nextUser = payload?.user || null;
     const csrfToken = String(payload?.csrfToken || "").trim();
     const nextToken = String(payload?.token || "").trim();
     const nextRefreshToken = String(payload?.refreshToken || "").trim();
     if (csrfToken) {
-      applyCookieSession(nextUser, csrfToken);
+      applyCookieSession(nextUser, csrfToken, extra);
       return;
     }
     if (nextToken) {
-      applyBearerSession(nextUser, nextToken, nextRefreshToken);
+      applyBearerSession(nextUser, nextToken, nextRefreshToken, extra);
       return;
     }
-    applyCookieSession(nextUser);
+    applyCookieSession(nextUser, "", extra);
   }
 
   // Register the refresh callback so api() can update React state after a background refresh.
@@ -93,6 +103,16 @@ export function useAuth({ onSessionExpired, onLoginSuccess } = {}) {
         return;
       }
       setLoginChallenge(null);
+      if (payload?.requiresUnitSelection && Array.isArray(payload.availableUnits)) {
+        // Store session (token included for select-unit requireAuth) but hold dashboard open
+        applySessionFromPayload(payload, {
+          requiresUnitSelection: true,
+          availableUnits: payload.availableUnits,
+        });
+        setPendingUnitSelection(true);
+        setAvailableUnitsForSelection(payload.availableUnits);
+        return;
+      }
       applySessionFromPayload(payload);
       onLoginSuccess?.(payload.user);
     } catch {
@@ -184,6 +204,43 @@ export function useAuth({ onSessionExpired, onLoginSuccess } = {}) {
     }
   }
 
+  async function handleSelectUnit(unitId) {
+    setError(""); setBusy(true);
+    try {
+      const payload = await selectUnit(token, unitId);
+      applySessionFromPayload(payload);
+      setPendingUnitSelection(false);
+      // keep availableUnitsForSelection so Topbar can offer unit switcher
+      onLoginSuccess?.(payload.user);
+    } catch (e) {
+      setError(e?.message || "Erro ao selecionar unidade.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleSwitchUnit(unitId, { resetBootstrap } = {}) {
+    setError(""); setBusy(true);
+    try {
+      const payload = await switchUnit(token, unitId);
+      localStorage.removeItem(UI_STATE_KEY);
+      localStorage.removeItem(RECEPTION_KEY);
+      applySessionFromPayload(payload);
+      setPendingUnitSelection(false);
+      // keep availableUnitsForSelection so Topbar can offer unit switcher again
+      if (resetBootstrap) resetBootstrap();
+    } catch (e) {
+      setError(e?.message || "Erro ao trocar de unidade.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function openUnitSwitcher(units) {
+    setAvailableUnitsForSelection(units || availableUnitsForSelection);
+    setPendingUnitSelection(true);
+  }
+
   function cancelTwoFactor() {
     setLoginChallenge(null);
     setError("");
@@ -219,5 +276,11 @@ export function useAuth({ onSessionExpired, onLoginSuccess } = {}) {
     refreshUserFromBoot,
     persistCookieSession,
     logout,
+    // Sprint B: multi-unit
+    pendingUnitSelection,
+    availableUnitsForSelection,
+    handleSelectUnit,
+    handleSwitchUnit,
+    openUnitSwitcher,
   };
 }

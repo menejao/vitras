@@ -822,3 +822,17 @@ export async function updateScheduleBlock(token, id, payload) {
 export async function deleteScheduleBlock(token, id) {
   return api(`/schedule/blocks/${encodeURIComponent(id)}`, { method: "DELETE" }, token);
 }
+
+// ── Multi-unit selection (Sprint B) ──────────────────────────────────────────
+
+export async function getAvailableUnits(token) {
+  return api("/auth/available-units", { method: "GET" }, token);
+}
+
+export async function selectUnit(token, unitId) {
+  return api("/auth/select-unit", { method: "POST", body: JSON.stringify({ unitId }) }, token);
+}
+
+export async function switchUnit(token, unitId) {
+  return api("/auth/switch-unit", { method: "POST", body: JSON.stringify({ unitId }) }, token);
+}

@@ -54,6 +54,10 @@ function Topbar({
   apiHealth,
   theme,
   onToggleTheme,
+  unitName,
+  availableUnits,
+  onSwitchUnit,
+  onOpenUnitSwitcher,
 }) {
   const [dropOpen, setDropOpen] = useState(false);
 
@@ -92,6 +96,22 @@ function Topbar({
       <div className="topbar__right">
         {impersonating ? <Badge tone="warning">Contexto assumido</Badge> : null}
         {breakGlass ? <Badge tone="danger">Break-glass ativo</Badge> : null}
+        {unitName ? (
+          Array.isArray(availableUnits) && availableUnits.length > 1 ? (
+            <Button
+              variant="ghost"
+              className="topbar__unit-badge"
+              onClick={() => onOpenUnitSwitcher?.()}
+              title="Trocar unidade"
+            >
+              <span className="topbar__unit-name">{unitName}</span>
+            </Button>
+          ) : (
+            <span className="topbar__unit-badge" title={unitName}>
+              <span className="topbar__unit-name">{unitName}</span>
+            </span>
+          )
+        ) : null}
         <Button
           variant="ghost"
           className="topbar__icon-btn"
