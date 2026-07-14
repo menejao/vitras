@@ -283,7 +283,10 @@ const ROLE_CAPABILITIES = {
     "cds.export",
     "acs.visit.create",
     "acs.visit.read",
-    "acs.visit.update"
+    "acs.visit.update",
+    "schedule.configuration.read",
+    "schedule.configuration.update",
+    "schedule.block.manage"
   ],
   oral_health_aux: [
     "dashboard.read",
