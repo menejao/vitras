@@ -699,5 +699,35 @@ router.post("/auth/change-password-required", requireAuth, async (req, res) => {
   return res.json(issueSession(res, latestUser, latestDb, {}, refresh.raw, refresh.sessionId));
 });
 
+// Sprint A: list UBS memberships for the authenticated user.
+// Returns only active memberships of req.user.id — never accepts userId from client.
+router.get("/auth/available-units", requireAuth, async (req, res) => {
+  const db = await readDb();
+  ensureDbShape(db);
+
+  const userId = req.user.id;
+  const unitMap = new Map((db.units || []).map((u) => [u.id, u]));
+  const teamMap = new Map((db.teams || []).map((t) => [t.id, t]));
+  const actor = db.users.find((u) => u.id === userId);
+
+  const memberships = (db.userUnitMemberships || [])
+    .filter((m) => m.userId === userId && m.status === "active")
+    .map((m) => ({
+      membershipId: m.id,
+      unitId: m.unitId,
+      unitName: unitMap.get(m.unitId)?.name || m.unitId,
+      teamId: m.teamId || "",
+      teamName: teamMap.get(m.teamId)?.name || "",
+      role: canonicalRole(actor?.role || ""),
+      primary: Boolean(m.primary)
+    }));
+
+  addAuditLog(db, req.user, "auth.available_units_read", "auth", userId, {
+    count: memberships.length
+  });
+
+  return res.json(memberships);
+});
+
 export default router;
 

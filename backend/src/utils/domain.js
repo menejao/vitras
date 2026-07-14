@@ -305,6 +305,7 @@ function ensureDbShape(db) {
   ensureArray(db, "exportHistory");
   ensureArray(db, "professionalSchedules");
   ensureArray(db, "scheduleBlocks");
+  ensureArray(db, "userUnitMemberships");
 
   if (!db.teams.length) {
     const defaultTeamId = "team-default";
@@ -348,6 +349,33 @@ function ensureDbShape(db) {
     const team = db.teams.find((t) => t.id === u.teamId);
     return { ...u, unitId: team?.unitId || "unit-default" };
   });
+
+  // Sprint A: populate userUnitMemberships from existing user.unitId (idempotent)
+  // role and capabilities remain exclusively on the user — membership is the operational link only.
+  {
+    const now = new Date().toISOString();
+    const membershipKey = (userId, unitId) => `${userId}:${unitId}`;
+    const existingKeys = new Set(
+      db.userUnitMemberships.map((m) => membershipKey(m.userId, m.unitId))
+    );
+    for (const u of db.users) {
+      const uid = String(u.unitId || "").trim();
+      if (!uid) continue;
+      const key = membershipKey(u.id, uid);
+      if (existingKeys.has(key)) continue;
+      db.userUnitMemberships.push({
+        id: uuidv4(),
+        userId: u.id,
+        unitId: uid,
+        teamId: String(u.teamId || ""),
+        status: "active",
+        primary: true,
+        createdAt: now,
+        updatedAt: now
+      });
+      existingKeys.add(key);
+    }
+  }
 
   const byId = new Set(db.teams.map((t) => String(t.id || "").trim().toLowerCase()));
   const byName = new Set(db.teams.map((t) => String(t.name || "").trim().toLowerCase()));
