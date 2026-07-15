@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect } from "react";
+import { useActiveUnit } from "../contexts/ActiveUnitContext";
 import PageHeader from "../components/layout/PageHeader";
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
@@ -162,6 +163,7 @@ function CreateUserModal({ token, teams, unitId, onDone, onClose }) {
 }
 
 export default function EquipePage({ users = [], user, onOpenProfile, token, canManageUser }) {
+  const { unitId } = useActiveUnit();
   const [search, setSearch]       = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [teamFilter, setTeamFilter] = useState("all");
@@ -256,7 +258,7 @@ export default function EquipePage({ users = [], user, onOpenProfile, token, can
         <CreateUserModal
           token={token}
           teams={teams}
-          unitId={user?.unitId || ""}
+          unitId={unitId}
           onDone={(result) => {
             setShowCreateUser(false);
             if (result.vitrasId && result.temporaryPassword) {

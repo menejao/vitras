@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from "uuid";
 import { readDb, withDb } from "../db.js";
 import { validate, AgendaCreateSchema, AgendaPatchSchema } from "../schemas.js";
 import { ensureDbShape } from "../utils/domain.js";
-import { hasCapability, normalizeDemandType, canAccessTeamScope, canonicalRole } from "../utils/helpers.js";
+import { hasCapability, normalizeDemandType, canAccessTeamScope, canonicalRole, resolveActiveUnit } from "../utils/helpers.js";
 import { addAuditLog } from "../services/audit.js";
 import { getAvailableSlots, isSlotAvailable } from "../services/availabilityService.js";
 import { getSlotCapacityInfo } from "../services/scheduleEngine.js";
@@ -143,7 +143,7 @@ router.get("/availability", async (req, res) => {
     date: String(date || "").trim(),
     specialtyKey: String(specialtyKey || "").trim(),
     doctorId: String(doctorId || "").trim(),
-    unitId: String(req.user.unitId || ""),
+    unitId: resolveActiveUnit(req),
     channel: channel ? String(channel).trim() : undefined,
   });
   return res.json({ date, slots });
@@ -174,7 +174,7 @@ router.post("/agenda", validate(AgendaCreateSchema), async (req, res) => {
     if (canonicalRole(req.user?.role) === "break_glass_admin") {
       addAuditLog(db, req.user, "BREAK_GLASS_PATIENT_SCOPE_BYPASS", "agenda_entry", patient.id, {
         actorId: req.user.id, patientId: patient.id,
-        unitId: req.user.unitId || "", endpoint: "POST /agenda", action: "create_agenda_entry"
+        unitId: resolveActiveUnit(req), endpoint: "POST /agenda", action: "create_agenda_entry"
       });
     }
 
@@ -189,7 +189,7 @@ router.post("/agenda", validate(AgendaCreateSchema), async (req, res) => {
     const bookingChannel = ["portal", "reception", "nursing", "reserve"].includes(payload.bookingChannel)
       ? payload.bookingChannel
       : "reception";
-    const unitId = String(req.user.unitId || "");
+    const unitId = resolveActiveUnit(req);
 
     if (doctorId && apptDate && apptTime) {
       const available = isSlotAvailable(db, {
@@ -240,7 +240,7 @@ router.post("/agenda", validate(AgendaCreateSchema), async (req, res) => {
       updatedAt: now,
       updatedBy: req.user.id,
       executingTeamId: String(req.user.teamId || ""),
-      executingUnitId: String(req.user.unitId || "")
+      executingUnitId: resolveActiveUnit(req)
     };
 
     db.agendaEntries.push(entry);
@@ -307,7 +307,7 @@ router.patch("/agenda/:id", validate(AgendaPatchSchema), async (req, res) => {
     if (canonicalRole(req.user?.role) === "break_glass_admin") {
       addAuditLog(db, req.user, "BREAK_GLASS_PATIENT_SCOPE_BYPASS", "agenda_entry", current.id, {
         actorId: req.user.id, patientId: current.patientId,
-        unitId: req.user.unitId || "", endpoint: "PATCH /agenda/:id", action: "update_agenda_entry"
+        unitId: resolveActiveUnit(req), endpoint: "PATCH /agenda/:id", action: "update_agenda_entry"
       });
     }
 
@@ -369,7 +369,7 @@ router.delete("/agenda/:id", async (req, res) => {
     if (canonicalRole(req.user?.role) === "break_glass_admin") {
       addAuditLog(db, req.user, "BREAK_GLASS_PATIENT_SCOPE_BYPASS", "agenda_entry", removed.id, {
         actorId: req.user.id, patientId: removed.patientId,
-        unitId: req.user.unitId || "", endpoint: "DELETE /agenda/:id", action: "cancel_agenda_entry"
+        unitId: resolveActiveUnit(req), endpoint: "DELETE /agenda/:id", action: "cancel_agenda_entry"
       });
     }
 
@@ -413,7 +413,7 @@ router.post("/agenda/:id/dar-entrada", async (req, res) => {
     if (canonicalRole(req.user?.role) === "break_glass_admin") {
       addAuditLog(db, req.user, "BREAK_GLASS_PATIENT_SCOPE_BYPASS", "agenda_entry", appt.id, {
         actorId: req.user.id, patientId: appt.patientId,
-        unitId: req.user.unitId || "", endpoint: "POST /agenda/:id/dar-entrada", action: "dar_entrada"
+        unitId: resolveActiveUnit(req), endpoint: "POST /agenda/:id/dar-entrada", action: "dar_entrada"
       });
     }
     if (appt.status !== "scheduled") {
@@ -495,7 +495,7 @@ router.post("/agenda/:id/dar-entrada", async (req, res) => {
       updatedAt: now,
       updatedBy: req.user.id,
       executingTeamId: String(req.user.teamId || ""),
-      executingUnitId: String(req.user.unitId || ""),
+      executingUnitId: resolveActiveUnit(req),
       triageBy: "",
       triageStart: "",
       triageDone: "",

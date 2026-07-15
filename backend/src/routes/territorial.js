@@ -7,7 +7,7 @@ import { readDb, withDb } from "../db.js";
 import { requireAuth } from "../middlewares/auth.js";
 import { ensureDbShape } from "../utils/domain.js";
 import { addAuditLog } from "../services/audit.js";
-import { canonicalRole } from "../utils/helpers.js";
+import { canonicalRole, resolveActiveUnit } from "../utils/helpers.js";
 
 const router = express.Router();
 
@@ -24,7 +24,7 @@ function canWrite(user) {
 router.get("/territorial/unit", async (req, res) => {
   const db = await readDb();
   ensureDbShape(db);
-  const unit = (db.units || []).find(u => u.id === req.user.unitId);
+  const unit = (db.units || []).find(u => u.id === resolveActiveUnit(req));
   if (!unit) return res.status(404).json({ error: "Unidade não encontrada" });
   return res.json({
     id: unit.id,
@@ -46,7 +46,7 @@ router.get("/territorial/areas", async (req, res) => {
   const db = await readDb();
   ensureDbShape(db);
   const areas = (db.microAreas || [])
-    .filter(a => a.unitId === req.user.unitId && !a.deletedAt);
+    .filter(a => a.unitId === resolveActiveUnit(req) && !a.deletedAt);
   return res.json({ areas });
 });
 
@@ -64,7 +64,7 @@ router.post("/territorial/areas", async (req, res) => {
   const isActive = p.status === "active";
   const area = {
     id: uuidv4(),
-    unitId: req.user.unitId,
+    unitId: resolveActiveUnit(req),
     name,
     code: String(p.code || "").trim(),
     teamName: String(p.teamName || "").trim(),
@@ -106,7 +106,7 @@ router.patch("/territorial/areas/:id", async (req, res) => {
     ensureDbShape(db);
     if (!Array.isArray(db.microAreas)) db.microAreas = [];
     const idx = db.microAreas.findIndex(
-      a => a.id === id && a.unitId === req.user.unitId && !a.deletedAt
+      a => a.id === id && a.unitId === resolveActiveUnit(req) && !a.deletedAt
     );
     if (idx === -1) return { notFound: true };
 
@@ -149,7 +149,7 @@ router.delete("/territorial/areas/:id", async (req, res) => {
     ensureDbShape(db);
     if (!Array.isArray(db.microAreas)) db.microAreas = [];
     const idx = db.microAreas.findIndex(
-      a => a.id === id && a.unitId === req.user.unitId && !a.deletedAt
+      a => a.id === id && a.unitId === resolveActiveUnit(req) && !a.deletedAt
     );
     if (idx === -1) return { notFound: true };
     const name = db.microAreas[idx].name;

@@ -9,7 +9,7 @@ import express from "express";
 import { ZipArchive } from "archiver";
 import { v4 as uuidv4 } from "uuid";
 import { requireAuth } from "../middlewares/auth.js";
-import { hasCapability } from "../utils/helpers.js";
+import { hasCapability, resolveActiveUnit } from "../utils/helpers.js";
 import { readDb, withDb } from "../db.js";
 import { ensureDbShape } from "../utils/domain.js";
 import { addAuditLog } from "../services/audit.js";
@@ -106,7 +106,7 @@ router.get("/export/cds/batch/validate", requireAuth, async (req, res) => {
   ensureDbShape(db);
 
   const professional = db.users.find(u => u.id === req.user.id) || req.user;
-  const unit         = (db.units || []).find(u => u.id === (professional.unitId || req.user.unitId)) || null;
+  const unit         = (db.units || []).find(u => u.id === (professional.unitId || resolveActiveUnit(req))) || null;
   const team         = (db.teams || []).find(t => t.id === (professional.teamId || req.user.teamId)) || null;
 
   return res.json(buildSummary(db, professional, unit, team, competencia));
@@ -127,7 +127,7 @@ router.post("/export/cds/batch", requireAuth, async (req, res) => {
   ensureDbShape(db);
 
   const professional = db.users.find(u => u.id === req.user.id) || req.user;
-  const unit         = (db.units || []).find(u => u.id === (professional.unitId || req.user.unitId)) || null;
+  const unit         = (db.units || []).find(u => u.id === (professional.unitId || resolveActiveUnit(req))) || null;
   const team         = (db.teams || []).find(t => t.id === (professional.teamId || req.user.teamId)) || null;
 
   const summary = buildSummary(db, professional, unit, team, competencia);

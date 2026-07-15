@@ -7,7 +7,7 @@ import { requireManager } from "../middlewares/auth.js";
 import { ensureDbShape, sanitizeUser } from "../utils/domain.js";
 import {
   canonicalRole, isStrongPassword, isValidEmail, roleNeedsCouncil,
-  councilTypeForRole, getClientIp, isAnaAdminUser, hasCapability, isPlatformRole
+  councilTypeForRole, getClientIp, isAnaAdminUser, hasCapability, isPlatformRole, resolveActiveUnit
 } from "../utils/helpers.js";
 import { validateCouncilData, verifyCouncilExternally } from "../utils/council.js";
 import { generateVitrasId } from "../utils/vitras-id.js";
@@ -312,14 +312,14 @@ router.post("/users", requireAuth, async (req, res) => {
     if (duplicatedCouncil) return { error: `${councilType} já cadastrado para outro usuário` };
 
     // Gestor can only create users for their own unit
-    if (isGestor && payload.unitId && payload.unitId !== (req.user.unitId || "")) {
+    if (isGestor && payload.unitId && payload.unitId !== (resolveActiveUnit(req))) {
       return { error: "Gestor não pode criar usuário em outra UBS" };
     }
 
     const targetTeamId = isGestor
       ? (String(payload.teamId || "").trim() || "")
       : req.user.teamId;
-    const targetUnitId = req.user.unitId || "";
+    const targetUnitId = resolveActiveUnit(req);
 
     const userMunicipalityId = String(req.user.municipalityId || MUNICIPALITY_ID || "").trim();
     if (!userMunicipalityId) {
@@ -556,7 +556,7 @@ router.post("/users/:id/deactivate", requireAuth, async (req, res) => {
     if (idx < 0) return { error: { status: 404, message: "Usuário não encontrado" } };
 
     const target = db.users[idx];
-    if (isGestorCaller && target.unitId !== req.user.unitId) {
+    if (isGestorCaller && target.unitId !== resolveActiveUnit(req)) {
       return { error: { status: 403, message: "Gestor só pode desativar usuários da própria UBS" } };
     }
     if (target.id === req.user.id) {
@@ -605,7 +605,7 @@ router.post("/users/:id/reset-password", requireAuth, async (req, res) => {
     const idx = db.users.findIndex((u) => {
       if (u.id !== targetId) return false;
       // Gestor: must be same unit
-      if (isGestor) return (u.unitId || "") === (req.user.unitId || "");
+      if (isGestor) return (u.unitId || "") === (resolveActiveUnit(req));
       // Nurse_manager: must be same team
       return (u.teamId || "") === (req.user.teamId || "");
     });
@@ -636,7 +636,7 @@ router.post("/users/:id/reset-password", requireAuth, async (req, res) => {
 
     addAuditLog(db, req.user, "USER_PASSWORD_RESET", "user", targetId, {
       resetBy: req.user.id,
-      unitId: req.user.unitId || "",
+      unitId: resolveActiveUnit(req),
       teamId: req.user.teamId || "",
       outcome: "success"
       // tempPassword deliberately excluded

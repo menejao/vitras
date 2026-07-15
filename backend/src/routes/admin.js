@@ -7,7 +7,7 @@ import {
   DEFAULT_CARE_PROTOCOLS, DEMO_POPULATE_SIZE_COMPLETE, DEMO_POPULATE_SIZE_INCOMPLETE,
   validateUnitBootstrap, normalizeUnitCnes
 } from "../utils/domain.js";
-import { canonicalRole, isManager, isDoctor, isGestor, hasCapability, getClientIp, isPlatformRole } from "../utils/helpers.js";
+import { canonicalRole, isManager, isDoctor, isGestor, hasCapability, getClientIp, isPlatformRole, resolveActiveUnit } from "../utils/helpers.js";
 import { buildMonthlyDemandMetric, buildDataQualityMetric, buildTeamDemandByProfessional } from "../utils/metrics.js";
 import { getAllowedPatients, maskSensitivePatientFields } from "../utils/patients.js";
 import {
@@ -116,7 +116,7 @@ router.get("/bootstrap", requireAuth, async (req, res) => {
   const teamDemand = (isGestor(req.user) || canonicalRole(req.user?.role) === "local_admin" || isBga)
     ? buildTeamDemandByProfessional(db, req.user.teamId)
     : null;
-  const unitName = (db.units || []).find((u) => u.id === req.user.unitId)?.name || "";
+  const unitName = (db.units || []).find((u) => u.id === resolveActiveUnit(req))?.name || "";
   await withDb((auditDb) => {
     ensureDbShape(auditDb);
     addAuditLog(auditDb, buildAdminAuditActor(req), "admin.bootstrap_read", "bootstrap", req.user.id, {

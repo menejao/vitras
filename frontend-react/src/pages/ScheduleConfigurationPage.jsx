@@ -11,6 +11,7 @@
 
 import { hasCapability } from "../utils/roles";
 import ScheduleConfigTab from "./platform/ScheduleConfigTab";
+import { useActiveUnit } from "../contexts/ActiveUnitContext";
 
 export default function ScheduleConfigurationPage({ user, token }) {
   if (!hasCapability(user, "schedule.configuration.read")) {
@@ -27,7 +28,7 @@ export default function ScheduleConfigurationPage({ user, token }) {
     );
   }
 
-  const unitId = String(user?.unitId || "");
+  const { unitId } = useActiveUnit();
   const canEdit = hasCapability(user, "schedule.configuration.update");
 
   if (!unitId) {

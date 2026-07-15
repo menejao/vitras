@@ -19,7 +19,7 @@ import {
 import { syncPatientFamilyGroup } from "../utils/family-groups.js";
 import {
   isManager, isDoctor, isAcs, hasCapability, normalizeDemandType, canonicalRole,
-  detectConsultationSpecialtyFromTitle, normalizeConsultationTitle
+  detectConsultationSpecialtyFromTitle, normalizeConsultationTitle, resolveActiveUnit
 } from "../utils/helpers.js";
 import {
   getAllowedPatients, canAccessPatient, getPatientOrError, buildPatientHistory, maskSensitivePatientFields, buildReceptionistPatientSummary
@@ -425,7 +425,7 @@ router.post("/patients", requireManagerOrDoctor, validate(PatientCreateSchema), 
 
   // Derive unitId from the team that owns this patient
   const patientTeam = db.teams.find((t) => t.id === patientTeamId);
-  const patientUnitId = String(patientTeam?.unitId || req.user.unitId || "");
+  const patientUnitId = String(patientTeam?.unitId || resolveActiveUnit(req));
   const patientMunicipalityId = String(req.user.municipalityId || MUNICIPALITY_ID || "");
 
   const patient = {
@@ -977,7 +977,7 @@ router.post("/patients/:id/appointments", validate(AppointmentCreateSchema), asy
     conduct: payload.conduct ? String(payload.conduct) : "",
     nextStep: payload.nextStep ? String(payload.nextStep) : "",
     executingTeamId: String(req.user.teamId || ""),
-    executingUnitId: String(req.user.unitId || ""),
+    executingUnitId: resolveActiveUnit(req),
     createdBy: req.user.id,
     createdAt: new Date().toISOString()
   };
@@ -1095,7 +1095,7 @@ router.post("/patients/:id/records", async (req, res) => {
       // D-05: campos de rastreabilidade assistencial
       executingProfessionalId: req.user.id,
       executingTeamId: String(req.user.teamId || ""),
-      executingUnitId: String(req.user.unitId || ""),
+      executingUnitId: resolveActiveUnit(req),
       patientReferenceTeamId: String(lookup.patient.teamId || ""),
       patientReferenceUnitId: String(lookup.patient.unitId || ""),
       municipalityId: String(lookup.patient.municipalityId || ""),
@@ -1287,7 +1287,7 @@ router.post("/patients/:id/records", async (req, res) => {
     // D-05: campos de rastreabilidade assistencial APS municipal
     executingProfessionalId: req.user.id,
     executingTeamId: String(req.user.teamId || ""),
-    executingUnitId: String(req.user.unitId || ""),
+    executingUnitId: resolveActiveUnit(req),
     patientReferenceTeamId: patientTeamId,
     patientReferenceUnitId: String(lookup.patient.unitId || ""),
     municipalityId: String(lookup.patient.municipalityId || ""),
@@ -1313,7 +1313,7 @@ router.post("/patients/:id/records", async (req, res) => {
 
     // D-09: audit trail completo com campos de rastreabilidade APS municipal
     if (isCrossTeam) {
-      const isCrossUnit = String(req.user.unitId || "") !== String(lookup.patient.unitId || "");
+      const isCrossUnit = resolveActiveUnit(req) !== String(lookup.patient.unitId || "");
       addAuditLog(mutableDb, req.user, isCrossUnit ? "clinical_record.cross_unit" : "clinical_record.cross_team", "patient", id, {
         executingProfessionalId: req.user.id,
         executingTeamId: record.executingTeamId,

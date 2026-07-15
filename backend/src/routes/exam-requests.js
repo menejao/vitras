@@ -1,7 +1,7 @@
 import express from "express";
 import { v4 as uuidv4 } from "uuid";
 import { withDb, readDb } from "../db.js";
-import { hasAnyCapability } from "../utils/helpers.js";
+import { hasAnyCapability, resolveActiveUnit } from "../utils/helpers.js";
 import { ensureDbShape } from "../utils/domain.js";
 import { addAuditLog } from "../services/audit.js";
 
@@ -177,7 +177,7 @@ router.patch("/exam-requests/:id/status", async (req, res) => {
     const auditAction = body.status === "concluido" ? "LAB_ORDER_COMPLETED" : "LAB_ORDER_CANCELLED";
     addAuditLog(db, req.user, auditAction, "exam_request", req.params.id, {
       patientId: current.patientId,
-      unitId: req.user.unitId || "",
+      unitId: resolveActiveUnit(req),
       previousStatus: current.status,
       newStatus: body.status,
       cancellationReason: next.cancellationReason || undefined,

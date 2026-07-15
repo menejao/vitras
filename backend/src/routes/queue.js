@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from "uuid";
 import { readDb, withDb } from "../db.js";
 import { validate, QueueCreateSchema, QueuePatchSchema } from "../schemas.js";
 import { ensureDbShape } from "../utils/domain.js";
-import { hasCapability, normalizeDemandType } from "../utils/helpers.js";
+import { hasCapability, normalizeDemandType, resolveActiveUnit } from "../utils/helpers.js";
 import { addAuditLog } from "../services/audit.js";
 
 const router = express.Router();
@@ -126,7 +126,7 @@ router.post("/queue", validate(QueueCreateSchema), async (req, res) => {
       updatedAt: now,
       updatedBy: req.user.id,
       executingTeamId: String(req.user.teamId || ""),
-      executingUnitId: String(req.user.unitId || ""),
+      executingUnitId: resolveActiveUnit(req),
       triageBy: "",
       triageStart: "",
       triageDone: "",
