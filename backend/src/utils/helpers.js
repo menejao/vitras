@@ -581,6 +581,17 @@ function isRepeatedDigits(input) {
   return /^(\d)\1+$/.test(input);
 }
 
+/* ── Active Unit Context ── */
+
+/**
+ * resolveActiveUnit — fonte única de verdade para unitId operacional.
+ * Sempre deriva do JWT autenticado. Nunca confia em input do cliente.
+ * Sprint C: toda rota clínica deve usar este helper.
+ */
+function resolveActiveUnit(req) {
+  return String(req.user?.unitId || "");
+}
+
 /* ── Network ── */
 
 function getClientIp(req) {
@@ -884,5 +895,6 @@ export {
   PRIVACY_REQUEST_TYPES,
   PRIVACY_REQUEST_STATUS,
   VALID_UF,
-  APS_CARGO_CATALOG
+  APS_CARGO_CATALOG,
+  resolveActiveUnit
 };

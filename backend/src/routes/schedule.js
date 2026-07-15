@@ -1,18 +1,18 @@
-/**
- * schedule.js — Rotas de configuração de agenda do VITRAS.
+﻿/**
+ * schedule.js â€” Rotas de configuraÃ§Ã£o de agenda do VITRAS.
  *
- * Domínio operacional da UBS — não pertence ao Console Nacional.
- * Registrado APÓS blockSupportAdminFromClinical: support_admin recebe 403.
+ * DomÃ­nio operacional da UBS â€” nÃ£o pertence ao Console Nacional.
+ * Registrado APÃ“S blockSupportAdminFromClinical: support_admin recebe 403.
  *
- * LGPD: não armazena dados de pacientes nessas coleções.
+ * LGPD: nÃ£o armazena dados de pacientes nessas coleÃ§Ãµes.
  * RBAC: capabilities schedule.configuration.* validadas em cada rota.
- * Isolamento por UBS: unitId sempre resolve do próprio user.unitId (sem override externo).
+ * Isolamento por UBS: unitId sempre resolve do prÃ³prio user.unitId (sem override externo).
  */
 
 import express from "express";
 import { v4 as uuidv4 } from "uuid";
 import { readDb, withDb } from "../db.js";
-import { hasCapability } from "../utils/helpers.js";
+import { hasCapability, resolveActiveUnit } from "../utils/helpers.js";
 import { addAuditLog } from "../services/audit.js";
 import { ensureDbShape } from "../utils/domain.js";
 import {
@@ -23,7 +23,7 @@ import {
 
 const router = express.Router();
 
-// ── Guards de acesso ─────────────────────────────────────────────────────────
+// â”€â”€ Guards de acesso â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function canReadSchedule(user) {
   return hasCapability(user, "schedule.configuration.read");
@@ -38,26 +38,18 @@ function canManageBlocks(user) {
          hasCapability(user, "schedule.configuration.update");
 }
 
-/**
- * Resolve unitId sempre do próprio user.unitId.
- * Support_admin não chega aqui (bloqueado por blockSupportAdminFromClinical).
- * Parâmetro requestedUnitId ignorado — proteção contra IDOR.
- */
-function resolveUnitId(user, _ignored) {
-  return String(user?.unitId || "");
-}
 
-// ── Configurações de escala (professionalSchedules) ──────────────────────────
+// â”€â”€ ConfiguraÃ§Ãµes de escala (professionalSchedules) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /**
  * GET /schedule/configurations
- * Lista todas as configurações de escala de uma UBS.
+ * Lista todas as configuraÃ§Ãµes de escala de uma UBS.
  */
 router.get("/schedule/configurations", async (req, res) => {
-  if (!canReadSchedule(req.user)) return res.status(403).json({ error: "Sem permissão" });
+  if (!canReadSchedule(req.user)) return res.status(403).json({ error: "Sem permissÃ£o" });
 
-  const unitId = resolveUnitId(req.user, req.query.unitId);
-  if (!unitId) return res.status(400).json({ error: "unitId obrigatório" });
+  const unitId = resolveActiveUnit(req);
+  if (!unitId) return res.status(400).json({ error: "unitId obrigatÃ³rio" });
 
   const db = await readDb();
   ensureDbShape(db);
@@ -71,19 +63,19 @@ router.get("/schedule/configurations", async (req, res) => {
 
 /**
  * GET /schedule/configurations/:id
- * Detalhe de uma configuração específica.
+ * Detalhe de uma configuraÃ§Ã£o especÃ­fica.
  */
 router.get("/schedule/configurations/:id", async (req, res) => {
-  if (!canReadSchedule(req.user)) return res.status(403).json({ error: "Sem permissão" });
+  if (!canReadSchedule(req.user)) return res.status(403).json({ error: "Sem permissÃ£o" });
 
   const db = await readDb();
   ensureDbShape(db);
   const config = (db.professionalSchedules || []).find(c => c.id === req.params.id);
-  if (!config) return res.status(404).json({ error: "Configuração não encontrada" });
+  if (!config) return res.status(404).json({ error: "ConfiguraÃ§Ã£o nÃ£o encontrada" });
 
-  const unitId = resolveUnitId(req.user, null);
+  const unitId = resolveActiveUnit(req);
   if (config.unitId !== unitId) {
-    return res.status(403).json({ error: "Sem permissão para esta UBS" });
+    return res.status(403).json({ error: "Sem permissÃ£o para esta UBS" });
   }
 
   return res.json(config);
@@ -91,18 +83,18 @@ router.get("/schedule/configurations/:id", async (req, res) => {
 
 /**
  * POST /schedule/configurations
- * Cria ou atualiza (upsert) configuração de escala de um profissional.
- * Se já existe config para o mesmo professionalId+unitId, sobrescreve.
+ * Cria ou atualiza (upsert) configuraÃ§Ã£o de escala de um profissional.
+ * Se jÃ¡ existe config para o mesmo professionalId+unitId, sobrescreve.
  */
 router.post("/schedule/configurations", async (req, res) => {
-  if (!canUpdateSchedule(req.user)) return res.status(403).json({ error: "Sem permissão" });
+  if (!canUpdateSchedule(req.user)) return res.status(403).json({ error: "Sem permissÃ£o" });
 
   const body = req.body || {};
-  const unitId = resolveUnitId(req.user, body.unitId);
-  if (!unitId) return res.status(400).json({ error: "unitId obrigatório" });
+  const unitId = resolveActiveUnit(req);
+  if (!unitId) return res.status(400).json({ error: "unitId obrigatÃ³rio" });
 
   const professionalId = String(body.professionalId || "").trim();
-  if (!professionalId) return res.status(400).json({ error: "professionalId obrigatório" });
+  if (!professionalId) return res.status(400).json({ error: "professionalId obrigatÃ³rio" });
 
   const payload = {
     ...body,
@@ -112,15 +104,15 @@ router.post("/schedule/configurations", async (req, res) => {
 
   const validation = validateScheduleConfig(payload);
   if (!validation.valid) {
-    return res.status(400).json({ error: "Configuração inválida", details: validation.errors });
+    return res.status(400).json({ error: "ConfiguraÃ§Ã£o invÃ¡lida", details: validation.errors });
   }
 
   const result = await withDb(async db => {
     ensureDbShape(db);
 
-    // Verificar que o profissional existe (na própria UBS)
+    // Verificar que o profissional existe (na prÃ³pria UBS)
     const professional = (db.users || []).find(u => u.id === professionalId);
-    if (!professional) return { error: "Profissional não encontrado", status: 404 };
+    if (!professional) return { error: "Profissional nÃ£o encontrado", status: 404 };
 
     const now = new Date().toISOString();
     const existing = (db.professionalSchedules || []).findIndex(
@@ -179,27 +171,27 @@ router.post("/schedule/configurations", async (req, res) => {
 
 /**
  * PUT /schedule/configurations/:id
- * Atualiza configuração existente.
+ * Atualiza configuraÃ§Ã£o existente.
  */
 router.put("/schedule/configurations/:id", async (req, res) => {
-  if (!canUpdateSchedule(req.user)) return res.status(403).json({ error: "Sem permissão" });
+  if (!canUpdateSchedule(req.user)) return res.status(403).json({ error: "Sem permissÃ£o" });
 
   const body = req.body || {};
-  const unitId = resolveUnitId(req.user, body.unitId);
+  const unitId = resolveActiveUnit(req);
 
   const validation = validateScheduleConfig({ ...body, unitId, professionalId: body.professionalId || "x" });
   if (!validation.valid) {
-    return res.status(400).json({ error: "Configuração inválida", details: validation.errors });
+    return res.status(400).json({ error: "ConfiguraÃ§Ã£o invÃ¡lida", details: validation.errors });
   }
 
   const result = await withDb(async db => {
     ensureDbShape(db);
     const idx = (db.professionalSchedules || []).findIndex(c => c.id === req.params.id);
-    if (idx < 0) return { error: "Configuração não encontrada", status: 404 };
+    if (idx < 0) return { error: "ConfiguraÃ§Ã£o nÃ£o encontrada", status: 404 };
 
     const current = db.professionalSchedules[idx];
     if (current.unitId !== unitId) {
-      return { error: "Sem permissão para esta UBS", status: 403 };
+      return { error: "Sem permissÃ£o para esta UBS", status: 403 };
     }
 
     const now = new Date().toISOString();
@@ -230,7 +222,7 @@ router.put("/schedule/configurations/:id", async (req, res) => {
  * Abre ou fecha agenda de um profissional.
  */
 router.post("/schedule/configurations/:id/status", async (req, res) => {
-  if (!canUpdateSchedule(req.user)) return res.status(403).json({ error: "Sem permissão" });
+  if (!canUpdateSchedule(req.user)) return res.status(403).json({ error: "Sem permissÃ£o" });
 
   const { status, reason } = req.body || {};
   if (!["open", "closed"].includes(status)) {
@@ -240,12 +232,12 @@ router.post("/schedule/configurations/:id/status", async (req, res) => {
   const result = await withDb(async db => {
     ensureDbShape(db);
     const idx = (db.professionalSchedules || []).findIndex(c => c.id === req.params.id);
-    if (idx < 0) return { error: "Configuração não encontrada", status: 404 };
+    if (idx < 0) return { error: "ConfiguraÃ§Ã£o nÃ£o encontrada", status: 404 };
 
-    const unitId = resolveUnitId(req.user, null);
+    const unitId = resolveActiveUnit(req);
     const current = db.professionalSchedules[idx];
     if (current.unitId !== unitId) {
-      return { error: "Sem permissão para esta UBS", status: 403 };
+      return { error: "Sem permissÃ£o para esta UBS", status: 403 };
     }
 
     const now = new Date().toISOString();
@@ -265,17 +257,17 @@ router.post("/schedule/configurations/:id/status", async (req, res) => {
   return res.json(result.data);
 });
 
-// ── Bloqueios (scheduleBlocks) ────────────────────────────────────────────────
+// â”€â”€ Bloqueios (scheduleBlocks) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /**
  * GET /schedule/blocks
  * Lista bloqueios de uma UBS.
  */
 router.get("/schedule/blocks", async (req, res) => {
-  if (!canReadSchedule(req.user)) return res.status(403).json({ error: "Sem permissão" });
+  if (!canReadSchedule(req.user)) return res.status(403).json({ error: "Sem permissÃ£o" });
 
-  const unitId = resolveUnitId(req.user, req.query.unitId);
-  if (!unitId) return res.status(400).json({ error: "unitId obrigatório" });
+  const unitId = resolveActiveUnit(req);
+  if (!unitId) return res.status(400).json({ error: "unitId obrigatÃ³rio" });
 
   const db = await readDb();
   ensureDbShape(db);
@@ -300,28 +292,28 @@ router.get("/schedule/blocks", async (req, res) => {
 /**
  * POST /schedule/blocks
  * Cria um bloqueio de agenda.
- * Retorna lista de agendamentos conflitantes (sem cancelamento automático).
+ * Retorna lista de agendamentos conflitantes (sem cancelamento automÃ¡tico).
  */
 router.post("/schedule/blocks", async (req, res) => {
-  if (!canManageBlocks(req.user)) return res.status(403).json({ error: "Sem permissão" });
+  if (!canManageBlocks(req.user)) return res.status(403).json({ error: "Sem permissÃ£o" });
 
   const body = req.body || {};
-  const unitId = resolveUnitId(req.user, body.unitId);
-  if (!unitId) return res.status(400).json({ error: "unitId obrigatório" });
+  const unitId = resolveActiveUnit(req);
+  if (!unitId) return res.status(400).json({ error: "unitId obrigatÃ³rio" });
 
   const VALID_TYPES = ["absence", "holiday", "meeting", "course", "vacation", "other"];
   const type = String(body.type || "other");
   if (!VALID_TYPES.includes(type)) {
-    return res.status(400).json({ error: `Tipo inválido. Aceitos: ${VALID_TYPES.join(", ")}` });
+    return res.status(400).json({ error: `Tipo invÃ¡lido. Aceitos: ${VALID_TYPES.join(", ")}` });
   }
   if (!body.startDate || !body.endDate) {
-    return res.status(400).json({ error: "startDate e endDate obrigatórios" });
+    return res.status(400).json({ error: "startDate e endDate obrigatÃ³rios" });
   }
   if (body.startDate > body.endDate) {
     return res.status(400).json({ error: "startDate deve ser anterior ou igual a endDate" });
   }
   if (type === "other" && !body.reason) {
-    return res.status(400).json({ error: "Para tipo 'other', reason é obrigatório" });
+    return res.status(400).json({ error: "Para tipo 'other', reason Ã© obrigatÃ³rio" });
   }
 
   const result = await withDb(async db => {
@@ -344,7 +336,7 @@ router.post("/schedule/blocks", async (req, res) => {
 
     db.scheduleBlocks.push(block);
 
-    // Detectar conflitos com agendamentos existentes (não cancela automaticamente)
+    // Detectar conflitos com agendamentos existentes (nÃ£o cancela automaticamente)
     const conflicts = detectConflictingAppointments(db, {
       professionalId: block.professionalId || null,
       unitId,
@@ -375,19 +367,19 @@ router.post("/schedule/blocks", async (req, res) => {
  * Atualiza um bloqueio existente.
  */
 router.put("/schedule/blocks/:id", async (req, res) => {
-  if (!canManageBlocks(req.user)) return res.status(403).json({ error: "Sem permissão" });
+  if (!canManageBlocks(req.user)) return res.status(403).json({ error: "Sem permissÃ£o" });
 
   const body = req.body || {};
 
   const result = await withDb(async db => {
     ensureDbShape(db);
     const idx = (db.scheduleBlocks || []).findIndex(b => b.id === req.params.id);
-    if (idx < 0) return { error: "Bloqueio não encontrado", status: 404 };
+    if (idx < 0) return { error: "Bloqueio nÃ£o encontrado", status: 404 };
 
     const current = db.scheduleBlocks[idx];
-    const unitId = resolveUnitId(req.user, null);
+    const unitId = resolveActiveUnit(req);
     if (current.unitId !== unitId) {
-      return { error: "Sem permissão para este bloqueio", status: 403 };
+      return { error: "Sem permissÃ£o para este bloqueio", status: 403 };
     }
 
     const updated = {
@@ -419,17 +411,17 @@ router.put("/schedule/blocks/:id", async (req, res) => {
  * Remove um bloqueio.
  */
 router.delete("/schedule/blocks/:id", async (req, res) => {
-  if (!canManageBlocks(req.user)) return res.status(403).json({ error: "Sem permissão" });
+  if (!canManageBlocks(req.user)) return res.status(403).json({ error: "Sem permissÃ£o" });
 
   const result = await withDb(async db => {
     ensureDbShape(db);
     const idx = (db.scheduleBlocks || []).findIndex(b => b.id === req.params.id);
-    if (idx < 0) return { error: "Bloqueio não encontrado", status: 404 };
+    if (idx < 0) return { error: "Bloqueio nÃ£o encontrado", status: 404 };
 
     const current = db.scheduleBlocks[idx];
-    const unitId = resolveUnitId(req.user, null);
+    const unitId = resolveActiveUnit(req);
     if (current.unitId !== unitId) {
-      return { error: "Sem permissão para este bloqueio", status: 403 };
+      return { error: "Sem permissÃ£o para este bloqueio", status: 403 };
     }
 
     db.scheduleBlocks.splice(idx, 1);
@@ -451,17 +443,17 @@ router.delete("/schedule/blocks/:id", async (req, res) => {
 
 /**
  * GET /schedule/preview
- * Pré-visualiza disponibilidade de um período para uma configuração.
- * Não persiste nada. Usado pela UI para mostrar impacto antes de salvar.
+ * PrÃ©-visualiza disponibilidade de um perÃ­odo para uma configuraÃ§Ã£o.
+ * NÃ£o persiste nada. Usado pela UI para mostrar impacto antes de salvar.
  */
 router.get("/schedule/preview", async (req, res) => {
-  if (!canReadSchedule(req.user)) return res.status(403).json({ error: "Sem permissão" });
+  if (!canReadSchedule(req.user)) return res.status(403).json({ error: "Sem permissÃ£o" });
 
   const { professionalId, startDate, endDate } = req.query;
-  const unitId = resolveUnitId(req.user, req.query.unitId);
+  const unitId = resolveActiveUnit(req);
 
   if (!professionalId || !startDate || !endDate) {
-    return res.status(400).json({ error: "professionalId, startDate e endDate obrigatórios" });
+    return res.status(400).json({ error: "professionalId, startDate e endDate obrigatÃ³rios" });
   }
   if (startDate > endDate) {
     return res.status(400).json({ error: "startDate deve ser anterior ou igual a endDate" });
@@ -490,3 +482,4 @@ router.get("/schedule/preview", async (req, res) => {
 });
 
 export default router;
+

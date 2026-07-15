@@ -202,6 +202,7 @@ function addAuditLog(db, user, action, entity, entityId, details = {}) {
   const teamId = String(user?.teamId || details?.teamId || "").trim();
   const teamName = String(user?.teamName || details?.teamName || "").trim();
   const classification = classifyAuditAction(action);
+  const activeUnitId = String(user?.unitId || details?.unitId || "").trim();
   const logEntry = {
     id: uuidv4(),
     action,
@@ -209,6 +210,7 @@ function addAuditLog(db, user, action, entity, entityId, details = {}) {
     entityId,
     category: classification.category,
     severity: classification.severity,
+    activeUnitId,
     teamId,
     teamName,
     userId: user.id,

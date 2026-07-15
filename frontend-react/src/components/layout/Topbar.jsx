@@ -136,6 +136,7 @@ function Topbar({
               <span>
                 {roleLabel(user?.role)}
                 {user?.teamName ? ` · ${user.teamName}` : ""}
+                {unitName ? ` · ${unitName}` : ""}
               </span>
             </div>
             <svg width="11" height="11" viewBox="0 0 16 16" fill="none" className="topbar__account-caret">

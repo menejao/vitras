@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { readUiState, writeLS } from "./utils/storage";
 import { UI_STATE_KEY } from "./config/constants";
 import { useTheme } from "./hooks/useTheme";
+import { ActiveUnitProvider } from "./contexts/ActiveUnitContext";
 import { isReceptionist, isAdmin, canWriteRecords, hasAnyCapability } from "./utils/roles";
 import AppShell from "./components/layout/AppShell";
 import Sidebar from "./components/layout/Sidebar";
@@ -300,6 +301,7 @@ function AppInner() {
 
 
   return (
+    <ActiveUnitProvider user={user} unitName={unitName}>
     <main className="app">
       <OfflineBanner/>
       <ComplianceBadge/>
@@ -398,6 +400,7 @@ function AppInner() {
         />
       )}
     </main>
+    </ActiveUnitProvider>
   );
 }
 
