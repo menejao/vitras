@@ -2,6 +2,7 @@ services:
   - type: web
     name: vitras-backend
     runtime: node
+    nodeVersion: "22.15.0"
     region: oregon
     plan: free
     rootDir: backend
@@ -34,6 +35,10 @@ services:
         sync: false   # chave para seed inicial de admin
 
       # ── CORS ─────────────────────────────────────────────────────────────────
+      # CORS_ALLOW_ALL nunca pode ser true em produção — proibido pelo fail-fast de config.js
+      - key: CORS_ALLOW_ALL
+        value: "false"
+
       - key: FRONTEND_ORIGINS
         sync: false   # Ex.: https://vitras.vercel.app,https://vitras-portal.vercel.app
 

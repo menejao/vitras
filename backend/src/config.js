@@ -106,6 +106,11 @@ const REFRESH_EXPIRES_MS = (() => {
   return n || 7 * 86400_000;
 })();
 
+if (IS_PROD && CORS_ALLOW_ALL) {
+  throw new Error(
+    "CORS_ALLOW_ALL=true é proibido em produção — reflete qualquer origem e elimina toda proteção de CORS. Defina FRONTEND_ORIGINS com as origens autorizadas."
+  );
+}
 if (IS_PROD && (!process.env.JWT_SECRET || JWT_SECRET === "dev-only-jwt-secret-change-me")) {
   throw new Error("JWT_SECRET obrigatório em produção");
 }
