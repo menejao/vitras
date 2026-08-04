@@ -38,7 +38,7 @@ describe("Auth endpoints", () => {
 
   it("POST /auth/login with wrong credentials returns 401", async () => {
     const { status } = await post("/auth/login", {
-      email: "nobody@test.com",
+      identifier: "nobody@test.com",
       password: "wrongpassword123"
     });
     assert.equal(status, 401);
@@ -71,7 +71,7 @@ describe("Auth endpoints", () => {
 
   it("POST /auth/login with valid credentials returns token", async () => {
     const { status, json } = await post("/auth/login", {
-      email: testEmail,
+      identifier: testEmail,
       password: testPassword
     });
     if (status === 403 && json?.requiresTwoFactor) {

@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from "uuid";
 import { readDb, withDb } from "../db.js";
 import { validate, ReferralCreateSchema, ReferralPatchSchema } from "../schemas.js";
 import { ensureDbShape } from "../utils/domain.js";
-import { hasCapability } from "../utils/helpers.js";
+import { hasCapability, canAccessTeamScope, resolveActiveUnit } from "../utils/helpers.js";
 import { addAuditLog } from "../services/audit.js";
 
 const router = express.Router();
@@ -16,11 +16,6 @@ function canWriteReferrals(user) {
   return hasCapability(user, "referrals.write");
 }
 
-function canAccessTeam(user, teamId) {
-  const currentTeamId = String(user?.teamId || "").trim();
-  if (!currentTeamId) return false; // fail-safe: no teamId = no access
-  return currentTeamId === String(teamId || "").trim();
-}
 
 // REGULACAO-REFERENCIA-01: aceita 11 status + legados (backward-compat)
 const VALID_REFERRAL_STATUSES = [
@@ -63,7 +58,7 @@ function buildReferralSnapshot(entry) {
 function listScopedReferrals(db, user) {
   ensureDbShape(db);
   return db.referrals
-    .filter((entry) => canReadReferrals(user) && canAccessTeam(user, entry.teamId) && String(entry.status || "") !== "cancelled")
+    .filter((entry) => canReadReferrals(user) && canAccessTeamScope(user, entry.teamId) && String(entry.status || "") !== "cancelled")
     .sort((left, right) => {
       const dateCmp = String(right.date || "").localeCompare(String(left.date || ""));
       if (dateCmp !== 0) return dateCmp;
@@ -89,7 +84,7 @@ router.post("/referrals", validate(ReferralCreateSchema), async (req, res) => {
     ensureDbShape(db);
     const patient = db.patients.find((item) => item.id === String(payload.patientId || ""));
     if (!patient) return { error: { status: 404, message: "Paciente não encontrado" } };
-    if (!canAccessTeam(req.user, patient.teamId)) {
+    if (!canAccessTeamScope(req.user, patient.teamId)) {
       return { error: { status: 403, message: "Paciente fora da equipe atual" } };
     }
 
@@ -108,6 +103,7 @@ router.post("/referrals", validate(ReferralCreateSchema), async (req, res) => {
       notes: String(payload.notes || "").trim(),
       status: normalizeReferralStatus(payload.status),
       contrarreferencia: "",
+      executingUnitId: resolveActiveUnit(req),
       doctorId: String(req.user.id || ""),
       doctorName: String(doctor?.name || req.user?.name || "").trim(),
       createdAt: now,
@@ -144,7 +140,7 @@ router.patch("/referrals/:id", validate(ReferralPatchSchema), async (req, res) =
     if (index < 0) return { error: { status: 404, message: "Encaminhamento não encontrado" } };
 
     const current = db.referrals[index];
-    if (!canAccessTeam(req.user, current.teamId)) {
+    if (!canAccessTeamScope(req.user, current.teamId)) {
       return { error: { status: 403, message: "Sem permissão para este encaminhamento" } };
     }
 
@@ -233,7 +229,7 @@ router.delete("/referrals/:id", async (req, res) => {
     if (index < 0) return { error: { status: 404, message: "Encaminhamento não encontrado" } };
 
     const removed = db.referrals[index];
-    if (!canAccessTeam(req.user, removed.teamId)) {
+    if (!canAccessTeamScope(req.user, removed.teamId)) {
       return { error: { status: 403, message: "Sem permissão para este encaminhamento" } };
     }
 

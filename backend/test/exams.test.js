@@ -5,7 +5,7 @@ import { startTestServer, stopTestServer, post, get } from "./helpers.js";
 test("exams flow persists create, attachment upload and justified delete", async () => {
   const base = await startTestServer();
 
-  const login = await post("/auth/login", { email: "ana@clinica.local", password: "123456" });
+  const login = await post("/auth/login", { identifier: "ana@clinica.local", password: "123456" });
   assert.equal(login.status, 200);
   const token = login.json.token || login.json.accessToken;
 

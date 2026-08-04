@@ -4,7 +4,7 @@ import { readDb, withDb } from "../db.js";
 import { validate, ExamCreateSchema, ExamAttachmentCreateSchema } from "../schemas.js";
 import { ensureDbShape } from "../utils/domain.js";
 import { canAccessPatient, getPatientOrError } from "../utils/patients.js";
-import { hasAnyCapability } from "../utils/helpers.js";
+import { hasAnyCapability, resolveActiveUnit } from "../utils/helpers.js";
 import { addAuditLog } from "../services/audit.js";
 
 const router = express.Router();
@@ -101,6 +101,7 @@ router.post("/patients/:id/exams", validate(ExamCreateSchema), async (req, res) 
     id: uuidv4(),
     patientId,
     teamId: lookup.patient.teamId,
+    executingUnitId: resolveActiveUnit(req),
     title: String(req.body.title || "").trim(),
     date: String(req.body.date || "").trim(),
     details: String(req.body.notes || "").trim(),

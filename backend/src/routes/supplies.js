@@ -9,7 +9,7 @@ import {
   SuppliesCloseContinuousSchema,
 } from "../schemas.js";
 import { ensureDbShape } from "../utils/domain.js";
-import { hasCapability } from "../utils/helpers.js";
+import { hasCapability, resolveActiveUnit } from "../utils/helpers.js";
 import { addAuditLog } from "../services/audit.js";
 
 const router = express.Router();
@@ -349,6 +349,7 @@ router.post("/supplies/dispense", validate(SuppliesDispenseSchema), async (req, 
 
     const dispenseEntry = appendSupplyLog(db, req.user, {
       type: "dispensa",
+      executingUnitId: resolveActiveUnit(req),
       patientId: patient.id,
       patientName: patient.name,
       continuo: Boolean(req.body.continuo),

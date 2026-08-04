@@ -166,7 +166,7 @@ router.post("/agenda", validate(AgendaCreateSchema), async (req, res) => {
   const payload = req.body || {};
   const result = await withDb((db) => {
     ensureDbShape(db);
-    const patient = db.patients.find((item) => item.id === String(payload.patientId || ""));
+    const patient = db.patients.find((item) => item.id === String(payload.patientId || "") && !item.inactive);
     if (!patient) return { error: { status: 404, message: "Paciente não encontrado" } };
     if (!canAccessTeamScope(req.user, patient.teamId)) {
       return { error: { status: 403, message: "Paciente fora da equipe atual" } };
@@ -179,7 +179,7 @@ router.post("/agenda", validate(AgendaCreateSchema), async (req, res) => {
     }
 
     const doctorId = String(payload.doctorId || "").trim();
-    const doctor = doctorId ? db.users.find((item) => item.id === doctorId) : null;
+    const doctor = doctorId ? db.users.find((item) => item.id === doctorId && !item.inactive) : null;
     if (doctorId && !doctor) {
       return { error: { status: 404, message: "Profissional não encontrado" } };
     }
@@ -304,6 +304,10 @@ router.patch("/agenda/:id", validate(AgendaPatchSchema), async (req, res) => {
     if (!canAccessTeamScope(req.user, current.teamId)) {
       return { error: { status: 403, message: "Sem permissão para este agendamento" } };
     }
+    const TERMINAL_AGENDA_STATUSES = ["done", "absent"];
+    if (req.body.status !== undefined && TERMINAL_AGENDA_STATUSES.includes(current.status)) {
+      return { error: { status: 409, message: `Agendamento já encerrado (${current.status}). Transição de status não permitida.` } };
+    }
     if (canonicalRole(req.user?.role) === "break_glass_admin") {
       addAuditLog(db, req.user, "BREAK_GLASS_PATIENT_SCOPE_BYPASS", "agenda_entry", current.id, {
         actorId: req.user.id, patientId: current.patientId,
@@ -336,6 +340,19 @@ router.patch("/agenda/:id", validate(AgendaPatchSchema), async (req, res) => {
       updatedAt: new Date().toISOString(),
       updatedBy: req.user.id
     };
+
+    const slotChanged = next.date !== current.date || next.time !== current.time || next.doctorId !== current.doctorId;
+    if (slotChanged && next.doctorId && next.date && next.time && next.status !== "cancelled") {
+      const unitId = resolveActiveUnit(req);
+      const channel = current.bookingChannel || "reception";
+      const available = isSlotAvailable(db, { date: next.date, time: next.time, doctorId: next.doctorId, unitId, channel });
+      if (!available) {
+        const info = getSlotCapacityInfo(db, { date: next.date, time: next.time, doctorId: next.doctorId, unitId });
+        if (info?.blocked) return { error: { status: 409, message: "Horário bloqueado para este profissional nesta data" } };
+        if (info?.booked >= info?.capacity) return { error: { status: 409, message: "Horário sem disponibilidade: capacidade esgotada" } };
+        return { error: { status: 409, message: "Horário não disponível para este profissional" } };
+      }
+    }
 
     db.agendaEntries[index] = next;
     addAuditLog(db, req.user, "agenda.entry_updated", "agenda_entry", next.id, {

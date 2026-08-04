@@ -13,7 +13,7 @@ test("access requests flow persists submission and approval decision", async () 
   assert.equal(created.status, 201);
   assert.equal(created.json.status, "pending");
 
-  const login = await post("/auth/login", { email: "ana@clinica.local", password: "123456" });
+  const login = await post("/auth/login", { identifier: "ana@clinica.local", password: "123456" });
   const token = login.json.token || login.json.accessToken;
 
   const deniedList = await get("/auth/access-requests", token);

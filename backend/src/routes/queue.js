@@ -156,6 +156,9 @@ router.patch("/queue/:id", validate(QueuePatchSchema), async (req, res) => {
     if (index < 0) return { error: { status: 404, message: "Entrada da fila não encontrada" } };
 
     const current = db.queueEntries[index];
+    if (req.body.status !== undefined && TERMINAL_Q_STATUSES.includes(current.status)) {
+      return { error: { status: 409, message: `Entrada já encerrada (${current.status}). Transição de status não permitida.` } };
+    }
     if (String(current.teamId || "") !== String(req.user.teamId || "") && !hasCapability(req.user, "team.manage")) {
       return { error: { status: 403, message: "Sem permissão para esta fila" } };
     }

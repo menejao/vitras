@@ -1,6 +1,7 @@
 export const id = "028_reconcile_test_tenant";
 
 export async function up(client) {
+  if (process.env.NODE_ENV === "production") return;
   // Create test-unit in app_units if not exists.
   // Only inserts columns that are confirmed to exist in the schema (004, 010, 013).
   // Columns uf, status, contact_email, phone, municipality_name are not yet in the

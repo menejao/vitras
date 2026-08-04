@@ -93,7 +93,9 @@
       "role": "break_glass_admin",
       "password": "s1$e29976c02ddfc2792809228d971751f0$017cb8ae4baa3c2c5b0d95867e3577ef4e309deed7920b7f50cffedf0f51a0c8f9febaba5edcef5c1abfb47abaaed3d4260eb5023d0dc6f8435c07d9815a9f2f",
       "forcePasswordChange": false,
-      "createdAt": "2026-07-03T21:03:08.575Z"
+      "createdAt": "2026-07-03T21:03:08.575Z",
+      "twoFactorSecret": "",
+      "twoFactorPendingSecret": ""
     }
   ],
   "patients": [
@@ -295,7 +297,7 @@
       "birthDate": "1990-01-01",
       "motherName": "MÃ£e DemonstraÃ§Ã£o",
       "cpf": "00000000191",
-      "cns": null,
+      "cns": "",
       "unitId": "unit-default",
       "municipalityId": null,
       "gender": "M",
@@ -303,7 +305,9 @@
       "email": null,
       "address": {},
       "createdAt": "2026-07-01T14:41:43.257Z",
-      "_isDemo": true
+      "_isDemo": true,
+      "cnsResponsavel": "",
+      "nis": ""
     }
   ],
   "queueEntries": [],
@@ -1261,6 +1265,114 @@
       "sourceSystem": "e-SUS PEC APS",
       "createdAt": "2026-06-23T22:18:21.448Z",
       "updatedAt": "2026-06-23T22:18:21.448Z"
+    },
+    {
+      "id": "b7e58180-bfeb-43c6-a1fa-28b55b49a87f",
+      "patientId": "781c4c34-9b78-4690-ac27-4558e30025a1",
+      "teamId": "team-commit-test",
+      "acsId": "acs-commit-test",
+      "dataVisita": "2026-07-04",
+      "turno": "MANHA",
+      "tipoVisita": "VISITA_PERIODICA",
+      "motivosVisita": [
+        "CADASTRAMENTO_ATUALIZACAO"
+      ],
+      "desfecho": "VISITA_REALIZADA",
+      "sourceId": "VIS-05000",
+      "importJobId": "ba3b95d4-ca4e-4cd3-a040-f4f6cf7cab40",
+      "sourceSystem": "e-SUS PEC APS",
+      "createdAt": "2026-08-04T16:21:03.186Z",
+      "updatedAt": "2026-08-04T16:21:03.186Z"
+    },
+    {
+      "id": "dda64eb5-ee99-4069-87c9-9b7ce29f5cf3",
+      "patientId": "a9047901-d527-484a-a71c-e39342389118",
+      "teamId": "team-commit-test",
+      "acsId": "acs-commit-test",
+      "dataVisita": "2026-07-04",
+      "turno": "MANHA",
+      "tipoVisita": "VISITA_PERIODICA",
+      "motivosVisita": [
+        "CADASTRAMENTO_ATUALIZACAO"
+      ],
+      "desfecho": "VISITA_REALIZADA",
+      "sourceId": "VIS-05001",
+      "importJobId": "ba3b95d4-ca4e-4cd3-a040-f4f6cf7cab40",
+      "sourceSystem": "e-SUS PEC APS",
+      "createdAt": "2026-08-04T16:21:03.186Z",
+      "updatedAt": "2026-08-04T16:21:03.186Z"
+    },
+    {
+      "id": "c556e638-069e-4ede-a630-7b3d476352ff",
+      "patientId": "64237d65-f6e0-4177-b495-bc05dea5ba00",
+      "teamId": "team-commit-test",
+      "acsId": "acs-commit-test",
+      "dataVisita": "2026-07-04",
+      "turno": "MANHA",
+      "tipoVisita": "VISITA_PERIODICA",
+      "motivosVisita": [
+        "CADASTRAMENTO_ATUALIZACAO"
+      ],
+      "desfecho": "VISITA_REALIZADA",
+      "sourceId": "VIS-05002",
+      "importJobId": "ba3b95d4-ca4e-4cd3-a040-f4f6cf7cab40",
+      "sourceSystem": "e-SUS PEC APS",
+      "createdAt": "2026-08-04T16:21:03.186Z",
+      "updatedAt": "2026-08-04T16:21:03.186Z"
+    },
+    {
+      "id": "95a750f7-bf67-4caf-93e2-4b0b0a912344",
+      "patientId": "cd521757-e20e-4b5c-961d-255da0ee1ad7",
+      "teamId": "team-commit-test",
+      "acsId": "acs-commit-test",
+      "dataVisita": "2026-07-04",
+      "turno": "MANHA",
+      "tipoVisita": "VISITA_PERIODICA",
+      "motivosVisita": [
+        "CADASTRAMENTO_ATUALIZACAO"
+      ],
+      "desfecho": "VISITA_REALIZADA",
+      "sourceId": "VIS-05003",
+      "importJobId": "ba3b95d4-ca4e-4cd3-a040-f4f6cf7cab40",
+      "sourceSystem": "e-SUS PEC APS",
+      "createdAt": "2026-08-04T16:21:03.186Z",
+      "updatedAt": "2026-08-04T16:21:03.186Z"
+    },
+    {
+      "id": "2d4f996b-7621-4c26-a9eb-b47d9707ef76",
+      "patientId": "b1bea6c1-408a-41b0-88a3-3467ce6e9f9d",
+      "teamId": "team-commit-test",
+      "acsId": "acs-commit-test",
+      "dataVisita": "2026-07-04",
+      "turno": "MANHA",
+      "tipoVisita": "VISITA_PERIODICA",
+      "motivosVisita": [
+        "CADASTRAMENTO_ATUALIZACAO"
+      ],
+      "desfecho": "VISITA_REALIZADA",
+      "sourceId": "VIS-05004",
+      "importJobId": "ba3b95d4-ca4e-4cd3-a040-f4f6cf7cab40",
+      "sourceSystem": "e-SUS PEC APS",
+      "createdAt": "2026-08-04T16:21:03.186Z",
+      "updatedAt": "2026-08-04T16:21:03.186Z"
+    },
+    {
+      "id": "0d2b193f-4a08-4bf3-bb5d-a842eb8dfba3",
+      "patientId": "c8136ef6-c7b8-4a47-b76a-8bf7c1346d7e",
+      "teamId": "team-lifecycle",
+      "acsId": "acs-lifecycle",
+      "dataVisita": "2026-07-04",
+      "turno": "MANHA",
+      "tipoVisita": "VISITA_PERIODICA",
+      "motivosVisita": [
+        "CADASTRAMENTO_ATUALIZACAO"
+      ],
+      "desfecho": "VISITA_REALIZADA",
+      "sourceId": "VIS-09001",
+      "importJobId": "b4e43171-ea52-415e-939e-fc7cbc63117a",
+      "sourceSystem": "e-SUS PEC APS",
+      "createdAt": "2026-08-04T16:21:03.696Z",
+      "updatedAt": "2026-08-04T16:21:03.696Z"
     }
   ],
   "microAreas": [],
@@ -1315,4 +1427,3 @@
     }
   ]
 }
-

@@ -531,22 +531,31 @@ router.post("/patients", requireManagerOrDoctor, validate(PatientCreateSchema), 
   try {
     await withDb((db) => {
       ensureDbShape(db);
-      const cpfValue = String(patient.cpf || "").trim();
+      const cpfValue = String(patient.cpf || "").trim().replace(/\D/g, "");
       if (cpfValue) {
         const existing = db.patients.find(
-          (p) => String(p.cpf || "").trim() === cpfValue && !p.inactive
+          (p) => String(p.cpf || "").trim().replace(/\D/g, "") === cpfValue && !p.inactive
         );
         if (existing) {
           throw Object.assign(new Error("CPF já cadastrado"), { statusCode: 409, code: "CPF_DUPLICATE" });
         }
       }
-      const cnsValue = String(patient.cns || "").trim();
+      const cnsValue = String(patient.cns || "").trim().replace(/\D/g, "");
       if (cnsValue) {
         const existingCns = db.patients.find(
-          (p) => String(p.cns || "").trim() === cnsValue && !p.inactive
+          (p) => String(p.cns || "").trim().replace(/\D/g, "") === cnsValue && !p.inactive
         );
         if (existingCns) {
           throw Object.assign(new Error("CNS já cadastrado"), { statusCode: 409, code: "CNS_DUPLICATE" });
+        }
+      }
+      if (patient.assignedAcsId) {
+        const acsUser = db.users.find((u) => u.id === patient.assignedAcsId && !u.inactive && canonicalRole(u.role) === "acs");
+        if (!acsUser) {
+          throw Object.assign(new Error("ACS inválido ou inativo"), { statusCode: 400, code: "ACS_INVALID" });
+        }
+        if (String(acsUser.teamId || "") !== String(patient.teamId || "")) {
+          throw Object.assign(new Error("ACS não pertence à equipe do paciente"), { statusCode: 400, code: "ACS_TEAM_MISMATCH" });
         }
       }
       db.patients.push(patient);

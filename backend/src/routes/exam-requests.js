@@ -1,7 +1,7 @@
 import express from "express";
 import { v4 as uuidv4 } from "uuid";
 import { withDb, readDb } from "../db.js";
-import { hasAnyCapability, resolveActiveUnit } from "../utils/helpers.js";
+import { hasAnyCapability, resolveActiveUnit, canAccessTeamScope } from "../utils/helpers.js";
 import { ensureDbShape } from "../utils/domain.js";
 import { addAuditLog } from "../services/audit.js";
 
@@ -33,8 +33,11 @@ router.post("/exam-requests", async (req, res) => {
     ensureDbShape(db);
     const patient = (db.patients || []).find(p => p.id === body.patientId);
     if (!patient) return { error: "Paciente não encontrado", status: 404 };
+    if (!canAccessTeamScope(req.user, patient.teamId)) {
+      return { error: "Paciente fora da equipe atual", status: 403 };
+    }
 
-    const teamId = req.user.teamId || patient.teamId || null;
+    const teamId = String(patient.teamId || "").trim() || null;
     const now = new Date().toISOString();
     const request = {
       id: uuidv4(),
@@ -58,6 +61,7 @@ router.post("/exam-requests", async (req, res) => {
       scheduledTime: body.scheduledTime || null,
       executionType: body.executionType || "unidade",
       status: "pendente",
+      executingUnitId: resolveActiveUnit(req),
       executedById: null,
       executedByName: null,
       executedAt: null,
@@ -89,8 +93,7 @@ router.get("/exam-requests", async (req, res) => {
   const db = await readDb();
   ensureDbShape(db);
 
-  const teamId = req.user.teamId;
-  let items = (db.examRequests || []).filter(r => !teamId || String(r.teamId || "") === String(teamId || ""));
+  let items = (db.examRequests || []).filter(r => canAccessTeamScope(req.user, r.teamId));
 
   if (req.query.patientId) items = items.filter(r => r.patientId === req.query.patientId);
   if (req.query.status) {
@@ -114,6 +117,9 @@ router.get("/exam-requests/:id", async (req, res) => {
   ensureDbShape(db);
   const item = (db.examRequests || []).find(r => r.id === req.params.id);
   if (!item) return res.status(404).json({ error: "Pedido não encontrado" });
+  if (!canAccessTeamScope(req.user, item.teamId)) {
+    return res.status(403).json({ error: "Sem permissão para este pedido" });
+  }
 
   return res.json({ data: item });
 });
@@ -145,6 +151,9 @@ router.patch("/exam-requests/:id/status", async (req, res) => {
     if (idx < 0) return { error: "Pedido não encontrado", status: 404 };
 
     const current = db.examRequests[idx];
+    if (!canAccessTeamScope(req.user, current.teamId)) {
+      return { error: "Sem permissão para este pedido", status: 403 };
+    }
 
     // Block transitions from final states
     if (FINAL_STATUSES.has(current.status)) {

@@ -450,7 +450,7 @@ const AppointmentCreateSchema = z.object({
 
 const AgendaCreateSchema = z.object({
   patientId: z.string().trim().min(1).max(100),
-  date: z.string().trim().min(1).max(50),
+  date: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, "Data deve estar no formato YYYY-MM-DD"),
   time: z.string().trim().min(1).max(20),
   doctorId: optionalShortString(100),
   specialty: optionalShortString(100),
@@ -662,7 +662,7 @@ const CriticalActionReasonSchema = z.object({
 
 const ExamCreateSchema = z.object({
   title: z.string().trim().min(1).max(300),
-  date: z.string().trim().min(1).max(50),
+  date: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, "Data deve estar no formato YYYY-MM-DD"),
   notes: optionalShortString(20000),
   source: z.enum(["posto", "externo"]).optional()
 });

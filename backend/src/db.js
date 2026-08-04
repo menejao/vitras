@@ -177,7 +177,7 @@ function decryptText(value) {
 // Returns null when value or key is empty so partial indexes exclude missing data.
 function computeLookupHash(value, key) {
   if (!value || !key) return null;
-  const normalised = String(value).trim();
+  const normalised = String(value).trim().replace(/\D/g, "");
   if (!normalised) return null;
   return crypto.createHmac("sha256", key).update(normalised).digest("hex");
 }
@@ -282,6 +282,7 @@ function buildDefaultState() {
       return [
         {
           id: "u1",
+          vitrasId: "100000001",
           name: "Enfermeira Ana",
           role: "nurse_manager",
           email: "ana@clinica.local",
@@ -291,16 +292,23 @@ function buildDefaultState() {
           councilType: "COREN",
           councilNumber: "123456",
           councilUf: "SP",
+          twoFactorEnabled: false,
+          twoFactorSecret: "",
+          twoFactorPendingSecret: "",
           createdAt: now
         },
         {
           id: "u2",
+          vitrasId: "100000002",
           name: "ACS Carlos",
           role: "acs",
           email: "carlos@clinica.local",
           password: hashDefaultPassword("123456"),
           teamId: "team-ana",
           unitId: "unit-default",
+          twoFactorEnabled: false,
+          twoFactorSecret: "",
+          twoFactorPendingSecret: "",
           createdAt: now
         }
       ];

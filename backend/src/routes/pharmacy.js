@@ -9,7 +9,7 @@ import {
   PharmacyStockUpdateSchema,
 } from "../schemas.js";
 import { ensureDbShape } from "../utils/domain.js";
-import { hasCapability, councilTypeForRole } from "../utils/helpers.js";
+import { hasCapability, councilTypeForRole, resolveActiveUnit } from "../utils/helpers.js";
 import { addAuditLog } from "../services/audit.js";
 
 const router = express.Router();
@@ -322,6 +322,7 @@ router.post("/pharmacy/dispense", validate(PharmacyDispenseSchema), async (req, 
 
     const dispenseEntry = appendPharmacyLog(db, req.user, {
       type: "dispensa",
+      executingUnitId: resolveActiveUnit(req),
       itemId: updatedStock.id,
       itemName: updatedStock.name,
       patientId: patient.id,
