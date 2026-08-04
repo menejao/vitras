@@ -1,9 +1,10 @@
 // C04A/C04B/C04C: CDS Export endpoints — Cadastro Individual + Cadastro Domiciliar + Atendimento Individual
 // Capability required: cds.export (gestor, break_glass_admin only)
 // Audit: cds.export.{individual,domiciliar,atendimento} on every successful export
+// P0-2: Isolamento por UBS — unitId resolvido exclusivamente do contexto autenticado
 import express from "express";
 import { requireAuth } from "../middlewares/auth.js";
-import { hasCapability } from "../utils/helpers.js";
+import { hasCapability, resolveActiveUnit, canonicalRole } from "../utils/helpers.js";
 import { readDb } from "../db.js";
 import { ensureDbShape } from "../utils/domain.js";
 import { addAuditLog } from "../services/audit.js";
@@ -57,12 +58,16 @@ router.get("/export/cds/individual/:patientId", requireAuth, async (req, res) =>
 
   ensureDbShape(db);
 
-  const patient = db.patients.find(p => p.id === patientId);
-  if (!patient) return res.status(404).json({ error: "Paciente não encontrado." });
+  // P0-2: Resolve unitId exclusivamente do contexto autenticado — nunca do cliente
+  const activeUnitId = resolveActiveUnit(req);
+  const isBreakGlass = canonicalRole(req.user?.role) === "break_glass_admin";
 
-  // Territoriality: break_glass_admin has unrestricted access; gestor has patients.read.all
-  // Both have cds.export, so no additional scope check needed.
-  // (gestor can export any patient; break_glass_admin same)
+  const patient = db.patients.find(p => p.id === patientId);
+  // P0-2: Retorna 404 para pacientes de outra UBS (não revela existência)
+  // break_glass_admin tem acesso irrestrito (auditado); demais roles ficam isoladas por UBS
+  if (!patient || (!isBreakGlass && activeUnitId && patient.unitId && patient.unitId !== activeUnitId)) {
+    return res.status(404).json({ error: "Paciente não encontrado." });
+  }
 
   // Resolve professional = the requesting user
   const professional = db.users.find(u => u.id === req.user.id) || req.user;
@@ -91,16 +96,20 @@ router.get("/export/cds/individual/:patientId", requireAuth, async (req, res) =>
     return res.status(500).json({ error: "Erro ao gerar arquivo CDS.", detail: err.message });
   }
 
-  // Audit: register every export event
-  addAuditLog(db, buildCdsActor(req), "cds.export.individual", "patient", patientId, {
-    patientId,
-    fichaUuid: result.fichaUuid,
-    originUuid: result.originUuid,
-    isUpdate,
-    warnings: warnings.length > 0 ? warnings : undefined,
-    outcome: "success",
-    exportedBy: { id: req.user.id, name: req.user.name, role: req.user.role }
-  }).catch(() => {}); // audit failure must not block the download
+  // Audit: register every export event; addAuditLog is synchronous — use try/catch to ensure
+  // audit failure never blocks the download
+  try {
+    addAuditLog(db, buildCdsActor(req), "cds.export.individual", "patient", patientId, {
+      patientId,
+      fichaUuid: result.fichaUuid,
+      originUuid: result.originUuid,
+      isUpdate,
+      activeUnitId,
+      warnings: warnings.length > 0 ? warnings : undefined,
+      outcome: "success",
+      exportedBy: { id: req.user.id, name: req.user.name, role: req.user.role }
+    });
+  } catch (_) { /* audit failure must not block the download */ }
 
   res.setHeader("Content-Type", "application/zip");
   res.setHeader("Content-Disposition", `attachment; filename="${result.filename}"`);
@@ -142,11 +151,20 @@ router.get("/export/cds/domiciliar/:householdId", requireAuth, async (req, res) 
 
   ensureDbShape(db);
 
+  // P0-2: Resolve unitId exclusivamente do contexto autenticado — nunca do cliente
+  const activeUnitId = resolveActiveUnit(req);
+  const isBreakGlass = canonicalRole(req.user?.role) === "break_glass_admin";
+
   const household = db.households?.find(h => h.id === householdId);
+  // P0-2: Domicílios são isolados por UBS via patientId → patient.unitId
   if (!household) return res.status(404).json({ error: "Domicílio não encontrado." });
 
-  // Resolve patient who owns the household (for audit and context)
+  // Resolve patient who owns the household (for audit, context, and UBS isolation check)
   const patient = db.patients.find(p => p.id === household.patientId) || null;
+  // P0-2: Verificar isolamento por UBS via patient do domicílio
+  if (!isBreakGlass && activeUnitId && patient && patient.unitId && patient.unitId !== activeUnitId) {
+    return res.status(404).json({ error: "Domicílio não encontrado." });
+  }
 
   // Resolve professional = requesting user
   const professional = db.users.find(u => u.id === req.user.id) || req.user;
@@ -173,16 +191,19 @@ router.get("/export/cds/domiciliar/:householdId", requireAuth, async (req, res) 
     return res.status(500).json({ error: "Erro ao gerar arquivo CDS.", detail: err.message });
   }
 
-  addAuditLog(db, buildCdsActor(req), "cds.export.domiciliar", "household", householdId, {
-    householdId,
-    patientId: household.patientId,
-    fichaUuid: result.fichaUuid,
-    originUuid: result.originUuid,
-    isUpdate,
-    warnings: warnings.length > 0 ? warnings : undefined,
-    outcome: "success",
-    exportedBy: { id: req.user.id, name: req.user.name, role: req.user.role }
-  }).catch(() => {});
+  try {
+    addAuditLog(db, buildCdsActor(req), "cds.export.domiciliar", "household", householdId, {
+      householdId,
+      patientId: household.patientId,
+      fichaUuid: result.fichaUuid,
+      originUuid: result.originUuid,
+      isUpdate,
+      activeUnitId,
+      warnings: warnings.length > 0 ? warnings : undefined,
+      outcome: "success",
+      exportedBy: { id: req.user.id, name: req.user.name, role: req.user.role }
+    });
+  } catch (_) { /* audit failure must not block the download */ }
 
   res.setHeader("Content-Type", "application/zip");
   res.setHeader("Content-Disposition", `attachment; filename="${result.filename}"`);
@@ -225,8 +246,15 @@ router.get("/export/cds/atendimento/:patientId/:recordId", requireAuth, async (r
 
   ensureDbShape(db);
 
+  // P0-2: Resolve unitId exclusivamente do contexto autenticado — nunca do cliente
+  const activeUnitId = resolveActiveUnit(req);
+  const isBreakGlass = canonicalRole(req.user?.role) === "break_glass_admin";
+
   const patient = db.patients.find(p => p.id === patientId);
-  if (!patient) return res.status(404).json({ error: "Paciente não encontrado." });
+  // P0-2: Retorna 404 para pacientes de outra UBS (não revela existência)
+  if (!patient || (!isBreakGlass && activeUnitId && patient.unitId && patient.unitId !== activeUnitId)) {
+    return res.status(404).json({ error: "Paciente não encontrado." });
+  }
 
   const record = Array.isArray(patient.records)
     ? patient.records.find(r => r.id === recordId)
@@ -261,16 +289,19 @@ router.get("/export/cds/atendimento/:patientId/:recordId", requireAuth, async (r
   }
 
   // Audit: CID/CIAP in SPECIAL_CATEGORY_FIELDS — NOT included in audit details
-  addAuditLog(db, buildCdsActor(req), "cds.export.atendimento", "patient", patientId, {
-    recordId,
-    patientId,
-    recordType: record.type,
-    recordDate: record.date,
-    fichaUuid: result.fichaUuid,
-    warnings: warnings.length > 0 ? warnings : undefined,
-    outcome: "success",
-    exportedBy: { id: req.user.id, name: req.user.name, role: req.user.role },
-  }).catch(() => {});
+  try {
+    addAuditLog(db, buildCdsActor(req), "cds.export.atendimento", "patient", patientId, {
+      recordId,
+      patientId,
+      recordType: record.type,
+      recordDate: record.date,
+      fichaUuid: result.fichaUuid,
+      activeUnitId,
+      warnings: warnings.length > 0 ? warnings : undefined,
+      outcome: "success",
+      exportedBy: { id: req.user.id, name: req.user.name, role: req.user.role },
+    });
+  } catch (_) { /* audit failure must not block the download */ }
 
   res.setHeader("Content-Type", "application/zip");
   res.setHeader("Content-Disposition", `attachment; filename="${result.filename}"`);
@@ -307,8 +338,15 @@ router.get("/export/cds/visita/:visitId", requireAuth, async (req, res) => {
 
   ensureDbShape(db);
 
+  // P0-2: Resolve unitId exclusivamente do contexto autenticado — nunca do cliente
+  const activeUnitId = resolveActiveUnit(req);
+  const isBreakGlass = canonicalRole(req.user?.role) === "break_glass_admin";
+
   const visit = db.acsVisits?.find(v => v.id === visitId);
-  if (!visit) return res.status(404).json({ error: "Visita não encontrada." });
+  // P0-2: Visitas são isoladas por UBS via visit.unitId ou via patient.unitId
+  if (!visit || (!isBreakGlass && activeUnitId && visit.unitId && visit.unitId !== activeUnitId)) {
+    return res.status(404).json({ error: "Visita não encontrada." });
+  }
 
   const patient = db.patients.find(p => p.id === visit.patientId) || null;
 
@@ -333,17 +371,20 @@ router.get("/export/cds/visita/:visitId", requireAuth, async (req, res) => {
     return res.status(500).json({ error: "Erro ao gerar arquivo CDS.", detail: err.message });
   }
 
-  addAuditLog(db, buildCdsActor(req), "cds.export.visita", "acs_visit", visitId, {
-    visitId,
-    patientId: visit.patientId,
-    acsId: visit.acsId,
-    visitDate: visit.date,
-    desfecho: visit.desfecho,
-    fichaUuid: result.fichaUuid,
-    warnings: warnings.length > 0 ? warnings : undefined,
-    outcome: "success",
-    exportedBy: { id: req.user.id, name: req.user.name, role: req.user.role }
-  }).catch(() => {});
+  try {
+    addAuditLog(db, buildCdsActor(req), "cds.export.visita", "acs_visit", visitId, {
+      visitId,
+      patientId: visit.patientId,
+      acsId: visit.acsId,
+      visitDate: visit.date,
+      desfecho: visit.desfecho,
+      fichaUuid: result.fichaUuid,
+      activeUnitId,
+      warnings: warnings.length > 0 ? warnings : undefined,
+      outcome: "success",
+      exportedBy: { id: req.user.id, name: req.user.name, role: req.user.role }
+    });
+  } catch (_) { /* audit failure must not block the download */ }
 
   res.setHeader("Content-Type", "application/zip");
   res.setHeader("Content-Disposition", `attachment; filename="${result.filename}"`);

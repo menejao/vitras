@@ -138,6 +138,27 @@ if (IS_PROD && !BACKUP_EXPORT_KEY) {
 if (IS_PROD && !ADMIN_SEED_KEY) {
   throw new Error("ADMIN_SEED_KEY obrigatorio em producao");
 }
+// P0-4: PATIENT_LOOKUP_HASH_KEY obrigatório em produção — sem fallback silencioso
+const _PATIENT_LOOKUP_HASH_KEY_RAW = String(
+  process.env.PATIENT_LOOKUP_HASH_KEY || ""
+).trim();
+if (IS_PROD && !_PATIENT_LOOKUP_HASH_KEY_RAW) {
+  throw new Error(
+    "PATIENT_LOOKUP_HASH_KEY obrigatório em produção — chave HMAC para unicidade CPF/CNS (mínimo 32 caracteres, separada de DATA_ENCRYPTION_KEY)"
+  );
+}
+if (IS_PROD && _PATIENT_LOOKUP_HASH_KEY_RAW && _PATIENT_LOOKUP_HASH_KEY_RAW.length < 32) {
+  throw new Error(
+    "PATIENT_LOOKUP_HASH_KEY inválido em produção — mínimo 32 caracteres"
+  );
+}
+// P0-4: MUNICIPALITY_ID obrigatório em produção — sem município, cadastro falha silenciosamente
+const _MUNICIPALITY_ID_RAW = String(process.env.MUNICIPALITY_ID || "").trim();
+if (IS_PROD && !_MUNICIPALITY_ID_RAW) {
+  throw new Error(
+    "MUNICIPALITY_ID obrigatório em produção — código IBGE do município (7 dígitos)"
+  );
+}
 
 export {
   IS_PROD,

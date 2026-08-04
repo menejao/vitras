@@ -51,10 +51,30 @@ const optionalCnesField = () => z.preprocess(
   ]).optional()
 );
 
+// P0-3: LoginSchema aceita VitrasId (9 dígitos) OU e-mail como identificador.
+// Campo "email" é aceito como alias legado de "identifier" (retrocompatibilidade com testes e clientes antigos).
+// Senha nunca é normalizada — case-sensitive.
 const LoginSchema = z.object({
-  identifier: z.string().min(9).max(9).regex(/^\d{9}$/, "ID VITRAS deve ter exatamente 9 dígitos numéricos"),
+  identifier: z.string().max(255).optional().transform(v => String(v || "").trim()),
+  email: z.string().max(255).optional().transform(v => String(v || "").trim()), // alias legado
   password: z.string().min(1).max(1024)
-});
+}).transform(data => ({
+  identifier: (data.identifier || data.email || "").trim(),
+  password: data.password
+})).refine(
+  data => {
+    const id = data.identifier;
+    if (!id || id.length === 0) return false;
+    // Aceita: VitrasId (9 dígitos), e-mail (contém @), CNS (15 dígitos), CPF (11 dígitos só números)
+    if (/^\d{9}$/.test(id)) return true;
+    if (id.includes("@")) return true;
+    const digitsOnly = id.replace(/\D/g, "");
+    if (digitsOnly.length === 15) return true; // CNS
+    if (digitsOnly.length === 11) return true; // CPF
+    return false;
+  },
+  { message: "Identificador deve ser o ID VITRAS (9 dígitos), e-mail, CNS (15 dígitos) ou CPF (11 dígitos)" }
+);
 
 const RegisterSchema = z.object({
   name: z.string().min(1).max(200),
