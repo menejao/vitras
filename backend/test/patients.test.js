@@ -118,11 +118,13 @@ describe("Patients and clinical records", () => {
     foreignToken = loginForeign.json?.token || loginForeign.json?.accessToken || null;
   });
 
-  it("GET /patients returns array (may be empty for new team)", async () => {
+  it("GET /patients returns paginated response", async () => {
     if (!token) return;
     const { status, json } = await get("/patients", token);
     assert.equal(status, 200);
-    assert.ok(Array.isArray(json));
+    assert.ok(Array.isArray(json.patients));
+    assert.ok(typeof json.paginationMeta === "object");
+    assert.ok(typeof json.paginationMeta.total === "number");
   });
 
   it("POST /patients creates a patient", async () => {

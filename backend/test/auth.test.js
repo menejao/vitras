@@ -92,11 +92,12 @@ describe("Auth endpoints", () => {
     assert.ok(json.role);
   });
 
-  it("GET /patients with valid token returns array", async () => {
+  it("GET /patients with valid token returns paginated response", async () => {
     if (!accessToken) return;
     const { status, json } = await get("/patients", accessToken);
     assert.equal(status, 200);
-    assert.ok(Array.isArray(json));
+    assert.ok(Array.isArray(json.patients));
+    assert.ok(typeof json.paginationMeta === "object");
   });
 
   it("POST /auth/refresh with valid refresh token returns new access token", async () => {

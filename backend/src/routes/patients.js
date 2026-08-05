@@ -273,22 +273,42 @@ function hasSameTeamPatientAccess(user, patient, mode = "write") {
   return canAccessPatient(user, patient, mode);
 }
 
+const PATIENTS_LIST_DEFAULT_LIMIT = 200;
+const PATIENTS_LIST_MAX_LIMIT = 500;
+
 router.get("/patients", sensitiveDataRateLimit, async (req, res) => {
   const db = await readDb();
   ensureDbShape(db);
 
+  const page = Math.max(1, parseInt(req.query.page) || 1);
+  const limit = Math.min(Math.max(1, parseInt(req.query.limit) || PATIENTS_LIST_DEFAULT_LIMIT), PATIENTS_LIST_MAX_LIMIT);
+  const offset = (page - 1) * limit;
+
   // D-12: receptionist busca municipal — retorna sumário restrito sem dados clínicos/sensíveis
   if (canonicalRole(req.user?.role) === "receptionist") {
-    const patients = getAllowedPatients(db, req.user, req.query);
+    const allPatients = getAllowedPatients(db, req.user, req.query);
+    const total = allPatients.length;
+    const paginatedPatients = allPatients.slice(offset, offset + limit);
     await withDb((auditDb) => {
       ensureDbShape(auditDb);
       addAuditLog(auditDb, req.user, "patient.list_read", "patient", req.user.municipalityId || "municipal", {
         outcome: "success",
         scope: "municipal_receptionist",
-        totalReturned: patients.length
+        totalReturned: total,
+        page,
+        limit
       });
     });
-    return res.json(patients.map((p) => buildReceptionistPatientSummary(p)));
+    return res.json({
+      patients: paginatedPatients.map((p) => buildReceptionistPatientSummary(p)),
+      paginationMeta: {
+        total,
+        page,
+        limit,
+        hasNextPage: offset + limit < total,
+        totalPages: Math.ceil(total / limit) || 1
+      }
+    });
   }
 
   const snapshotPatients = await listPatientsSnapshot({
@@ -297,13 +317,17 @@ router.get("/patients", sensitiveDataRateLimit, async (req, res) => {
     assignedAcsId: req.query.acsId ? String(req.query.acsId).trim() : "",
     careCategory: req.query.careCategory ? String(req.query.careCategory).trim() : ""
   });
-  const patients = snapshotPatients.length ? getAllowedPatients({ ...db, patients: snapshotPatients }, req.user, req.query) : getAllowedPatients(db, req.user, req.query);
+  const allPatients = snapshotPatients.length ? getAllowedPatients({ ...db, patients: snapshotPatients }, req.user, req.query) : getAllowedPatients(db, req.user, req.query);
+  const total = allPatients.length;
+  const paginatedPatients = allPatients.slice(offset, offset + limit);
   await withDb((auditDb) => {
     ensureDbShape(auditDb);
     addAuditLog(auditDb, req.user, "patient.list_read", "patient", req.user.teamId || "scoped", {
       outcome: "success",
       teamId: req.user.teamId,
-      totalReturned: patients.length,
+      totalReturned: total,
+      page,
+      limit,
       filters: {
         microArea: String(req.query.microArea || ""),
         acsId: String(req.query.acsId || ""),
@@ -311,7 +335,16 @@ router.get("/patients", sensitiveDataRateLimit, async (req, res) => {
       }
     });
   });
-  res.json(patients.map((p) => filterNis(filterGestorSpecialCategory(filterCnsResponsavel(maskSensitivePatientFields(p), req.user), req.user), req.user)));
+  res.json({
+    patients: paginatedPatients.map((p) => filterNis(filterGestorSpecialCategory(filterCnsResponsavel(maskSensitivePatientFields(p), req.user), req.user), req.user)),
+    paginationMeta: {
+      total,
+      page,
+      limit,
+      hasNextPage: offset + limit < total,
+      totalPages: Math.ceil(total / limit) || 1
+    }
+  });
 });
 
 router.get("/patients/protocol-summaries", async (req, res) => {

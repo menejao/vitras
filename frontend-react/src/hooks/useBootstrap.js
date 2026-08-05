@@ -51,7 +51,14 @@ export function useBootstrap(token, {
       if (boot?.user) {
         refreshUserFromBoot(boot.user, boot?.csrfToken);
       }
-      const pts = Array.isArray(boot?.patients) ? boot.patients : await listPatients(token);
+      let pts;
+      if (Array.isArray(boot?.patients)) {
+        pts = boot.patients;
+      } else {
+        const patientsResp = await listPatients(token);
+        pts = Array.isArray(patientsResp?.patients) ? patientsResp.patients : (Array.isArray(patientsResp) ? patientsResp : []);
+        if (patientsResp?.paginationMeta) setPatientsPaginationMeta(patientsResp.paginationMeta);
+      }
       const us = Array.isArray(boot?.users) ? boot.users : await listUsers(token);
       const tpls = Array.isArray(boot?.protocolTemplates) ? boot.protocolTemplates : await listProtocolTemplates(token);
       setPatients(pts); setUsers(us); setTemplates(tpls);
