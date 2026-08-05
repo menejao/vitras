@@ -88,42 +88,10 @@ const VITRASID_PATCHES = [
 ];
 
 // ── New users (v3-) to create ─────────────────────────────────────────────────
+// Only edge-case users not covered by v2 seed.
+// Multi-UBS demo uses EXISTING v2 users with extra memberships (see EXTRA_MEMBERSHIPS).
+// No special "multi-UBS" users — one person = one vitrasId = multiple memberships.
 const NEW_USERS = [
-  {
-    id: 'v3-multi-01',
-    vitrasId: '140000001',
-    name: 'Coordenadora Municipal de Saúde',
-    email: 'coord.sms@santa-aurora.vitras.local',
-    role: 'gestor',
-    unitId: 'v2-ubs-horizonte',
-    teamId: 'v2-team-hzn-azul',
-    teamName: 'Horizonte Azul',
-    // Will have 3 memberships (H+E+A) — demonstrates unit selector
-  },
-  {
-    id: 'v3-multi-doc',
-    vitrasId: '140000002',
-    name: 'Dr. Roberto Lima Fonseca',
-    email: 'roberto.multidoc@santa-aurora.vitras.local',
-    role: 'doctor',
-    unitId: 'v2-ubs-horizonte',
-    teamId: 'v2-team-hzn-sol',
-    teamName: 'Caminhos do Sol',
-    councilType: 'CRM', councilNumber: '14002', councilUf: 'SC',
-    // Memberships: Horizonte (primary) + Esperança
-  },
-  {
-    id: 'v3-multi-enf',
-    vitrasId: '140000003',
-    name: 'Enf. Viviane Moreira Campos',
-    email: 'viviane.multienf@santa-aurora.vitras.local',
-    role: 'nurse_manager',
-    unitId: 'v2-ubs-horizonte',
-    teamId: 'v2-team-hzn-vida',
-    teamName: 'Nova Vida',
-    councilType: 'COREN', councilNumber: 'SC-24003', councilUf: 'SC',
-    // Memberships: Horizonte (primary) + Águas
-  },
   {
     id: 'v3-single-50',
     vitrasId: '110000050',
@@ -176,32 +144,39 @@ const NEW_USERS = [
 // Primary membership for v2 users already auto-created by ensureDbShape.
 // We only need to add EXTRA memberships here.
 const EXTRA_MEMBERSHIPS = [
-  // gestor-sms (100000001) — 3 UBS (ensureDbShape auto-creates at runtime but we seed explicitly)
+  // ── Usuários comuns v2 com memberships em múltiplas UBS ──────────────────────
+  // Regra: uma pessoa = um vitrasId = memberships adicionais. Sem contas duplicadas.
+
+  // v2-gestor-sms (100000001) — Dra. Clara Mendes, gestor, 3 UBS
   { id: 'v3-mem-sms-hzn', userId: 'v2-gestor-sms', unitId: 'v2-ubs-horizonte', teamId: 'v2-team-hzn-azul',  status: 'active', primary: true  },
   { id: 'v3-mem-sms-esp', userId: 'v2-gestor-sms', unitId: 'v2-ubs-esperanca', teamId: 'v2-team-esp-norte', status: 'active', primary: false },
   { id: 'v3-mem-sms-agu', userId: 'v2-gestor-sms', unitId: 'v2-ubs-aguas',     teamId: 'v2-team-aguas-c',  status: 'active', primary: false },
 
-  // v3-multi-01 (140000001) — gestor with 3 UBS access
-  { id: 'v3-mem-m01-hzn', userId: 'v3-multi-01',   unitId: 'v2-ubs-horizonte', teamId: 'v2-team-hzn-azul',  status: 'active', primary: true  },
-  { id: 'v3-mem-m01-esp', userId: 'v3-multi-01',   unitId: 'v2-ubs-esperanca', teamId: 'v2-team-esp-norte', status: 'active', primary: false },
-  { id: 'v3-mem-m01-agu', userId: 'v3-multi-01',   unitId: 'v2-ubs-aguas',     teamId: 'v2-team-aguas-c',  status: 'active', primary: false },
+  // v2-ges-hzn (110000001) — Priscila Rocha, gestor, Horizonte primário + Esperança + Águas
+  // Demonstra: gestor comum com vínculo em 3 UBS via fluxo de membership
+  { id: 'v3-mem-ges-hzn', userId: 'v2-ges-hzn',    unitId: 'v2-ubs-horizonte', teamId: 'v2-team-hzn-azul',  status: 'active', primary: true  },
+  { id: 'v3-mem-ges-esp', userId: 'v2-ges-hzn',    unitId: 'v2-ubs-esperanca', teamId: 'v2-team-esp-norte', status: 'active', primary: false },
+  { id: 'v3-mem-ges-agu', userId: 'v2-ges-hzn',    unitId: 'v2-ubs-aguas',     teamId: 'v2-team-aguas-c',  status: 'active', primary: false },
 
-  // v3-multi-doc (140000002) — doctor in Horizonte + Esperança
-  { id: 'v3-mem-mdoc-hzn', userId: 'v3-multi-doc', unitId: 'v2-ubs-horizonte', teamId: 'v2-team-hzn-sol',   status: 'active', primary: true  },
-  { id: 'v3-mem-mdoc-esp', userId: 'v3-multi-doc', unitId: 'v2-ubs-esperanca', teamId: 'v2-team-esp-norte', status: 'active', primary: false },
+  // v2-doc-hzn-1 (110000003) — Dr. Márcio Alves, doctor, Horizonte primário + Esperança
+  // Demonstra: médico atuando em 2 UBS com mesmo vitrasId
+  { id: 'v3-mem-doc-hzn', userId: 'v2-doc-hzn-1',  unitId: 'v2-ubs-horizonte', teamId: 'v2-team-hzn-azul',  status: 'active', primary: true  },
+  { id: 'v3-mem-doc-esp', userId: 'v2-doc-hzn-1',  unitId: 'v2-ubs-esperanca', teamId: 'v2-team-esp-norte', status: 'active', primary: false },
 
-  // v3-multi-enf (140000003) — nurse in Horizonte + Águas
-  { id: 'v3-mem-menf-hzn', userId: 'v3-multi-enf', unitId: 'v2-ubs-horizonte', teamId: 'v2-team-hzn-vida',  status: 'active', primary: true  },
-  { id: 'v3-mem-menf-agu', userId: 'v3-multi-enf', unitId: 'v2-ubs-aguas',     teamId: 'v2-team-aguas-c',  status: 'active', primary: false },
+  // v2-enf-hzn-1 (110000004) — Enf. Sílvia Nascimento, nurse_manager, Horizonte primário + Águas
+  // Demonstra: enfermeiro vinculado a 2 UBS
+  { id: 'v3-mem-enf-hzn', userId: 'v2-enf-hzn-1',  unitId: 'v2-ubs-horizonte', teamId: 'v2-team-hzn-azul',  status: 'active', primary: true  },
+  { id: 'v3-mem-enf-agu', userId: 'v2-enf-hzn-1',  unitId: 'v2-ubs-aguas',     teamId: 'v2-team-aguas-c',  status: 'active', primary: false },
 
-  // v3-single-50 (110000050) — single UBS only (primary created auto from unitId)
+  // ── Edge cases ─────────────────────────────────────────────────────────────
+  // v3-single-50 (110000050) — Dra. Carla Pinto, doctor, única UBS (sem seletor)
   { id: 'v3-mem-s50-hzn',  userId: 'v3-single-50', unitId: 'v2-ubs-horizonte', teamId: 'v2-team-hzn-azul',  status: 'active', primary: true  },
 
-  // v3-inact-101 — INACTIVE membership (login should resolve to 403 on unit access)
+  // v3-inact-101 — membership INATIVO (acesso negado)
   { id: 'v3-mem-inact-hzn', userId: 'v3-inact-101', unitId: 'v2-ubs-horizonte', teamId: 'v2-team-hzn-azul', status: 'inactive', primary: false },
 
-  // v3-noubs-201 — no membership at all (handled by empty array)
-  // v3-supadmin — no membership (platform role skips membership check)
+  // v3-noubs-201 — sem membership (edge case: usuário sem UBS)
+  // v3-supadmin — sem membership (platform role, não passa por membership check)
 ];
 
 // ── DB helpers ────────────────────────────────────────────────────────────────
@@ -402,6 +377,15 @@ async function main() {
       );
     }
 
+    // Remove stale v3 shadow rows not in current NEW_USERS
+    const currentV3Ids = NEW_USERS.map(u => u.id);
+    if (currentV3Ids.length > 0) {
+      await client.query(
+        `DELETE FROM app_users WHERE id LIKE 'v3-%' AND id NOT IN (${currentV3Ids.map((_,i)=>`$${i+1}`).join(',')})`,
+        currentV3Ids
+      );
+    }
+
     // Upsert new v3 users into shadow table app_users
     for (const u of NEW_USERS) {
       const payload = {
@@ -438,7 +422,7 @@ async function main() {
   const checkUsers = checkState.users || [];
   const checkMems  = checkState.userUnitMemberships || [];
 
-  // Check canonical vitrasIds
+  // Check canonical vitrasIds (sem 14000000x — removidos por violar regra de usuário único)
   const canonicalIds = [
     '100000001','110000001','110000002','110000003','110000004',
     '110000006','110000007','110000008','110000009','110000010',
@@ -447,7 +431,6 @@ async function main() {
     '120000006','120000007','120000008','120000009','120000010','120000011',
     '130000001','130000002','130000003','130000004',
     '130000006','130000007','130000008',
-    '140000001','140000002','140000003',
     '110000050','190000001','190000101','190000201',
   ];
 
@@ -461,12 +444,12 @@ async function main() {
   }
   log(`  vitrasId check: ${passCount}/${canonicalIds.length} PASS${failCount > 0 ? `, ${failCount} FAIL` : ''}`);
 
-  // Check multi-UBS users have multiple memberships
+  // Check multi-UBS memberships em usuários comuns (uma pessoa = um vitrasId)
   const multiUbs = [
-    { id: 'v2-gestor-sms', label: 'gestor-sms (100000001)', expected: 3 },
-    { id: 'v3-multi-01',   label: 'v3-multi-01 (140000001)', expected: 3 },
-    { id: 'v3-multi-doc',  label: 'v3-multi-doc (140000002)', expected: 2 },
-    { id: 'v3-multi-enf',  label: 'v3-multi-enf (140000003)', expected: 2 },
+    { id: 'v2-gestor-sms', label: 'Clara Mendes (100000001) gestor 3 UBS', expected: 3 },
+    { id: 'v2-ges-hzn',    label: 'Priscila Rocha (110000001) gestor 3 UBS', expected: 3 },
+    { id: 'v2-doc-hzn-1',  label: 'Dr. Márcio (110000003) médico 2 UBS',    expected: 2 },
+    { id: 'v2-enf-hzn-1',  label: 'Enf. Sílvia (110000004) enf 2 UBS',      expected: 2 },
   ];
   for (const m of multiUbs) {
     const mems = checkMems.filter(x => x.userId === m.id && x.status === 'active');
@@ -501,29 +484,32 @@ async function main() {
   log(`\n══ Done in ${elapsed()} ════════════════════════════════════════════════`);
   log('');
   log('CREDENCIAIS DE DEMONSTRAÇÃO (senha: Demo@2026!)');
-  log('─────────────────────────────────────────────────────────────');
-  log('ID           Role           Nome/Função');
-  log('─────────────────────────────────────────────────────────────');
-  log('100000001    gestor         Dra. Clara Mendes — Gestor Municipal (3 UBS)');
-  log('110000001    gestor         Priscila Rocha — Gestor UBS Horizonte');
-  log('110000002    receptionist   Eliane Costa — Recepção Horizonte');
-  log('110000003    doctor         Dr. Márcio Alves — Médico Horizonte');
-  log('110000004    nurse_manager  Enf. Sílvia Nascimento — Horizonte');
-  log('110000006..  acs            ACS Horizonte MA-01..11');
-  log('120000001    gestor         Cássia Teixeira — Gestor UBS Esperança');
-  log('120000002    receptionist   Paulo Sérgio — Recepção Esperança');
-  log('120000003    doctor         Dr. Leonardo Farias — Médico Esperança');
-  log('130000001    gestor         André Borges — Gestor UBS Águas');
-  log('130000002    receptionist   Estela Matos — Recepção Águas');
-  log('130000003    doctor         Dra. Simone Freitas — Médico Águas');
-  log('140000001    gestor         Coord. Municipal — Multi-UBS (H+E+A) unit selector');
-  log('140000002    doctor         Dr. Roberto Lima — Multi-UBS (H+E)');
-  log('140000003    nurse_manager  Enf. Viviane Moreira — Multi-UBS (H+A)');
-  log('110000050    doctor         Dra. Carla Pinto — Single UBS (sem seletor)');
-  log('190000001    support_admin  Suporte Plataforma — Console Nacional only');
-  log('190000101    receptionist   [BLOQUEADO] Membership inativo');
-  log('190000201    receptionist   [EDGE CASE] Sem UBS');
-  log('─────────────────────────────────────────────────────────────');
+  log('─────────────────────────────────────────────────────────────────────────');
+  log('ID           Role           Nome / Memberships');
+  log('─────────────────────────────────────────────────────────────────────────');
+  log('100000001    gestor         Dra. Clara Mendes Figueiredo [H+E+A] → seletor');
+  log('110000001    gestor         Priscila Rocha Andrade [H+E+A] → seletor');
+  log('110000002    receptionist   Eliane Costa Santos [Horizonte]');
+  log('110000003    doctor         Dr. Márcio Alves Pereira [H+E] → seletor');
+  log('110000004    nurse_manager  Enf. Sílvia Nascimento Couto [H+A] → seletor');
+  log('110000006    acs            ACS Antônia Ferreira Silva [MA-01 Horizonte]');
+  log('110000007..  acs            ACS Horizonte MA-02..11 (IDs 110000007..016)');
+  log('120000001    gestor         Cássia Teixeira Lima [Esperança]');
+  log('120000002    receptionist   Paulo Sérgio Ramos [Esperança]');
+  log('120000003    doctor         Dr. Leonardo Farias Souza [Esperança]');
+  log('120000004    nurse_manager  Enf. Natália Campos Braga [Esperança]');
+  log('120000006..  acs            ACS Esperança MA-01..06 (IDs 120000006..011)');
+  log('130000001    gestor         André Borges Lima [Águas]');
+  log('130000002    receptionist   Estela Matos Cunha [Águas]');
+  log('130000003    doctor         Dra. Simone Freitas Albuquerque [Águas]');
+  log('130000004    nurse_manager  Enf. Mauro Carvalho Neto [Águas]');
+  log('130000006..  acs            ACS Águas MA-01..03 (IDs 130000006..008)');
+  log('110000050    doctor         Dra. Carla Pinto Azevedo [Horizonte] → entrada direta');
+  log('190000001    support_admin  Suporte Vitras Plataforma [sem UBS] → Console Nacional');
+  log('190000101    receptionist   [BLOQUEADO] membership inativo');
+  log('190000201    receptionist   [EDGE] sem membership — tratamento seguro');
+  log('─────────────────────────────────────────────────────────────────────────');
+  log('Demonstração de multi-UBS: mesma pessoa, múltiplos memberships, único vitrasId');
 }
 
 main()
