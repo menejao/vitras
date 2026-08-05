@@ -6,6 +6,7 @@ import { ensureDbShape } from "../utils/domain.js";
 import { canAccessPatient, getPatientOrError } from "../utils/patients.js";
 import { hasAnyCapability, resolveActiveUnit } from "../utils/helpers.js";
 import { addAuditLog } from "../services/audit.js";
+import { recordMetric } from "../services/metrics.js";
 
 const router = express.Router();
 const attachmentJsonParser = express.json({ type: "application/x.valens-exam-attachment+json", limit: "20mb" });
@@ -116,6 +117,7 @@ router.post("/patients/:id/exams", validate(ExamCreateSchema), async (req, res) 
   await withDb((mutableDb) => {
     ensureDbShape(mutableDb);
     mutableDb.exams.push(exam);
+    recordMetric("exam.created", 1, { teamId: exam.teamId, unitId: req.user?.unitId || "-" });
     addAuditLog(mutableDb, req.user, "exam.created", "exam", exam.id, {
       patientId,
       teamId: exam.teamId,

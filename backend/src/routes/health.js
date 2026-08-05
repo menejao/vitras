@@ -1,6 +1,6 @@
 import express from "express";
 import { pool, checkDbHealth, isPostgresMode } from "../db.js";
-import { IS_PROD, UPSTASH_URL, UPSTASH_TOKEN, READ_ONLY_MODE } from "../config.js";
+import { IS_PROD, UPSTASH_URL, UPSTASH_TOKEN, READ_ONLY_MODE, APP_VERSION } from "../config.js";
 import { getRuntimeState, getStartupPhase, isDegraded, getDegradedReason } from "../services/runtime-state.js";
 import { getMetrics } from "../middlewares/logging.js";
 import { logWarn } from "../utils/logger.js";
@@ -125,6 +125,8 @@ router.get("/health", async (_req, res) => {
     ready: runtime.readiness.ready,
     degraded,
     degradedReason: degraded ? degradedReason : undefined,
+    version: APP_VERSION,
+    uptimeSeconds: Math.floor(process.uptime()),
     subsystems,
     timestamp: new Date().toISOString(),
     runtime: {

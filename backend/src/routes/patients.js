@@ -27,6 +27,7 @@ import {
 import { buildProtocolSummary, restrictSummaryAlertsForForeignTeam } from "../utils/protocol-eval.js";
 import { validateClinicalRecordPayload, buildMonthlyDemandMetric, buildDataQualityMetric } from "../utils/metrics.js";
 import { addAuditLog } from "../services/audit.js";
+import { recordMetric } from "../services/metrics.js";
 import { sensitiveDataRateLimit } from "../middlewares/rate-limits.js";
 import { MUNICIPALITY_ID } from "../config.js";
 
@@ -559,6 +560,7 @@ router.post("/patients", requireManagerOrDoctor, validate(PatientCreateSchema), 
         }
       }
       db.patients.push(patient);
+      recordMetric("patient.created", 1, { teamId: patient.teamId, unitId: req.user?.unitId || "-" });
       // F5-01: Extract household fields from payload and persist in db.households
       const householdFromCreate = extractHouseholdFields(payload);
       upsertHousehold(db, patient.id, patient.teamId, householdFromCreate, req.user);
@@ -994,6 +996,7 @@ router.post("/patients/:id/appointments", validate(AppointmentCreateSchema), asy
   await withDb((mutableDb) => {
     ensureDbShape(mutableDb);
     mutableDb.appointments.push(appointment);
+    recordMetric("appointment.created", 1, { teamId: appointment.teamId, unitId: req.user?.unitId || "-" });
     addAuditLog(mutableDb, req.user, "appointment.created", "appointment", appointment.id, {
       patientId: id
     });

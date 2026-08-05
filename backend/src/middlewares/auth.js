@@ -2,6 +2,7 @@ import jwt from "jsonwebtoken";
 import { JWT_SECRET, JWT_ISSUER, JWT_AUDIENCE, COOKIE_ACCESS_NAME } from "../config.js";
 import { canonicalRole, hasRole, hasCapability, hasAnyCapability, getClientIp } from "../utils/helpers.js";
 import { parseCookies } from "../utils/session-cookies.js";
+import { logWarn } from "../utils/logger.js";
 
 function requireAuth(req, res, next) {
   const authHeader = req.headers.authorization || "";
@@ -10,6 +11,12 @@ function requireAuth(req, res, next) {
   const token = bearerToken || cookieToken;
 
   if (!token) {
+    logWarn("security.auth.token_missing", {
+      requestId: req.requestId || "-",
+      method: req.method,
+      path: req.originalUrl,
+      ip: getClientIp(req)
+    });
     return res.status(401).json({ error: "Token ausente" });
   }
 
@@ -35,7 +42,14 @@ function requireAuth(req, res, next) {
     };
     req.authTransport = bearerToken ? "bearer" : "cookie";
     return next();
-  } catch {
+  } catch (err) {
+    logWarn("security.auth.token_invalid", {
+      requestId: req.requestId || "-",
+      method: req.method,
+      path: req.originalUrl,
+      ip: getClientIp(req),
+      reason: err?.name || "unknown"
+    });
     return res.status(401).json({ error: "Token inválido ou expirado" });
   }
 }
@@ -87,6 +101,13 @@ function blockSupportAdminFromClinical(req, res, next) {
   const allowedPrefixes = ["/platform", "/auth/", "/health", "/readyz", "/api-docs", "/me"];
   const path = req.path || req.originalUrl || "";
   if (allowedPrefixes.some((prefix) => path.startsWith(prefix))) return next();
+  logWarn("security.authz.support_admin_clinical_blocked", {
+    requestId: req.requestId || "-",
+    userId: req.user?.id || "-",
+    method: req.method,
+    path: req.originalUrl,
+    ip: getClientIp(req)
+  });
   return res.status(403).json({
     error: "Conta de suporte nacional não tem acesso a dados clínicos ou operacionais da UBS"
   });

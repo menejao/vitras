@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { REQUEST_LOG_ENABLED } from "../config.js";
+import { REQUEST_LOG_ENABLED, APP_VERSION } from "../config.js";
 import { getClientIp } from "../utils/helpers.js";
 import { logInfo } from "../utils/logger.js";
 
@@ -50,6 +50,10 @@ function requestLoggingMiddleware(req, res, next) {
       status: res.statusCode,
       durationMs,
       userId: req.user?.id || "-",
+      role: req.user?.role || "-",
+      activeUnitId: req.user?.unitId || "-",
+      userAgent: String(req.headers["user-agent"] || "").slice(0, 200),
+      appVersion: APP_VERSION,
       ip: getClientIp(req)
     });
   });

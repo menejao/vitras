@@ -592,6 +592,7 @@ router.post("/auth/logout", requireAuth, async (req, res) => {
       breakGlass: Boolean(req.user?.breakGlass?.active)
     });
   });
+  recordMetric("auth.logout", 1, { userId: req.user.id, role: req.user.role });
   clearSessionCookies(res);
   return res.json({ ok: true });
 });
@@ -804,6 +805,7 @@ async function handleUnitSwitch(req, res, auditAction) {
     return tokenRecord;
   });
 
+  recordMetric("auth.ubs_switch", 1, { userId: req.user.id, newUnitId: unitId });
   return res.json(issueSession(res, contextUser, db, {}, refreshRaw, sessionId));
 }
 

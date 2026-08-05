@@ -52,9 +52,9 @@ export async function stopTestServer() {
   _base = null;
 }
 
-export async function req(method, path, body, token) {
+export async function req(method, path, body, token, extraHeaders = {}) {
   const base = _base || (await startTestServer());
-  const headers = { "Content-Type": "application/json" };
+  const headers = { "Content-Type": "application/json", ...extraHeaders };
   if (token) headers["Authorization"] = `Bearer ${token}`;
   const res = await fetch(`${base}${path}`, {
     method,
@@ -67,6 +67,6 @@ export async function req(method, path, body, token) {
   return { status: res.status, headers: res.headers, json };
 }
 
-export const get = (path, token) => req("GET", path, null, token);
+export const get = (path, token, extraHeaders) => req("GET", path, null, token, extraHeaders);
 export const post = (path, body, token) => req("POST", path, body, token);
 export const patch = (path, body, token) => req("PATCH", path, body, token);
