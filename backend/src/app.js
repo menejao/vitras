@@ -7,6 +7,7 @@ import { globalRateLimit } from "./middlewares/rate-limits.js";
 import { requireAuth, blockSupportAdminFromClinical } from "./middlewares/auth.js";
 import { requireCsrfForCookieAuth } from "./middlewares/csrf.js";
 import { globalErrorHandler } from "./middlewares/errors.js";
+import compression from "compression";
 
 import { labPublicRouter, labNotificationsRouter } from "./routes/lab.js";
 import healthRouter from "./routes/health.js";
@@ -60,6 +61,20 @@ app.disable("x-powered-by");
 
 setupHelmet(app);
 setupCors(app);
+
+// PERF-06: gzip/brotli compression for text payloads ≥1KB.
+// Threshold prevents compression overhead on small responses (health, errors, auth tokens).
+// Filter excludes already-compressed content types (images, zip, etc.).
+// No BREACH risk: VITRAS never reflects secrets in compressed responses — auth tokens
+// are in non-reflected headers; patient data is scoped per authenticated user.
+app.use(compression({
+  threshold: 1024,
+  filter: (req, res) => {
+    const ct = res.getHeader("Content-Type") || "";
+    if (/image|audio|video|zip|gzip|br|compress/.test(String(ct))) return false;
+    return compression.filter(req, res);
+  }
+}));
 
 app.use(securityHeadersMiddleware);
 app.use(contentTypeMiddleware);

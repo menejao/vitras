@@ -91,7 +91,9 @@ if (pool) {
 
 let _dbCache = null;
 let _dbCacheAt = 0;
-const DB_CACHE_TTL_MS = 1500;
+// PERF-04: TTL configurable via env — longer cache = fewer O(N) AES-GCM decrypt cycles on read.
+// Default 1500ms (original); production should set DB_CACHE_TTL_MS=5000 for 3× fewer decrypts.
+const DB_CACHE_TTL_MS = Math.max(0, parseInt(process.env.DB_CACHE_TTL_MS || "1500", 10));
 
 // serialize file writes to prevent concurrent overwrites
 let _fileLockChain = Promise.resolve();
@@ -1639,6 +1641,77 @@ async function findPatientByIdSnapshot(id) {
   return list[0] || null;
 }
 
+// PERF-05: Build RBAC WHERE clause for app_patients SQL queries without loading full db.patients.
+// Mirrors getAllowedPatients() logic for the no-filter bootstrap case (includeInactive=false).
+function _buildPatientRbacWhere(user) {
+  const role = canonicalRole(user?.role);
+  const clauses = [];
+  const values = [];
+  if (role === "break_glass_admin") {
+    // global — no tenant restriction
+  } else if (role === "receptionist") {
+    const userMuni = String(user?.municipalityId || "").trim();
+    if (userMuni) {
+      values.push(userMuni);
+      clauses.push(`municipality_id = $${values.length}`);
+    } else {
+      values.push(String(user?.teamId || ""));
+      clauses.push(`team_id = $${values.length}`);
+    }
+  } else if (role === "acs") {
+    values.push(String(user?.teamId || ""));
+    clauses.push(`team_id = $${values.length}`);
+    values.push(String(user?.id || ""));
+    clauses.push(`assigned_acs_id = $${values.length}`);
+  } else if (role === "gestor") {
+    const userUnitId = String(user?.unitId || "").trim();
+    if (!userUnitId) {
+      clauses.push("FALSE"); // gestor without unitId sees nothing (mirrors buildGestorUnitTeamIds null return)
+    } else {
+      values.push(userUnitId);
+      clauses.push(`unit_id = $${values.length}`);
+    }
+  } else {
+    // nurse_manager, doctor, local_admin, etc. — team-scoped write access
+    values.push(String(user?.teamId || ""));
+    clauses.push(`team_id = $${values.length}`);
+  }
+  return { clauses, values };
+}
+
+// PERF-05: Paginated patient list for bootstrap using shadow table — bypasses O(N) JS filter.
+// Returns null in file mode (caller falls back to getAllowedPatients).
+async function listPatientsForBootstrap(user, { page = 1, limit = 500 } = {}) {
+  if (!isPostgresMode()) return null;
+  await initialize();
+  const { clauses, values } = _buildPatientRbacWhere(user);
+  const allClauses = [...clauses, "inactive = false"];
+  const where = `WHERE ${allClauses.join(" AND ")}`;
+  const offset = (page - 1) * limit;
+  const [countResult, rowsResult] = await Promise.all([
+    pool.query(`SELECT COUNT(*) FROM app_patients ${where}`, values),
+    pool.query(
+      `SELECT payload FROM app_patients ${where} ORDER BY name ASC LIMIT $${values.length + 1} OFFSET $${values.length + 2}`,
+      [...values, limit, offset]
+    )
+  ]);
+  const total = parseInt(countResult.rows[0].count, 10);
+  const patients = rowsResult.rows.map(parseShadowPayload).filter(Boolean);
+  return { patients, total };
+}
+
+// PERF-05: Patient ID set for task cross-filtering — ID-only query, no payload deserialization.
+// Returns null in file mode.
+async function listPatientIdsForBootstrap(user) {
+  if (!isPostgresMode()) return null;
+  await initialize();
+  const { clauses, values } = _buildPatientRbacWhere(user);
+  const allClauses = [...clauses, "inactive = false"];
+  const where = `WHERE ${allClauses.join(" AND ")}`;
+  const result = await pool.query(`SELECT id FROM app_patients ${where}`, values);
+  return new Set(result.rows.map((r) => r.id));
+}
+
 async function listAppointmentsByPatientId(patientId) {
   if (!isPostgresMode()) {
     const db = await readDb();
@@ -1789,6 +1862,8 @@ export {
   findRefreshTokenByHash,
   listPatientsSnapshot,
   findPatientByIdSnapshot,
+  listPatientsForBootstrap,
+  listPatientIdsForBootstrap,
   listAppointmentsByPatientId,
   listAuditLogsSnapshot,
   listRolePermissionsSnapshot,

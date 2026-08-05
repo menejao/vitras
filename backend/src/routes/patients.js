@@ -28,6 +28,7 @@ import { buildProtocolSummary, restrictSummaryAlertsForForeignTeam } from "../ut
 import { validateClinicalRecordPayload, buildMonthlyDemandMetric, buildDataQualityMetric } from "../utils/metrics.js";
 import { addAuditLog } from "../services/audit.js";
 import { recordMetric } from "../services/metrics.js";
+import { logInfo } from "../utils/logger.js";
 import { sensitiveDataRateLimit } from "../middlewares/rate-limits.js";
 import { MUNICIPALITY_ID } from "../config.js";
 
@@ -289,15 +290,17 @@ router.get("/patients", sensitiveDataRateLimit, async (req, res) => {
     const allPatients = getAllowedPatients(db, req.user, req.query);
     const total = allPatients.length;
     const paginatedPatients = allPatients.slice(offset, offset + limit);
-    await withDb((auditDb) => {
-      ensureDbShape(auditDb);
-      addAuditLog(auditDb, req.user, "patient.list_read", "patient", req.user.municipalityId || "municipal", {
-        outcome: "success",
-        scope: "municipal_receptionist",
-        totalReturned: total,
-        page,
-        limit
-      });
+    // PERF-02: patient list read is observability, not LGPD-mandatory hash chain audit.
+    // Use logInfo (zero DB writes) instead of withDb audit to remove lock from read hot path.
+    logInfo("patient.list_read", {
+      event: "patient.list_read",
+      userId: req.user?.id,
+      role: req.user?.role,
+      scope: "municipal_receptionist",
+      totalReturned: total,
+      page,
+      limit,
+      requestId: req.requestId
     });
     return res.json({
       patients: paginatedPatients.map((p) => buildReceptionistPatientSummary(p)),
@@ -320,20 +323,21 @@ router.get("/patients", sensitiveDataRateLimit, async (req, res) => {
   const allPatients = snapshotPatients.length ? getAllowedPatients({ ...db, patients: snapshotPatients }, req.user, req.query) : getAllowedPatients(db, req.user, req.query);
   const total = allPatients.length;
   const paginatedPatients = allPatients.slice(offset, offset + limit);
-  await withDb((auditDb) => {
-    ensureDbShape(auditDb);
-    addAuditLog(auditDb, req.user, "patient.list_read", "patient", req.user.teamId || "scoped", {
-      outcome: "success",
-      teamId: req.user.teamId,
-      totalReturned: total,
-      page,
-      limit,
-      filters: {
-        microArea: String(req.query.microArea || ""),
-        acsId: String(req.query.acsId || ""),
-        careCategory: String(req.query.careCategory || "")
-      }
-    });
+  // PERF-02: structured log replaces withDb audit for list reads — no lock acquisition per GET.
+  logInfo("patient.list_read", {
+    event: "patient.list_read",
+    userId: req.user?.id,
+    role: req.user?.role,
+    teamId: req.user?.teamId,
+    totalReturned: total,
+    page,
+    limit,
+    filters: {
+      microArea: String(req.query.microArea || ""),
+      acsId: String(req.query.acsId || ""),
+      careCategory: String(req.query.careCategory || "")
+    },
+    requestId: req.requestId
   });
   res.json({
     patients: paginatedPatients.map((p) => filterNis(filterGestorSpecialCategory(filterCnsResponsavel(maskSensitivePatientFields(p), req.user), req.user), req.user)),

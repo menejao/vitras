@@ -1,5 +1,5 @@
 import express from "express";
-import { readDb, readDbForBackup, withDb, pool } from "../db.js";
+import { readDb, readDbForBackup, withDb, pool, isPostgresMode, listPatientsForBootstrap, listPatientIdsForBootstrap } from "../db.js";
 import { BACKUP_EXPORT_KEY, ADMIN_SEED_KEY, ENABLE_ADMIN_SEED, ENABLE_BACKUP_EXPORT, IS_PROD } from "../config.js";
 import { rebuildPatientHashes } from "../services/hashRebuild.js";
 import {
@@ -83,19 +83,33 @@ router.get("/admin/backup/export", requireAuth, requireSensitiveAdmin, async (re
 const BOOTSTRAP_PAGE_LIMIT = 500;
 
 router.get("/bootstrap", requireAuth, async (req, res) => {
-  const db = await readDb();
-  ensureDbShape(db);
-
   const page = Math.max(1, parseInt(req.query.page) || 1);
   const limit = Math.min(Math.max(1, parseInt(req.query.limit) || BOOTSTRAP_PAGE_LIMIT), BOOTSTRAP_PAGE_LIMIT);
   const offset = (page - 1) * limit;
 
-  const canReadAllUsers = hasCapability(req.user, "users.read.all");
+  // PERF-05: In Postgres mode, readDb (for tasks/users/metrics) and SQL patient queries run in parallel.
+  // Shadow table queries bypass O(N) getAllowedPatients JS scan and avoid touching the JSONB patient payload.
+  let db, paginatedPatients, total, allAllowedPatientIds;
+  if (isPostgresMode()) {
+    const [dbResult, bootstrapPats, patientIds] = await Promise.all([
+      readDb(),
+      listPatientsForBootstrap(req.user, { page, limit }),
+      listPatientIdsForBootstrap(req.user)
+    ]);
+    db = dbResult;
+    paginatedPatients = bootstrapPats.patients;
+    total = bootstrapPats.total;
+    allAllowedPatientIds = patientIds;
+  } else {
+    db = await readDb();
+    const allAllowedPatients = getAllowedPatients(db, req.user, {});
+    total = allAllowedPatients.length;
+    paginatedPatients = allAllowedPatients.slice(offset, offset + limit);
+    allAllowedPatientIds = new Set(allAllowedPatients.map((p) => p.id));
+  }
+  ensureDbShape(db);
 
-  // REM-02: load full allowed-patient list once for RBAC-correct task filtering, then paginate for response
-  const allAllowedPatients = getAllowedPatients(db, req.user, {});
-  const total = allAllowedPatients.length;
-  const paginatedPatients = allAllowedPatients.slice(offset, offset + limit);
+  const canReadAllUsers = hasCapability(req.user, "users.read.all");
 
   const users = db.users
     .filter((u) => !isPlatformRole(u) && (canReadAllUsers || u.teamId === req.user.teamId))
@@ -103,7 +117,6 @@ router.get("/bootstrap", requireAuth, async (req, res) => {
   const protocolTemplates = Object.values(getProtocolTemplateMap(db, req.user.teamId));
 
   // Tasks filtered by full allowed-patient scope (not just current page) for correctness
-  const allAllowedPatientIds = new Set(allAllowedPatients.map((p) => p.id));
   const tasks = db.tasks.filter((t) => allAllowedPatientIds.has(t.patientId));
 
   const demandMonthly = (isManager(req.user) || isDoctor(req.user))
@@ -117,18 +130,19 @@ router.get("/bootstrap", requireAuth, async (req, res) => {
     ? buildTeamDemandByProfessional(db, req.user.teamId)
     : null;
   const unitName = (db.units || []).find((u) => u.id === resolveActiveUnit(req))?.name || "";
-  await withDb((auditDb) => {
-    ensureDbShape(auditDb);
-    addAuditLog(auditDb, buildAdminAuditActor(req), "admin.bootstrap_read", "bootstrap", req.user.id, {
-      outcome: "success",
-      teamId: req.user.teamId || "",
-      patientCount: total,
-      patientPageCount: paginatedPatients.length,
-      userCount: users.length,
-      taskCount: tasks.length,
-      page,
-      limit
-    });
+  // PERF-02: bootstrap read is observability, not LGPD-mandatory hash chain audit.
+  logInfo("admin.bootstrap_read", {
+    event: "admin.bootstrap_read",
+    userId: req.user?.id,
+    role: req.user?.role,
+    teamId: req.user?.teamId || "",
+    patientCount: total,
+    patientPageCount: paginatedPatients.length,
+    userCount: users.length,
+    taskCount: tasks.length,
+    page,
+    limit,
+    requestId: req.requestId
   });
 
   return res.json({
@@ -162,14 +176,14 @@ router.get("/bootstrap", requireAuth, async (req, res) => {
 
 router.get("/integrations/council/status", requireAuth, async (req, res) => {
   const config = getCouncilIntegrationConfig();
-  await withDb((db) => {
-    ensureDbShape(db);
-    addAuditLog(db, buildAdminAuditActor(req), "admin.council_status_read", "integration", "council", {
-      outcome: "success",
-      mode: config.mode,
-      provider: config.provider,
-      configured: Boolean(config.url)
-    });
+  // PERF-02: config read — structured log, no DB lock.
+  logInfo("admin.council_status_read", {
+    event: "admin.council_status_read",
+    userId: req.user?.id,
+    mode: config.mode,
+    provider: config.provider,
+    configured: Boolean(config.url),
+    requestId: req.requestId
   });
   return res.json({
     mode: config.mode,
