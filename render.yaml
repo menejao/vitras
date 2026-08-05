@@ -74,6 +74,10 @@ services:
       - key: REQUEST_LOG_ENABLED
         value: "true"
 
+      # ── Performance (PERF-04: reduz frequência de decrypt AES-256-GCM) ─────────
+      - key: DB_CACHE_TTL_MS
+        value: "5000"
+
       # ── Rate limits (ajustáveis conforme uso) ─────────────────────────────────
       - key: GLOBAL_RATE_LIMIT_MAX
         value: "600"
