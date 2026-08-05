@@ -20,22 +20,24 @@
 
 - Erro em funcionalidade não-crítica específica
 - Problema de UX/UI sem impacto clínico
-- Alarme CloudWatch sem impacto de usuário confirmado
+- Alarme de monitoramento sem impacto de usuário confirmado
 
-## Procedimento de rollback EB
+## Procedimento de rollback Render
 
-### Opção 1: Rollback pelo EB Console (preferido)
+### Opção 1: Rollback pelo Render Dashboard (preferido)
 
-1. AWS Console → Elastic Beanstalk → [aplicação] → [ambiente]
-2. Application Versions
-3. Selecionar versão anterior estável
-4. Deploy → apenas para este ambiente
-5. Aguardar /readyz 200
+1. Render Dashboard → `vitras-backend` → Deploys
+2. Localizar último deploy estável (verde)
+3. Clicar em "Rollback to this deploy"
+4. Aguardar deploy completar (~2-3 min)
+5. Confirmar `GET /readyz` retorna 200
 
-### Opção 2: EB CLI
+### Opção 2: Redeploy de commit anterior
 
 ```bash
-eb deploy --version [previous-version-label]
+# Identificar SHA do último deploy estável no Render Deploys
+git push origin <sha-estavel>:main --force-with-lease
+# Render auto-deploya quando render.yaml aponta para main
 ```
 
 ### Opção 3: Restore from backup (se dados corrompidos)

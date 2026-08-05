@@ -19,17 +19,40 @@ Antes de iniciar o onboarding de uma nova UBS, verificar:
 
 ## 2. SOP de Onboarding
 
-### Passo 1: Criar o Gestor
+### Passo 1: Criar a Unidade (requer `break_glass_admin`)
 
 ```bash
-# Criar gestor via registro (se self-register habilitado para gestor em prod)
-# ou via seed admin
+POST /platform/units
+Authorization: Bearer $BREAK_GLASS_TOKEN
+Content-Type: application/json
 
-POST /auth/register
 {
-  "email": "gestor@ubs-nova.local",
-  "password": "SenhaForte@2026",
+  "name": "UBS Centro São Paulo — Unidade 01",
+  "cnes": "1234567",
+  "municipalityName": "São Paulo",
+  "municipalityId": "3550308",
+  "uf": "SP",
+  "street": "Rua das Flores",
+  "streetNumber": "100",
+  "neighborhood": "Centro",
+  "cep": "01000000",
+  "phone": "(11) 3000-0000",
+  "contactEmail": "ubs-centro@saude.sp.gov.br"
+}
+```
+
+**Resposta:** `{ "id": "<unitId-gerado>", ... }` — anotar `unitId`.
+
+### Passo 2: Criar Gestor Inicial da Unidade
+
+```bash
+POST /platform/units/:unitId/initial-manager
+Authorization: Bearer $BREAK_GLASS_TOKEN
+Content-Type: application/json
+
+{
   "name": "Dr. João Silva",
+  "email": "joao@ubs-nova.local",
   "role": "gestor",
   "councilType": "CRM",
   "councilNumber": "123456",
@@ -37,52 +60,28 @@ POST /auth/register
 }
 ```
 
-### Passo 2: Anotar o gestorUserId
+**Resposta:** `{ "userId": "...", "temporaryPassword": "..." }` — senha temporária retornada **uma única vez**; comunicar ao gestor imediatamente. Gestor deverá trocá-la no primeiro login.
+
+> **Nota:** `POST /auth/register` não cria gestores em produção — `PUBLIC_SELF_REGISTER_ROLES` inclui apenas `receptionist` por default.
+
+### Passo 3: Criar Equipe
 
 ```bash
-GET /admin/bootstrap
-Authorization: Bearer $ADMIN_TOKEN
-# Encontrar o userId do gestor recém-criado no array `users`
-```
-
-### Passo 3: Bootstrap da Unidade
-
-```bash
-POST /admin/units/bootstrap
+POST /platform/units/:unitId/teams
 Authorization: Bearer $BREAK_GLASS_TOKEN
 Content-Type: application/json
 
 {
-  "unitId": "ubs-centro-sp-01",
-  "unitName": "UBS Centro São Paulo — Unidade 01",
-  "gestorUserId": "uuid-do-gestor"
-}
-```
-
-**Resposta esperada (201/200):**
-```json
-{
-  "ok": true,
-  "unitId": "ubs-centro-sp-01",
-  "gestorUserId": "uuid-do-gestor",
-  "message": "Unidade 'ubs-centro-sp-01' criada e gestor associado com sucesso"
-}
-```
-
-### Passo 4: Criar Equipe para a Unidade
-
-```bash
-POST /admin/teams (ou via seed)
-{
   "name": "Equipe Azul",
-  "unitId": "ubs-centro-sp-01",
-  "managerUserId": "uuid-do-gestor"
+  "areaCode": "001"
 }
 ```
 
-### Passo 5: Convidar Profissionais
+**Resposta:** `{ "id": "<teamId-gerado>", ... }` — anotar `teamId`.
 
-Registrar ACS, enfermeiros, médicos com o `teamId` correto.
+### Passo 4: Convidar Profissionais
+
+Profissionais (ACS, enfermeiros, médicos) cadastram-se via `POST /auth/register` (receptionist e outros roles públicos) ou via criação pela plataforma. Associar ao `teamId` correto.
 
 ### Passo 6: Validação
 
