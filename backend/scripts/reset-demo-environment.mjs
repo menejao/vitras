@@ -172,6 +172,7 @@ async function describeResetPlan(breakGlass) {
 
   const bgIds = breakGlass.map(u => u.id);
   log(`PRESERVE Break Glass accounts: ${bgIds.join(', ')}`);
+  log('PRESERVE support_admin accounts (platform role — persists across resets)');
   log('PRESERVE schema_migrations (migrations history)');
   log('PRESERVE ciap2, cid10, municipalities (catalog tables)');
   log('PRESERVE app_role_permissions (RBAC capabilities)');
@@ -195,7 +196,16 @@ async function describeResetPlan(breakGlass) {
 // ── Execute Reset ─────────────────────────────────────────────────────────────
 async function executeReset(breakGlass) {
   const bgIds = breakGlass.map(u => u.id);
-  const bgIdPlaceholders = bgIds.map((_, i) => `$${i + 1}`).join(', ');
+
+  // Also preserve support_admin accounts (platform role, needed across resets)
+  const saResult = await query("SELECT id FROM app_users WHERE role = 'support_admin' AND (inactive IS NULL OR inactive = false)");
+  const saIds = saResult.rows.map(r => r.id);
+  if (saIds.length > 0) {
+    log(`PRESERVE support_admin accounts: ${saIds.join(', ')}`);
+  }
+
+  const preservedIds = [...new Set([...bgIds, ...saIds])];
+  const bgIdPlaceholders = preservedIds.map((_, i) => `$${i + 1}`).join(', ');
 
   log('=== EXECUTING RESET ===');
 
@@ -235,17 +245,17 @@ async function executeReset(breakGlass) {
     const r6 = await client.query('DELETE FROM app_patients');
     log(`✓ Deleted app_patients: ${r6.rowCount} rows`);
 
-    // 7. Users — preserve break_glass_admin
+    // 7. Users — preserve break_glass_admin and support_admin
     let r7;
-    if (bgIds.length > 0) {
+    if (preservedIds.length > 0) {
       r7 = await client.query(
         `DELETE FROM app_users WHERE id NOT IN (${bgIdPlaceholders})`,
-        bgIds
+        preservedIds
       );
     } else {
       r7 = await client.query('DELETE FROM app_users');
     }
-    log(`✓ Deleted app_users (non-BG): ${r7.rowCount} rows`);
+    log(`✓ Deleted app_users (preserved BG+SA): ${r7.rowCount} rows`);
 
     // 8. Units
     const r8 = await client.query('DELETE FROM app_units');
@@ -307,14 +317,16 @@ async function executeReset(breakGlass) {
       notifications: [],
     };
 
-    // Re-add break_glass_admin to app_state.data.users
-    if (bgIds.length > 0) {
-      const bgUsers = await client.query(
+    // Re-add break_glass_admin and support_admin to app_state.data.users
+    if (preservedIds.length > 0) {
+      const preservedUsers = await client.query(
         `SELECT payload FROM app_users WHERE id IN (${bgIdPlaceholders})`,
-        bgIds
+        preservedIds
       );
-      emptyState.users = bgUsers.rows.map(r => r.payload).filter(Boolean);
-      log(`✓ Break Glass accounts preserved in app_state.data.users: ${emptyState.users.length}`);
+      emptyState.users = preservedUsers.rows.map(r => r.payload).filter(Boolean);
+      const bgCount = emptyState.users.filter(u => u.role === 'break_glass_admin').length;
+      const saCount = emptyState.users.filter(u => u.role === 'support_admin').length;
+      log(`✓ Preserved in app_state.data.users: ${emptyState.users.length} (BG: ${bgCount}, SA: ${saCount})`);
     }
 
     const r9 = await client.query(
@@ -351,12 +363,12 @@ async function verifyReset(expectedBgIds) {
     if (!pass) allPass = false;
   }
 
-  // Users: only break_glass_admin should remain
+  // Users: only break_glass_admin and support_admin should remain
   const users = await query("SELECT id, email, role FROM app_users");
-  const bgOnly = users.rows.every(u => u.role === 'break_glass_admin');
-  log(`${bgOnly ? '✓' : '✗'} app_users: ${users.rows.length} rows (all break_glass_admin: ${bgOnly})`);
-  if (!bgOnly) {
-    log(`  Remaining: ${users.rows.map(u => `${u.email}(${u.role})`).join(', ')}`);
+  const platformOnly = users.rows.every(u => ['break_glass_admin','support_admin'].includes(u.role));
+  log(`${platformOnly ? '✓' : '✗'} app_users: ${users.rows.length} rows (only platform roles: ${platformOnly})`);
+  if (!platformOnly) {
+    log(`  Remaining: ${users.rows.filter(u => !['break_glass_admin','support_admin'].includes(u.role)).map(u => `${u.email}(${u.role})`).join(', ')}`);
     allPass = false;
   }
 
