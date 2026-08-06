@@ -350,6 +350,33 @@ function ensureDbShape(db) {
     return { ...u, unitId: team?.unitId || "unit-default" };
   });
 
+  // VITRAS-GLOBAL-PATIENT-REFERENCE-ATTRIBUTION-01 FASE 1:
+  // Auto-heal: ensure all patients have referenceUnitId (canonical field).
+  // referenceUnitId = unitId when unset. Never overwrites a non-empty referenceUnitId.
+  // Keeps unitId in sync: if they diverge (data corruption), log and overwrite referenceUnitId
+  // with unitId (unitId is the source of truth for backward compat until a formal transfer).
+  if (Array.isArray(db.patients)) {
+    let healed = 0;
+    let diverged = 0;
+    db.patients = db.patients.map((p) => {
+      const uid = String(p.unitId || "").trim();
+      const refUid = String(p.referenceUnitId || "").trim();
+      if (!refUid) {
+        healed++;
+        return { ...p, referenceUnitId: uid };
+      }
+      if (refUid !== uid) {
+        // Divergence: referenceUnitId was set but differs from unitId.
+        // This should not happen in normal operation — log for observability.
+        diverged++;
+        console.warn(`[ensureDbShape] referenceUnitId divergence patient=${p.id} unitId=${uid} referenceUnitId=${refUid}`);
+      }
+      return p;
+    });
+    if (healed > 0) console.info(`[ensureDbShape] referenceUnitId healed for ${healed} patients`);
+    if (diverged > 0) console.warn(`[ensureDbShape] referenceUnitId divergence detected in ${diverged} patients — check migration-021`);
+  }
+
   // Sprint A: populate userUnitMemberships from existing user.unitId (idempotent)
   // role and capabilities remain exclusively on the user — membership is the operational link only.
   //

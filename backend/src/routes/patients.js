@@ -461,7 +461,9 @@ router.post("/patients", requireManagerOrDoctor, validate(PatientCreateSchema), 
     return res.status(400).json({ error: "Equipe responsável inválida" });
   }
 
-  // Derive unitId from the team that owns this patient
+  // Derive unitId/referenceUnitId from the team that owns this patient.
+  // referenceUnitId is the canonical field (VITRAS-GLOBAL-PATIENT-REFERENCE-ATTRIBUTION-01 FASE 1).
+  // unitId is kept in sync for backward compat (cds-export.js and legacy reads).
   const patientTeam = db.teams.find((t) => t.id === patientTeamId);
   const patientUnitId = String(patientTeam?.unitId || resolveActiveUnit(req));
   const patientMunicipalityId = String(req.user.municipalityId || MUNICIPALITY_ID || "");
@@ -469,6 +471,7 @@ router.post("/patients", requireManagerOrDoctor, validate(PatientCreateSchema), 
   const patient = {
     id: uuidv4(),
     teamId: patientTeamId,
+    referenceUnitId: patientUnitId,
     unitId: patientUnitId,
     municipalityId: patientMunicipalityId,
     name: String(payload.name).trim(),
@@ -1146,7 +1149,7 @@ router.post("/patients/:id/records", async (req, res) => {
       executingTeamId: String(req.user.teamId || ""),
       executingUnitId: resolveActiveUnit(req),
       patientReferenceTeamId: String(lookup.patient.teamId || ""),
-      patientReferenceUnitId: String(lookup.patient.unitId || ""),
+      patientReferenceUnitId: String(lookup.patient.referenceUnitId || lookup.patient.unitId || ""),
       municipalityId: String(lookup.patient.municipalityId || ""),
       isCrossTeam: String(req.user.teamId || "") !== String(lookup.patient.teamId || ""),
       createdBy: req.user.id,
@@ -1338,7 +1341,7 @@ router.post("/patients/:id/records", async (req, res) => {
     executingTeamId: String(req.user.teamId || ""),
     executingUnitId: resolveActiveUnit(req),
     patientReferenceTeamId: patientTeamId,
-    patientReferenceUnitId: String(lookup.patient.unitId || ""),
+    patientReferenceUnitId: String(lookup.patient.referenceUnitId || lookup.patient.unitId || ""),
     municipalityId: String(lookup.patient.municipalityId || ""),
     isCrossTeam,
     ...(isCrossTeam ? { crossTeamJustification: String(payload.crossTeamJustification || "").trim() } : {}),
@@ -1362,7 +1365,7 @@ router.post("/patients/:id/records", async (req, res) => {
 
     // D-09: audit trail completo com campos de rastreabilidade APS municipal
     if (isCrossTeam) {
-      const isCrossUnit = resolveActiveUnit(req) !== String(lookup.patient.unitId || "");
+      const isCrossUnit = resolveActiveUnit(req) !== String(lookup.patient.referenceUnitId || lookup.patient.unitId || "");
       addAuditLog(mutableDb, req.user, isCrossUnit ? "clinical_record.cross_unit" : "clinical_record.cross_team", "patient", id, {
         executingProfessionalId: req.user.id,
         executingTeamId: record.executingTeamId,

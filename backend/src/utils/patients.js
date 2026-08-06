@@ -322,6 +322,7 @@ function buildReceptionistPatientSummary(patient) {
     birthDate: patient.birthDate || "",
     cpf: masked.cpf || "",
     cns: masked.cns || "",
+    referenceUnitId: patient.referenceUnitId || patient.unitId || "",
     unitId: patient.unitId || "",
     teamId: patient.teamId || "",
     inactive: patient.inactive || false
