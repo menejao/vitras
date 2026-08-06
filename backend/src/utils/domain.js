@@ -352,13 +352,17 @@ function ensureDbShape(db) {
 
   // Sprint A: populate userUnitMemberships from existing user.unitId (idempotent)
   // role and capabilities remain exclusively on the user — membership is the operational link only.
+  // IAM: if a user already has ANY explicit membership (active or inactive), skip auto-create.
+  // This preserves inactive-only scenarios — auto-create is backward-compat for legacy users only.
   {
     const now = new Date().toISOString();
     const membershipKey = (userId, unitId) => `${userId}:${unitId}`;
     const existingKeys = new Set(
       db.userUnitMemberships.map((m) => membershipKey(m.userId, m.unitId))
     );
+    const usersWithAnyMembership = new Set(db.userUnitMemberships.map((m) => m.userId));
     for (const u of db.users) {
+      if (usersWithAnyMembership.has(u.id)) continue; // explicit memberships take precedence
       const uid = String(u.unitId || "").trim();
       if (!uid) continue;
       const key = membershipKey(u.id, uid);
@@ -374,6 +378,7 @@ function ensureDbShape(db) {
         updatedAt: now
       });
       existingKeys.add(key);
+      usersWithAnyMembership.add(u.id);
     }
   }
 

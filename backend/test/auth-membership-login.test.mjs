@@ -64,16 +64,13 @@ describe("Auth login — membership guard", () => {
     assert.ok(user, "usuário não encontrado no DB");
 
     if (!Array.isArray(db.userUnitMemberships)) db.userUnitMemberships = [];
-    db.userUnitMemberships.push({
-      id: `test-mem-extra-${Date.now()}`,
-      userId: user.id,
-      unitId: "unit-extra-test",
-      teamId: "",
-      status: "active",
-      primary: false,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    });
+    const ts2 = Date.now();
+    // With domain.js fix, ensureDbShape skips auto-create for users with any existing membership.
+    // So we must inject BOTH memberships explicitly to get activeMemberships.length >= 2.
+    db.userUnitMemberships.push(
+      { id: `test-mem-primary-${ts2}`, userId: user.id, unitId: "unit-default", teamId: "", status: "active", primary: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+      { id: `test-mem-extra-${ts2}`, userId: user.id, unitId: "unit-extra-test", teamId: "", status: "active", primary: false, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
+    );
     if (!db.units) db.units = [];
     if (!db.units.find((u) => u.id === "unit-extra-test")) {
       db.units.push({ id: "unit-extra-test", name: "UBS Extra Teste", cnes: "", createdAt: new Date().toISOString() });
