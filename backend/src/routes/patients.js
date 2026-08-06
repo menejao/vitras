@@ -410,9 +410,26 @@ router.get("/patients/:id", sensitiveDataRateLimit, async (req, res) => {
     if (CLINICAL_READ_ROLES.has(role)) {
       // FASE 2: clinical roles — municipal scope for GET by ID
       if (!canAccessPatient(req.user, patient, "read")) {
+        logInfo("patient.access_denied", {
+          event: "patient.access_denied",
+          reason: "cross_municipality",
+          userId: req.user?.id,
+          role: req.user?.role,
+          patientId: id,
+          userMunicipalityId: req.user?.municipalityId || "",
+          requestId: req.requestId
+        });
         return res.status(403).json({ error: "Sem permissão para acessar este paciente" });
       }
     } else if (patient.teamId !== req.user.teamId) {
+      logInfo("patient.access_denied", {
+        event: "patient.access_denied",
+        reason: "cross_team",
+        userId: req.user?.id,
+        role: req.user?.role,
+        patientId: id,
+        requestId: req.requestId
+      });
       return res.status(403).json({ error: "Sem permissão para acessar este paciente" });
     }
   }
