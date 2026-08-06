@@ -367,6 +367,18 @@ router.post("/auth/login", authRateLimit, validate(LoginSchema), async (req, res
     return res.status(403).json({ error: "Conta desativada. Contate o gestor da UBS." });
   }
 
+  // IAM early guard: check active memberships on the already-ensureDbShape-cleaned db (line 315).
+  // This fires before withDb at line 421 so no refresh token is issued for blocked users.
+  // The late guard below (after line 436) remains as a safety net.
+  if (!isPlatformRole(user)) {
+    const earlyActiveMemberships = (db.userUnitMemberships || [])
+      .filter((m) => m.userId === user.id && m.status === "active");
+    if (earlyActiveMemberships.length === 0) {
+      recordMetric("auth_failure", 1, { reason: "no_active_membership" });
+      return res.status(403).json({ error: "Usuário sem vínculo ativo com uma UBS. Contate o gestor da UBS." });
+    }
+  }
+
   if (!isHashedPassword(user.password)) {
     await withDb((mutableDb) => {
       ensureDbShape(mutableDb);
