@@ -462,6 +462,17 @@ router.post("/auth/login", authRateLimit, validate(LoginSchema), async (req, res
       }));
       return res.json({ ...session, requiresUnitSelection: true, availableUnits });
     }
+    // IAM: block clinical session when user has no active membership.
+    // ensureDbShape auto-creates a membership from user.unitId, so zero active memberships
+    // means the user genuinely has no operational link to any UBS.
+    if (activeMemberships.length === 0) {
+      recordMetric("auth_failure", 1, { reason: "no_active_membership" });
+      await withDb((auditDb) => {
+        ensureDbShape(auditDb);
+        addAuditLog(auditDb, user, "auth.login_blocked_no_membership", "auth", user.id, { userId: user.id });
+      });
+      return res.status(403).json({ error: "Usuário sem vínculo ativo com uma UBS. Contate o gestor da UBS." });
+    }
   }
 
   return res.json(issueSession(res, user, db, {}, refresh.raw, refresh.sessionId));

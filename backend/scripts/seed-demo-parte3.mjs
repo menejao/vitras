@@ -121,10 +121,11 @@ const NEW_USERS = [
     name: 'Usuário Membership Inativo',
     email: 'inativo.demo@horizonte.vitras.local',
     role: 'receptionist',
-    unitId: 'v2-ubs-horizonte',
-    teamId: 'v2-team-hzn-azul',
-    teamName: 'Horizonte Azul',
-    // Will have INACTIVE membership — login blocked (403)
+    unitId: '',
+    teamId: '',
+    teamName: '',
+    // unitId must be empty so ensureDbShape does NOT auto-create an active membership.
+    // The only membership is v3-mem-inact-hzn with status='inactive' → login returns 403.
   },
   {
     id: 'v3-noubs-201',

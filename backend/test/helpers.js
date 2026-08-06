@@ -14,8 +14,11 @@ const _tmpDir = mkdtempSync(join(tmpdir(), "saudeubs-test-"));
 const _tmpDb = join(_tmpDir, "db.json");
 writeFileSync(_tmpDb, JSON.stringify({}), "utf8"); // empty DB — app will auto-init shape
 
-// Set test env before any app import
+// Set test env before any app import.
+// DATABASE_URL must be cleared so DB_DRIVER="file" — tests use the isolated temp file,
+// never the production/staging Postgres instance.
 process.env.NODE_ENV = "test";
+process.env.DATABASE_URL = "";
 process.env.JWT_SECRET = "test-jwt-secret-not-for-production-use-only";
 process.env.DATA_ENCRYPTION_KEY = "test-data-enc-key-32-bytes-pad00";
 process.env.COUNCIL_VERIFY_MODE = "off";
