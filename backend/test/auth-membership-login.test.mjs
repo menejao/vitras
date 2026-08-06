@@ -67,8 +67,10 @@ describe("Auth login — membership guard", () => {
     const ts2 = Date.now();
     // With domain.js fix, ensureDbShape skips auto-create for users with any existing membership.
     // So we must inject BOTH memberships explicitly to get activeMemberships.length >= 2.
+    // Both memberships use non-default unit IDs so ensureDbShape's self-heal
+    // (which removes unit-default when real units exist) does not drop either one.
     db.userUnitMemberships.push(
-      { id: `test-mem-primary-${ts2}`, userId: user.id, unitId: "unit-default", teamId: "", status: "active", primary: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+      { id: `test-mem-primary-${ts2}`, userId: user.id, unitId: "unit-real-primary-test", teamId: "", status: "active", primary: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
       { id: `test-mem-extra-${ts2}`, userId: user.id, unitId: "unit-extra-test", teamId: "", status: "active", primary: false, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
     );
     if (!db.units) db.units = [];

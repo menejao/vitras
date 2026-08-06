@@ -352,15 +352,34 @@ function ensureDbShape(db) {
 
   // Sprint A: populate userUnitMemberships from existing user.unitId (idempotent)
   // role and capabilities remain exclusively on the user — membership is the operational link only.
-  // IAM: if a user already has ANY explicit membership (active or inactive), skip auto-create.
-  // This preserves inactive-only scenarios — auto-create is backward-compat for legacy users only.
+  //
+  // Self-healing: old deployments auto-created a "unit-default" active membership as backward compat.
+  // If a user now has any membership for a real (non-unit-default) unit, the unit-default one is
+  // stale and must be removed so the auth guard can correctly enforce inactive-only scenarios.
   {
     const now = new Date().toISOString();
     const membershipKey = (userId, unitId) => `${userId}:${unitId}`;
+
+    // Find users who have at least one membership for a real (non-default) unit.
+    const usersWithRealUnit = new Set(
+      db.userUnitMemberships
+        .filter((m) => String(m.unitId || "").trim() !== "unit-default")
+        .map((m) => m.userId)
+    );
+
+    // Self-heal: remove stale unit-default memberships for users that have real-unit memberships.
+    // These were auto-created by old ensureDbShape as backward compat and are no longer valid.
+    db.userUnitMemberships = db.userUnitMemberships.filter(
+      (m) => !(usersWithRealUnit.has(m.userId) && String(m.unitId || "").trim() === "unit-default")
+    );
+
+    // Also track users with any remaining membership (active or inactive) to skip auto-create.
+    const usersWithAnyMembership = new Set(db.userUnitMemberships.map((m) => m.userId));
+
     const existingKeys = new Set(
       db.userUnitMemberships.map((m) => membershipKey(m.userId, m.unitId))
     );
-    const usersWithAnyMembership = new Set(db.userUnitMemberships.map((m) => m.userId));
+
     for (const u of db.users) {
       if (usersWithAnyMembership.has(u.id)) continue; // explicit memberships take precedence
       const uid = String(u.unitId || "").trim();
