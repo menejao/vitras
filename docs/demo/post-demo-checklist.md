@@ -31,8 +31,8 @@
 
 | # | Item | Ação | Esperado | Status |
 |---|------|------|----------|--------|
-| 9 | Health ainda passa | `GET /health` | `ok: true` | |
-| 10 | Readyz ainda passa | `GET /readyz` | `ready: true` | |
+| 9 | Health ainda passa | `GET https://vitras.onrender.com/health` | `ok: true` | |
+| 10 | Readyz ainda passa | `GET https://vitras.onrender.com/readyz` | `subsystems.migrations: ok` | |
 | 11 | Break Glass íntegro | Verificar que ID não foi alterado | ID preservado | |
 | 12 | Support Admin íntegro | `app_users WHERE role='support_admin'` | 1 registro, inactive=false | |
 | 13 | Nenhuma variável destrutiva ativa no Render | Verificar dashboard | `DEMO_RESET_ALLOWED` ausente ou false | |

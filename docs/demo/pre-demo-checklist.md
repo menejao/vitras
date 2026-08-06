@@ -10,11 +10,11 @@
 
 | # | Item | Comando / URL | Esperado | Status |
 |---|------|---------------|----------|--------|
-| 1 | Backend online | `GET https://vitras-backend.onrender.com/health` | HTTP 200, `ok: true` | |
+| 1 | Backend online | `GET https://vitras.onrender.com/health` | HTTP 200, `ok: true` | |
 | 2 | Frontend online | Abrir URL demo no browser | Tela de login carrega | |
 | 3 | Neon online | Verificado via `/health` (campo `postgres: ok`) | ok | |
-| 4 | Health 200 | `GET /health` | `{"ok":true,"status":"ok"}` | |
-| 5 | Readyz 200 | `GET /readyz` | `{"ready":true}` | |
+| 4 | Health 200 | `GET https://vitras.onrender.com/health` | `{"ok":true,"status":"ok"}` | |
+| 5 | Readyz 200 | `GET https://vitras.onrender.com/readyz` | `{"ready":true,"subsystems.migrations":"ok"}` | |
 | 6 | Versão correta | `GET /health` campo `version` | `1.1.0-rc.1` ou superior | |
 | 7 | Seed correto | Verificar app_users count ≥ 57 no DB | ≥ 57 usuários demo | |
 | 8 | Sem variável destrutiva | `DEMO_RESET_ALLOWED` não está em `true` no Render | variável ausente ou `false` | |
