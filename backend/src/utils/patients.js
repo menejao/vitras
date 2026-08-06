@@ -387,6 +387,25 @@ function getAllowedPatients(db, user, query) {
     });
   }
 
+  // FASE 2: Clinical roles — municipal list (cross-UBS allowed, same municipalityId)
+  if (CLINICAL_READ_ROLES.has(canonicalRole(user?.role))) {
+    const userMuni = String(user?.municipalityId || "").trim();
+    return db.patients.filter((p) => {
+      if (!includeInactive && p.inactive) return false;
+      if (userMuni) {
+        const patientMuni = String(p.municipalityId || "").trim();
+        if (patientMuni && patientMuni !== userMuni) return false;
+      } else {
+        // No municipalityId: fail-safe to teamId match
+        if (String(p.teamId || "") !== String(user?.teamId || "")) return false;
+      }
+      if (microArea && p.microArea !== microArea) return false;
+      if (acsId && p.assignedAcsId !== acsId) return false;
+      if (careCategory && p.careCategory !== careCategory) return false;
+      return true;
+    });
+  }
+
   return db.patients.filter((p) => {
     if (!includeInactive && p.inactive) return false;
     if (!canAccessPatient(user, p)) return false;
@@ -483,5 +502,6 @@ export {
   maskCpf,
   maskCns,
   buildReceptionistPatientSummary,
+  CLINICAL_READ_ROLES,
   CLINICAL_WRITE_CROSS_TEAM_ROLES
 };

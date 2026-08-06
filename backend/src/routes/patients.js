@@ -22,7 +22,7 @@ import {
   detectConsultationSpecialtyFromTitle, normalizeConsultationTitle, resolveActiveUnit
 } from "../utils/helpers.js";
 import {
-  getAllowedPatients, canAccessPatient, getPatientOrError, buildPatientHistory, maskSensitivePatientFields, buildReceptionistPatientSummary
+  getAllowedPatients, canAccessPatient, getPatientOrError, buildPatientHistory, maskSensitivePatientFields, buildReceptionistPatientSummary, CLINICAL_READ_ROLES
 } from "../utils/patients.js";
 import { buildProtocolSummary, restrictSummaryAlertsForForeignTeam } from "../utils/protocol-eval.js";
 import { validateClinicalRecordPayload, buildMonthlyDemandMetric, buildDataQualityMetric } from "../utils/metrics.js";
@@ -314,7 +314,8 @@ router.get("/patients", sensitiveDataRateLimit, async (req, res) => {
     });
   }
 
-  const snapshotPatients = await listPatientsSnapshot({
+  // FASE 2: clinical roles search all municipal patients — skip teamId-bounded snapshot
+  const snapshotPatients = CLINICAL_READ_ROLES.has(canonicalRole(req.user?.role)) ? [] : await listPatientsSnapshot({
     teamId: req.user?.teamId || "",
     microArea: req.query.microArea ? String(req.query.microArea).trim() : "",
     assignedAcsId: req.query.acsId ? String(req.query.acsId).trim() : "",
@@ -405,8 +406,15 @@ router.get("/patients/:id", sensitiveDataRateLimit, async (req, res) => {
   const patient = db.patients.find((p) => p.id === id);
   if (!patient) return res.status(404).json({ error: "Paciente não encontrado" });
 
-  if (role !== "break_glass_admin" && patient.teamId !== req.user.teamId) {
-    return res.status(403).json({ error: "Sem permissão para acessar este paciente" });
+  if (role !== "break_glass_admin") {
+    if (CLINICAL_READ_ROLES.has(role)) {
+      // FASE 2: clinical roles — municipal scope for GET by ID
+      if (!canAccessPatient(req.user, patient, "read")) {
+        return res.status(403).json({ error: "Sem permissão para acessar este paciente" });
+      }
+    } else if (patient.teamId !== req.user.teamId) {
+      return res.status(403).json({ error: "Sem permissão para acessar este paciente" });
+    }
   }
 
   await withDb((auditDb) => {
