@@ -508,6 +508,14 @@ function MunicipalityDetailView({ token, municipality, onBack, onGoToUnit }) {
 
 // ── Municipality Ico ───────────────────────────────────────────────────────
 
+const IcoIncident = () => (
+  <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden>
+    <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.3"/>
+    <path d="M8 5v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    <circle cx="8" cy="11.5" r="0.75" fill="currentColor"/>
+  </svg>
+);
+
 const IcoLicense = () => (
   <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden>
     <rect x="2" y="1" width="12" height="14" rx="1.5" stroke="currentColor" strokeWidth="1.3"/>
@@ -2663,6 +2671,429 @@ function LicenseForm({ token, onDone, onBack }) {
   );
 }
 
+// ── Incident Console ───────────────────────────────────────────────────────
+
+const INCIDENT_STATUS_LABEL = {
+  NEW: "Novo", TRIAGED: "Triado", IN_PROGRESS: "Em andamento", WAITING: "Aguardando",
+  RESOLVED: "Resolvido", CLOSED: "Fechado", CANCELLED: "Cancelado", REOPENED: "Reaberto",
+};
+const INCIDENT_STATUS_CLASS = {
+  NEW: "badge badge--warning", TRIAGED: "badge badge--info", IN_PROGRESS: "badge badge--warning",
+  WAITING: "badge", RESOLVED: "badge badge--success", CLOSED: "badge",
+  CANCELLED: "badge", REOPENED: "badge badge--danger",
+};
+const SEVERITY_CLASS = {
+  CRITICAL: "badge badge--danger", HIGH: "badge badge--warning",
+  MEDIUM: "badge badge--info", LOW: "badge",
+};
+
+function IncidentConsole({ token }) {
+  const [view, setView]       = useState("list");
+  const [selected, setSelected] = useState(null);
+  const [listKey, setListKey] = useState(0);
+
+  if (view === "detail" && selected) {
+    return <IncidentDetail token={token} incidentId={selected} onBack={() => { setSelected(null); setView("list"); setListKey(k => k + 1); }} />;
+  }
+  if (view === "new") {
+    return <IncidentForm token={token} onDone={(inc) => { setSelected(inc.id); setView("detail"); }} onBack={() => setView("list")} />;
+  }
+  return <IncidentListView key={listKey} token={token} onSelect={id => { setSelected(id); setView("detail"); }} onNew={() => setView("new")} />;
+}
+
+function IncidentListView({ token, onSelect, onNew }) {
+  const [incidents, setIncidents] = useState([]);
+  const [dashboard, setDashboard] = useState(null);
+  const [loading, setLoading]     = useState(true);
+  const [error, setError]         = useState("");
+  const [filterStatus, setFilterStatus]     = useState("");
+  const [filterSeverity, setFilterSeverity] = useState("");
+  const [search, setSearch]                 = useState("");
+
+  const load = useCallback(() => {
+    const params = new URLSearchParams();
+    if (filterStatus)   params.set("status",   filterStatus);
+    if (filterSeverity) params.set("severity",  filterSeverity);
+    if (search)         params.set("search",    search);
+    Promise.all([
+      apiFetch(`/platform/incidents?${params}`, token),
+      apiFetch("/platform/incidents-dashboard", token),
+    ]).then(([r1, r2]) => {
+      if (!r1.ok) throw new Error("Erro ao carregar incidentes");
+      return Promise.all([r1.json(), r2.ok ? r2.json() : null]);
+    }).then(([d1, d2]) => {
+      setIncidents(d1.incidents || []);
+      setDashboard(d2);
+      setLoading(false);
+    }).catch(e => { setError(e.message); setLoading(false); });
+  }, [token, filterStatus, filterSeverity, search]);
+
+  useEffect(() => { load(); }, [load]);
+
+  return (
+    <>
+      <div className="console-page-header">
+        <div>
+          <h1 className="console-page-header__title">Incidentes</h1>
+          <p className="console-page-header__sub">Operações de suporte e gerenciamento de incidentes técnicos</p>
+        </div>
+        <Button onClick={onNew}>+ Novo Incidente</Button>
+      </div>
+
+      {dashboard && (
+        <div style={{ display: "flex", gap: "var(--s-3)", flexWrap: "wrap", marginBottom: "var(--s-4)" }}>
+          {[
+            { label: "Novos",        value: dashboard.summary.new,         cls: "badge--warning" },
+            { label: "Em andamento", value: dashboard.summary.inProgress,  cls: "badge--warning" },
+            { label: "Críticos",     value: dashboard.summary.critical,    cls: "badge--danger"  },
+            { label: "Aguardando",   value: dashboard.summary.waiting,     cls: ""               },
+            { label: "Resolvidos hoje", value: dashboard.summary.resolvedToday, cls: "badge--success" },
+            { label: "Municípios afetados", value: dashboard.affectedMunicipalities, cls: "" },
+          ].map(({ label, value }) => (
+            <div key={label} style={{ background: "var(--surface-2)", borderRadius: "var(--radius-md)", padding: "var(--s-2) var(--s-3)", minWidth: 90, textAlign: "center" }}>
+              <div style={{ fontSize: "1.4rem", fontWeight: 700 }}>{value ?? 0}</div>
+              <div style={{ fontSize: "0.7rem", color: "var(--text-muted)" }}>{label}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div style={{ marginBottom: "var(--s-3)", display: "flex", gap: "var(--s-2)", flexWrap: "wrap" }}>
+        <input
+          value={search} onChange={e => setSearch(e.target.value)}
+          placeholder="Buscar por código, título, tag…"
+          style={{ padding: "4px 8px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)", minWidth: 220 }}
+        />
+        <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
+          style={{ padding: "4px 8px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)" }}>
+          <option value="">Todos os status</option>
+          {Object.entries(INCIDENT_STATUS_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+        </select>
+        <select value={filterSeverity} onChange={e => setFilterSeverity(e.target.value)}
+          style={{ padding: "4px 8px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)" }}>
+          <option value="">Todas severidades</option>
+          {["CRITICAL","HIGH","MEDIUM","LOW"].map(s => <option key={s} value={s}>{s}</option>)}
+        </select>
+      </div>
+
+      {error && <Alert variant="danger">{error}</Alert>}
+      {loading ? <p>Carregando…</p> : (
+        <div className="console-table-wrapper">
+          <table className="console-table">
+            <thead>
+              <tr>
+                <th>Código</th>
+                <th>Título</th>
+                <th>Categoria</th>
+                <th>Severidade</th>
+                <th>Status</th>
+                <th>Responsável</th>
+                <th>Aberto em</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {incidents.length === 0 ? (
+                <tr><td colSpan={8} style={{ textAlign: "center", color: "var(--text-muted)" }}>Nenhum incidente encontrado</td></tr>
+              ) : incidents.map(inc => (
+                <tr key={inc.id}>
+                  <td><span style={{ fontFamily: "monospace", fontSize: "0.82rem" }}>{inc.incidentCode}</span></td>
+                  <td style={{ maxWidth: 240, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{inc.title}</td>
+                  <td style={{ fontSize: "0.8rem" }}>{inc.category}</td>
+                  <td><span className={SEVERITY_CLASS[inc.severity] || "badge"}>{inc.severity}</span></td>
+                  <td><span className={INCIDENT_STATUS_CLASS[inc.status] || "badge"}>{INCIDENT_STATUS_LABEL[inc.status] || inc.status}</span></td>
+                  <td style={{ fontSize: "0.82rem" }}>{inc.assignedTo?.name || "—"}</td>
+                  <td style={{ fontSize: "0.82rem" }}>{fmtDate(inc.createdAt)}</td>
+                  <td><Button size="sm" variant="secondary" onClick={() => onSelect(inc.id)}>Ver</Button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </>
+  );
+}
+
+function IncidentDetail({ token, incidentId, onBack }) {
+  const [incident, setIncident] = useState(null);
+  const [loading, setLoading]   = useState(true);
+  const [error, setError]       = useState("");
+  const [msg, setMsg]           = useState("");
+  const [comment, setComment]   = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const reload = useCallback(() => {
+    apiFetch(`/platform/incidents/${incidentId}`, token)
+      .then(r => r.json()).then(d => { setIncident(d); setLoading(false); })
+      .catch(e => { setError(e.message); setLoading(false); });
+  }, [token, incidentId]);
+
+  useEffect(() => { reload(); }, [reload]);
+
+  const doAction = async (path, body, method = "PATCH") => {
+    setSubmitting(true); setError(""); setMsg("");
+    try {
+      const r = await apiFetch(path, token, {
+        method, headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || "Erro");
+      setIncident(d); setMsg("Atualizado com sucesso");
+    } catch (e) { setError(e.message); }
+    setSubmitting(false);
+  };
+
+  const submitComment = async (e) => {
+    e.preventDefault();
+    if (!comment.trim()) return;
+    await doAction(`/platform/incidents/${incidentId}/comment`, { text: comment }, "POST");
+    setComment("");
+  };
+
+  if (loading) return <p>Carregando…</p>;
+  if (!incident) return <Alert variant="danger">Incidente não encontrado</Alert>;
+
+  const inc = incident;
+  const STATUS_NEXTS = {
+    NEW:         ["TRIAGED","CANCELLED"],
+    TRIAGED:     ["IN_PROGRESS","WAITING","CANCELLED"],
+    IN_PROGRESS: ["WAITING","RESOLVED","CANCELLED"],
+    WAITING:     ["IN_PROGRESS","RESOLVED","CANCELLED"],
+    RESOLVED:    ["CLOSED","REOPENED"],
+    CLOSED:      ["REOPENED"],
+    CANCELLED:   [],
+    REOPENED:    ["IN_PROGRESS","WAITING","CANCELLED"],
+  };
+  const nexts = STATUS_NEXTS[inc.status] || [];
+
+  return (
+    <>
+      <div className="console-page-header">
+        <div>
+          <button type="button" onClick={onBack} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", fontSize: "0.85rem", marginBottom: "var(--s-1)", padding: 0 }}>
+            ← Console Nacional &rsaquo; Incidentes
+          </button>
+          <h1 className="console-page-header__title">{inc.incidentCode} — {inc.title}</h1>
+          <p className="console-page-header__sub">{inc.category} · Município {inc.municipalityId || "—"}</p>
+        </div>
+        <div style={{ display: "flex", gap: "var(--s-2)", alignItems: "center" }}>
+          <span className={SEVERITY_CLASS[inc.severity] || "badge"} style={{ fontSize: "0.85rem" }}>{inc.severity}</span>
+          <span className={INCIDENT_STATUS_CLASS[inc.status] || "badge"} style={{ fontSize: "0.85rem" }}>{INCIDENT_STATUS_LABEL[inc.status] || inc.status}</span>
+        </div>
+      </div>
+
+      {error && <Alert variant="danger">{error}</Alert>}
+      {msg   && <Alert variant="success">{msg}</Alert>}
+
+      {/* Info */}
+      <div className="console-section">
+        <div className="console-section__header">Detalhes</div>
+        <div className="console-section__body">
+          <p style={{ fontSize: "0.875rem", marginBottom: "var(--s-3)" }}>{inc.description || "—"}</p>
+          <table style={{ fontSize: "0.875rem", borderCollapse: "collapse" }}>
+            <tbody>
+              {[
+                ["Responsável",     inc.assignedTo?.name || "Não atribuído"],
+                ["Criado por",      inc.reportedBy?.name || "—"],
+                ["Criado em",       fmtDate(inc.createdAt)],
+                ["1ª resposta",     fmtDate(inc.firstResponseAt)],
+                ["Resolvido em",    fmtDate(inc.resolvedAt)],
+                ["Fechado em",      fmtDate(inc.closedAt)],
+                ["Deployment",      inc.deploymentId || "—"],
+                ["Licença",         inc.licenseId || "—"],
+                ["Break Glass",     inc.breakGlassSessionId || "—"],
+                ["Tags",            (inc.tags || []).join(", ") || "—"],
+              ].map(([k, v]) => (
+                <tr key={k}>
+                  <td style={{ color: "var(--text-muted)", padding: "3px 16px 3px 0", width: 160 }}>{k}</td>
+                  <td>{v}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {(inc.rootCause || inc.resolution) && (
+            <div style={{ marginTop: "var(--s-3)" }}>
+              {inc.rootCause  && <div style={{ fontSize: "0.85rem", marginBottom: "var(--s-1)" }}><strong>Causa raiz:</strong> {inc.rootCause}</div>}
+              {inc.resolution && <div style={{ fontSize: "0.85rem" }}><strong>Resolução:</strong> {inc.resolution}</div>}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* SLA */}
+      {inc.sla && (
+        <div className="console-section">
+          <div className="console-section__header">SLA</div>
+          <div className="console-section__body" style={{ display: "flex", gap: "var(--s-4)", flexWrap: "wrap", fontSize: "0.85rem" }}>
+            <div>
+              <div style={{ color: "var(--text-muted)", fontSize: "0.7rem", marginBottom: 2 }}>1ª resposta deadline</div>
+              <div style={{ color: inc.slaStatus?.firstResponseBreached ? "var(--danger)" : "inherit" }}>
+                {fmtDate(inc.sla.firstResponseDeadline)}
+                {inc.slaStatus?.firstResponseBreached && " ⚠ Breached"}
+              </div>
+            </div>
+            <div>
+              <div style={{ color: "var(--text-muted)", fontSize: "0.7rem", marginBottom: 2 }}>Resolução deadline</div>
+              <div style={{ color: inc.slaStatus?.resolutionBreached ? "var(--danger)" : "inherit" }}>
+                {fmtDate(inc.sla.resolutionDeadline)}
+                {inc.slaStatus?.resolutionBreached && " ⚠ Breached"}
+              </div>
+            </div>
+            {inc.slaStatus?.responseAgeMinutes != null && (
+              <div>
+                <div style={{ color: "var(--text-muted)", fontSize: "0.7rem", marginBottom: 2 }}>Tempo de resposta</div>
+                <div>{inc.slaStatus.responseAgeMinutes} min</div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Actions */}
+      {nexts.length > 0 && (
+        <div className="console-section">
+          <div className="console-section__header">Ações de status</div>
+          <div className="console-section__body" style={{ display: "flex", gap: "var(--s-2)", flexWrap: "wrap" }}>
+            {nexts.map(toStatus => (
+              <Button key={toStatus} variant={toStatus === "CANCELLED" ? "danger" : "secondary"} disabled={submitting}
+                onClick={() => {
+                  const reason = window.prompt(`Motivo (opcional) — ${INCIDENT_STATUS_LABEL[toStatus] || toStatus}`);
+                  if (reason === null) return;
+                  const body = { toStatus, reason: reason || null };
+                  if (toStatus === "RESOLVED") {
+                    const rc = window.prompt("Causa raiz:");
+                    const res = window.prompt("Resolução aplicada:");
+                    body.rootCause = rc || null; body.resolution = res || null;
+                  }
+                  doAction(`/platform/incidents/${incidentId}/status`, body);
+                }}>
+                → {INCIDENT_STATUS_LABEL[toStatus] || toStatus}
+              </Button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Assign */}
+      <div className="console-section">
+        <div className="console-section__header">Atribuição</div>
+        <div className="console-section__body" style={{ display: "flex", gap: "var(--s-2)", flexWrap: "wrap", alignItems: "center" }}>
+          <span style={{ fontSize: "0.85rem" }}>Atual: <strong>{inc.assignedTo?.name || "Não atribuído"}</strong></span>
+          <Button size="sm" variant="secondary" disabled={submitting}
+            onClick={() => {
+              const id = window.prompt("ID do responsável:");
+              if (!id) return;
+              const name = window.prompt("Nome:");
+              doAction(`/platform/incidents/${incidentId}/assign`, { assigneeId: id, assigneeName: name || id });
+            }}>Atribuir</Button>
+        </div>
+      </div>
+
+      {/* Comments */}
+      <div className="console-section">
+        <div className="console-section__header">Comentário interno</div>
+        <div className="console-section__body">
+          <form onSubmit={submitComment} style={{ display: "flex", gap: "var(--s-2)", alignItems: "flex-end" }}>
+            <textarea value={comment} onChange={e => setComment(e.target.value)} rows={2} placeholder="Adicionar comentário interno…"
+              style={{ flex: 1, padding: "8px 10px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)", resize: "vertical" }} />
+            <Button type="submit" disabled={submitting || !comment.trim()}>Enviar</Button>
+          </form>
+        </div>
+      </div>
+
+      {/* Timeline */}
+      <div className="console-section">
+        <div className="console-section__header">Timeline</div>
+        <div className="console-section__body">
+          {[...(inc.timeline || [])].reverse().map((e, i) => (
+            <div key={i} style={{ display: "flex", gap: "var(--s-2)", padding: "6px 0", borderBottom: "1px solid var(--border)", fontSize: "0.82rem" }}>
+              <span style={{ color: "var(--text-muted)", minWidth: 130 }}>{fmtDate(e.at)}</span>
+              <span style={{ fontWeight: 600, minWidth: 160 }}>{e.event}</span>
+              <span style={{ color: "var(--text-muted)", minWidth: 120 }}>{e.by?.name || "—"}</span>
+              <span>{e.reason || (e.meta?.text ? `"${e.meta.text}"` : "") || (e.from && e.to ? `${e.from} → ${e.to}` : "")}</span>
+            </div>
+          ))}
+          {(inc.timeline || []).length === 0 && <p style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>Nenhum evento</p>}
+        </div>
+      </div>
+    </>
+  );
+}
+
+function IncidentForm({ token, onDone, onBack }) {
+  const [form, setForm] = useState({ title: "", description: "", category: "", severity: "MEDIUM", municipalityId: "", unitId: "", deploymentId: "", licenseId: "", breakGlassSessionId: "", tags: "" });
+  const [saving, setSaving] = useState(false);
+  const [error, setError]   = useState("");
+  const [categories, setCategories] = useState([]);
+
+  useEffect(() => {
+    apiFetch("/platform/incident-categories", token).then(r => r.json()).then(d => setCategories(d.categories || []));
+  }, [token]);
+
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  const handleSubmit = async (e) => {
+    e.preventDefault(); setSaving(true); setError("");
+    try {
+      const tags = form.tags.split(",").map(t => t.trim()).filter(Boolean);
+      const r = await apiFetch("/platform/incidents", token, {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ...form, tags, unitId: form.unitId || null, deploymentId: form.deploymentId || null, licenseId: form.licenseId || null, breakGlassSessionId: form.breakGlassSessionId || null }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || "Erro ao criar incidente");
+      onDone(d);
+    } catch (ex) { setError(ex.message); }
+    setSaving(false);
+  };
+
+  const selectStyle = { width: "100%", padding: "8px 10px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)" };
+
+  return (
+    <>
+      <div className="console-page-header">
+        <div>
+          <button type="button" onClick={onBack} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", fontSize: "0.85rem", marginBottom: "var(--s-1)", padding: 0 }}>← Voltar</button>
+          <h1 className="console-page-header__title">Novo Incidente</h1>
+        </div>
+      </div>
+      {error && <Alert variant="danger">{error}</Alert>}
+      <form onSubmit={handleSubmit} style={{ maxWidth: 560, display: "flex", flexDirection: "column", gap: "var(--s-3)" }}>
+        <Input label="Título *" value={form.title} onChange={e => set("title", e.target.value)} required />
+        <div>
+          <label style={{ fontSize: "0.8rem", color: "var(--text-muted)", display: "block", marginBottom: 4 }}>Categoria *</label>
+          <select value={form.category} onChange={e => set("category", e.target.value)} required style={selectStyle}>
+            <option value="">Selecione…</option>
+            {categories.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </div>
+        <div>
+          <label style={{ fontSize: "0.8rem", color: "var(--text-muted)", display: "block", marginBottom: 4 }}>Severidade *</label>
+          <select value={form.severity} onChange={e => set("severity", e.target.value)} required style={selectStyle}>
+            {["CRITICAL","HIGH","MEDIUM","LOW"].map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+        </div>
+        <div>
+          <label style={{ fontSize: "0.8rem", color: "var(--text-muted)", display: "block", marginBottom: 4 }}>Descrição</label>
+          <textarea value={form.description} onChange={e => set("description", e.target.value)} rows={3} style={{ ...selectStyle, resize: "vertical" }} />
+        </div>
+        <Input label="IBGE do Município" value={form.municipalityId} onChange={e => set("municipalityId", e.target.value)} />
+        <Input label="ID da UBS (opcional)" value={form.unitId} onChange={e => set("unitId", e.target.value)} />
+        <Input label="ID do Deployment (opcional)" value={form.deploymentId} onChange={e => set("deploymentId", e.target.value)} />
+        <Input label="ID da Licença (opcional)" value={form.licenseId} onChange={e => set("licenseId", e.target.value)} />
+        <Input label="ID da Sessão Break Glass (opcional)" value={form.breakGlassSessionId} onChange={e => set("breakGlassSessionId", e.target.value)} />
+        <Input label="Tags (separadas por vírgula)" value={form.tags} onChange={e => set("tags", e.target.value)} placeholder="auth, migration, jwt" />
+        <div style={{ display: "flex", gap: "var(--s-2)" }}>
+          <Button type="submit" disabled={saving}>{saving ? "Salvando…" : "Criar Incidente"}</Button>
+          <Button type="button" variant="secondary" onClick={onBack}>Cancelar</Button>
+        </div>
+      </form>
+    </>
+  );
+}
+
 // ── Main Console ───────────────────────────────────────────────────────────
 
 export default function PlatformConsolePage({ token, user, onLogout }) {
@@ -2781,6 +3212,13 @@ export default function PlatformConsolePage({ token, user, onLogout }) {
           >
             <IcoLicense /> Licenças
           </button>
+          <button
+            type="button"
+            className={`console-nav__item${tab === "incidents" ? " is-active" : ""}`}
+            onClick={() => switchTab("incidents")}
+          >
+            <IcoIncident /> Incidentes
+          </button>
 
           <span className="console-nav__section">Portal</span>
           <button
@@ -2866,6 +3304,11 @@ export default function PlatformConsolePage({ token, user, onLogout }) {
           {/* Licenças */}
           {tab === "licenses" && (
             <LicenseConsole token={token} />
+          )}
+
+          {/* Incidentes */}
+          {tab === "incidents" && (
+            <IncidentConsole token={token} />
           )}
 
           {/* Unidades de Saúde */}

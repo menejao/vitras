@@ -1805,5 +1805,345 @@ router.get("/platform/deployments-dashboard", async (req, res) => {
   });
 });
 
+// ══════════════════════════════════════════════════════════════════════════
+// ERP-05 — Support Operations and Incident Management
+// ══════════════════════════════════════════════════════════════════════════
+
+import {
+  createIncident, changeIncidentStatus, changeIncidentSeverity,
+  assignIncident, addComment, updateIncident,
+  getIncidentWithSla, generateIncidentCode,
+  INCIDENT_CATEGORIES, SEVERITY, INCIDENT_STATUS,
+} from "../services/incident.js";
+
+function ensureIncidents(db) {
+  ensureDbShape(db);
+  if (!Array.isArray(db.incidents)) db.incidents = [];
+}
+
+function incidentOperator(user) {
+  return { id: user.id, name: user.name, role: user.role };
+}
+
+// ── Search / filter helper ─────────────────────────────────────────────────
+
+function filterIncidents(incidents, q) {
+  const {
+    status, severity, category, municipalityId, unitId, deploymentId,
+    licenseId, breakGlassSessionId, assignedToId, search,
+  } = q;
+
+  let list = incidents;
+  if (status)              list = list.filter(i => i.status === status.toUpperCase());
+  if (severity)            list = list.filter(i => i.severity === severity.toUpperCase());
+  if (category)            list = list.filter(i => i.category === category.toUpperCase());
+  if (municipalityId)      list = list.filter(i => i.municipalityId === municipalityId);
+  if (unitId)              list = list.filter(i => i.unitId === unitId);
+  if (deploymentId)        list = list.filter(i => i.deploymentId === deploymentId);
+  if (licenseId)           list = list.filter(i => i.licenseId === licenseId);
+  if (breakGlassSessionId) list = list.filter(i => i.breakGlassSessionId === breakGlassSessionId);
+  if (assignedToId)        list = list.filter(i => i.assignedTo?.id === assignedToId);
+
+  if (search) {
+    const q2 = search.toLowerCase();
+    list = list.filter(i =>
+      (i.incidentCode || "").toLowerCase().includes(q2) ||
+      (i.title        || "").toLowerCase().includes(q2) ||
+      (i.description  || "").toLowerCase().includes(q2) ||
+      (i.tags         || []).some(t => t.toLowerCase().includes(q2))
+    );
+  }
+
+  // Sort: priority asc (CRITICAL first), then createdAt desc
+  return list.slice().sort((a, b) => {
+    if (a.priority !== b.priority) return a.priority - b.priority;
+    return new Date(b.createdAt) - new Date(a.createdAt);
+  });
+}
+
+// GET /platform/incidents
+router.get("/platform/incidents", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.read")) return res.status(403).json({ error: "Sem permissão" });
+
+  const { page: pageRaw = "1", limit: limitRaw = "25", ...filters } = req.query;
+  const page  = Math.max(1, parseInt(pageRaw, 10) || 1);
+  const limit = Math.min(100, Math.max(1, parseInt(limitRaw, 10) || 25));
+
+  const db    = await readDb();
+  ensureIncidents(db);
+
+  const sorted = filterIncidents(db.incidents, filters);
+  const total  = sorted.length;
+  const pages  = Math.ceil(total / limit) || 1;
+  const paged  = sorted.slice((page - 1) * limit, page * limit).map(getIncidentWithSla);
+
+  return res.json({ incidents: paged, total, pages });
+});
+
+// GET /platform/incidents/:incidentId
+router.get("/platform/incidents/:incidentId", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.read")) return res.status(403).json({ error: "Sem permissão" });
+
+  const db = await readDb();
+  ensureIncidents(db);
+  const inc = db.incidents.find(i => i.id === req.params.incidentId);
+  if (!inc) return res.status(404).json({ error: "Incidente não encontrado" });
+  return res.json(getIncidentWithSla(inc));
+});
+
+// POST /platform/incidents
+router.post("/platform/incidents", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.create")) return res.status(403).json({ error: "Sem permissão" });
+
+  const {
+    title, description, category, severity,
+    municipalityId, unitId, deploymentId, licenseId, breakGlassSessionId,
+    tags,
+  } = req.body || {};
+  const operator = incidentOperator(req.user);
+
+  const result = await withDb((db) => {
+    ensureIncidents(db);
+    let inc;
+    try {
+      inc = createIncident({
+        title, description, category, severity,
+        municipalityId, unitId, deploymentId, licenseId, breakGlassSessionId,
+        tags, operator, existingIncidents: db.incidents,
+      });
+    } catch (e) {
+      return { error: { status: e.statusCode || 400, message: e.message } };
+    }
+    db.incidents.push(inc);
+    addAuditLog(db, req.user, "incident.created", "incident", inc.id, {
+      incidentCode: inc.incidentCode, title: inc.title, category, severity,
+    });
+    return { incident: getIncidentWithSla(inc) };
+  });
+
+  if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
+  return res.status(201).json(result.incident);
+});
+
+// PATCH /platform/incidents/:incidentId — update editable fields
+router.patch("/platform/incidents/:incidentId", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.update")) return res.status(403).json({ error: "Sem permissão" });
+
+  const { reason, ...patch } = req.body || {};
+  const operator = incidentOperator(req.user);
+
+  const result = await withDb((db) => {
+    ensureIncidents(db);
+    const idx = db.incidents.findIndex(i => i.id === req.params.incidentId);
+    if (idx < 0) return { error: { status: 404, message: "Incidente não encontrado" } };
+    try {
+      updateIncident(db.incidents[idx], { patch, operator, reason: reason || null });
+    } catch (e) {
+      return { error: { status: e.statusCode || 422, message: e.message } };
+    }
+    addAuditLog(db, req.user, "incident.updated", "incident", db.incidents[idx].id, { patch, reason });
+    return { incident: getIncidentWithSla(db.incidents[idx]) };
+  });
+
+  if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
+  return res.json(result.incident);
+});
+
+// PATCH /platform/incidents/:incidentId/assign
+router.patch("/platform/incidents/:incidentId/assign", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.update")) return res.status(403).json({ error: "Sem permissão" });
+
+  const { assigneeId, assigneeName, reason } = req.body || {};
+  const operator = incidentOperator(req.user);
+
+  const result = await withDb((db) => {
+    ensureIncidents(db);
+    const idx = db.incidents.findIndex(i => i.id === req.params.incidentId);
+    if (idx < 0) return { error: { status: 404, message: "Incidente não encontrado" } };
+    const assignee = assigneeId ? { id: assigneeId, name: assigneeName || assigneeId } : null;
+    assignIncident(db.incidents[idx], { assignee, operator, reason: reason || null });
+    addAuditLog(db, req.user, "incident.assigned", "incident", db.incidents[idx].id, { assigneeId, reason });
+    return { incident: getIncidentWithSla(db.incidents[idx]) };
+  });
+
+  if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
+  return res.json(result.incident);
+});
+
+// PATCH /platform/incidents/:incidentId/severity
+router.patch("/platform/incidents/:incidentId/severity", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.update")) return res.status(403).json({ error: "Sem permissão" });
+
+  const { toSeverity, reason } = req.body || {};
+  if (!toSeverity) return res.status(400).json({ error: "toSeverity obrigatório" });
+  const operator = incidentOperator(req.user);
+
+  const result = await withDb((db) => {
+    ensureIncidents(db);
+    const idx = db.incidents.findIndex(i => i.id === req.params.incidentId);
+    if (idx < 0) return { error: { status: 404, message: "Incidente não encontrado" } };
+    try {
+      changeIncidentSeverity(db.incidents[idx], { toSeverity, operator, reason: reason || null });
+    } catch (e) {
+      return { error: { status: e.statusCode || 422, message: e.message } };
+    }
+    addAuditLog(db, req.user, "incident.severity_changed", "incident", db.incidents[idx].id, { toSeverity, reason });
+    return { incident: getIncidentWithSla(db.incidents[idx]) };
+  });
+
+  if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
+  return res.json(result.incident);
+});
+
+// PATCH /platform/incidents/:incidentId/status
+router.patch("/platform/incidents/:incidentId/status", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.update")) return res.status(403).json({ error: "Sem permissão" });
+
+  const { toStatus, reason, rootCause, resolution } = req.body || {};
+  if (!toStatus) return res.status(400).json({ error: "toStatus obrigatório" });
+  const operator = incidentOperator(req.user);
+
+  const result = await withDb((db) => {
+    ensureIncidents(db);
+    const idx = db.incidents.findIndex(i => i.id === req.params.incidentId);
+    if (idx < 0) return { error: { status: 404, message: "Incidente não encontrado" } };
+    try {
+      changeIncidentStatus(db.incidents[idx], { toStatus, operator, reason: reason || null, rootCause, resolution });
+    } catch (e) {
+      return { error: { status: e.statusCode || 422, message: e.message } };
+    }
+    addAuditLog(db, req.user, "incident.status_changed", "incident", db.incidents[idx].id, { toStatus, reason });
+    return { incident: getIncidentWithSla(db.incidents[idx]) };
+  });
+
+  if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
+  return res.json(result.incident);
+});
+
+// POST /platform/incidents/:incidentId/comment
+router.post("/platform/incidents/:incidentId/comment", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.update")) return res.status(403).json({ error: "Sem permissão" });
+
+  const { text } = req.body || {};
+  const operator = incidentOperator(req.user);
+
+  const result = await withDb((db) => {
+    ensureIncidents(db);
+    const idx = db.incidents.findIndex(i => i.id === req.params.incidentId);
+    if (idx < 0) return { error: { status: 404, message: "Incidente não encontrado" } };
+    try {
+      addComment(db.incidents[idx], { text, operator });
+    } catch (e) {
+      return { error: { status: e.statusCode || 422, message: e.message } };
+    }
+    return { incident: getIncidentWithSla(db.incidents[idx]) };
+  });
+
+  if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
+  return res.json(result.incident);
+});
+
+// POST /platform/incidents/:incidentId/close  (shortcut: status→CLOSED)
+router.post("/platform/incidents/:incidentId/close", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.update")) return res.status(403).json({ error: "Sem permissão" });
+
+  const { reason } = req.body || {};
+  const operator   = incidentOperator(req.user);
+
+  const result = await withDb((db) => {
+    ensureIncidents(db);
+    const idx = db.incidents.findIndex(i => i.id === req.params.incidentId);
+    if (idx < 0) return { error: { status: 404, message: "Incidente não encontrado" } };
+    try {
+      changeIncidentStatus(db.incidents[idx], { toStatus: INCIDENT_STATUS.CLOSED, operator, reason: reason || null });
+    } catch (e) {
+      return { error: { status: e.statusCode || 422, message: e.message } };
+    }
+    addAuditLog(db, req.user, "incident.closed", "incident", db.incidents[idx].id, { reason });
+    return { incident: getIncidentWithSla(db.incidents[idx]) };
+  });
+
+  if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
+  return res.json(result.incident);
+});
+
+// POST /platform/incidents/:incidentId/reopen  (shortcut: status→REOPENED)
+router.post("/platform/incidents/:incidentId/reopen", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.update")) return res.status(403).json({ error: "Sem permissão" });
+
+  const { reason } = req.body || {};
+  const operator   = incidentOperator(req.user);
+
+  const result = await withDb((db) => {
+    ensureIncidents(db);
+    const idx = db.incidents.findIndex(i => i.id === req.params.incidentId);
+    if (idx < 0) return { error: { status: 404, message: "Incidente não encontrado" } };
+    try {
+      changeIncidentStatus(db.incidents[idx], { toStatus: INCIDENT_STATUS.REOPENED, operator, reason: reason || null });
+    } catch (e) {
+      return { error: { status: e.statusCode || 422, message: e.message } };
+    }
+    addAuditLog(db, req.user, "incident.reopened", "incident", db.incidents[idx].id, { reason });
+    return { incident: getIncidentWithSla(db.incidents[idx]) };
+  });
+
+  if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
+  return res.json(result.incident);
+});
+
+// GET /platform/incidents-dashboard
+router.get("/platform/incidents-dashboard", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.read")) return res.status(403).json({ error: "Sem permissão" });
+
+  const db  = await readDb();
+  ensureIncidents(db);
+  const inc = db.incidents || [];
+
+  const today  = new Date().toDateString();
+  const cnt    = (pred) => inc.filter(pred).length;
+  const avg    = (arr)  => arr.length ? Math.round(arr.reduce((s, v) => s + v, 0) / arr.length) : null;
+
+  const resolutionTimes = inc
+    .filter(i => i.resolvedAt)
+    .map(i => Math.round((new Date(i.resolvedAt) - new Date(i.createdAt)) / 60000));
+
+  const byCat = {};
+  for (const cat of INCIDENT_CATEGORIES) {
+    const n = cnt(i => i.category === cat);
+    if (n > 0) byCat[cat] = n;
+  }
+  const bySev = {};
+  for (const sev of Object.keys(SEVERITY)) {
+    bySev[sev] = cnt(i => i.severity === sev);
+  }
+
+  const affectedMunicipalities = [...new Set(inc.filter(i => i.municipalityId && i.status !== "CLOSED" && i.status !== "CANCELLED").map(i => i.municipalityId))];
+  const affectedDeployments    = [...new Set(inc.filter(i => i.deploymentId   && i.status !== "CLOSED" && i.status !== "CANCELLED").map(i => i.deploymentId))];
+
+  return res.json({
+    summary: {
+      total:           inc.length,
+      new:             cnt(i => i.status === "NEW"),
+      triaged:         cnt(i => i.status === "TRIAGED"),
+      inProgress:      cnt(i => i.status === "IN_PROGRESS"),
+      waiting:         cnt(i => i.status === "WAITING"),
+      critical:        cnt(i => i.severity === "CRITICAL" && !["CLOSED","CANCELLED"].includes(i.status)),
+      resolvedToday:   cnt(i => i.resolvedAt && new Date(i.resolvedAt).toDateString() === today),
+      closedToday:     cnt(i => i.closedAt   && new Date(i.closedAt).toDateString()   === today),
+      avgResolutionMinutes: avg(resolutionTimes),
+    },
+    byCategory: byCat,
+    bySeverity: bySev,
+    affectedMunicipalities: affectedMunicipalities.length,
+    affectedDeployments:    affectedDeployments.length,
+  });
+});
+
+// GET /platform/incident-categories — expose categories to UI
+router.get("/platform/incident-categories", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.read")) return res.status(403).json({ error: "Sem permissão" });
+  return res.json({ categories: INCIDENT_CATEGORIES, severities: Object.keys(SEVERITY) });
+});
+
 export default router;
 
