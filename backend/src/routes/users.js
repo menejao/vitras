@@ -179,10 +179,17 @@ router.get("/users", requireAuth, async (req, res) => {
   const result = await withDb((db) => {
     ensureDbShape(db);
     const canReadAllUsers = hasCapability(req.user, "users.read.all");
+    const callerRole = canonicalRole(req.user?.role);
+    const activeUnitId = resolveActiveUnit(req);
 
     const sourceUsers = snapshotUsers.length ? snapshotUsers : db.users;
     const safeUsers = sourceUsers
-      .filter((u) => !isPlatformRole(u) && (canReadAllUsers || u.teamId === req.user.teamId))
+      .filter((u) => {
+        if (isPlatformRole(u)) return false;
+        // Gestor: scoped to own UBS only, even though has users.read.all globally
+        if (callerRole === "gestor") return String(u.unitId || "") === String(activeUnitId || "");
+        return canReadAllUsers || u.teamId === req.user.teamId;
+      })
       .map((u) => sanitizeUser(u, db));
 
     addAuditLog(db, buildReadAuditActor(req), "user.list_read", "user", "", {

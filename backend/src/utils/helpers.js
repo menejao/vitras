@@ -47,7 +47,8 @@ const ROLE_CAPABILITIES = {
     "metrics.internal.read",
     "ai.access",
     "acs.visit.read",
-    "acs.visit.update"
+    "acs.visit.update",
+    "break_glass.activate"
   ],
   doctor: [
     "dashboard.read",
@@ -77,7 +78,8 @@ const ROLE_CAPABILITIES = {
     "users.read.scoped",
     "audit.read",
     "ai.access",
-    "acs.visit.read"
+    "acs.visit.read",
+    "break_glass.activate"
   ],
   dentist: [
     "dashboard.read",
@@ -96,7 +98,8 @@ const ROLE_CAPABILITIES = {
     "receitas.read",
     "receitas.write",
     "users.read.scoped",
-    "ai.access"
+    "ai.access",
+    "break_glass.activate"
   ],
   gestor: [
     "dashboard.read",

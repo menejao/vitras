@@ -268,8 +268,14 @@ const CLINICAL_WRITE_CROSS_TEAM_ROLES = new Set(["doctor", "nurse_manager", "den
 function canAccessPatient(user, patient, mode = "write") {
   // Guard obrigatorio — PRIMEIRA linha, antes de qualquer branch de mode
   if (!patient) return false;
-  // break_glass_admin sempre tem acesso em qualquer modo
+  // break_glass_admin (conta legada): acesso irrestrito auditado
   if (canonicalRole(user?.role) === "break_glass_admin") return true;
+  // Novo modelo: BreakGlassSession nominal e paciente-específico
+  const bgs = user?.activeBreakGlassSession;
+  if (bgs?.active && bgs?.patientId === patient.id) {
+    const expiresTs = Date.parse(String(bgs?.expiresAt || ""));
+    if (Number.isFinite(expiresTs) && expiresTs > Date.now()) return true;
+  }
 
   if (mode === "read") {
     const role = canonicalRole(user?.role);

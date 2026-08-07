@@ -6,6 +6,7 @@ import { requestMetricsMiddleware } from "./middlewares/metrics.js";
 import { globalRateLimit } from "./middlewares/rate-limits.js";
 import { requireAuth, blockSupportAdminFromClinical } from "./middlewares/auth.js";
 import { requireCsrfForCookieAuth } from "./middlewares/csrf.js";
+import { resolveBreakGlassSession } from "./middlewares/break-glass-session.js";
 import { globalErrorHandler } from "./middlewares/errors.js";
 import compression from "compression";
 
@@ -42,6 +43,7 @@ import exportBatchRouter from "./routes/export-batch.js";
 import acsVisitsRouter from "./routes/acs-visits.js";
 import activeSearchRouter from "./routes/active-search.js";
 import productionRouter from "./routes/production.js";
+import breakGlassRouter from "./routes/break-glass.js";
 import swaggerRouter from "./routes/swagger.js";
 import platformRouter from "./routes/platform.js";
 import importRouter from "./routes/import.js";
@@ -104,6 +106,7 @@ app.use(requireAuth);
 app.use(importRouter);  // MIG-01: before blockSupportAdminFromClinical — import is support_admin territory
 app.use(blockSupportAdminFromClinical);  // IAM-01
 app.use(requireCsrfForCookieAuth);
+app.use(resolveBreakGlassSession);
 app.use((req, res, next) => {
   res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, private");
   res.setHeader("Pragma", "no-cache");
@@ -143,6 +146,7 @@ app.use(exportBatchRouter);
 app.use(acsVisitsRouter);
 app.use(activeSearchRouter);
 app.use(productionRouter);
+app.use(breakGlassRouter);
 
 app.use(globalErrorHandler);
 

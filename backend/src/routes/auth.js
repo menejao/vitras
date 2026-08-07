@@ -604,6 +604,14 @@ router.post("/auth/logout", requireAuth, async (req, res) => {
         db.refreshTokens[index].revokedAt = new Date().toISOString();
       }
     }
+    // Terminate any active break glass sessions on logout
+    const nowLogout = new Date().toISOString();
+    (db.breakGlassSessions || []).forEach((s) => {
+      if (s.activatedBy === req.user.id && !s.deactivatedAt) {
+        s.deactivatedAt = nowLogout;
+        s.deactivatedReason = "user_logout";
+      }
+    });
     addAuditLog(db, req.user, "auth.logout", "auth", req.user.id, {
       hadRefreshToken: Boolean(rawToken),
       sessionId: String(req.user?.sessionId || ""),

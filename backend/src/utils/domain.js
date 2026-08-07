@@ -306,6 +306,7 @@ function ensureDbShape(db) {
   ensureArray(db, "professionalSchedules");
   ensureArray(db, "scheduleBlocks");
   ensureArray(db, "userUnitMemberships");
+  ensureArray(db, "breakGlassSessions");
 
   if (!db.teams.length) {
     const defaultTeamId = "team-default";
