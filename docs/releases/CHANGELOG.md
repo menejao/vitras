@@ -1,5 +1,39 @@
 # VITRAS Changelog
 
+## v1.1.0-rc.4 (2026-08-07) — ACCESS SCOPE + BREAK GLASS SESSION
+
+**Commit:** f7399a7 | GOV-01: GO WITH LIMITS
+
+### VITRAS-ACCESS-SCOPE-BREAKGLASS-AND-MUNICIPAL-HIERARCHY-01 (Parts A+B+F core)
+
+**Part A+B — Gestor restrito a UBS:**
+- fix: `GET /users` gestor scoped to `u.unitId === activeUnitId` — não mais retorna usuários de outras UBS via `users.read.all`
+- invariante: enfermeira segue filtro por `teamId`; roles globais mantêm `users.read.all` sem restrição
+
+**Part F — BreakGlassSession (modelo nominal):**
+- feat: nova entidade `breakGlassSessions` (collection + `ensureDbShape`)
+- feat: `POST /break-glass/activate` — password reauth + session paciente-específica, TTL 30min
+- feat: `POST /break-glass/deactivate` — encerra sessão nominal
+- feat: `GET /break-glass/status` — query de sessão ativa
+- feat: middleware `resolveBreakGlassSession` — resolve header `X-Break-Glass-Session` em `req.user.activeBreakGlassSession`
+- feat: `canAccessPatient` — nova branch: `activeBreakGlassSession.patientId === patient.id && !expired` → bypass cross-UBS/cross-muni
+- feat: logout (`POST /auth/logout`) — deativa todas as sessões break glass ativas do usuário
+- feat: capability `break_glass.activate` adicionada a `doctor`, `nurse_manager`, `dentist`
+- feat: `migration-023-break-glass-cleanup.mjs` — UP/DOWN/DRY_RUN para limpar `unitId`/`teamId` da conta `break_glass_admin` legada
+- invariante: conta `break_glass_admin` legada intocada (não deletada, apenas limpeza de vínculos via migration)
+- invariante: sessão expirada é ignorada mesmo se `active: true` (verificação `expiresAt > Date.now()` no server)
+- invariante: uma sessão break glass NÃO concede acesso a outros pacientes
+
+**Testes (13 PASS):**
+- `break-glass-session.test.mjs`: ativação com senha correta, senha errada → 401 auditado, ACS → 403, paciente inexistente → 404, expiração, desativação, canAccessPatient unit tests (patientId correto/diferente/expirado)
+- `gestor-scope.test.mjs`: GET /users retorna só UBS A, não UBS B
+
+**Regressão:** 44/44 PASS (attribution + patient-reference + patient-municipal + patient-security suites)
+
+**Escopo PROIBIDO neste ciclo (GOV-01):** Município como entidade, IBGE auto-resolve, review system break glass, métricas break_glass_*, Console Nacional completo
+
+---
+
 ## v1.1.0-rc.3 (2026-08-07) — CLINICAL EVENT ATTRIBUTION COMPLETE
 
 **Commit:** be3bfaa | **Tag:** v1.1.0-rc.3 (candidata de engenharia — FREEZE)
