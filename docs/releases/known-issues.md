@@ -62,6 +62,33 @@
 
 ---
 
+## KI-12 — Test Fixtures Não Atualizadas para POST /platform/units com Endereço
+**Severity:** LOW (infraestrutura de testes, sem impacto em produção)
+**Status:** PRE-EXISTING — identificado em ARCHITECTURE-FREEZE-RC1-01 (2026-08-07)
+**Description:** `iam-01.test.mjs`, `bug-clinic-01.test.mjs`, `tech-scale-01b.test.mjs` criam UBS via POST /platform/units sem campos de endereço (`street`, `streetNumber`, `neighborhood`). A rota passou a exigir esses campos em `bf53c72 fix(UBS-ADDRESS-REQUIRED)`. Os testes foram escritos antes dessa mudança.
+**Symptom:** Suite inteira cancelada (27+ cancelled) porque o setup falha na criação da UBS de teste.
+**Root cause:** Fixtures de teste desatualizadas — não é bug de produção.
+**Blocks RC1:** NÃO
+**Fix target:** Atualizar fixtures para incluir endereço completo
+
+## KI-13 — iam-01a: support_admin e break_glass_admin classificados como "orphaned"
+**Severity:** LOW (falso positivo no teste)
+**Status:** PRE-EXISTING — confirmado em ARCHITECTURE-FREEZE-RC1-01 (2026-08-07)
+**Description:** `iam-01a.test.mjs` verifica que nenhum usuário tem `unitId` nulo ou vazio. `support_admin` (unitId: "") e `break_glass_admin` (unitId: undefined) são intencionalmente sem UBS — isso é comportamento correto. O teste não exclui esses roles especiais.
+**Root cause:** Teste não exclui roles que legitimamente não têm unitId.
+**Blocks RC1:** NÃO
+**Fix target:** Excluir support_admin e break_glass_admin da verificação
+
+## KI-14 — p0-env-validation: Incompatibilidade de Path Windows com import URL
+**Severity:** LOW (ambiente de desenvolvimento, não CI/produção)
+**Status:** PRE-EXISTING — confirmado em ARCHITECTURE-FREEZE-RC1-01 (2026-08-07)
+**Description:** `p0-env-validation.test.mjs` usa `spawnSync` passando o path absoluto do `config.js` via `--eval "import \"<path>\""`. Em Windows, o path `C:\dev\vitras\...` é inválido como URL de ES module. Em Linux/CI (Render), o path `/app/src/config.js` é válido.
+**Root cause:** Incompatibilidade do test runner com Windows — não é bug de produção.
+**Blocks RC1:** NÃO (CI/Render roda Linux)
+**Fix target:** Usar `pathToFileURL()` ao construir o import statement
+
+---
+
 ## KI-07 — Pre-existing Test Suite Failures
 **Severity:** LOW (infraestrutura de testes, sem impacto em produção)
 **Status:** PRE-EXISTING — confirmado que não foram causados por sprints RC1

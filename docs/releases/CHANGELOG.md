@@ -1,5 +1,45 @@
 # VITRAS Changelog
 
+## v1.1.0-rc.2 (2026-08-07) — GLOBAL PATIENT READY — Candidate Freeze
+
+**Commit:** 12c1eed | **Tag:** v1.1.0-rc.2 (candidata de engenharia)
+
+### VITRAS-GLOBAL-PATIENT-REFERENCE-ATTRIBUTION-01 — Paciente Global Municipal
+
+**FASE 1 — referenceUnitId como campo canônico:**
+- feat: campo `referenceUnitId` em todos os pacientes; sincronizado com `unitId`
+- feat: `migration-021-referenceunitid.mjs` — backfill 851 pacientes, 0 divergências
+- feat: `ensureDbShape` auto-heals referenceUnitId em startup e restore
+- test: `patient-reference-unit.test.mjs` (6 testes PASS)
+
+**FASE 2 — Busca municipal cross-UBS para roles clínicas:**
+- feat: `CLINICAL_READ_ROLES` branch em `getAllowedPatients()` — lista municipal por municipalityId
+- feat: `GET /patients` skip teamId-bounded snapshot para roles clínicas
+- feat: `GET /patients/:id` — branch role-based com `canAccessPatient("read")`
+- feat: `logInfo("patient.access_denied")` — evento de segurança zero-write em cada 403
+- test: `patient-municipal-search.test.mjs` (13 testes PASS)
+
+**FASE 12 — Segurança municipal:**
+- feat: municipalityId de POST body/query adulterado → ignorado (usa JWT)
+- feat: unitId e referenceUnitId de POST body adulterados → ignorados (usa equipe do usuário)
+- feat: GET by ID cross-município → 403 sem campos clínicos
+- test: `patient-security-municipal.test.mjs` (10 testes PASS)
+
+**FASE 17 — Invariantes de migration:**
+- test: `migration-021-logic.test.mjs` (8 testes PASS — UP, idempotência, DOWN, divergência, novo cadastro)
+- confirm: `cds-export.js` intocado (git diff HEAD limpo)
+
+**FASE 19 — Cenários estendidos:**
+- test: `patient-global-extended.test.mjs` (23 testes PASS — all role combinations, CPF/CNS visibility, cross-UBS)
+
+### VITRAS-ARCHITECTURE-FREEZE-RC1-01 — Congelamento
+
+- docs: baseline técnico completo em `docs/baseline/BASELINE-GLOBAL-PATIENT-RC1-v1.1.0-rc2.md`
+- docs: inventário FASE 1-8, dívida técnica classificada, handoff
+- smoke: 11 cenários municipais PASS em produção (api.vitras.com.br)
+
+---
+
 ## v1.1.0-rc.1 (2026-08-05) — RC1 CANDIDATE
 
 **Commit:** 6fb87cf | **Branch:** claude/vitras-p0-blockers-497suw
