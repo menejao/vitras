@@ -524,6 +524,13 @@ const IcoIncident = () => (
   </svg>
 );
 
+const IcoRelease = () => (
+  <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden>
+    <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.3"/>
+    <polyline points="5,8 7,10 11,6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
 const IcoLicense = () => (
   <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden>
     <rect x="2" y="1" width="12" height="14" rx="1.5" stroke="currentColor" strokeWidth="1.3"/>
@@ -2693,6 +2700,325 @@ const HEALTH_BADGE = {
   CRITICAL: "badge badge--danger", OFFLINE: "badge", UNKNOWN: "badge",
 };
 
+// ══════════════════════════════════════════════════════════════════════════════
+// ERP-07 — Release Management and Change Control
+// ══════════════════════════════════════════════════════════════════════════════
+
+const RELEASE_STATUS_LABEL = {
+  DRAFT: "Rascunho", APPROVED: "Aprovado", ACTIVE: "Ativo",
+  STABLE: "Estável", DEPRECATED: "Depreciado", ROLLED_BACK: "Revertido",
+};
+const RELEASE_STATUS_BADGE = {
+  DRAFT: "badge", APPROVED: "badge badge--info", ACTIVE: "badge badge--warning",
+  STABLE: "badge badge--success", DEPRECATED: "badge", ROLLED_BACK: "badge badge--danger",
+};
+const ROLLOUT_STATUS_LABEL = {
+  PLANNED: "Planejado", IN_PROGRESS: "Em andamento", COMPLETED: "Concluído",
+  FAILED: "Falhou", ROLLED_BACK: "Revertido", CANCELLED: "Cancelado",
+};
+const ROLLOUT_STATUS_BADGE = {
+  PLANNED: "badge badge--info", IN_PROGRESS: "badge badge--warning",
+  COMPLETED: "badge badge--success", FAILED: "badge badge--danger",
+  ROLLED_BACK: "badge badge--danger", CANCELLED: "badge",
+};
+const MW_STATUS_BADGE = {
+  PLANNED: "badge badge--info", ACTIVE: "badge badge--warning",
+  COMPLETED: "badge badge--success", CANCELLED: "badge",
+};
+
+function ReleaseConsole({ token }) {
+  const [view, setView]         = useState("dashboard");
+  const [dashboard, setDash]    = useState(null);
+  const [releases, setReleases] = useState([]);
+  const [rollouts, setRollouts] = useState([]);
+  const [migrations, setMigs]   = useState([]);
+  const [maintenance, setMaint] = useState([]);
+  const [selected, setSelected] = useState(null);
+  const [detail, setDetail]     = useState(null);
+  const [loading, setLoading]   = useState(false);
+  const [err, setErr]           = useState(null);
+
+  const fetchDashboard = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [dashRes, relRes, rollRes, migRes, mwRes] = await Promise.all([
+        apiFetch("/platform/releases-dashboard", token),
+        apiFetch("/platform/releases", token),
+        apiFetch("/platform/rollouts", token),
+        apiFetch("/platform/migrations", token),
+        apiFetch("/platform/maintenance", token),
+      ]);
+      if (dashRes.ok) setDash(await dashRes.json());
+      if (relRes.ok)  { const d = await relRes.json();  setReleases(d.releases || []); }
+      if (rollRes.ok) { const d = await rollRes.json(); setRollouts(d.rollouts || []); }
+      if (migRes.ok)  { const d = await migRes.json();  setMigs(d.migrations || []); }
+      if (mwRes.ok)   { const d = await mwRes.json();   setMaint(d.maintenanceWindows || []); }
+    } finally { setLoading(false); }
+  }, [token]);
+
+  const fetchDetail = useCallback(async (id) => {
+    const res = await apiFetch(`/platform/releases/${id}`, token);
+    if (res.ok) setDetail(await res.json());
+  }, [token]);
+
+  useEffect(() => { fetchDashboard(); }, [fetchDashboard]);
+
+  if (view === "detail" && detail) {
+    const myRollouts = rollouts.filter(ro => ro.releaseId === detail.id);
+    return (
+      <div>
+        <div className="console-page-header">
+          <div>
+            <h1 className="console-page-header__title">{detail.releaseCode} — {detail.version}</h1>
+            <p className="console-page-header__sub">{detail.title}</p>
+          </div>
+          <Button variant="ghost" onClick={() => { setView("dashboard"); setDetail(null); }}>← Voltar</Button>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1.5rem" }}>
+          <div className="card" style={{ padding: "1rem" }}>
+            <p className="card__label">Status</p>
+            <span className={RELEASE_STATUS_BADGE[detail.status] || "badge"}>{RELEASE_STATUS_LABEL[detail.status] || detail.status}</span>
+          </div>
+          <div className="card" style={{ padding: "1rem" }}>
+            <p className="card__label">Tipo</p>
+            <span className="badge badge--info">{detail.releaseType}</span>
+          </div>
+          <div className="card" style={{ padding: "1rem" }}>
+            <p className="card__label">Data prevista</p>
+            <strong>{fmtDate(detail.plannedReleaseDate)}</strong>
+          </div>
+          <div className="card" style={{ padding: "1rem" }}>
+            <p className="card__label">Data de release</p>
+            <strong>{fmtDate(detail.releaseDate)}</strong>
+          </div>
+        </div>
+
+        <div className="card" style={{ padding: "1rem", marginBottom: "1.5rem" }}>
+          <h3 style={{ fontWeight: 600, marginBottom: "0.75rem" }}>Changelog ({detail.changelog?.length || 0} itens)</h3>
+          {!detail.changelog?.length && <p style={{ opacity: 0.5 }}>Nenhum item no changelog.</p>}
+          {detail.changelog?.map(item => (
+            <div key={item.id} style={{ borderBottom: "1px solid var(--border-color)", padding: "0.5rem 0" }}>
+              <span className="badge">{item.category}</span>
+              {item.riskLevel && item.riskLevel !== "LOW" && <span className={`badge badge--${item.riskLevel === "CRITICAL" ? "danger" : "warning"}`} style={{ marginLeft: 6 }}>{item.riskLevel}</span>}
+              {item.breakingChange && <span className="badge badge--danger" style={{ marginLeft: 6 }}>Breaking</span>}
+              <span style={{ marginLeft: 8 }}>{item.description}</span>
+            </div>
+          ))}
+        </div>
+
+        <div className="card" style={{ padding: "1rem", marginBottom: "1.5rem" }}>
+          <h3 style={{ fontWeight: 600, marginBottom: "0.75rem" }}>Rollouts ({myRollouts.length})</h3>
+          {!myRollouts.length && <p style={{ opacity: 0.5 }}>Nenhum rollout registrado.</p>}
+          <table style={{ width: "100%", fontSize: "0.875rem", borderCollapse: "collapse" }}>
+            <thead><tr style={{ borderBottom: "2px solid var(--border-color)" }}>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Tipo</th>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Município</th>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Status</th>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Versão instalada</th>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Criado</th>
+            </tr></thead>
+            <tbody>
+              {myRollouts.map(ro => (
+                <tr key={ro.id} style={{ borderBottom: "1px solid var(--border-color)" }}>
+                  <td style={{ padding: "0.4rem" }}>{ro.targetType}</td>
+                  <td style={{ padding: "0.4rem" }}>{ro.municipalityId}</td>
+                  <td style={{ padding: "0.4rem" }}><span className={ROLLOUT_STATUS_BADGE[ro.status] || "badge"}>{ROLLOUT_STATUS_LABEL[ro.status] || ro.status}</span></td>
+                  <td style={{ padding: "0.4rem" }}>{ro.installedVersion || "—"}</td>
+                  <td style={{ padding: "0.4rem" }}>{fmtDate(ro.createdAt)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="card" style={{ padding: "1rem" }}>
+          <h3 style={{ fontWeight: 600, marginBottom: "0.75rem" }}>Linha do tempo</h3>
+          {detail.timeline?.map(ev => (
+            <div key={ev.id} style={{ fontSize: "0.8rem", padding: "0.3rem 0", borderBottom: "1px solid var(--border-color)", opacity: 0.85 }}>
+              <strong>{ev.event}</strong>
+              {ev.from && <> · {ev.from} → {ev.to}</>}
+              {ev.reason && <> · {ev.reason}</>}
+              <span style={{ float: "right" }}>{fmtDate(ev.at)}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="console-page-header">
+        <div>
+          <h1 className="console-page-header__title">Release Management</h1>
+          <p className="console-page-header__sub">Controle de versões, rollouts e janelas de manutenção</p>
+        </div>
+        <Button onClick={fetchDashboard} variant="ghost">↺ Atualizar</Button>
+      </div>
+
+      {err && <Alert type="error" message={err} onClose={() => setErr(null)} />}
+      {loading && <p style={{ opacity: 0.5 }}>Carregando...</p>}
+
+      {/* Dashboard cards */}
+      {dashboard && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "1rem", marginBottom: "1.5rem" }}>
+          <div className="card" style={{ padding: "1rem", textAlign: "center" }}>
+            <p style={{ fontSize: "1.5rem", fontWeight: 700 }}>{dashboard.currentVersion || "—"}</p>
+            <p className="card__label">Versão atual</p>
+          </div>
+          <div className="card" style={{ padding: "1rem", textAlign: "center" }}>
+            <p style={{ fontSize: "1.5rem", fontWeight: 700 }}>{dashboard.releases?.total || 0}</p>
+            <p className="card__label">Total releases</p>
+          </div>
+          <div className="card" style={{ padding: "1rem", textAlign: "center" }}>
+            <p style={{ fontSize: "1.5rem", fontWeight: 700 }}>{dashboard.rollouts?.completed || 0}</p>
+            <p className="card__label">Rollouts concluídos</p>
+          </div>
+          <div className="card" style={{ padding: "1rem", textAlign: "center" }}>
+            <p style={{ fontSize: "1.5rem", fontWeight: 700 }}>{dashboard.migrations?.applied || 0}</p>
+            <p className="card__label">Migrations aplicadas</p>
+          </div>
+          <div className="card" style={{ padding: "1rem", textAlign: "center" }}>
+            <p style={{ fontSize: "1.5rem", fontWeight: 700 }}>{dashboard.maintenanceWindows?.active || 0}</p>
+            <p className="card__label">Janelas ativas</p>
+          </div>
+        </div>
+      )}
+
+      {/* Upcoming maintenance windows */}
+      {dashboard?.maintenanceWindows?.upcoming?.length > 0 && (
+        <div className="card" style={{ padding: "1rem", marginBottom: "1.5rem", borderLeft: "3px solid var(--color-warning, #f59e0b)" }}>
+          <h3 style={{ fontWeight: 600, marginBottom: "0.5rem" }}>Próximas janelas de manutenção</h3>
+          {dashboard.maintenanceWindows.upcoming.map(w => (
+            <div key={w.id} style={{ fontSize: "0.85rem", padding: "0.25rem 0" }}>
+              <strong>{w.title}</strong> · {fmtDate(w.startAt)} → {fmtDate(w.endAt)}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Releases table */}
+      <div className="card" style={{ padding: "1rem", marginBottom: "1.5rem" }}>
+        <h3 style={{ fontWeight: 600, marginBottom: "0.75rem" }}>Releases ({releases.length})</h3>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", fontSize: "0.875rem", borderCollapse: "collapse" }}>
+            <thead><tr style={{ borderBottom: "2px solid var(--border-color)" }}>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Código</th>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Versão</th>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Tipo</th>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Título</th>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Status</th>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Release</th>
+            </tr></thead>
+            <tbody>
+              {!releases.length && <tr><td colSpan={6} style={{ padding: "1rem", opacity: 0.5 }}>Nenhuma release.</td></tr>}
+              {releases.map(r => (
+                <tr
+                  key={r.id}
+                  style={{ borderBottom: "1px solid var(--border-color)", cursor: "pointer" }}
+                  onClick={async () => { await fetchDetail(r.id); setView("detail"); }}
+                >
+                  <td style={{ padding: "0.4rem", fontFamily: "monospace", fontSize: "0.8rem" }}>{r.releaseCode}</td>
+                  <td style={{ padding: "0.4rem", fontWeight: 600 }}>{r.version}</td>
+                  <td style={{ padding: "0.4rem" }}><span className="badge badge--info">{r.releaseType}</span></td>
+                  <td style={{ padding: "0.4rem" }}>{r.title}</td>
+                  <td style={{ padding: "0.4rem" }}><span className={RELEASE_STATUS_BADGE[r.status] || "badge"}>{RELEASE_STATUS_LABEL[r.status] || r.status}</span></td>
+                  <td style={{ padding: "0.4rem" }}>{fmtDate(r.releaseDate) || fmtDate(r.plannedReleaseDate) || "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Rollouts table */}
+      <div className="card" style={{ padding: "1rem", marginBottom: "1.5rem" }}>
+        <h3 style={{ fontWeight: 600, marginBottom: "0.75rem" }}>Rollouts ({rollouts.length})</h3>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", fontSize: "0.875rem", borderCollapse: "collapse" }}>
+            <thead><tr style={{ borderBottom: "2px solid var(--border-color)" }}>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Tipo</th>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Município</th>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Versão</th>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Status</th>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Instalado</th>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Criado</th>
+            </tr></thead>
+            <tbody>
+              {!rollouts.length && <tr><td colSpan={6} style={{ padding: "1rem", opacity: 0.5 }}>Nenhum rollout.</td></tr>}
+              {rollouts.map(ro => (
+                <tr key={ro.id} style={{ borderBottom: "1px solid var(--border-color)" }}>
+                  <td style={{ padding: "0.4rem" }}>{ro.targetType}</td>
+                  <td style={{ padding: "0.4rem" }}>{ro.municipalityId}</td>
+                  <td style={{ padding: "0.4rem" }}>{ro.releaseVersion || "—"}</td>
+                  <td style={{ padding: "0.4rem" }}><span className={ROLLOUT_STATUS_BADGE[ro.status] || "badge"}>{ROLLOUT_STATUS_LABEL[ro.status] || ro.status}</span></td>
+                  <td style={{ padding: "0.4rem" }}>{ro.installedVersion || "—"}</td>
+                  <td style={{ padding: "0.4rem" }}>{fmtDate(ro.createdAt)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Migrations table */}
+      <div className="card" style={{ padding: "1rem", marginBottom: "1.5rem" }}>
+        <h3 style={{ fontWeight: 600, marginBottom: "0.75rem" }}>Migration Log ({migrations.length})</h3>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", fontSize: "0.875rem", borderCollapse: "collapse" }}>
+            <thead><tr style={{ borderBottom: "2px solid var(--border-color)" }}>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Código</th>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Descrição</th>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Status</th>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Executado em</th>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Tempo (ms)</th>
+            </tr></thead>
+            <tbody>
+              {!migrations.length && <tr><td colSpan={5} style={{ padding: "1rem", opacity: 0.5 }}>Nenhuma migration registrada.</td></tr>}
+              {migrations.map(m => (
+                <tr key={m.id} style={{ borderBottom: "1px solid var(--border-color)" }}>
+                  <td style={{ padding: "0.4rem", fontFamily: "monospace", fontSize: "0.8rem" }}>{m.migrationCode}</td>
+                  <td style={{ padding: "0.4rem" }}>{m.description || "—"}</td>
+                  <td style={{ padding: "0.4rem" }}><span className={m.status === "APPLIED" ? "badge badge--success" : m.status === "FAILED" ? "badge badge--danger" : "badge badge--info"}>{m.status}</span></td>
+                  <td style={{ padding: "0.4rem" }}>{fmtDate(m.executedAt)}</td>
+                  <td style={{ padding: "0.4rem" }}>{m.executionTimeMs ?? "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Maintenance windows */}
+      <div className="card" style={{ padding: "1rem" }}>
+        <h3 style={{ fontWeight: 600, marginBottom: "0.75rem" }}>Janelas de Manutenção ({maintenance.length})</h3>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", fontSize: "0.875rem", borderCollapse: "collapse" }}>
+            <thead><tr style={{ borderBottom: "2px solid var(--border-color)" }}>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Título</th>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Início</th>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Fim</th>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Status</th>
+            </tr></thead>
+            <tbody>
+              {!maintenance.length && <tr><td colSpan={4} style={{ padding: "1rem", opacity: 0.5 }}>Nenhuma janela cadastrada.</td></tr>}
+              {maintenance.map(w => (
+                <tr key={w.id} style={{ borderBottom: "1px solid var(--border-color)" }}>
+                  <td style={{ padding: "0.4rem" }}>{w.title}</td>
+                  <td style={{ padding: "0.4rem" }}>{fmtDate(w.startAt)}</td>
+                  <td style={{ padding: "0.4rem" }}>{fmtDate(w.endAt)}</td>
+                  <td style={{ padding: "0.4rem" }}><span className={MW_STATUS_BADGE[w.status] || "badge"}>{w.status}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function HealthDot({ status, size = 10 }) {
   return <span style={{ display: "inline-block", width: size, height: size, borderRadius: "50%", background: HEALTH_COLOR[status] || "#9ca3af", marginRight: 6, verticalAlign: "middle" }} />;
 }
@@ -3413,6 +3739,14 @@ export default function PlatformConsolePage({ token, user, onLogout }) {
             <IcoNoc /> NOC / Observabilidade
           </button>
 
+          <button
+            type="button"
+            className={`console-nav__item${tab === "releases" ? " is-active" : ""}`}
+            onClick={() => switchTab("releases")}
+          >
+            <IcoRelease /> Releases
+          </button>
+
           <span className="console-nav__section">Portal</span>
           <button
             type="button"
@@ -3507,6 +3841,11 @@ export default function PlatformConsolePage({ token, user, onLogout }) {
           {/* NOC / Observabilidade */}
           {tab === "noc" && (
             <NocConsole token={token} />
+          )}
+
+          {/* Releases */}
+          {tab === "releases" && (
+            <ReleaseConsole token={token} />
           )}
 
           {/* Unidades de Saúde */}

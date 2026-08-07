@@ -1806,6 +1806,346 @@ router.get("/platform/deployments-dashboard", async (req, res) => {
 });
 
 // ══════════════════════════════════════════════════════════════════════════
+// ERP-07 — Release Management and Change Control
+// ══════════════════════════════════════════════════════════════════════════
+
+import {
+  createRelease, changeReleaseStatus, updateRelease,
+  createRollout, advanceRollout,
+  createMigrationLog, createMaintenanceWindow, updateMaintenanceWindow,
+  RELEASE_STATUS, RELEASE_TYPE, ROLLOUT_STATUS,
+} from "../services/release.js";
+
+function ensureReleases(db) {
+  ensureDbShape(db);
+  if (!Array.isArray(db.releases))            db.releases = [];
+  if (!Array.isArray(db.releaseRollouts))     db.releaseRollouts = [];
+  if (!Array.isArray(db.migrationLog))        db.migrationLog = [];
+  if (!Array.isArray(db.maintenanceWindows))  db.maintenanceWindows = [];
+}
+
+function relOperator(user) { return { id: user.id, name: user.name, role: user.role }; }
+
+// ── Releases ───────────────────────────────────────────────────────────────
+
+router.get("/platform/releases", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.read")) return res.status(403).json({ error: "Sem permissão" });
+  const { status, releaseType, page: pageRaw = "1", limit: limitRaw = "25" } = req.query;
+  const page  = Math.max(1, parseInt(pageRaw, 10) || 1);
+  const limit = Math.min(100, Math.max(1, parseInt(limitRaw, 10) || 25));
+  const db    = await readDb();
+  ensureReleases(db);
+  let list = db.releases.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  if (status)      list = list.filter(r => r.status === status.toUpperCase());
+  if (releaseType) list = list.filter(r => r.releaseType === releaseType.toUpperCase());
+  const total = list.length;
+  const pages = Math.ceil(total / limit) || 1;
+  return res.json({ releases: list.slice((page - 1) * limit, page * limit), total, pages });
+});
+
+router.get("/platform/releases/:releaseId", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.read")) return res.status(403).json({ error: "Sem permissão" });
+  const db = await readDb();
+  ensureReleases(db);
+  const rel = db.releases.find(r => r.id === req.params.releaseId);
+  if (!rel) return res.status(404).json({ error: "Release não encontrada" });
+  // Enrich with rollout summary
+  const rollouts = (db.releaseRollouts || []).filter(ro => ro.releaseId === rel.id);
+  return res.json({
+    ...rel,
+    rolloutSummary: {
+      total:       rollouts.length,
+      completed:   rollouts.filter(ro => ro.status === "COMPLETED").length,
+      inProgress:  rollouts.filter(ro => ro.status === "IN_PROGRESS").length,
+      failed:      rollouts.filter(ro => ro.status === "FAILED").length,
+      rolledBack:  rollouts.filter(ro => ro.status === "ROLLED_BACK").length,
+    },
+  });
+});
+
+router.post("/platform/releases", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.create")) return res.status(403).json({ error: "Sem permissão" });
+  const { version, releaseType, title, description, plannedReleaseDate,
+          rollbackAvailable, rollbackReleaseId, changelog,
+          affectedModules, affectedMigrations, documentationVersion } = req.body || {};
+  const operator = relOperator(req.user);
+  const result = await withDb((db) => {
+    ensureReleases(db);
+    let rel;
+    try {
+      rel = createRelease({ version, releaseType, title, description, plannedReleaseDate,
+        rollbackAvailable, rollbackReleaseId, changelog: changelog || [],
+        affectedModules, affectedMigrations, documentationVersion,
+        operator, existingReleases: db.releases });
+    } catch (e) {
+      return { error: { status: e.statusCode || 400, message: e.message } };
+    }
+    db.releases.push(rel);
+    addAuditLog(db, req.user, "release.created", "release", rel.id, { releaseCode: rel.releaseCode, version });
+    return { release: rel };
+  });
+  if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
+  return res.status(201).json(result.release);
+});
+
+router.patch("/platform/releases/:releaseId", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.update")) return res.status(403).json({ error: "Sem permissão" });
+  const { reason, ...patch } = req.body || {};
+  const operator = relOperator(req.user);
+  const result = await withDb((db) => {
+    ensureReleases(db);
+    const idx = db.releases.findIndex(r => r.id === req.params.releaseId);
+    if (idx < 0) return { error: { status: 404, message: "Release não encontrada" } };
+    try { updateRelease(db.releases[idx], { patch, operator, reason: reason || null }); }
+    catch (e) { return { error: { status: e.statusCode || 422, message: e.message } }; }
+    addAuditLog(db, req.user, "release.updated", "release", db.releases[idx].id, { patch, reason });
+    return { release: db.releases[idx] };
+  });
+  if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
+  return res.json(result.release);
+});
+
+router.patch("/platform/releases/:releaseId/status", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.update")) return res.status(403).json({ error: "Sem permissão" });
+  const { toStatus, reason } = req.body || {};
+  if (!toStatus) return res.status(400).json({ error: "toStatus obrigatório" });
+  const operator = relOperator(req.user);
+  const result = await withDb((db) => {
+    ensureReleases(db);
+    const idx = db.releases.findIndex(r => r.id === req.params.releaseId);
+    if (idx < 0) return { error: { status: 404, message: "Release não encontrada" } };
+    try { changeReleaseStatus(db.releases[idx], { toStatus, operator, reason: reason || null }); }
+    catch (e) { return { error: { status: e.statusCode || 422, message: e.message } }; }
+    addAuditLog(db, req.user, "release.status_changed", "release", db.releases[idx].id, { toStatus, reason });
+    return { release: db.releases[idx] };
+  });
+  if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
+  return res.json(result.release);
+});
+
+// GET /platform/changelog — aggregated changelog across all STABLE/ACTIVE releases
+router.get("/platform/changelog", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.read")) return res.status(403).json({ error: "Sem permissão" });
+  const { releaseId } = req.query;
+  const db = await readDb();
+  ensureReleases(db);
+  let releases = db.releases;
+  if (releaseId) releases = releases.filter(r => r.id === releaseId);
+  const items = [];
+  for (const rel of releases) {
+    for (const item of (rel.changelog || [])) {
+      items.push({ ...item, releaseId: rel.id, releaseCode: rel.releaseCode, version: rel.version, releaseDate: rel.releaseDate });
+    }
+  }
+  items.sort((a, b) => (b.releaseDate || "").localeCompare(a.releaseDate || ""));
+  return res.json({ changelog: items, total: items.length });
+});
+
+// ── Rollouts ───────────────────────────────────────────────────────────────
+
+router.get("/platform/rollouts", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.read")) return res.status(403).json({ error: "Sem permissão" });
+  const { releaseId, status, targetType, municipalityId } = req.query;
+  const db = await readDb();
+  ensureReleases(db);
+  let list = db.releaseRollouts || [];
+  if (releaseId)      list = list.filter(ro => ro.releaseId === releaseId);
+  if (status)         list = list.filter(ro => ro.status === status.toUpperCase());
+  if (targetType)     list = list.filter(ro => ro.targetType === targetType.toUpperCase());
+  if (municipalityId) list = list.filter(ro => ro.municipalityId === municipalityId);
+  return res.json({ rollouts: list, total: list.length });
+});
+
+router.post("/platform/rollouts", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.create")) return res.status(403).json({ error: "Sem permissão" });
+  const { releaseId, targetType, municipalityId, unitId } = req.body || {};
+  // Validate body fields before DB lookup so errors return 400 not 422
+  if (!releaseId)      return res.status(400).json({ error: "releaseId obrigatório" });
+  if (!targetType || !["MUNICIPALITY","UNIT"].includes(targetType)) {
+    return res.status(400).json({ error: "targetType deve ser MUNICIPALITY ou UNIT" });
+  }
+  if (!municipalityId) return res.status(400).json({ error: "municipalityId obrigatório" });
+  if (targetType === "UNIT" && !unitId) return res.status(400).json({ error: "unitId obrigatório para targetType UNIT" });
+  const operator = relOperator(req.user);
+  const result = await withDb((db) => {
+    ensureReleases(db);
+    const rel = (db.releases || []).find(r => r.id === releaseId);
+    if (!rel) return { error: { status: 404, message: "Release não encontrada" } };
+    if (!["APPROVED","ACTIVE","STABLE"].includes(rel.status)) {
+      return { error: { status: 422, message: `Release deve estar APPROVED, ACTIVE ou STABLE para rollout (status atual: ${rel.status})` } };
+    }
+    let ro;
+    try {
+      ro = createRollout({ releaseId, releaseVersion: rel.version, targetType, municipalityId, unitId, operator, existingRollouts: db.releaseRollouts });
+    } catch (e) {
+      return { error: { status: e.statusCode || 400, message: e.message } };
+    }
+    db.releaseRollouts.push(ro);
+    // Auto-set release to ACTIVE when first rollout created from APPROVED
+    if (rel.status === RELEASE_STATUS.APPROVED) {
+      const idx = db.releases.findIndex(r => r.id === releaseId);
+      changeReleaseStatus(db.releases[idx], { toStatus: "ACTIVE", operator, reason: "Primeiro rollout iniciado" });
+    }
+    addAuditLog(db, req.user, "rollout.created", "rollout", ro.id, { releaseId, targetType, municipalityId, unitId });
+    return { rollout: ro };
+  });
+  if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
+  return res.status(201).json(result.rollout);
+});
+
+router.patch("/platform/rollouts/:rolloutId/status", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.update")) return res.status(403).json({ error: "Sem permissão" });
+  const { toStatus, notes } = req.body || {};
+  if (!toStatus) return res.status(400).json({ error: "toStatus obrigatório" });
+  const operator = relOperator(req.user);
+  const result = await withDb((db) => {
+    ensureReleases(db);
+    const idx = (db.releaseRollouts || []).findIndex(ro => ro.id === req.params.rolloutId);
+    if (idx < 0) return { error: { status: 404, message: "Rollout não encontrado" } };
+    try { advanceRollout(db.releaseRollouts[idx], { toStatus, operator, notes: notes || null }); }
+    catch (e) { return { error: { status: e.statusCode || 422, message: e.message } }; }
+    addAuditLog(db, req.user, "rollout.status_changed", "rollout", db.releaseRollouts[idx].id, { toStatus, notes });
+    return { rollout: db.releaseRollouts[idx] };
+  });
+  if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
+  return res.json(result.rollout);
+});
+
+// ── Migrations ─────────────────────────────────────────────────────────────
+
+router.get("/platform/migrations", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.read")) return res.status(403).json({ error: "Sem permissão" });
+  const { status, releaseId } = req.query;
+  const db = await readDb();
+  ensureReleases(db);
+  let list = db.migrationLog || [];
+  if (status)    list = list.filter(m => m.status === status.toUpperCase());
+  if (releaseId) list = list.filter(m => m.releaseId === releaseId);
+  return res.json({ migrations: list, total: list.length });
+});
+
+router.post("/platform/migrations", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.create")) return res.status(403).json({ error: "Sem permissão" });
+  const { migrationCode, releaseId, description, status, executedAt, rollbackAvailable, executionTimeMs, result: migResult } = req.body || {};
+  const operator = relOperator(req.user);
+  const dbResult = await withDb((db) => {
+    ensureReleases(db);
+    if ((db.migrationLog || []).some(m => m.migrationCode === migrationCode)) {
+      return { error: { status: 409, message: `Migration ${migrationCode} já registrada` } };
+    }
+    let entry;
+    try {
+      entry = createMigrationLog({ migrationCode, releaseId, description, status, executedAt, rollbackAvailable, executionTimeMs, result: migResult, operator });
+    } catch (e) {
+      return { error: { status: e.statusCode || 400, message: e.message } };
+    }
+    db.migrationLog.push(entry);
+    addAuditLog(db, req.user, "migration.recorded", "migration", entry.id, { migrationCode, status });
+    return { migration: entry };
+  });
+  if (dbResult?.error) return res.status(dbResult.error.status).json({ error: dbResult.error.message });
+  return res.status(201).json(dbResult.migration);
+});
+
+// ── Maintenance Windows ────────────────────────────────────────────────────
+
+router.get("/platform/maintenance", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.read")) return res.status(403).json({ error: "Sem permissão" });
+  const { status } = req.query;
+  const db = await readDb();
+  ensureReleases(db);
+  let list = (db.maintenanceWindows || []).slice().sort((a, b) => new Date(b.startAt) - new Date(a.startAt));
+  if (status) list = list.filter(w => w.status === status.toUpperCase());
+  return res.json({ maintenanceWindows: list, total: list.length });
+});
+
+router.post("/platform/maintenance", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.create")) return res.status(403).json({ error: "Sem permissão" });
+  const { title, description, startAt, endAt, reason, municipalityScope, unitScope } = req.body || {};
+  const operator = relOperator(req.user);
+  const result = await withDb((db) => {
+    ensureReleases(db);
+    let mw;
+    try {
+      mw = createMaintenanceWindow({ title, description, startAt, endAt, reason, municipalityScope, unitScope, operator, existingWindows: db.maintenanceWindows });
+    } catch (e) {
+      return { error: { status: e.statusCode || 400, message: e.message } };
+    }
+    db.maintenanceWindows.push(mw);
+    addAuditLog(db, req.user, "maintenance.created", "maintenance", mw.id, { title, startAt, endAt });
+    return { maintenanceWindow: mw };
+  });
+  if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
+  return res.status(201).json(result.maintenanceWindow);
+});
+
+router.patch("/platform/maintenance/:windowId", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.update")) return res.status(403).json({ error: "Sem permissão" });
+  const operator = relOperator(req.user);
+  const result = await withDb((db) => {
+    ensureReleases(db);
+    const idx = (db.maintenanceWindows || []).findIndex(w => w.id === req.params.windowId);
+    if (idx < 0) return { error: { status: 404, message: "Janela de manutenção não encontrada" } };
+    updateMaintenanceWindow(db.maintenanceWindows[idx], { patch: req.body || {}, operator });
+    addAuditLog(db, req.user, "maintenance.updated", "maintenance", db.maintenanceWindows[idx].id, req.body);
+    return { maintenanceWindow: db.maintenanceWindows[idx] };
+  });
+  if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
+  return res.json(result.maintenanceWindow);
+});
+
+// GET /platform/releases-dashboard
+router.get("/platform/releases-dashboard", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.read")) return res.status(403).json({ error: "Sem permissão" });
+  const db = await readDb();
+  ensureReleases(db);
+  const releases  = db.releases           || [];
+  const rollouts  = db.releaseRollouts    || [];
+  const migrations = db.migrationLog      || [];
+  const mws       = db.maintenanceWindows || [];
+  const now       = new Date().toISOString();
+
+  const stable  = releases.filter(r => r.status === "STABLE").sort((a, b) => b.releaseDate?.localeCompare(a.releaseDate || "") || 0);
+  const active  = releases.filter(r => r.status === "ACTIVE");
+  const planned = releases.filter(r => ["DRAFT","APPROVED"].includes(r.status)).sort((a, b) => (a.plannedReleaseDate || "").localeCompare(b.plannedReleaseDate || ""));
+
+  const upcomingMw = mws.filter(w => w.status === "PLANNED" && w.startAt > now).sort((a, b) => a.startAt.localeCompare(b.startAt));
+
+  return res.json({
+    currentVersion:       stable[0]?.version || null,
+    lastRelease:          stable[0] || null,
+    nextPlannedRelease:   planned[0] || null,
+    releases: {
+      total:      releases.length,
+      draft:      releases.filter(r => r.status === "DRAFT").length,
+      approved:   releases.filter(r => r.status === "APPROVED").length,
+      active:     active.length,
+      stable:     stable.length,
+      deprecated: releases.filter(r => r.status === "DEPRECATED").length,
+      rolledBack: releases.filter(r => r.status === "ROLLED_BACK").length,
+    },
+    rollouts: {
+      total:       rollouts.length,
+      planned:     rollouts.filter(ro => ro.status === "PLANNED").length,
+      inProgress:  rollouts.filter(ro => ro.status === "IN_PROGRESS").length,
+      completed:   rollouts.filter(ro => ro.status === "COMPLETED").length,
+      failed:      rollouts.filter(ro => ro.status === "FAILED").length,
+      rolledBack:  rollouts.filter(ro => ro.status === "ROLLED_BACK").length,
+    },
+    migrations: {
+      total:   migrations.length,
+      pending: migrations.filter(m => m.status === "PENDING").length,
+      applied: migrations.filter(m => m.status === "APPLIED").length,
+      failed:  migrations.filter(m => m.status === "FAILED").length,
+    },
+    maintenanceWindows: {
+      upcoming: upcomingMw.slice(0, 3),
+      active:   mws.filter(w => w.status === "ACTIVE").length,
+    },
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════════════
 // ERP-06 — Platform Observability and Diagnostics
 // ══════════════════════════════════════════════════════════════════════════
 
