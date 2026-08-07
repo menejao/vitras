@@ -48,14 +48,14 @@ async function main() {
     await client.query('BEGIN');
     await client.query('SELECT pg_advisory_xact_lock(202300)');
 
-    const { rows } = await client.query('SELECT state FROM app_state WHERE id = 1 FOR UPDATE');
+    const { rows } = await client.query('SELECT data FROM app_state WHERE id = 1 FOR UPDATE');
     if (!rows.length) {
       log('❌ app_state vazio — banco não inicializado');
       await client.query('ROLLBACK');
       return;
     }
 
-    const state = rows[0].state;
+    const state = rows[0].data;
     const users = state.users || [];
 
     const bgaUsers = users.filter((u) => u.role === 'break_glass_admin');
@@ -108,7 +108,7 @@ async function main() {
         changed++;
       }
 
-      await client.query('UPDATE app_state SET state = $1 WHERE id = 1', [JSON.stringify(state)]);
+      await client.query('UPDATE app_state SET data = $1, updated_at = NOW() WHERE id = 1', [JSON.stringify(state)]);
       await client.query('COMMIT');
       log(`UP concluído — ${changed} operações realizadas`);
       return;
@@ -125,7 +125,7 @@ async function main() {
         return next;
       });
 
-      await client.query('UPDATE app_state SET state = $1 WHERE id = 1', [JSON.stringify(state)]);
+      await client.query('UPDATE app_state SET data = $1, updated_at = NOW() WHERE id = 1', [JSON.stringify(state)]);
       await client.query('COMMIT');
       log(`DOWN concluído — ${restored} contas restauradas`);
     }
