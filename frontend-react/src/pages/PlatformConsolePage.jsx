@@ -508,6 +508,15 @@ function MunicipalityDetailView({ token, municipality, onBack, onGoToUnit }) {
 
 // ── Municipality Ico ───────────────────────────────────────────────────────
 
+const IcoLicense = () => (
+  <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden>
+    <rect x="2" y="1" width="12" height="14" rx="1.5" stroke="currentColor" strokeWidth="1.3"/>
+    <path d="M5 5h6M5 8h6M5 11h3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+    <circle cx="12" cy="11" r="2" stroke="currentColor" strokeWidth="1.1"/>
+    <path d="M13.4 12.4l1.2 1.2" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round"/>
+  </svg>
+);
+
 const IcoMunicipality = () => (
   <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden>
     <path d="M8 1l7 4v9H1V5l7-4z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/>
@@ -2291,6 +2300,369 @@ function CitizenPortalConfig({ token }) {
   );
 }
 
+// ── License Console ────────────────────────────────────────────────────────
+
+const LICENSE_STATUS_LABEL = {
+  DRAFT: "Rascunho", ACTIVE: "Ativa", SUSPENDED: "Suspensa",
+  EXPIRED: "Expirada", TERMINATED: "Encerrada",
+};
+const LICENSE_STATUS_CLASS = {
+  DRAFT: "badge", ACTIVE: "badge badge--success", SUSPENDED: "badge badge--warning",
+  EXPIRED: "badge badge--danger", TERMINATED: "badge",
+};
+const CUSTOMER_STATUS_LABEL = {
+  LEAD: "Lead", CONTRACT_PENDING: "Contrato Pendente", IMPLEMENTATION: "Implantação",
+  TRAINING: "Treinamento", READY_FOR_GO_LIVE: "Pronto p/ Go Live", ACTIVE: "Ativo",
+  SUSPENDED: "Suspenso", CANCELLED: "Cancelado", TERMINATED: "Encerrado",
+};
+
+function LicenseConsole({ token }) {
+  const [view, setView]       = useState("list");
+  const [selected, setSelected] = useState(null);
+  const [listKey, setListKey] = useState(0);
+
+  if (view === "detail" && selected) {
+    return (
+      <LicenseDetail
+        token={token}
+        license={selected}
+        onBack={() => { setSelected(null); setView("list"); setListKey(k => k + 1); }}
+      />
+    );
+  }
+  if (view === "new") {
+    return (
+      <LicenseForm
+        token={token}
+        onDone={(lic) => { setSelected(lic); setView("detail"); }}
+        onBack={() => setView("list")}
+      />
+    );
+  }
+
+  return (
+    <LicenseListView
+      key={listKey}
+      token={token}
+      onSelect={(lic) => { setSelected(lic); setView("detail"); }}
+      onNew={() => setView("new")}
+    />
+  );
+}
+
+function LicenseListView({ token, onSelect, onNew }) {
+  const [licenses, setLicenses] = useState([]);
+  const [dashboard, setDashboard] = useState(null);
+  const [loading, setLoading]   = useState(true);
+  const [error, setError]       = useState("");
+  const [filterStatus, setFilterStatus] = useState("");
+
+  useEffect(() => {
+    Promise.all([
+      apiFetch("/platform/licenses" + (filterStatus ? `?status=${filterStatus}` : ""), token),
+      apiFetch("/platform/licenses-dashboard", token),
+    ]).then(([r1, r2]) => {
+      if (!r1.ok) throw new Error("Erro ao carregar licenças");
+      return Promise.all([r1.json(), r2.ok ? r2.json() : null]);
+    }).then(([d1, d2]) => {
+      setLicenses(d1.licenses || []);
+      setDashboard(d2);
+      setLoading(false);
+    }).catch(e => { setError(e.message); setLoading(false); });
+  }, [token, filterStatus]);
+
+  return (
+    <>
+      <div className="console-page-header">
+        <div>
+          <h1 className="console-page-header__title">Licenças</h1>
+          <p className="console-page-header__sub">Contratos e ciclo de vida de clientes municipais</p>
+        </div>
+        <Button onClick={onNew}>+ Nova Licença</Button>
+      </div>
+
+      {dashboard && (
+        <div style={{ display: "flex", gap: "var(--s-3)", flexWrap: "wrap", marginBottom: "var(--s-4)" }}>
+          {[
+            { label: "Ativas",       value: dashboard.licenses.active,     cls: "badge--success" },
+            { label: "Rascunho",     value: dashboard.licenses.draft,      cls: "" },
+            { label: "Suspensas",    value: dashboard.licenses.suspended,  cls: "badge--warning" },
+            { label: "Expiradas",    value: dashboard.licenses.expired,    cls: "badge--danger" },
+            { label: "Vcto ≤30d",    value: dashboard.licenses.expiringIn30Days, cls: "badge--warning" },
+          ].map(({ label, value, cls }) => (
+            <div key={label} style={{ background: "var(--surface-2)", borderRadius: "var(--radius-md)", padding: "var(--s-2) var(--s-3)", minWidth: 90, textAlign: "center" }}>
+              <div style={{ fontSize: "1.4rem", fontWeight: 700 }}>{value ?? 0}</div>
+              <div style={{ fontSize: "0.7rem", color: "var(--text-muted)" }}>{label}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div style={{ marginBottom: "var(--s-3)", display: "flex", gap: "var(--s-2)" }}>
+        <select
+          value={filterStatus}
+          onChange={e => setFilterStatus(e.target.value)}
+          style={{ padding: "4px 8px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)" }}
+        >
+          <option value="">Todos os status</option>
+          {Object.entries(LICENSE_STATUS_LABEL).map(([k, v]) => (
+            <option key={k} value={k}>{v}</option>
+          ))}
+        </select>
+      </div>
+
+      {error && <Alert variant="danger">{error}</Alert>}
+      {loading ? <p>Carregando…</p> : (
+        <div className="console-table-wrapper">
+          <table className="console-table">
+            <thead>
+              <tr>
+                <th>Código</th>
+                <th>Município (ID)</th>
+                <th>Plano</th>
+                <th>Status</th>
+                <th>Contrato</th>
+                <th>Vcto</th>
+                <th>UBS</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {licenses.length === 0 ? (
+                <tr><td colSpan={8} style={{ textAlign: "center", color: "var(--text-muted)" }}>Nenhuma licença encontrada</td></tr>
+              ) : licenses.map(l => (
+                <tr key={l.id}>
+                  <td><span style={{ fontFamily: "monospace", fontSize: "0.82rem" }}>{l.licenseCode}</span></td>
+                  <td style={{ fontSize: "0.82rem" }}>{l.municipalityId}</td>
+                  <td>{l.plan}</td>
+                  <td><span className={LICENSE_STATUS_CLASS[l.status] || "badge"}>{LICENSE_STATUS_LABEL[l.status] || l.status}</span></td>
+                  <td style={{ fontSize: "0.82rem" }}>{l.contractNumber || "—"}</td>
+                  <td style={{ fontSize: "0.82rem" }}>{fmtDate(l.contractEnd)}</td>
+                  <td style={{ textAlign: "center" }}>{l.currentUnits ?? "—"}{l.limits?.maxUnits != null ? `/${l.limits.maxUnits}` : ""}</td>
+                  <td>
+                    <Button size="sm" variant="secondary" onClick={() => onSelect(l)}>Ver</Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </>
+  );
+}
+
+function LicenseDetail({ token, license: initialLicense, onBack }) {
+  const [license, setLicense] = useState(initialLicense);
+  const [loading, setLoading] = useState(false);
+  const [error, setError]     = useState("");
+  const [msg, setMsg]         = useState("");
+
+  const reload = () => {
+    apiFetch(`/platform/licenses/${license.id}`, token)
+      .then(r => r.json()).then(setLicense);
+  };
+
+  const changeStatus = async (toStatus, reason) => {
+    setLoading(true); setError(""); setMsg("");
+    try {
+      const r = await apiFetch(`/platform/licenses/${license.id}/status`, token, {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ toStatus, reason: reason || null }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || "Erro");
+      setLicense(d); setMsg(`Status alterado para ${LICENSE_STATUS_LABEL[toStatus] || toStatus}`);
+    } catch (e) { setError(e.message); }
+    setLoading(false);
+  };
+
+  const STATUS_ACTIONS = {
+    DRAFT:      [{ to: "ACTIVE", label: "Ativar", v: "primary" }],
+    ACTIVE:     [{ to: "SUSPENDED", label: "Suspender", v: "danger" }, { to: "EXPIRED", label: "Marcar Expirada", v: "secondary" }, { to: "TERMINATED", label: "Encerrar", v: "danger" }],
+    SUSPENDED:  [{ to: "ACTIVE", label: "Reativar", v: "primary" }, { to: "TERMINATED", label: "Encerrar", v: "danger" }],
+    EXPIRED:    [{ to: "ACTIVE", label: "Reativar", v: "primary" }, { to: "TERMINATED", label: "Encerrar", v: "danger" }],
+    TERMINATED: [],
+  };
+
+  const actions = STATUS_ACTIONS[license.status] || [];
+
+  return (
+    <>
+      <div className="console-page-header">
+        <div>
+          <button type="button" onClick={onBack} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", fontSize: "0.85rem", marginBottom: "var(--s-1)", padding: 0 }}>
+            ← Voltar
+          </button>
+          <h1 className="console-page-header__title">{license.licenseCode}</h1>
+          <p className="console-page-header__sub">Município {license.municipalityId} · Plano {license.plan}</p>
+        </div>
+        <span className={LICENSE_STATUS_CLASS[license.status] || "badge"} style={{ fontSize: "0.9rem", padding: "4px 10px" }}>
+          {LICENSE_STATUS_LABEL[license.status] || license.status}
+        </span>
+      </div>
+
+      {error && <Alert variant="danger">{error}</Alert>}
+      {msg   && <Alert variant="success">{msg}</Alert>}
+
+      {/* Contract info */}
+      <div className="console-section">
+        <div className="console-section__header">Contrato</div>
+        <div className="console-section__body">
+          <table style={{ fontSize: "0.875rem", borderCollapse: "collapse", width: "100%" }}>
+            <tbody>
+              {[
+                ["Número do contrato", license.contractNumber || "—"],
+                ["Início", fmtDate(license.contractStart)],
+                ["Vencimento", fmtDate(license.contractEnd)],
+                ["Renovação", fmtDate(license.renewalDate)],
+                ["Notas", license.notes || "—"],
+              ].map(([k, v]) => (
+                <tr key={k}>
+                  <td style={{ color: "var(--text-muted)", padding: "4px 16px 4px 0", width: 180 }}>{k}</td>
+                  <td>{v}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Limits & features */}
+      <div className="console-section">
+        <div className="console-section__header">Limites e Funcionalidades</div>
+        <div className="console-section__body">
+          <div style={{ display: "flex", gap: "var(--s-4)", flexWrap: "wrap" }}>
+            <div>
+              <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginBottom: 4 }}>Limites</div>
+              {Object.keys(license.limits || {}).length === 0 ? (
+                <span style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>Ilimitado</span>
+              ) : Object.entries(license.limits).map(([k, v]) => (
+                <div key={k} style={{ fontSize: "0.85rem" }}>
+                  {k}: <strong>{v}</strong>
+                  {k === "maxUnits" && license.currentUnits != null && ` (atual: ${license.currentUnits})`}
+                  {k === "maxUsers" && license.currentUsers != null && ` (atual: ${license.currentUsers})`}
+                </div>
+              ))}
+            </div>
+            <div>
+              <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginBottom: 4 }}>Módulos</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                {(license.features || []).map(f => (
+                  <span key={f} className="badge" style={{ fontSize: "0.72rem" }}>{f}</span>
+                ))}
+                {(license.features || []).length === 0 && <span style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>Nenhum</span>}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Actions */}
+      {actions.length > 0 && (
+        <div className="console-section">
+          <div className="console-section__header">Ações</div>
+          <div className="console-section__body" style={{ display: "flex", gap: "var(--s-2)", flexWrap: "wrap" }}>
+            {actions.map(({ to, label, v }) => (
+              <Button key={to} variant={v} disabled={loading} onClick={() => {
+                const reason = window.prompt(`Motivo (opcional) — ${label}`);
+                if (reason !== null) changeStatus(to, reason);
+              }}>
+                {label}
+              </Button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* History */}
+      <div className="console-section">
+        <div className="console-section__header">Histórico de alterações</div>
+        <div className="console-section__body">
+          {(license.history || []).length === 0 ? (
+            <p style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>Nenhuma entrada</p>
+          ) : [...(license.history || [])].reverse().map((h, i) => (
+            <div key={i} style={{ display: "flex", gap: "var(--s-2)", padding: "6px 0", borderBottom: "1px solid var(--border)", fontSize: "0.82rem" }}>
+              <span style={{ color: "var(--text-muted)", minWidth: 28 }}>v{h.version}</span>
+              <span style={{ color: "var(--text-muted)", minWidth: 130 }}>{fmtDate(h.at)}</span>
+              <span style={{ color: "var(--text-muted)", minWidth: 120 }}>{h.operatorName || "—"}</span>
+              <span>{h.reason || "—"}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </>
+  );
+}
+
+function LicenseForm({ token, onDone, onBack }) {
+  const [form, setForm] = useState({ municipalityId: "", plan: "STARTER", contractNumber: "", contractStart: "", contractEnd: "", renewalDate: "", notes: "" });
+  const [saving, setSaving] = useState(false);
+  const [error, setError]   = useState("");
+  const [templates, setTemplates] = useState({});
+
+  useEffect(() => {
+    apiFetch("/platform/plan-templates", token).then(r => r.json()).then(d => setTemplates(d.templates || {}));
+  }, [token]);
+
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  const handleSubmit = async (e) => {
+    e.preventDefault(); setSaving(true); setError("");
+    try {
+      const r = await apiFetch("/platform/licenses", token, {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || "Erro ao criar licença");
+      onDone(d);
+    } catch (ex) { setError(ex.message); }
+    setSaving(false);
+  };
+
+  return (
+    <>
+      <div className="console-page-header">
+        <div>
+          <button type="button" onClick={onBack} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", fontSize: "0.85rem", marginBottom: "var(--s-1)", padding: 0 }}>
+            ← Voltar
+          </button>
+          <h1 className="console-page-header__title">Nova Licença</h1>
+        </div>
+      </div>
+      {error && <Alert variant="danger">{error}</Alert>}
+      <form onSubmit={handleSubmit} style={{ maxWidth: 520, display: "flex", flexDirection: "column", gap: "var(--s-3)" }}>
+        <Input label="IBGE do Município *" value={form.municipalityId} onChange={e => set("municipalityId", e.target.value)} required />
+        <div>
+          <label style={{ fontSize: "0.8rem", color: "var(--text-muted)", display: "block", marginBottom: 4 }}>Plano *</label>
+          <select value={form.plan} onChange={e => set("plan", e.target.value)} required
+            style={{ width: "100%", padding: "8px 10px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)" }}>
+            {Object.keys(templates).length === 0
+              ? <option value="STARTER">STARTER</option>
+              : Object.entries(templates).map(([k, t]) => (
+                  <option key={k} value={k}>{k} — UBS: {t.limits?.maxUnits ?? "∞"}, Usuários: {t.limits?.maxUsers ?? "∞"}</option>
+                ))}
+          </select>
+        </div>
+        <Input label="Número do contrato" value={form.contractNumber} onChange={e => set("contractNumber", e.target.value)} />
+        <Input label="Início do contrato" type="date" value={form.contractStart} onChange={e => set("contractStart", e.target.value)} />
+        <Input label="Vencimento" type="date" value={form.contractEnd} onChange={e => set("contractEnd", e.target.value)} />
+        <Input label="Data de renovação" type="date" value={form.renewalDate} onChange={e => set("renewalDate", e.target.value)} />
+        <div>
+          <label style={{ fontSize: "0.8rem", color: "var(--text-muted)", display: "block", marginBottom: 4 }}>Notas</label>
+          <textarea value={form.notes} onChange={e => set("notes", e.target.value)} rows={3}
+            style={{ width: "100%", padding: "8px 10px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)", resize: "vertical" }} />
+        </div>
+        <div style={{ display: "flex", gap: "var(--s-2)" }}>
+          <Button type="submit" disabled={saving}>{saving ? "Salvando…" : "Criar Licença"}</Button>
+          <Button type="button" variant="secondary" onClick={onBack}>Cancelar</Button>
+        </div>
+      </form>
+    </>
+  );
+}
+
 // ── Main Console ───────────────────────────────────────────────────────────
 
 export default function PlatformConsolePage({ token, user, onLogout }) {
@@ -2402,6 +2774,14 @@ export default function PlatformConsolePage({ token, user, onLogout }) {
             <IcoDeployment /> Implantações
           </button>
 
+          <button
+            type="button"
+            className={`console-nav__item${tab === "licenses" ? " is-active" : ""}`}
+            onClick={() => switchTab("licenses")}
+          >
+            <IcoLicense /> Licenças
+          </button>
+
           <span className="console-nav__section">Portal</span>
           <button
             type="button"
@@ -2481,6 +2861,11 @@ export default function PlatformConsolePage({ token, user, onLogout }) {
                 />
               )}
             </>
+          )}
+
+          {/* Licenças */}
+          {tab === "licenses" && (
+            <LicenseConsole token={token} />
           )}
 
           {/* Unidades de Saúde */}

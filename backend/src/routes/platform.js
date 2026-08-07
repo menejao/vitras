@@ -8,6 +8,20 @@ import { hashPassword, generateTempPassword } from "../services/crypto.js";
 import { generateVitrasId } from "../utils/vitras-id.js";
 import { addAuditLog } from "../services/audit.js";
 import {
+  createLicense,
+  updateLicense,
+  changeLicenseStatus,
+  renewLicense,
+  createMunicipalCustomer,
+  changeCustomerStatus,
+  checkUnitLimit,
+  getLicenseSummary,
+  computeCurrentUnits,
+  PLAN_TEMPLATES,
+  CUSTOMER_STATUS,
+  LICENSE_STATUS,
+} from "../services/license.js";
+import {
   createDeployment,
   advanceDeployment,
   pauseDeployment,
@@ -515,6 +529,15 @@ router.post("/platform/units", async (req, res) => {
       return { error: "CNES já cadastrado para outra UBS" };
     }
 
+    // ERP-04: check unit limit from active license
+    if (!Array.isArray(db.licenses)) db.licenses = [];
+    const activeLicense = db.licenses.find(
+      l => l.municipalityId === municipalityId && l.status === LICENSE_STATUS.ACTIVE
+    ) || null;
+    const currentUnitCount = computeCurrentUnits(db, municipalityId);
+    const limitCheck = checkUnitLimit({ license: activeLicense, currentUnitCount });
+    if (!limitCheck.ok) return { error: limitCheck.message, statusCode: 422 };
+
     const unit = {
       id: uuidv4(),
       name,
@@ -553,7 +576,7 @@ router.post("/platform/units", async (req, res) => {
     return { unit };
   });
 
-  if (result?.error) return res.status(409).json({ error: result.error });
+  if (result?.error) return res.status(result.statusCode || 409).json({ error: result.error });
   return res.status(201).json(result.unit);
 });
 
@@ -1479,6 +1502,282 @@ router.post("/platform/deployments/:deploymentId/assign", async (req, res) => {
 
   if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
   return res.json(result.deployment);
+});
+
+// ══════════════════════════════════════════════════════════════════════════
+// ERP-04 — Licensing and Customer Lifecycle
+// ══════════════════════════════════════════════════════════════════════════
+
+function ensureLicenses(db) {
+  ensureDbShape(db);
+  if (!Array.isArray(db.licenses)) db.licenses = [];
+  if (!Array.isArray(db.municipalCustomers)) db.municipalCustomers = [];
+}
+
+function licenseOperator(user) {
+  return { id: user.id, name: user.name, role: user.role };
+}
+
+function licenseSummaryEnrich(license, db) {
+  const s = getLicenseSummary(license, db);
+  return { ...license, currentUnits: s.currentUnits, currentUsers: s.currentUsers, isExpired: s.isExpired, daysToExpiry: s.daysToExpiry };
+}
+
+// GET /platform/licenses
+router.get("/platform/licenses", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.read")) return res.status(403).json({ error: "Sem permissão" });
+
+  const { municipalityId, status, page: pageRaw = "1", limit: limitRaw = "25" } = req.query;
+  const page  = Math.max(1, parseInt(pageRaw, 10) || 1);
+  const limit = Math.min(100, Math.max(1, parseInt(limitRaw, 10) || 25));
+
+  const db = await readDb();
+  ensureLicenses(db);
+
+  let list = db.licenses || [];
+  if (municipalityId) list = list.filter(l => l.municipalityId === municipalityId);
+  if (status)         list = list.filter(l => l.status === status.toUpperCase());
+
+  const total = list.length;
+  const pages = Math.ceil(total / limit) || 1;
+  const paged = list.slice((page - 1) * limit, page * limit).map(l => licenseSummaryEnrich(l, db));
+
+  return res.json({ licenses: paged, total, pages });
+});
+
+// GET /platform/licenses/:licenseId
+router.get("/platform/licenses/:licenseId", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.read")) return res.status(403).json({ error: "Sem permissão" });
+
+  const db = await readDb();
+  ensureLicenses(db);
+  const lic = (db.licenses || []).find(l => l.id === req.params.licenseId);
+  if (!lic) return res.status(404).json({ error: "Licença não encontrada" });
+  return res.json(licenseSummaryEnrich(lic, db));
+});
+
+// POST /platform/licenses
+router.post("/platform/licenses", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.create")) return res.status(403).json({ error: "Sem permissão" });
+
+  const { municipalityId, plan, contractNumber, contractStart, contractEnd, renewalDate, limits, features, notes } = req.body || {};
+  const operator = licenseOperator(req.user);
+
+  const result = await withDb((db) => {
+    ensureLicenses(db);
+    let lic;
+    try {
+      lic = createLicense({
+        municipalityId, plan, contractNumber, contractStart, contractEnd,
+        renewalDate, limits: limits || {}, features: features || [],
+        notes, operator, existingLicenses: db.licenses,
+      });
+    } catch (e) {
+      return { error: { status: e.statusCode || 400, message: e.message } };
+    }
+    db.licenses.push(lic);
+    addAuditLog(db, req.user, "license.created", "license", lic.id, {
+      licenseCode: lic.licenseCode, municipalityId, plan: lic.plan,
+    });
+    return { license: licenseSummaryEnrich(lic, db) };
+  });
+
+  if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
+  return res.status(201).json(result.license);
+});
+
+// PATCH /platform/licenses/:licenseId — update editable fields
+router.patch("/platform/licenses/:licenseId", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.update")) return res.status(403).json({ error: "Sem permissão" });
+
+  const { reason, ...patch } = req.body || {};
+  const operator = licenseOperator(req.user);
+
+  const result = await withDb((db) => {
+    ensureLicenses(db);
+    const idx = (db.licenses || []).findIndex(l => l.id === req.params.licenseId);
+    if (idx < 0) return { error: { status: 404, message: "Licença não encontrada" } };
+    try {
+      updateLicense(db.licenses[idx], { patch, operator, reason: reason || null });
+    } catch (e) {
+      return { error: { status: e.statusCode || 422, message: e.message } };
+    }
+    addAuditLog(db, req.user, "license.updated", "license", db.licenses[idx].id, { patch, reason });
+    return { license: licenseSummaryEnrich(db.licenses[idx], db) };
+  });
+
+  if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
+  return res.json(result.license);
+});
+
+// POST /platform/licenses/:licenseId/status — change license status
+router.post("/platform/licenses/:licenseId/status", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.update")) return res.status(403).json({ error: "Sem permissão" });
+
+  const { toStatus, reason } = req.body || {};
+  if (!toStatus) return res.status(400).json({ error: "toStatus obrigatório" });
+  const operator = licenseOperator(req.user);
+
+  const result = await withDb((db) => {
+    ensureLicenses(db);
+    const idx = (db.licenses || []).findIndex(l => l.id === req.params.licenseId);
+    if (idx < 0) return { error: { status: 404, message: "Licença não encontrada" } };
+    try {
+      changeLicenseStatus(db.licenses[idx], { toStatus, operator, reason: reason || null });
+    } catch (e) {
+      return { error: { status: e.statusCode || 422, message: e.message } };
+    }
+    addAuditLog(db, req.user, "license.status_changed", "license", db.licenses[idx].id, { toStatus, reason });
+    return { license: licenseSummaryEnrich(db.licenses[idx], db) };
+  });
+
+  if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
+  return res.json(result.license);
+});
+
+// POST /platform/licenses/:licenseId/renew
+router.post("/platform/licenses/:licenseId/renew", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.update")) return res.status(403).json({ error: "Sem permissão" });
+
+  const { newContractEnd, newRenewalDate, reason } = req.body || {};
+  const operator = licenseOperator(req.user);
+
+  const result = await withDb((db) => {
+    ensureLicenses(db);
+    const idx = (db.licenses || []).findIndex(l => l.id === req.params.licenseId);
+    if (idx < 0) return { error: { status: 404, message: "Licença não encontrada" } };
+    try {
+      renewLicense(db.licenses[idx], { newContractEnd, newRenewalDate, operator, reason: reason || null });
+    } catch (e) {
+      return { error: { status: e.statusCode || 422, message: e.message } };
+    }
+    addAuditLog(db, req.user, "license.renewed", "license", db.licenses[idx].id, { newContractEnd, newRenewalDate, reason });
+    return { license: licenseSummaryEnrich(db.licenses[idx], db) };
+  });
+
+  if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
+  return res.json(result.license);
+});
+
+// GET /platform/plan-templates — expose plan templates to UI
+router.get("/platform/plan-templates", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.read")) return res.status(403).json({ error: "Sem permissão" });
+  return res.json({ templates: PLAN_TEMPLATES });
+});
+
+// ── Customer lifecycle ─────────────────────────────────────────────────────
+
+// GET /platform/customers
+router.get("/platform/customers", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.read")) return res.status(403).json({ error: "Sem permissão" });
+
+  const { municipalityId, customerStatus } = req.query;
+  const db = await readDb();
+  ensureLicenses(db);
+
+  let list = db.municipalCustomers || [];
+  if (municipalityId)  list = list.filter(c => c.municipalityId === municipalityId);
+  if (customerStatus)  list = list.filter(c => c.customerStatus === customerStatus.toUpperCase());
+  return res.json({ customers: list, total: list.length });
+});
+
+// GET /platform/customers/:customerId
+router.get("/platform/customers/:customerId", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.read")) return res.status(403).json({ error: "Sem permissão" });
+
+  const db = await readDb();
+  ensureLicenses(db);
+  const c = (db.municipalCustomers || []).find(c => c.id === req.params.customerId);
+  if (!c) return res.status(404).json({ error: "Cliente não encontrado" });
+  return res.json(c);
+});
+
+// POST /platform/customers
+router.post("/platform/customers", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.create")) return res.status(403).json({ error: "Sem permissão" });
+
+  const { municipalityId } = req.body || {};
+  const operator = licenseOperator(req.user);
+
+  const result = await withDb((db) => {
+    ensureLicenses(db);
+    if ((db.municipalCustomers || []).some(c => c.municipalityId === municipalityId)) {
+      return { error: { status: 409, message: "Município já possui registro de cliente" } };
+    }
+    let customer;
+    try {
+      customer = createMunicipalCustomer({ municipalityId, operator });
+    } catch (e) {
+      return { error: { status: e.statusCode || 400, message: e.message } };
+    }
+    if (!Array.isArray(db.municipalCustomers)) db.municipalCustomers = [];
+    db.municipalCustomers.push(customer);
+    addAuditLog(db, req.user, "customer.created", "customer", customer.id, { municipalityId });
+    return { customer };
+  });
+
+  if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
+  return res.status(201).json(result.customer);
+});
+
+// POST /platform/customers/:customerId/status
+router.post("/platform/customers/:customerId/status", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.update")) return res.status(403).json({ error: "Sem permissão" });
+
+  const { toStatus, reason } = req.body || {};
+  if (!toStatus) return res.status(400).json({ error: "toStatus obrigatório" });
+  const operator = licenseOperator(req.user);
+
+  const result = await withDb((db) => {
+    ensureLicenses(db);
+    const idx = (db.municipalCustomers || []).findIndex(c => c.id === req.params.customerId);
+    if (idx < 0) return { error: { status: 404, message: "Cliente não encontrado" } };
+    try {
+      changeCustomerStatus(db.municipalCustomers[idx], { toStatus, operator, reason: reason || null });
+    } catch (e) {
+      return { error: { status: e.statusCode || 422, message: e.message } };
+    }
+    addAuditLog(db, req.user, "customer.status_changed", "customer", db.municipalCustomers[idx].id, { toStatus, reason });
+    return { customer: db.municipalCustomers[idx] };
+  });
+
+  if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
+  return res.json(result.customer);
+});
+
+// GET /platform/licenses-dashboard
+router.get("/platform/licenses-dashboard", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.read")) return res.status(403).json({ error: "Sem permissão" });
+
+  const db = await readDb();
+  ensureLicenses(db);
+  const licenses   = db.licenses || [];
+  const customers  = db.municipalCustomers || [];
+  const today      = new Date();
+  const in30Days   = new Date(today.getTime() + 30 * 86400000);
+
+  const count = (arr, pred) => arr.filter(pred).length;
+
+  return res.json({
+    licenses: {
+      total:      licenses.length,
+      draft:      count(licenses, l => l.status === "DRAFT"),
+      active:     count(licenses, l => l.status === "ACTIVE"),
+      suspended:  count(licenses, l => l.status === "SUSPENDED"),
+      expired:    count(licenses, l => l.status === "EXPIRED"),
+      terminated: count(licenses, l => l.status === "TERMINATED"),
+      expiringIn30Days: count(licenses, l => l.status === "ACTIVE" && l.contractEnd
+        && new Date(l.contractEnd) >= today && new Date(l.contractEnd) <= in30Days),
+    },
+    customers: {
+      total:         customers.length,
+      lead:          count(customers, c => c.customerStatus === "LEAD"),
+      active:        count(customers, c => c.customerStatus === "ACTIVE"),
+      implementation:count(customers, c => c.customerStatus === "IMPLEMENTATION"),
+      suspended:     count(customers, c => c.customerStatus === "SUSPENDED"),
+      terminated:    count(customers, c => c.customerStatus === "TERMINATED"),
+    },
+  });
 });
 
 // GET /platform/deployments-dashboard — summary cards
