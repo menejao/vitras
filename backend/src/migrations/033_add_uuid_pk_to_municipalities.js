@@ -51,3 +51,14 @@ export async function up(client) {
     CREATE INDEX IF NOT EXISTS idx_municipalities_id ON municipalities (id)
   `);
 }
+
+export async function down(client) {
+  // Restore ibge_code as PRIMARY KEY, remove UUID column.
+  // Safe only if no other table references municipalities.id.
+  await client.query(`DROP INDEX IF EXISTS idx_municipalities_id`);
+  await client.query(`ALTER TABLE municipalities DROP CONSTRAINT IF EXISTS municipalities_ibge_code_key`);
+  await client.query(`ALTER TABLE municipalities DROP CONSTRAINT IF EXISTS municipalities_pkey`);
+  await client.query(`ALTER TABLE municipalities ADD PRIMARY KEY (ibge_code)`);
+  await client.query(`ALTER TABLE municipalities DROP COLUMN IF EXISTS id`);
+  await client.query(`ALTER TABLE municipalities DROP COLUMN IF EXISTS created_at`);
+}
