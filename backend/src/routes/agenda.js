@@ -240,7 +240,11 @@ router.post("/agenda", validate(AgendaCreateSchema), async (req, res) => {
       updatedAt: now,
       updatedBy: req.user.id,
       executingTeamId: String(req.user.teamId || ""),
-      executingUnitId: resolveActiveUnit(req)
+      executingUnitId: resolveActiveUnit(req),
+      executingProfessionalId: String(req.user.id || ""),
+      referenceUnitIdAtEvent: String(patient.referenceUnitId || patient.unitId || ""),
+      referenceTeamIdAtEvent: String(patient.teamId || ""),
+      municipalityId: String(patient.municipalityId || ""),
     };
 
     db.agendaEntries.push(entry);
@@ -272,6 +276,12 @@ router.post("/agenda", validate(AgendaCreateSchema), async (req, res) => {
         resultNotes: null,
         resultDate: null,
         notes: String(payload.notes || "").trim(),
+        executingUnitId: resolveActiveUnit(req),
+        executingTeamId: String(req.user.teamId || ""),
+        executingProfessionalId: String(req.user.id || ""),
+        referenceUnitIdAtEvent: String(patient.referenceUnitId || patient.unitId || ""),
+        referenceTeamIdAtEvent: String(patient.teamId || ""),
+        municipalityId: String(patient.municipalityId || ""),
         createdAt: now,
         updatedAt: now,
       };

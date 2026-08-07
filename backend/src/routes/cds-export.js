@@ -343,8 +343,9 @@ router.get("/export/cds/visita/:visitId", requireAuth, async (req, res) => {
   const isBreakGlass = canonicalRole(req.user?.role) === "break_glass_admin";
 
   const visit = db.acsVisits?.find(v => v.id === visitId);
-  // P0-2: Visitas são isoladas por UBS via visit.unitId ou via patient.unitId
-  if (!visit || (!isBreakGlass && activeUnitId && visit.unitId && visit.unitId !== activeUnitId)) {
+  // P0-2: Visitas são isoladas por UBS — usa executingUnitId (canônico) com fallback para unitId (legado)
+  const visitUnitId = visit?.executingUnitId || visit?.unitId;
+  if (!visit || (!isBreakGlass && activeUnitId && visitUnitId && visitUnitId !== activeUnitId)) {
     return res.status(404).json({ error: "Visita não encontrada." });
   }
 

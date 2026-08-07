@@ -3,7 +3,7 @@ import express from "express";
 import { v4 as uuidv4 } from "uuid";
 import { readDb, withDb } from "../db.js";
 import { ensureDbShape } from "../utils/domain.js";
-import { hasCapability } from "../utils/helpers.js";
+import { hasCapability, resolveActiveUnit } from "../utils/helpers.js";
 import { addAuditLog } from "../services/audit.js";
 
 const router = express.Router();
@@ -146,6 +146,12 @@ router.post("/odontologia/procedures", async (req, res) => {
       id: uuidv4(),
       patientId,
       teamId: user.teamId || null,
+      executingUnitId: resolveActiveUnit(req),
+      executingTeamId: String(user.teamId || ""),
+      executingProfessionalId: String(user.id || ""),
+      referenceUnitIdAtEvent: String(patient.referenceUnitId || patient.unitId || ""),
+      referenceTeamIdAtEvent: String(patient.teamId || ""),
+      municipalityId: String(patient.municipalityId || ""),
       toothFdi: String(toothFdi),
       face: face || null,
       type,
@@ -254,6 +260,8 @@ router.post("/odontologia/encounters", async (req, res) => {
     );
     if (open) return { error: "JÃ¡ existe atendimento em aberto", status: 409, existing: open };
 
+    const encPatient = (db.patients || []).find(p => p.id === patientId);
+
     const now = new Date().toISOString();
     const encounter = {
       id: uuidv4(),
@@ -261,6 +269,12 @@ router.post("/odontologia/encounters", async (req, res) => {
       professionalId: user.id,
       professionalName: user.name || user.username || "",
       teamId: user.teamId || null,
+      executingUnitId: resolveActiveUnit(req),
+      executingTeamId: String(user.teamId || ""),
+      executingProfessionalId: String(user.id || ""),
+      referenceUnitIdAtEvent: String(encPatient?.referenceUnitId || encPatient?.unitId || ""),
+      referenceTeamIdAtEvent: String(encPatient?.teamId || ""),
+      municipalityId: String(encPatient?.municipalityId || ""),
       date: now.slice(0, 10),
       startedAt: now,
       endedAt: null,
@@ -501,6 +515,12 @@ router.post("/odontologia/prescricoes", async (req, res) => {
       prescritorNome: user.name || user.username || "",
       cro: cro || user.cro || null,
       teamId: user.teamId || null,
+      executingUnitId: resolveActiveUnit(req),
+      executingTeamId: String(user.teamId || ""),
+      executingProfessionalId: String(user.id || ""),
+      referenceUnitIdAtEvent: String(patient.referenceUnitId || patient.unitId || ""),
+      referenceTeamIdAtEvent: String(patient.teamId || ""),
+      municipalityId: String(patient.municipalityId || ""),
       dtReceita: dtReceita || now.slice(0, 10),
       validade: validade || "",
       itens: (itens || []).map(it => ({ ...it, dispensado: 0 })),

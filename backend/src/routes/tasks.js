@@ -4,7 +4,7 @@ import { readDb, withDb } from "../db.js";
 import { validate, TaskCreateSchema, TaskPatchSchema } from "../schemas.js";
 import { requireManagerOrDoctor } from "../middlewares/auth.js";
 import { ensureDbShape } from "../utils/domain.js";
-import { canonicalRole, isManager, isDoctor, isAcs } from "../utils/helpers.js";
+import { canonicalRole, isManager, isDoctor, isAcs, resolveActiveUnit } from "../utils/helpers.js";
 import { getAllowedPatients, canAccessPatient, getPatientOrError } from "../utils/patients.js";
 import { addAuditLog } from "../services/audit.js";
 
@@ -87,6 +87,9 @@ router.post("/tasks", requireManagerOrDoctor, validate(TaskCreateSchema), async 
     notes: payload.notes ? String(payload.notes) : "",
     status: payload.status ? String(payload.status) : "pending",
     dueDate: payload.dueDate ? String(payload.dueDate) : "",
+    teamId: String(req.user.teamId || ""),
+    unitId: resolveActiveUnit(req),
+    municipalityId: String(lookup.patient.municipalityId || ""),
     createdBy: req.user.id,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()

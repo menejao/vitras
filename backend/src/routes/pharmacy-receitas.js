@@ -4,7 +4,7 @@ import { v4 as uuidv4 } from "uuid";
 import { readDb, withDb } from "../db.js";
 import { validate, ReceitaCreateSchema, DispensacaoCreateSchema } from "../schemas.js";
 import { ensureDbShape } from "../utils/domain.js";
-import { hasCapability } from "../utils/helpers.js";
+import { hasCapability, resolveActiveUnit } from "../utils/helpers.js";
 import { addAuditLog } from "../services/audit.js";
 
 const router = express.Router();
@@ -81,6 +81,12 @@ router.post("/pharmacy/receitas", validate(ReceitaCreateSchema), async (req, res
       prescritorNome: user.name || user.username,
       prescritorRegistro: body.prescritorRegistro || null,
       teamId: user.teamId || null,
+      executingUnitId: resolveActiveUnit(req),
+      executingTeamId: String(user.teamId || ""),
+      executingProfessionalId: String(user.id || ""),
+      referenceUnitIdAtEvent: String(patient.referenceUnitId || patient.unitId || ""),
+      referenceTeamIdAtEvent: String(patient.teamId || ""),
+      municipalityId: String(patient.municipalityId || ""),
       dtReceita: body.dtReceita,
       validade: body.validade,
       validUntil: body.validUntil || null,
@@ -114,6 +120,7 @@ router.post("/pharmacy/dispensacoes", validate(DispensacaoCreateSchema), async (
     if (!receita) return { error: "Receita não encontrada", status: 404 };
     if (receita.status === "cancelada") return { error: "Receita cancelada", status: 400 };
 
+    const dispPatient = (db.patients || []).find(p => p.id === receita.patientId);
     const teamId = user.teamId || receita.teamId;
     const stockItems = (db.pharmacyStock || []).filter(s => String(s.teamId || "") === String(teamId || ""));
 
@@ -159,6 +166,12 @@ router.post("/pharmacy/dispensacoes", validate(DispensacaoCreateSchema), async (
       dispensadoPor: user.id,
       dispensadoPorNome: user.name || user.username,
       teamId,
+      executingUnitId: resolveActiveUnit(req),
+      executingTeamId: String(user.teamId || ""),
+      executingProfessionalId: String(user.id || ""),
+      referenceUnitIdAtEvent: String(dispPatient?.referenceUnitId || dispPatient?.unitId || ""),
+      referenceTeamIdAtEvent: String(dispPatient?.teamId || ""),
+      municipalityId: String(dispPatient?.municipalityId || ""),
       itens: dispensacaoItens,
       obs: body.obs || null,
       realizadaEm: new Date().toISOString(),

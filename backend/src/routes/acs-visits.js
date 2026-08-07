@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from "uuid";
 import { readDb, withDb } from "../db.js";
 import { ensureDbShape } from "../utils/domain.js";
 import { requireAuth } from "../middlewares/auth.js";
-import { hasCapability, isAcs, isManager } from "../utils/helpers.js";
+import { hasCapability, isAcs, isManager, resolveActiveUnit } from "../utils/helpers.js";
 import { validate, AcsVisitCreateSchema, AcsVisitUpdateSchema } from "../schemas.js";
 import { addAuditLog } from "../services/audit.js";
 
@@ -200,6 +200,13 @@ router.post("/acs-visits", requireAuth, validate(AcsVisitCreateSchema), async (r
       observacoes:        payload.observacoes || null,
       cadastroIndividual: payload.cadastroIndividual ?? null,
       cadastroDomiciliar: payload.cadastroDomiciliar ?? null,
+      executingUnitId:        resolveActiveUnit(req),
+      executingTeamId:        String(req.user.teamId || ""),
+      executingProfessionalId: String(req.user.id || ""),
+      referenceUnitIdAtEvent: String(patient.referenceUnitId || patient.unitId || ""),
+      referenceTeamIdAtEvent: String(patient.teamId || ""),
+      referenceAcsIdAtEvent:  String(patient.assignedAcsId || ""),
+      municipalityId:         String(patient.municipalityId || ""),
       createdAt:          now,
       updatedAt:          now
     };
