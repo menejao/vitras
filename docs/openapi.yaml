@@ -87,7 +87,8 @@ components:
         id: { type: string, format: uuid }
         name: { type: string }
         email: { type: string, format: email }
-        role: { type: string, enum: [acs, nurse, nurse_manager, doctor, dentist, receptionist, gestor, break_glass_admin] }
+        role: { type: string, enum: [acs, nurse, nurse_manager, doctor, dentist, receptionist, gestor, break_glass_admin, support_admin] }
+        vitrasId: { type: string, pattern: "^\\d{9}$", description: "ID VITRAS único de 9 dígitos" }
         teamId: { type: string }
         teamName: { type: string }
         unitId: { type: string }
@@ -219,7 +220,8 @@ paths:
 
   /auth/login:
     post:
-      summary: Login com e-mail e senha
+      summary: Login com ID VITRAS e senha
+      description: "Aceita apenas VitrasId (9 dígitos exatos). E-mail, CNS e CPF não são identificadores de login."
       security: []
       tags: [Auth]
       requestBody:
@@ -228,9 +230,13 @@ paths:
           application/json:
             schema:
               type: object
-              required: [email, password]
+              required: [identifier, password]
               properties:
-                email: { type: string, format: email }
+                identifier:
+                  type: string
+                  pattern: "^\\d{9}$"
+                  description: "ID VITRAS do usuário (9 dígitos)"
+                  example: "101391569"
                 password: { type: string, minLength: 8 }
       responses:
         "200":
