@@ -1,5 +1,39 @@
 # VITRAS Changelog
 
+## v1.1.0-rc.3 (2026-08-07) — CLINICAL EVENT ATTRIBUTION COMPLETE
+
+**Commit:** be3bfaa | **Tag:** pendente
+
+### VITRAS-CLINICAL-EVENT-ATTRIBUTION-01 — Atribuição Canônica em Eventos Clínicos
+
+**FASES 2+3 — Eventos PARTIAL (referências + executor):**
+- feat: `referenceUnitIdAtEvent`, `referenceTeamIdAtEvent`, `municipalityId` em `agendaEntries`, `exams`, `examRequests`, `referrals`
+- feat: `executingTeamId`, `executingProfessionalId` (canonical) em todos os eventos PARTIAL
+- invariante: todos os campos resolvidos de JWT + patient no servidor; body do cliente ignorado
+
+**FASE 4 — acsVisits + cds-export.js (RISCO-01):**
+- feat: atribuição canônica completa em `acsVisit`: executingUnitId, executingTeamId, executingProfessionalId, referenceUnitIdAtEvent, referenceTeamIdAtEvent, referenceAcsIdAtEvent, municipalityId
+- fix(cds-export.js): isolamento multi-UBS usa `visit.executingUnitId || visit.unitId` — campo canônico com fallback legado para registros históricos
+- invariante: `teamId` legado preservado em todos os eventos (não removido)
+
+**FASE 5 — Odontologia:**
+- feat: atribuição completa em `dentalEncounters` (com patient lookup) e `odontoProcedures`
+
+**FASE 6 — Farmácia:**
+- feat: atribuição completa em `prescricoes` e `dispensacoes` (dispensacao com patient lookup via receita.patientId)
+
+**FASE 7 — Tasks:**
+- feat: `teamId`, `unitId` (do criador via JWT), `municipalityId` em `tasks`
+
+**FASE 8 — Migration-022:**
+- feat: `migration-022-event-attribution.mjs` — UP/DOWN/DRY_RUN com backfill idempotente em 10 coleções
+
+**FASE 9 — Testes:**
+- test: `clinical-event-attribution.test.mjs` — 15 testes PASS
+  - acsVisit attribution (5), exam (2), referral (1), cds-export isolation unit tests (4), migration-022 logic (3)
+
+---
+
 ## v1.1.0-rc.2 (2026-08-07) — GLOBAL PATIENT READY — Candidate Freeze
 
 **Commit:** 12c1eed | **Tag:** v1.1.0-rc.2 (candidata de engenharia)
