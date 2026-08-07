@@ -517,6 +517,379 @@ const IcoMunicipality = () => (
   </svg>
 );
 
+// ── Deployment Icons & Helpers ─────────────────────────────────────────────
+
+const IcoDeployment = () => (
+  <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden>
+    <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.3"/>
+    <path d="M5 8l2 2 4-4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
+const DEPLOYMENT_STATUS_LABELS = {
+  PLANNED:           "Planejado",
+  CONFIGURING:       "Em Configuração",
+  MIGRATING:         "Em Migração",
+  VALIDATING:        "Em Validação",
+  TRAINING:          "Em Treinamento",
+  READY_FOR_GO_LIVE: "Pronto para Go Live",
+  GO_LIVE:           "Go Live",
+  OPERATIONAL:       "Operacional",
+  PAUSED:            "Pausado",
+  SUSPENDED:         "Suspenso",
+  CANCELLED:         "Cancelado",
+};
+
+const DEPLOYMENT_STATUS_CLASS = {
+  PLANNED:           "badge",
+  CONFIGURING:       "badge badge--warning",
+  MIGRATING:         "badge badge--warning",
+  VALIDATING:        "badge badge--info",
+  TRAINING:          "badge badge--info",
+  READY_FOR_GO_LIVE: "badge badge--info",
+  GO_LIVE:           "badge badge--success",
+  OPERATIONAL:       "badge badge--success",
+  PAUSED:            "badge",
+  SUSPENDED:         "badge badge--danger",
+  CANCELLED:         "badge badge--danger",
+};
+
+const DEPLOYMENT_ADVANCES = {
+  PLANNED:           [{ to: "CONFIGURING", label: "Iniciar Configuração" }],
+  CONFIGURING:       [{ to: "MIGRATING", label: "Iniciar Migração" }],
+  MIGRATING:         [{ to: "VALIDATING", label: "Iniciar Validação" }],
+  VALIDATING:        [{ to: "TRAINING", label: "Iniciar Treinamento" }],
+  TRAINING:          [{ to: "READY_FOR_GO_LIVE", label: "Marcar Pronto" }],
+  READY_FOR_GO_LIVE: [{ to: "GO_LIVE", label: "Executar Go Live" }],
+  GO_LIVE:           [{ to: "OPERATIONAL", label: "Marcar Operacional" }],
+  OPERATIONAL:       [],
+  PAUSED:            [],
+  SUSPENDED:         [],
+  CANCELLED:         [],
+};
+
+// ── DeploymentListView ─────────────────────────────────────────────────────
+
+function DeploymentListView({ token, onSelect }) {
+  const [deployments, setDeployments] = useState([]);
+  const [total, setTotal]             = useState(0);
+  const [loading, setLoading]         = useState(true);
+  const [typeFilter, setTypeFilter]   = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [page, setPage]               = useState(1);
+  const LIMIT = 20;
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({ page, limit: LIMIT });
+      if (typeFilter)   params.set("type", typeFilter);
+      if (statusFilter) params.set("status", statusFilter);
+      const data = await apiFetch(`/platform/deployments?${params}`, token);
+      setDeployments(data.deployments || []);
+      setTotal(data.total || 0);
+    } catch { /* ignore */ }
+    finally { setLoading(false); }
+  }, [token, page, typeFilter, statusFilter]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const pages = Math.ceil(total / LIMIT) || 1;
+
+  return (
+    <>
+      <div className="console-page-header">
+        <div>
+          <h1 className="console-page-header__title">Implantações</h1>
+          <p className="console-page-header__sub">Ciclo de vida de implantação por município e UBS</p>
+        </div>
+      </div>
+
+      <div style={{ display: "flex", gap: "var(--s-3)", marginBottom: "var(--s-4)", flexWrap: "wrap" }}>
+        <select value={typeFilter} onChange={e => { setTypeFilter(e.target.value); setPage(1); }}
+          style={{ padding: "var(--s-2) var(--s-3)", borderRadius: "var(--radius-md)", border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)", fontSize: "var(--t-sm)" }}>
+          <option value="">Todos os tipos</option>
+          <option value="MUNICIPAL">Municipal</option>
+          <option value="UBS">UBS</option>
+        </select>
+        <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1); }}
+          style={{ padding: "var(--s-2) var(--s-3)", borderRadius: "var(--radius-md)", border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)", fontSize: "var(--t-sm)" }}>
+          <option value="">Todos os status</option>
+          {Object.entries(DEPLOYMENT_STATUS_LABELS).map(([k, v]) => (
+            <option key={k} value={k}>{v}</option>
+          ))}
+        </select>
+      </div>
+
+      {loading ? (
+        <p style={{ color: "var(--text-muted)", fontSize: "var(--t-sm)" }}>Carregando...</p>
+      ) : deployments.length === 0 ? (
+        <div className="console-section">
+          <div className="console-section__body" style={{ color: "var(--text-muted)", fontSize: "var(--t-sm)", padding: "var(--s-6) 0" }}>
+            Nenhuma implantação encontrada. Crie a primeira implantação a partir de um município.
+          </div>
+        </div>
+      ) : (
+        <div className="console-section">
+          <div className="console-section__body" style={{ padding: 0, overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--t-sm)" }}>
+              <thead>
+                <tr style={{ borderBottom: "1px solid var(--border)" }}>
+                  {["Código","Tipo","Município","Status","Checklist","Go Live Previsto","Engenheiro"].map(h => (
+                    <th key={h} style={{ textAlign: "left", padding: "var(--s-2) var(--s-3)", color: "var(--text-muted)", fontWeight: 500 }}>{h}</th>
+                  ))}
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {deployments.map(d => (
+                  <tr key={d.id} style={{ borderBottom: "1px solid var(--border-subtle)" }}>
+                    <td style={{ padding: "var(--s-2) var(--s-3)", fontFamily: "monospace", fontSize: "var(--t-xs)" }}>{d.deploymentCode}</td>
+                    <td style={{ padding: "var(--s-2) var(--s-3)" }}>
+                      <span className="badge">{d.type === "MUNICIPAL" ? "Municipal" : "UBS"}</span>
+                    </td>
+                    <td style={{ padding: "var(--s-2) var(--s-3)" }}>{d.municipalityId}</td>
+                    <td style={{ padding: "var(--s-2) var(--s-3)" }}>
+                      <span className={DEPLOYMENT_STATUS_CLASS[d.status] || "badge"}>{DEPLOYMENT_STATUS_LABELS[d.status] || d.status}</span>
+                    </td>
+                    <td style={{ padding: "var(--s-2) var(--s-3)" }}>
+                      {d.checklistSummary
+                        ? `${d.checklistSummary.requiredDone}/${d.checklistSummary.required}`
+                        : "—"}
+                    </td>
+                    <td style={{ padding: "var(--s-2) var(--s-3)" }}>{fmtDate(d.plannedGoLive)}</td>
+                    <td style={{ padding: "var(--s-2) var(--s-3)", color: "var(--text-muted)" }}>{d.assignedEngineer?.name || "—"}</td>
+                    <td style={{ padding: "var(--s-2) var(--s-3)" }}>
+                      <Button size="sm" variant="secondary" onClick={() => onSelect(d)}>Abrir →</Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {pages > 1 && (
+            <div style={{ display: "flex", gap: "var(--s-2)", padding: "var(--s-3)", justifyContent: "flex-end" }}>
+              <Button size="sm" variant="secondary" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>‹ Anterior</Button>
+              <span style={{ padding: "var(--s-2)", fontSize: "var(--t-sm)", color: "var(--text-muted)" }}>{page}/{pages}</span>
+              <Button size="sm" variant="secondary" disabled={page >= pages} onClick={() => setPage(p => p + 1)}>Próximo ›</Button>
+            </div>
+          )}
+        </div>
+      )}
+    </>
+  );
+}
+
+// ── DeploymentDetailView ───────────────────────────────────────────────────
+
+function DeploymentDetailView({ token, deployment: initialDep, onBack }) {
+  const [dep, setDep]       = useState(initialDep);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr]         = useState("");
+  const [reason, setReason]   = useState("");
+  const [showReason, setShowReason] = useState(null); // action key
+
+  async function reload() {
+    try {
+      const data = await apiFetch(`/platform/deployments/${dep.id}`, token);
+      setDep(data);
+    } catch { /* ignore */ }
+  }
+
+  async function doAction(action, body = {}) {
+    setLoading(true); setErr("");
+    try {
+      const data = await apiFetch(`/platform/deployments/${dep.id}/${action}`, token, {
+        method: "POST", body,
+      });
+      setDep(data);
+      setShowReason(null); setReason("");
+    } catch (e) {
+      setErr(e?.message || "Erro ao executar ação");
+    } finally { setLoading(false); }
+  }
+
+  async function doAdvance(toStatus) {
+    setLoading(true); setErr("");
+    try {
+      const data = await apiFetch(`/platform/deployments/${dep.id}/advance`, token, {
+        method: "POST", body: { toStatus, reason: reason || null },
+      });
+      setDep(data);
+      setShowReason(null); setReason("");
+    } catch (e) {
+      setErr(e?.message || "Erro ao avançar status");
+    } finally { setLoading(false); }
+  }
+
+  async function toggleChecklistItem(item) {
+    setLoading(true); setErr("");
+    try {
+      const data = await apiFetch(`/platform/deployments/${dep.id}/checklist/${item.id}`, token, {
+        method: "PATCH", body: { done: !item.done },
+      });
+      setDep(data);
+    } catch (e) {
+      setErr(e?.message || "Erro ao atualizar checklist");
+    } finally { setLoading(false); }
+  }
+
+  const summary = dep.checklistSummary || {};
+  const advances = DEPLOYMENT_ADVANCES[dep.status] || [];
+  const isPaused = dep.status === "PAUSED";
+  const canPause = ["CONFIGURING","MIGRATING","VALIDATING","TRAINING","READY_FOR_GO_LIVE","GO_LIVE","OPERATIONAL"].includes(dep.status);
+  const canCancel = ["PLANNED","CONFIGURING","MIGRATING","VALIDATING","TRAINING","READY_FOR_GO_LIVE","PAUSED","SUSPENDED"].includes(dep.status);
+
+  const byCategory = dep.checklist?.reduce((acc, item) => {
+    if (!acc[item.category]) acc[item.category] = [];
+    acc[item.category].push(item);
+    return acc;
+  }, {}) || {};
+
+  return (
+    <>
+      {/* Breadcrumb */}
+      <div style={{ display: "flex", alignItems: "center", gap: "var(--s-2)", marginBottom: "var(--s-4)", fontSize: "var(--t-sm)", color: "var(--text-muted)" }}>
+        <button onClick={onBack} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--accent)", fontSize: "var(--t-sm)", padding: 0 }}>
+          Implantações
+        </button>
+        <span>›</span>
+        <span style={{ color: "var(--text)" }}>{dep.deploymentCode}</span>
+      </div>
+
+      <div className="console-page-header">
+        <div>
+          <h1 className="console-page-header__title" style={{ display: "flex", alignItems: "center", gap: "var(--s-2)" }}>
+            {dep.deploymentCode}
+            <span className={DEPLOYMENT_STATUS_CLASS[dep.status] || "badge"} style={{ fontSize: "var(--t-sm)", fontWeight: 500 }}>
+              {DEPLOYMENT_STATUS_LABELS[dep.status] || dep.status}
+            </span>
+          </h1>
+          <p className="console-page-header__sub">
+            {dep.type === "MUNICIPAL" ? "Implantação Municipal" : "Implantação UBS"} · Município {dep.municipalityId}
+            {dep.plannedGoLive && ` · Go Live previsto: ${fmtDate(dep.plannedGoLive)}`}
+          </p>
+        </div>
+      </div>
+
+      {err && <Alert type="error" style={{ marginBottom: "var(--s-3)" }}>{err}</Alert>}
+
+      {/* Actions */}
+      {dep.status !== "CANCELLED" && dep.status !== "OPERATIONAL" && (
+        <div style={{ display: "flex", gap: "var(--s-2)", flexWrap: "wrap", marginBottom: "var(--s-4)" }}>
+          {advances.map(adv => (
+            <Button key={adv.to} loading={loading} onClick={() => doAdvance(adv.to)}>
+              {adv.label}
+            </Button>
+          ))}
+          {canPause && !isPaused && (
+            <Button variant="secondary" loading={loading} onClick={() => doAction("pause", { reason: "Pausado manualmente" })}>
+              Pausar
+            </Button>
+          )}
+          {isPaused && (
+            <Button loading={loading} onClick={() => doAction("resume", {})}>Retomar</Button>
+          )}
+          {canCancel && (
+            <Button variant="danger" loading={loading} onClick={() => doAction("cancel", { reason: "Cancelado manualmente" })}>
+              Cancelar
+            </Button>
+          )}
+        </div>
+      )}
+
+      {/* Checklist progress */}
+      <div className="console-section" style={{ marginBottom: "var(--s-4)" }}>
+        <div className="console-section__header">
+          <h2 className="console-section__title">
+            Checklist
+            <span style={{ marginLeft: "var(--s-2)", color: "var(--text-muted)", fontWeight: 400, fontSize: "var(--t-sm)" }}>
+              {summary.requiredDone}/{summary.required} obrigatórios concluídos
+              {summary.readyForGoLive && <span style={{ color: "var(--success)", marginLeft: "var(--s-2)" }}>✓ Pronto para Go Live</span>}
+            </span>
+          </h2>
+        </div>
+        <div className="console-section__body">
+          {/* Progress bar */}
+          <div style={{ height: 6, background: "var(--border)", borderRadius: 3, marginBottom: "var(--s-4)", overflow: "hidden" }}>
+            <div style={{
+              height: "100%", borderRadius: 3,
+              background: summary.readyForGoLive ? "var(--success)" : "var(--accent)",
+              width: `${summary.required > 0 ? Math.round((summary.requiredDone / summary.required) * 100) : 0}%`,
+              transition: "width .3s ease",
+            }} />
+          </div>
+
+          {Object.entries(byCategory).map(([cat, items]) => (
+            <div key={cat} style={{ marginBottom: "var(--s-4)" }}>
+              <div style={{ fontSize: "var(--t-xs)", fontWeight: 600, textTransform: "uppercase", letterSpacing: ".05em", color: "var(--text-muted)", marginBottom: "var(--s-2)" }}>
+                {cat}
+              </div>
+              {items.map(item => (
+                <div key={item.id} style={{ display: "flex", alignItems: "center", gap: "var(--s-3)", padding: "var(--s-2) 0", borderBottom: "1px solid var(--border-subtle)" }}>
+                  <input
+                    type="checkbox"
+                    checked={item.done}
+                    onChange={() => toggleChecklistItem(item)}
+                    disabled={loading || dep.status === "CANCELLED"}
+                    style={{ cursor: "pointer", width: 16, height: 16, flexShrink: 0 }}
+                  />
+                  <span style={{
+                    fontSize: "var(--t-sm)",
+                    color: item.done ? "var(--text-muted)" : "var(--text)",
+                    textDecoration: item.done ? "line-through" : "none",
+                    flex: 1,
+                  }}>
+                    {item.description}
+                    {item.required && !item.done && (
+                      <span style={{ color: "var(--danger)", marginLeft: "var(--s-1)", fontSize: "var(--t-xs)" }}>*</span>
+                    )}
+                  </span>
+                  {item.done && item.doneBy && (
+                    <span style={{ fontSize: "var(--t-xs)", color: "var(--text-muted)" }}>
+                      {item.doneBy.name} · {fmtDate(item.doneAt)}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Timeline */}
+      <div className="console-section">
+        <div className="console-section__header">
+          <h2 className="console-section__title">Timeline</h2>
+        </div>
+        <div className="console-section__body">
+          {(dep.timeline || []).length === 0 ? (
+            <p style={{ color: "var(--text-muted)", fontSize: "var(--t-sm)" }}>Nenhum evento registrado.</p>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: "var(--s-2)" }}>
+              {[...(dep.timeline || [])].reverse().map(ev => (
+                <div key={ev.id} style={{ display: "flex", gap: "var(--s-3)", fontSize: "var(--t-sm)", padding: "var(--s-2) 0", borderBottom: "1px solid var(--border-subtle)" }}>
+                  <span style={{ color: "var(--text-muted)", flexShrink: 0, fontVariantNumeric: "tabular-nums", fontSize: "var(--t-xs)" }}>
+                    {fmtDate(ev.at)}
+                  </span>
+                  <span style={{ flex: 1 }}>
+                    <strong style={{ color: "var(--text)", marginRight: "var(--s-2)" }}>{ev.event}</strong>
+                    {ev.from && ev.to && (
+                      <span style={{ color: "var(--text-muted)" }}>{ev.from} → {ev.to}</span>
+                    )}
+                    {ev.reason && <span style={{ color: "var(--text-muted)", marginLeft: "var(--s-2)" }}>· {ev.reason}</span>}
+                  </span>
+                  <span style={{ color: "var(--text-muted)", flexShrink: 0, fontSize: "var(--t-xs)" }}>{ev.by?.name || ""}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ── Unit Table ─────────────────────────────────────────────────────────────
 
 const PAGE_SIZE = 25;
@@ -1925,6 +2298,7 @@ export default function PlatformConsolePage({ token, user, onLogout }) {
   const [view, setView]                             = useState("list");
   const [selectedUnitId, setSelectedUnitId]         = useState(null);
   const [selectedMunicipality, setSelectedMunicipality] = useState(null);
+  const [selectedDeployment, setSelectedDeployment] = useState(null);
   const [listKey, setListKey]                       = useState(0);
 
   function goToDetail(unit) {
@@ -1948,6 +2322,17 @@ export default function PlatformConsolePage({ token, user, onLogout }) {
     setView("list");
     setSelectedUnitId(null);
     setSelectedMunicipality(null);
+    setSelectedDeployment(null);
+  }
+
+  function goToDeploymentDetail(dep) {
+    setSelectedDeployment(dep);
+    setView("deployment-detail");
+  }
+
+  function backToDeploymentList() {
+    setSelectedDeployment(null);
+    setView("list");
   }
 
   function goToMunicipalityDetail(m) {
@@ -2007,6 +2392,14 @@ export default function PlatformConsolePage({ token, user, onLogout }) {
             onClick={() => switchTab("units")}
           >
             <IcoBuilding /> Unidades de Saúde
+          </button>
+
+          <button
+            type="button"
+            className={`console-nav__item${tab === "deployments" ? " is-active" : ""}`}
+            onClick={() => switchTab("deployments")}
+          >
+            <IcoDeployment /> Implantações
           </button>
 
           <span className="console-nav__section">Portal</span>
@@ -2069,6 +2462,22 @@ export default function PlatformConsolePage({ token, user, onLogout }) {
                   municipality={selectedMunicipality}
                   onBack={backToMunicipalityList}
                   onGoToUnit={goToUnitFromMunicipality}
+                />
+              )}
+            </>
+          )}
+
+          {/* Implantações */}
+          {tab === "deployments" && (
+            <>
+              {view === "list" && (
+                <DeploymentListView token={token} onSelect={goToDeploymentDetail} />
+              )}
+              {view === "deployment-detail" && selectedDeployment && (
+                <DeploymentDetailView
+                  token={token}
+                  deployment={selectedDeployment}
+                  onBack={backToDeploymentList}
                 />
               )}
             </>

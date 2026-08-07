@@ -7,6 +7,18 @@ import { canonicalRole, hasCapability, isValidEmail, isPlatformRole } from "../u
 import { hashPassword, generateTempPassword } from "../services/crypto.js";
 import { generateVitrasId } from "../utils/vitras-id.js";
 import { addAuditLog } from "../services/audit.js";
+import {
+  createDeployment,
+  advanceDeployment,
+  pauseDeployment,
+  resumeDeployment,
+  cancelDeployment,
+  suspendDeployment,
+  updateChecklistItem,
+  assignEngineer,
+  getChecklistSummary,
+  getMunicipalConsolidation,
+} from "../services/deployment.js";
 
 const router = express.Router();
 
@@ -1158,6 +1170,340 @@ router.get("/platform/units/:unitId/audit-log", async (req, res) => {
   });
 
   return res.json({ entries: enriched, total: filtered.length, limit });
+});
+
+// ══════════════════════════════════════════════════════════════════════════
+// ERP-03 — Deployment Lifecycle
+// ══════════════════════════════════════════════════════════════════════════
+
+function deploymentOperator(user) {
+  return { id: user.id, name: user.name, role: user.role };
+}
+
+function ensureDeployments(db) {
+  ensureDbShape(db);
+  if (!Array.isArray(db.deployments)) db.deployments = [];
+}
+
+function deploymentWithSummary(d) {
+  return { ...d, checklistSummary: getChecklistSummary(d) };
+}
+
+// GET /platform/deployments
+router.get("/platform/deployments", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.read")) return res.status(403).json({ error: "Sem permissão" });
+
+  const { municipalityId, type, status, page: pageRaw = "1", limit: limitRaw = "25" } = req.query;
+  const page  = Math.max(1, parseInt(pageRaw, 10) || 1);
+  const limit = Math.min(100, Math.max(1, parseInt(limitRaw, 10) || 25));
+
+  const db = await readDb();
+  ensureDeployments(db);
+
+  let list = db.deployments || [];
+  if (municipalityId) list = list.filter(d => d.municipalityId === municipalityId);
+  if (type)           list = list.filter(d => d.type === type.toUpperCase());
+  if (status)         list = list.filter(d => d.status === status.toUpperCase());
+
+  const total = list.length;
+  const pages = Math.ceil(total / limit) || 1;
+  const paged = list.slice((page - 1) * limit, page * limit).map(deploymentWithSummary);
+
+  return res.json({ deployments: paged, total, pages });
+});
+
+// GET /platform/deployments/:deploymentId
+router.get("/platform/deployments/:deploymentId", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.read")) return res.status(403).json({ error: "Sem permissão" });
+
+  const db = await readDb();
+  ensureDeployments(db);
+  const dep = (db.deployments || []).find(d => d.id === req.params.deploymentId);
+  if (!dep) return res.status(404).json({ error: "Implantação não encontrada" });
+
+  // Consolidation for MUNICIPAL type
+  let consolidation = null;
+  if (dep.type === "MUNICIPAL") {
+    const children = (db.deployments || []).filter(d => d.municipalityDeploymentId === dep.id);
+    consolidation = getMunicipalConsolidation(dep, children);
+  }
+
+  return res.json({ ...deploymentWithSummary(dep), consolidation });
+});
+
+// POST /platform/deployments
+router.post("/platform/deployments", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.create")) return res.status(403).json({ error: "Sem permissão" });
+
+  const { type, municipalityId, municipalityDeploymentId, unitId, plannedGoLive, notes } = req.body || {};
+  const operator = deploymentOperator(req.user);
+
+  const result = await withDb((db) => {
+    ensureDeployments(db);
+
+    // Validate municipality exists
+    if (isPostgresMode()) {
+      // async validation happens outside withDb; skip here, validate via findMunicipalityByIbge if needed
+    }
+
+    // For UBS: parent must exist
+    if (type === "UBS" && municipalityDeploymentId) {
+      const parent = (db.deployments || []).find(d => d.id === municipalityDeploymentId && d.type === "MUNICIPAL");
+      if (!parent) return { error: { status: 422, message: "Deployment municipal pai não encontrado" } };
+    }
+
+    let dep;
+    try {
+      dep = createDeployment({
+        type,
+        municipalityId,
+        municipalityDeploymentId: municipalityDeploymentId || null,
+        unitId: unitId || null,
+        plannedGoLive: plannedGoLive || null,
+        notes: notes || "",
+        createdBy: operator,
+        existingDeployments: db.deployments,
+      });
+    } catch (e) {
+      return { error: { status: e.statusCode || 400, message: e.message } };
+    }
+
+    db.deployments.push(dep);
+
+    addAuditLog(db, req.user, "deployment.created", "deployment", dep.id, {
+      deploymentCode: dep.deploymentCode, type: dep.type, municipalityId, status: dep.status,
+    });
+
+    return { deployment: deploymentWithSummary(dep) };
+  });
+
+  if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
+  return res.status(201).json(result.deployment);
+});
+
+// PATCH /platform/deployments/:deploymentId — update notes/plannedGoLive
+router.patch("/platform/deployments/:deploymentId", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.update")) return res.status(403).json({ error: "Sem permissão" });
+
+  const { notes, plannedGoLive, unitId } = req.body || {};
+  const operator = deploymentOperator(req.user);
+
+  const result = await withDb((db) => {
+    ensureDeployments(db);
+    const idx = (db.deployments || []).findIndex(d => d.id === req.params.deploymentId);
+    if (idx < 0) return { error: { status: 404, message: "Implantação não encontrada" } };
+    const dep = db.deployments[idx];
+
+    if (notes !== undefined)       { dep.notes = String(notes || ""); }
+    if (plannedGoLive !== undefined){ dep.plannedGoLive = plannedGoLive || null; }
+    if (unitId !== undefined && dep.type === "UBS") { dep.unitId = unitId || null; }
+    dep.updatedAt = new Date().toISOString();
+
+    addAuditLog(db, req.user, "deployment.updated", "deployment", dep.id, { operator, fields: { notes, plannedGoLive, unitId } });
+    return { deployment: deploymentWithSummary(dep) };
+  });
+
+  if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
+  return res.json(result.deployment);
+});
+
+// POST /platform/deployments/:deploymentId/advance — advance to next status
+router.post("/platform/deployments/:deploymentId/advance", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.update")) return res.status(403).json({ error: "Sem permissão" });
+
+  const { toStatus, reason } = req.body || {};
+  if (!toStatus) return res.status(400).json({ error: "toStatus obrigatório" });
+  const operator = deploymentOperator(req.user);
+
+  const result = await withDb((db) => {
+    ensureDeployments(db);
+    const idx = (db.deployments || []).findIndex(d => d.id === req.params.deploymentId);
+    if (idx < 0) return { error: { status: 404, message: "Implantação não encontrada" } };
+    try {
+      advanceDeployment(db.deployments[idx], { toStatus, operator, reason: reason || null });
+    } catch (e) {
+      return { error: { status: e.statusCode || 422, message: e.message } };
+    }
+    addAuditLog(db, req.user, "deployment.status_changed", "deployment", db.deployments[idx].id, {
+      toStatus, reason, deploymentCode: db.deployments[idx].deploymentCode,
+    });
+    return { deployment: deploymentWithSummary(db.deployments[idx]) };
+  });
+
+  if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
+  return res.json(result.deployment);
+});
+
+// POST /platform/deployments/:deploymentId/pause
+router.post("/platform/deployments/:deploymentId/pause", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.update")) return res.status(403).json({ error: "Sem permissão" });
+
+  const { reason } = req.body || {};
+  const operator = deploymentOperator(req.user);
+
+  const result = await withDb((db) => {
+    ensureDeployments(db);
+    const idx = (db.deployments || []).findIndex(d => d.id === req.params.deploymentId);
+    if (idx < 0) return { error: { status: 404, message: "Implantação não encontrada" } };
+    try {
+      pauseDeployment(db.deployments[idx], { operator, reason: reason || null });
+    } catch (e) {
+      return { error: { status: e.statusCode || 422, message: e.message } };
+    }
+    addAuditLog(db, req.user, "deployment.paused", "deployment", db.deployments[idx].id, { reason });
+    return { deployment: deploymentWithSummary(db.deployments[idx]) };
+  });
+
+  if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
+  return res.json(result.deployment);
+});
+
+// POST /platform/deployments/:deploymentId/resume
+router.post("/platform/deployments/:deploymentId/resume", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.update")) return res.status(403).json({ error: "Sem permissão" });
+
+  const { reason } = req.body || {};
+  const operator = deploymentOperator(req.user);
+
+  const result = await withDb((db) => {
+    ensureDeployments(db);
+    const idx = (db.deployments || []).findIndex(d => d.id === req.params.deploymentId);
+    if (idx < 0) return { error: { status: 404, message: "Implantação não encontrada" } };
+    try {
+      resumeDeployment(db.deployments[idx], { operator, reason: reason || null });
+    } catch (e) {
+      return { error: { status: e.statusCode || 422, message: e.message } };
+    }
+    addAuditLog(db, req.user, "deployment.resumed", "deployment", db.deployments[idx].id, { reason });
+    return { deployment: deploymentWithSummary(db.deployments[idx]) };
+  });
+
+  if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
+  return res.json(result.deployment);
+});
+
+// POST /platform/deployments/:deploymentId/cancel
+router.post("/platform/deployments/:deploymentId/cancel", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.update")) return res.status(403).json({ error: "Sem permissão" });
+
+  const { reason } = req.body || {};
+  const operator = deploymentOperator(req.user);
+
+  const result = await withDb((db) => {
+    ensureDeployments(db);
+    const idx = (db.deployments || []).findIndex(d => d.id === req.params.deploymentId);
+    if (idx < 0) return { error: { status: 404, message: "Implantação não encontrada" } };
+    try {
+      cancelDeployment(db.deployments[idx], { operator, reason: reason || null });
+    } catch (e) {
+      return { error: { status: e.statusCode || 422, message: e.message } };
+    }
+    addAuditLog(db, req.user, "deployment.cancelled", "deployment", db.deployments[idx].id, { reason });
+    return { deployment: deploymentWithSummary(db.deployments[idx]) };
+  });
+
+  if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
+  return res.json(result.deployment);
+});
+
+// POST /platform/deployments/:deploymentId/suspend
+router.post("/platform/deployments/:deploymentId/suspend", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.update")) return res.status(403).json({ error: "Sem permissão" });
+
+  const { reason } = req.body || {};
+  const operator = deploymentOperator(req.user);
+
+  const result = await withDb((db) => {
+    ensureDeployments(db);
+    const idx = (db.deployments || []).findIndex(d => d.id === req.params.deploymentId);
+    if (idx < 0) return { error: { status: 404, message: "Implantação não encontrada" } };
+    try {
+      suspendDeployment(db.deployments[idx], { operator, reason: reason || null });
+    } catch (e) {
+      return { error: { status: e.statusCode || 422, message: e.message } };
+    }
+    addAuditLog(db, req.user, "deployment.suspended", "deployment", db.deployments[idx].id, { reason });
+    return { deployment: deploymentWithSummary(db.deployments[idx]) };
+  });
+
+  if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
+  return res.json(result.deployment);
+});
+
+// PATCH /platform/deployments/:deploymentId/checklist/:itemId
+router.patch("/platform/deployments/:deploymentId/checklist/:itemId", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.update")) return res.status(403).json({ error: "Sem permissão" });
+
+  const { done, observation } = req.body || {};
+  const operator = deploymentOperator(req.user);
+
+  const result = await withDb((db) => {
+    ensureDeployments(db);
+    const idx = (db.deployments || []).findIndex(d => d.id === req.params.deploymentId);
+    if (idx < 0) return { error: { status: 404, message: "Implantação não encontrada" } };
+    try {
+      updateChecklistItem(db.deployments[idx], {
+        itemId: req.params.itemId,
+        done: Boolean(done),
+        observation,
+        operator: { id: req.user.id, name: req.user.name },
+      });
+    } catch (e) {
+      return { error: { status: e.statusCode || 422, message: e.message } };
+    }
+    addAuditLog(db, req.user, "deployment.checklist_updated", "deployment", db.deployments[idx].id, {
+      itemId: req.params.itemId, done,
+    });
+    return { deployment: deploymentWithSummary(db.deployments[idx]) };
+  });
+
+  if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
+  return res.json(result.deployment);
+});
+
+// POST /platform/deployments/:deploymentId/assign
+router.post("/platform/deployments/:deploymentId/assign", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.update")) return res.status(403).json({ error: "Sem permissão" });
+
+  const { engineer } = req.body || {};
+  const operator = deploymentOperator(req.user);
+
+  const result = await withDb((db) => {
+    ensureDeployments(db);
+    const idx = (db.deployments || []).findIndex(d => d.id === req.params.deploymentId);
+    if (idx < 0) return { error: { status: 404, message: "Implantação não encontrada" } };
+    assignEngineer(db.deployments[idx], { engineer: engineer || null, operator });
+    addAuditLog(db, req.user, "deployment.engineer_assigned", "deployment", db.deployments[idx].id, { engineer });
+    return { deployment: deploymentWithSummary(db.deployments[idx]) };
+  });
+
+  if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
+  return res.json(result.deployment);
+});
+
+// GET /platform/deployments-dashboard — summary cards
+router.get("/platform/deployments-dashboard", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.read")) return res.status(403).json({ error: "Sem permissão" });
+
+  const db = await readDb();
+  ensureDeployments(db);
+  const all = db.deployments || [];
+
+  const count = (status) => all.filter(d => d.status === status).length;
+  return res.json({
+    planned:         count("PLANNED"),
+    configuring:     count("CONFIGURING"),
+    migrating:       count("MIGRATING"),
+    validating:      count("VALIDATING"),
+    training:        count("TRAINING"),
+    readyForGoLive:  count("READY_FOR_GO_LIVE"),
+    goLive:          count("GO_LIVE"),
+    operational:     count("OPERATIONAL"),
+    paused:          count("PAUSED"),
+    suspended:       count("SUSPENDED"),
+    cancelled:       count("CANCELLED"),
+    total:           all.length,
+  });
 });
 
 export default router;
