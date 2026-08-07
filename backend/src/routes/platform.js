@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 import express from "express";
-import { readDb, withDb } from "../db.js";
+import { readDb, withDb, pool, isPostgresMode } from "../db.js";
 import { requireAuth, requireSupportAdmin } from "../middlewares/auth.js";
 import { ensureDbShape } from "../utils/domain.js";
 import { canonicalRole, hasCapability, isValidEmail, isPlatformRole } from "../utils/helpers.js";
@@ -138,6 +138,136 @@ function enrichUnit(u, db) {
   };
 }
 
+// ── Municipality helpers ──────────────────────────────────────────────────────
+
+/**
+ * Query municipalities from Postgres.
+ * Falls back to empty array in JSON-only test environments.
+ */
+async function queryMunicipalities({ search, uf, page = 1, limit = 50 }) {
+  if (!isPostgresMode()) return { municipalities: [], total: 0, pages: 1 };
+  const params = [];
+  const conditions = ["active = true"];
+
+  if (uf) {
+    params.push(uf.toUpperCase());
+    conditions.push(`uf = $${params.length}`);
+  }
+  if (search) {
+    const term = `%${search.toLowerCase()}%`;
+    params.push(term);
+    conditions.push(`(LOWER(name) LIKE $${params.length} OR ibge_code LIKE $${params.length})`);
+  }
+
+  const where = conditions.length ? "WHERE " + conditions.join(" AND ") : "";
+  const offset = (page - 1) * limit;
+
+  const countResult = await pool.query(
+    `SELECT COUNT(*)::int AS total FROM municipalities ${where}`,
+    params
+  );
+  const total = countResult.rows[0]?.total || 0;
+
+  params.push(limit, offset);
+  const result = await pool.query(
+    `SELECT id, ibge_code, name, uf, region, is_capital, active, ibge_version, created_at, updated_at
+     FROM municipalities ${where}
+     ORDER BY name ASC
+     LIMIT $${params.length - 1} OFFSET $${params.length}`,
+    params
+  );
+
+  const municipalities = result.rows.map(rowToMunicipality);
+  return { municipalities, total, pages: Math.ceil(total / limit) || 1 };
+}
+
+function rowToMunicipality(row) {
+  return {
+    id:         row.id,
+    ibgeCode:   row.ibge_code?.trim(),
+    name:       row.name,
+    uf:         row.uf?.trim(),
+    region:     row.region || null,
+    isCapital:  row.is_capital || false,
+    active:     row.active !== false,
+    ibgeVersion: row.ibge_version || null,
+    createdAt:  row.created_at || null,
+    updatedAt:  row.updated_at || null,
+  };
+}
+
+async function findMunicipalityById(id) {
+  if (!isPostgresMode()) return null;
+  const { rows } = await pool.query(
+    `SELECT id, ibge_code, name, uf, region, is_capital, active, ibge_version, created_at, updated_at
+     FROM municipalities WHERE id = $1`,
+    [id]
+  );
+  return rows[0] ? rowToMunicipality(rows[0]) : null;
+}
+
+async function findMunicipalityByIbge(ibgeCode) {
+  if (!isPostgresMode()) return null;
+  const { rows } = await pool.query(
+    `SELECT id, ibge_code, name, uf, region, is_capital, active, ibge_version, created_at, updated_at
+     FROM municipalities WHERE ibge_code = $1`,
+    [String(ibgeCode).trim()]
+  );
+  return rows[0] ? rowToMunicipality(rows[0]) : null;
+}
+
+// ── GET /platform/municipalities ─────────────────────────────────────────────
+// List municipalities from the IBGE reference dataset with search/filter.
+// Support admin searches here to select a municipality when creating a UBS.
+
+router.get("/platform/municipalities", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.read")) {
+    return res.status(403).json({ error: "Sem permissão" });
+  }
+
+  const search = String(req.query.search || "").trim();
+  const uf     = String(req.query.uf || "").trim();
+  const page   = Math.max(1, parseInt(req.query.page  || "1",  10) || 1);
+  const limit  = Math.min(200, Math.max(1, parseInt(req.query.limit || "50", 10) || 50));
+
+  try {
+    const result = await queryMunicipalities({ search, uf, page, limit });
+    return res.json(result);
+  } catch (err) {
+    return res.status(500).json({ error: "Erro ao buscar municípios" });
+  }
+});
+
+// ── GET /platform/municipalities/:municipalityId ──────────────────────────────
+// Municipality detail with units count.
+
+router.get("/platform/municipalities/:municipalityId", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.read")) {
+    return res.status(403).json({ error: "Sem permissão" });
+  }
+
+  const { municipalityId } = req.params;
+
+  try {
+    const municipality = await findMunicipalityById(municipalityId);
+    if (!municipality) return res.status(404).json({ error: "Município não encontrado" });
+
+    // Count units for this municipality (from JSON db)
+    const db = await readDb();
+    ensureDbShape(db);
+    const units = (db.units || []).filter(
+      (u) => u.municipalityId === municipality.ibgeCode
+    );
+    const unitsCount = units.length;
+    const activeUnitsCount = units.filter((u) => u.status === "active").length;
+
+    return res.json({ ...municipality, unitsCount, activeUnitsCount });
+  } catch (err) {
+    return res.status(500).json({ error: "Erro ao buscar município" });
+  }
+});
+
+// ── GET /platform/summary ─────────────────────────────────────────────────────
 router.get("/platform/summary", async (req, res) => {
   if (!hasCapability(req.user, "platform.unit.read")) {
     return res.status(403).json({ error: "Sem permissão" });
@@ -163,13 +293,27 @@ router.get("/platform/units", async (req, res) => {
   const db = await readDb();
   ensureDbShape(db);
 
-  const search  = String(req.query.search  || "").trim().toLowerCase();
-  const uf      = String(req.query.uf      || "").trim().toUpperCase();
-  const status  = String(req.query.status  || "").trim();
+  const search         = String(req.query.search  || "").trim().toLowerCase();
+  const uf             = String(req.query.uf      || "").trim().toUpperCase();
+  const status         = String(req.query.status  || "").trim();
+  // municipalityId filter: accepts UUID (new internal ID) or IBGE code (legacy compat)
+  const municipalityIdParam = String(req.query.municipalityId || "").trim();
   const sortBy  = ["name","cnes","status","createdAt","municipalityName"].includes(req.query.sortBy) ? req.query.sortBy : "name";
   const sortDir = req.query.sortDir === "desc" ? -1 : 1;
   const page    = Math.max(1, parseInt(req.query.page  || "1",  10) || 1);
   const limit   = Math.min(100, Math.max(1, parseInt(req.query.limit || "25", 10) || 25));
+
+  // Resolve municipalityId UUID → ibgeCode for filtering
+  let ibgeCodeFilter = null;
+  if (municipalityIdParam) {
+    if (/^\d{7}$/.test(municipalityIdParam)) {
+      ibgeCodeFilter = municipalityIdParam; // legacy: IBGE code supplied directly
+    } else if (/^[0-9a-f-]{36}$/i.test(municipalityIdParam)) {
+      const muni = await findMunicipalityById(municipalityIdParam).catch(() => null);
+      if (!muni) return res.status(404).json({ error: "Município não encontrado" });
+      ibgeCodeFilter = muni.ibgeCode;
+    }
+  }
 
   let units = (db.units || []).map((u) => enrichUnit(u, db));
 
@@ -185,6 +329,10 @@ router.get("/platform/units", async (req, res) => {
         (String(usr.name || "").toLowerCase().includes(search) || String(usr.email || "").toLowerCase().includes(search))
       )
     );
+  }
+
+  if (ibgeCodeFilter) {
+    units = units.filter((u) => u.municipalityId === ibgeCodeFilter);
   }
   if (uf)     units = units.filter((u) => u.uf.toUpperCase() === uf);
   if (status) units = units.filter((u) => u.status === status);
@@ -331,6 +479,16 @@ router.post("/platform/units", async (req, res) => {
   if (!/^\d{7}$/.test(municipalityId)) {
     return res.status(400).json({ error: "municipalityId deve ter exatamente 7 dígitos (código IBGE)" });
   }
+
+  // Validate municipality exists in reference dataset
+  const muniRecord = await findMunicipalityByIbge(municipalityId).catch(() => null);
+  if (isPostgresMode() && !muniRecord) {
+    return res.status(422).json({ error: "Município não encontrado na base de dados. Selecione um município válido." });
+  }
+  // Sync denormalized fields from authoritative dataset when available
+  const resolvedMunicipalityName = muniRecord?.name || municipalityName;
+  const resolvedUf               = muniRecord?.uf   || uf;
+
   if (!/^\d{7}$/.test(cnes)) {
     return res.status(400).json({ error: "cnes deve ter exatamente 7 dígitos" });
   }
@@ -349,8 +507,8 @@ router.post("/platform/units", async (req, res) => {
       id: uuidv4(),
       name,
       cnes,
-      municipalityName,
-      uf,
+      municipalityName: resolvedMunicipalityName,
+      uf: resolvedUf,
       municipalityId,
       address,
       street,
@@ -375,8 +533,8 @@ router.post("/platform/units", async (req, res) => {
     addAuditLog(db, req.user, "PLATFORM_UNIT_CREATED", "platform_unit", unit.id, {
       name,
       cnes,
-      municipalityName,
-      uf,
+      municipalityName: resolvedMunicipalityName,
+      uf: resolvedUf,
       municipalityId,
       outcome: "success"
     });

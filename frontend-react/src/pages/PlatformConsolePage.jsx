@@ -203,6 +203,320 @@ function NationalSummary({ token }) {
   );
 }
 
+// ── Municipality Picker ────────────────────────────────────────────────────
+// Replaces free-text Município + Código IBGE fields with a search-driven selector.
+// Queries GET /platform/municipalities?search=... and lets admin pick from list.
+
+function MunicipalityPicker({ token, value, onSelect }) {
+  // value: { ibgeCode, name, uf } | null
+  const [query,    setQuery]    = useState(value?.name || "");
+  const [results,  setResults]  = useState([]);
+  const [open,     setOpen]     = useState(false);
+  const [loading,  setLoading]  = useState(false);
+  const timerRef = useRef(null);
+
+  function handleInput(e) {
+    const q = e.target.value;
+    setQuery(q);
+    setOpen(true);
+    clearTimeout(timerRef.current);
+    if (q.trim().length < 2) { setResults([]); return; }
+    timerRef.current = setTimeout(() => search(q.trim()), 280);
+  }
+
+  async function search(q) {
+    setLoading(true);
+    try {
+      const data = await apiFetch(`/platform/municipalities?search=${encodeURIComponent(q)}&limit=10`, token);
+      setResults(data?.municipalities || []);
+    } catch { setResults([]); }
+    finally { setLoading(false); }
+  }
+
+  function pick(m) {
+    setQuery(m.name + " — " + m.uf);
+    setOpen(false);
+    setResults([]);
+    onSelect(m);
+  }
+
+  function handleBlur() {
+    setTimeout(() => setOpen(false), 180);
+  }
+
+  return (
+    <div className="field" style={{ position: "relative" }}>
+      <label className="field__label">Município * <span style={{ fontSize: "0.8em", fontWeight: 400, opacity: 0.6 }}>(busque pelo nome ou código IBGE)</span></label>
+      <div className="input">
+        <input
+          value={query}
+          onChange={handleInput}
+          onFocus={() => { if (results.length) setOpen(true); }}
+          onBlur={handleBlur}
+          placeholder="Ex: Recife, São Paulo, 3534401..."
+          autoComplete="off"
+        />
+      </div>
+      {value?.ibgeCode && (
+        <span style={{ fontSize: "var(--t-xs)", color: "var(--text-dim)", marginTop: 2, display: "block" }}>
+          IBGE: {value.ibgeCode} · UF: {value.uf}
+        </span>
+      )}
+      {open && (loading || results.length > 0) && (
+        <div style={{
+          position: "absolute", top: "100%", left: 0, right: 0, zIndex: 100,
+          background: "var(--surface)", border: "1px solid var(--border)",
+          borderRadius: 6, boxShadow: "0 4px 16px rgba(0,0,0,.15)",
+          maxHeight: 260, overflowY: "auto",
+        }}>
+          {loading && <div style={{ padding: "var(--s-3)", fontSize: "var(--t-sm)", color: "var(--text-dim)" }}>Buscando...</div>}
+          {!loading && results.length === 0 && query.length >= 2 && (
+            <div style={{ padding: "var(--s-3)", fontSize: "var(--t-sm)", color: "var(--text-dim)" }}>Nenhum município encontrado.</div>
+          )}
+          {results.map((m) => (
+            <button
+              key={m.id || m.ibgeCode}
+              type="button"
+              onMouseDown={() => pick(m)}
+              style={{
+                display: "block", width: "100%", textAlign: "left",
+                padding: "var(--s-2) var(--s-3)", background: "transparent",
+                border: "none", cursor: "pointer", fontSize: "var(--t-sm)",
+                color: "var(--text)",
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "var(--hover)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+            >
+              <strong>{m.name}</strong>
+              <span style={{ marginLeft: 8, color: "var(--text-dim)" }}>{m.uf} · {m.ibgeCode}</span>
+              {m.isCapital && <span style={{ marginLeft: 8, fontSize: "0.75em", color: "var(--accent)" }}>capital</span>}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Municipality List View ─────────────────────────────────────────────────
+
+function MunicipalityListView({ token, onSelect }) {
+  const [search,  setSearch]  = useState("");
+  const [uf,      setUf]      = useState("");
+  const [items,   setItems]   = useState([]);
+  const [total,   setTotal]   = useState(0);
+  const [pages,   setPages]   = useState(1);
+  const [page,    setPage]    = useState(1);
+  const [loading, setLoading] = useState(false);
+  const timerRef = useRef(null);
+
+  useEffect(() => {
+    load(1);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uf]);
+
+  function handleSearchChange(e) {
+    const q = e.target.value;
+    setSearch(q);
+    clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => load(1, q), 300);
+  }
+
+  async function load(p = 1, q = search) {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({ page: p, limit: 25 });
+      if (q.trim()) params.set("search", q.trim());
+      if (uf) params.set("uf", uf);
+      const data = await apiFetch(`/platform/municipalities?${params}`, token);
+      setItems(data?.municipalities || []);
+      setTotal(data?.total || 0);
+      setPages(data?.pages || 1);
+      setPage(p);
+    } catch { setItems([]); }
+    finally { setLoading(false); }
+  }
+
+  return (
+    <>
+      <div className="console-page-header">
+        <div>
+          <h1 className="console-page-header__title">Municípios</h1>
+          <p className="console-page-header__sub">Base IBGE — municípios disponíveis para implantação do VITRAS</p>
+        </div>
+      </div>
+
+      <div style={{ display: "flex", gap: "var(--s-3)", marginBottom: "var(--s-4)", flexWrap: "wrap" }}>
+        <div className="input" style={{ flex: "1 1 240px" }}>
+          <input
+            value={search}
+            onChange={handleSearchChange}
+            placeholder="Buscar por nome ou código IBGE..."
+          />
+        </div>
+        <select
+          className="console-filter-select"
+          value={uf}
+          onChange={(e) => setUf(e.target.value)}
+          style={{ minWidth: 80 }}
+        >
+          <option value="">Todas as UFs</option>
+          {UF_OPTIONS.map(u => <option key={u} value={u}>{u}</option>)}
+        </select>
+      </div>
+
+      {loading && (
+        <div style={{ padding: "var(--s-5)", color: "var(--text-dim)", textAlign: "center" }}>Carregando municípios...</div>
+      )}
+      {!loading && items.length === 0 && (
+        <div style={{ padding: "var(--s-5)", color: "var(--text-dim)", textAlign: "center" }}>
+          {search || uf ? "Nenhum município encontrado para os filtros informados." : "Base de municípios vazia — execute seed-municipalities.mjs em produção."}
+        </div>
+      )}
+      {!loading && items.length > 0 && (
+        <div className="console-table-wrap">
+          <table className="console-table">
+            <thead>
+              <tr>
+                <th>Município</th>
+                <th>UF</th>
+                <th>Código IBGE</th>
+                <th>Região</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((m) => (
+                <tr key={m.id || m.ibgeCode} style={{ cursor: "pointer" }} onClick={() => onSelect(m)}>
+                  <td>
+                    {m.name}
+                    {m.isCapital && <span className="badge badge--info" style={{ marginLeft: 6, fontSize: "0.7em" }}>capital</span>}
+                  </td>
+                  <td>{m.uf}</td>
+                  <td style={{ fontVariantNumeric: "tabular-nums" }}>{m.ibgeCode}</td>
+                  <td style={{ color: "var(--text-dim)" }}>{m.region || "—"}</td>
+                  <td style={{ textAlign: "right" }}>
+                    <button type="button" className="console-table__action">Ver UBS →</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="table-pagination">
+            <span>{total} municípios{pages > 1 ? ` — página ${page} de ${pages}` : ""}</span>
+            {pages > 1 && (
+              <div style={{ display: "flex", gap: "var(--s-2)" }}>
+                <Button variant="secondary" size="sm" disabled={page <= 1} onClick={() => load(page - 1)}>← Anterior</Button>
+                <Button variant="secondary" size="sm" disabled={page >= pages} onClick={() => load(page + 1)}>Próxima →</Button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+// ── Municipality Detail View ───────────────────────────────────────────────
+
+function MunicipalityDetailView({ token, municipality, onBack, onGoToUnit }) {
+  const [detail,  setDetail]  = useState(null);
+  const [units,   setUnits]   = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!municipality?.id) return;
+    Promise.all([
+      apiFetch(`/platform/municipalities/${municipality.id}`, token),
+      apiFetch(`/platform/units?municipalityId=${municipality.ibgeCode}&limit=100`, token),
+    ])
+      .then(([d, u]) => { setDetail(d); setUnits(u?.units || []); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [municipality, token]);
+
+  return (
+    <>
+      {/* Breadcrumb */}
+      <div style={{ display: "flex", alignItems: "center", gap: "var(--s-2)", marginBottom: "var(--s-4)", fontSize: "var(--t-sm)", color: "var(--text-dim)" }}>
+        <button type="button" className="console-breadcrumb-link" onClick={onBack}>Municípios</button>
+        <span>›</span>
+        <span style={{ color: "var(--text)" }}>{municipality?.name}</span>
+      </div>
+
+      <div className="console-page-header">
+        <div>
+          <h1 className="console-page-header__title">{municipality?.name}</h1>
+          <p className="console-page-header__sub">{municipality?.uf} · IBGE {municipality?.ibgeCode}</p>
+        </div>
+        <Button variant="secondary" onClick={onBack}>← Municípios</Button>
+      </div>
+
+      {loading && <div style={{ padding: "var(--s-5)", color: "var(--text-dim)" }}>Carregando...</div>}
+
+      {!loading && detail && (
+        <div className="console-kpi-strip" style={{ marginBottom: "var(--s-5)" }}>
+          <div className="console-kpi console-kpi--accent">
+            <div className="console-kpi__value">{detail.unitsCount ?? 0}</div>
+            <div className="console-kpi__label">UBS cadastradas</div>
+          </div>
+          <div className="console-kpi console-kpi--success">
+            <div className="console-kpi__value">{detail.activeUnitsCount ?? 0}</div>
+            <div className="console-kpi__label">Operacionais</div>
+          </div>
+          <div className="console-kpi">
+            <div className="console-kpi__value">{detail.region || "—"}</div>
+            <div className="console-kpi__label">Região</div>
+          </div>
+          {detail.isCapital && (
+            <div className="console-kpi">
+              <div className="console-kpi__value">Capital</div>
+              <div className="console-kpi__label">Tipo</div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {!loading && (
+        <div className="console-section">
+          <div className="console-section__header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span>Unidades de Saúde ({units.length})</span>
+          </div>
+          <div className="console-section__body">
+            {units.length === 0 && (
+              <p style={{ color: "var(--text-dim)", margin: 0 }}>Nenhuma UBS cadastrada neste município.</p>
+            )}
+            {units.map((u) => (
+              <div key={u.id} style={{
+                display: "flex", justifyContent: "space-between", alignItems: "center",
+                padding: "var(--s-3) 0", borderBottom: "1px solid var(--border-subtle)",
+              }}>
+                <div>
+                  <strong>{u.name}</strong>
+                  <span style={{ marginLeft: 8, color: "var(--text-dim)", fontSize: "var(--t-sm)" }}>CNES {u.cnes}</span>
+                  <span className={STATUS_BADGE[u.status] || "badge"} style={{ marginLeft: 8 }}>{STATUS_LABELS[u.status] || u.status}</span>
+                </div>
+                <Button variant="secondary" size="sm" onClick={() => onGoToUnit(u)}>Abrir →</Button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+// ── Municipality Ico ───────────────────────────────────────────────────────
+
+const IcoMunicipality = () => (
+  <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden>
+    <path d="M8 1l7 4v9H1V5l7-4z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/>
+    <rect x="5" y="9" width="2" height="3" rx=".5" fill="currentColor"/>
+    <rect x="9" y="9" width="2" height="3" rx=".5" fill="currentColor"/>
+    <rect x="6" y="5" width="4" height="2.5" rx=".5" stroke="currentColor" strokeWidth="1.1"/>
+  </svg>
+);
+
 // ── Unit Table ─────────────────────────────────────────────────────────────
 
 const PAGE_SIZE = 25;
@@ -408,7 +722,7 @@ function CepField({ value, onChange, onAutoFill }) {
 
 // ── Shared unit form fields ─────────────────────────────────────────────────
 
-function UnitFormFields({ form, setField, autoFilledFields, showStatus }) {
+function UnitFormFields({ token, form, setField, autoFilledFields, showStatus }) {
   function set(key) { return (e) => setField(key, e.target.value); }
 
   function handleAutoFill(addr) {
@@ -417,6 +731,12 @@ function UnitFormFields({ form, setField, autoFilledFields, showStatus }) {
     setField("municipalityName", addr.municipalityName);
     setField("uf",               addr.uf);
     if (addr.municipalityId) setField("municipalityId", addr.municipalityId);
+  }
+
+  function handleMunicipalitySelect(m) {
+    setField("municipalityId",   m.ibgeCode);
+    setField("municipalityName", m.name);
+    setField("uf",               m.uf);
   }
 
   const hl = (k) => autoFilledFields?.includes(k) ? { background: "var(--success-soft, #f0fdf4)" } : {};
@@ -444,18 +764,12 @@ function UnitFormFields({ form, setField, autoFilledFields, showStatus }) {
           <div style={hl("neighborhood")}>
             <Input label="Bairro *" value={form.neighborhood} onChange={set("neighborhood")} placeholder="Centro" />
           </div>
-          <div style={hl("municipalityName")}>
-            <Input label="Município *" value={form.municipalityName} onChange={set("municipalityName")} placeholder="Recife" />
-          </div>
-          <div className="field" style={hl("uf")}>
-            <label className="field__label">UF *</label>
-            <select className="console-filter-select" style={{ height: 34, width: "100%" }} value={form.uf} onChange={set("uf")}>
-              <option value="">Selecionar UF</option>
-              {UF_OPTIONS.map(uf => <option key={uf} value={uf}>{uf}</option>)}
-            </select>
-          </div>
-          <div style={hl("municipalityId")}>
-            <Input label="Código IBGE (7 dígitos)" value={form.municipalityId} onChange={set("municipalityId")} placeholder="2611606" />
+          <div style={{ gridColumn: "1 / -1", ...hl("municipalityName") }}>
+            <MunicipalityPicker
+              token={token}
+              value={form.municipalityId ? { ibgeCode: form.municipalityId, name: form.municipalityName, uf: form.uf } : null}
+              onSelect={handleMunicipalitySelect}
+            />
           </div>
           <Input label="Complemento" value={form.complement || ""} onChange={set("complement")} placeholder="Ap. 10, Bloco B" />
           <Input label="Referência" value={form.reference || ""} onChange={set("reference")} placeholder="Próximo à Praça Central" />
@@ -551,7 +865,7 @@ function UnitForm({ token, onDone, onBack }) {
         <span className="console-breadcrumb__current">Nova UBS</span>
       </div>
       {error && <Alert type="error" style={{ marginBottom: "var(--s-4)" }}>{error}</Alert>}
-      <UnitFormFields form={form} setField={setField} showStatus />
+      <UnitFormFields token={token} form={form} setField={setField} showStatus />
       <div style={{ display: "flex", gap: "var(--s-3)" }}>
         <Button type="submit" loading={busy}>Criar UBS</Button>
         <Button type="button" variant="ghost" onClick={onBack}>Cancelar</Button>
@@ -616,7 +930,7 @@ function UnitEditForm({ token, unit, onDone, onBack }) {
         <span className="console-breadcrumb__current">Editar UBS</span>
       </div>
       {error && <Alert type="error" style={{ marginBottom: "var(--s-4)" }}>{error}</Alert>}
-      <UnitFormFields form={form} setField={setField} showStatus={false} />
+      <UnitFormFields token={token} form={form} setField={setField} showStatus={false} />
       <div style={{ display: "flex", gap: "var(--s-3)" }}>
         <Button type="submit" loading={busy}>Salvar Alterações</Button>
         <Button type="button" variant="ghost" onClick={onBack}>Cancelar</Button>
@@ -1607,10 +1921,11 @@ function CitizenPortalConfig({ token }) {
 // ── Main Console ───────────────────────────────────────────────────────────
 
 export default function PlatformConsolePage({ token, user, onLogout }) {
-  const [tab, setTab]                       = useState("overview");
-  const [view, setView]                     = useState("list");
-  const [selectedUnitId, setSelectedUnitId] = useState(null);
-  const [listKey, setListKey]               = useState(0);
+  const [tab, setTab]                               = useState("overview");
+  const [view, setView]                             = useState("list");
+  const [selectedUnitId, setSelectedUnitId]         = useState(null);
+  const [selectedMunicipality, setSelectedMunicipality] = useState(null);
+  const [listKey, setListKey]                       = useState(0);
 
   function goToDetail(unit) {
     setSelectedUnitId(unit.id);
@@ -1630,9 +1945,26 @@ export default function PlatformConsolePage({ token, user, onLogout }) {
 
   function switchTab(t) {
     setTab(t);
-    if (t !== "units") return;
     setView("list");
     setSelectedUnitId(null);
+    setSelectedMunicipality(null);
+  }
+
+  function goToMunicipalityDetail(m) {
+    setSelectedMunicipality(m);
+    setView("municipality-detail");
+  }
+
+  function backToMunicipalityList() {
+    setSelectedMunicipality(null);
+    setView("list");
+  }
+
+  function goToUnitFromMunicipality(unit) {
+    setSelectedUnitId(unit.id);
+    setTab("units");
+    setView("unit-detail");
+    setSelectedMunicipality(null);
   }
 
   return (
@@ -1662,6 +1994,13 @@ export default function PlatformConsolePage({ token, user, onLogout }) {
           </button>
 
           <span className="console-nav__section">Gestão</span>
+          <button
+            type="button"
+            className={`console-nav__item${tab === "municipalities" ? " is-active" : ""}`}
+            onClick={() => switchTab("municipalities")}
+          >
+            <IcoMunicipality /> Municípios
+          </button>
           <button
             type="button"
             className={`console-nav__item${tab === "units" ? " is-active" : ""}`}
@@ -1715,6 +2054,23 @@ export default function PlatformConsolePage({ token, user, onLogout }) {
                   </Button>
                 </div>
               </div>
+            </>
+          )}
+
+          {/* Municípios */}
+          {tab === "municipalities" && (
+            <>
+              {view === "list" && (
+                <MunicipalityListView token={token} onSelect={goToMunicipalityDetail} />
+              )}
+              {view === "municipality-detail" && selectedMunicipality && (
+                <MunicipalityDetailView
+                  token={token}
+                  municipality={selectedMunicipality}
+                  onBack={backToMunicipalityList}
+                  onGoToUnit={goToUnitFromMunicipality}
+                />
+              )}
             </>
           )}
 

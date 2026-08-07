@@ -89,7 +89,8 @@ async function main() {
         `INSERT INTO municipalities (ibge_code, name, uf, region, is_capital, ibge_version)
          VALUES ($1, $2, $3, $4, $5, '2022')
          ON CONFLICT (ibge_code) DO UPDATE
-           SET name=$2, uf=$3, region=$4, is_capital=$5, updated_at=NOW()`,
+           SET name=$2, uf=$3, region=$4, is_capital=$5, updated_at=NOW()
+         -- id UUID is auto-generated on insert; never overwritten on conflict`,
         [ibge, name, uf, region, isCapital]
       );
       count++;
