@@ -28,9 +28,9 @@ import { hashPassword } from "../src/services/crypto.js";
 const MUNI_A = "4200001";
 const MUNI_B = "9900001";
 
-const DOC_CREDS   = { email: "sec12.med@vitras.com.br",  password: "Demo@2026" };
-const RECEP_CREDS = { email: "sec12.rec@vitras.com.br",  password: "Demo@2026" };
-const SADM_CREDS  = { email: "sec12.sadm@vitras.com.br", password: "Demo@2026" };
+const DOC_VID   = "500000001";
+const RECEP_VID = "500000002";
+const SADM_VID  = "500000003";
 
 let docToken   = "";
 let recepToken = "";
@@ -64,9 +64,9 @@ describe("Patient Security Municipal — FASE 12", () => {
 
       const pw = hashPassword("Demo@2026");
       for (const u of [
-        { id: DOC_ID,  role: "doctor",        email: "sec12.med@vitras.com.br",  teamId: T_A, unitId: U_A, municipalityId: MUNI_A },
-        { id: REC_ID,  role: "receptionist",  email: "sec12.rec@vitras.com.br",  teamId: T_A, unitId: U_A, municipalityId: MUNI_A },
-        { id: SADM_ID, role: "support_admin", email: "sec12.sadm@vitras.com.br", teamId: "",  unitId: "",  municipalityId: "" },
+        { id: DOC_ID,  vitrasId: DOC_VID,   role: "doctor",        email: "sec12.med@test.local",  teamId: T_A, unitId: U_A, municipalityId: MUNI_A },
+        { id: REC_ID,  vitrasId: RECEP_VID, role: "receptionist",  email: "sec12.rec@test.local",  teamId: T_A, unitId: U_A, municipalityId: MUNI_A },
+        { id: SADM_ID, vitrasId: SADM_VID,  role: "support_admin", email: "sec12.sadm@test.local",  teamId: "",  unitId: "",  municipalityId: "" },
       ]) {
         if (!db.users.find(x => x.id === u.id)) {
           db.users.push({ ...u, name: u.id, password: pw, teamName: u.teamId,
@@ -86,9 +86,9 @@ describe("Patient Security Municipal — FASE 12", () => {
     });
 
     const [d, r, s] = await Promise.all([
-      post("/auth/login", DOC_CREDS),
-      post("/auth/login", RECEP_CREDS),
-      post("/auth/login", SADM_CREDS),
+      post("/auth/login", { identifier: DOC_VID,   password: "Demo@2026" }),
+      post("/auth/login", { identifier: RECEP_VID, password: "Demo@2026" }),
+      post("/auth/login", { identifier: SADM_VID,  password: "Demo@2026" }),
     ]);
     docToken   = d.json?.token || d.json?.accessToken || "";
     recepToken = r.json?.token || r.json?.accessToken || "";

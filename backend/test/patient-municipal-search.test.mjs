@@ -21,10 +21,10 @@ import { getAllowedPatients } from "../src/utils/patients.js";
 const MUNICIPALITY_A = "4200000";
 const MUNICIPALITY_B = "9900000";
 
-const DOCTOR_CREDS    = { email: "fase2.med@vitras.com.br",   password: "Demo@2026" };
-const GESTOR_CREDS    = { email: "fase2.gestor@vitras.com.br", password: "Demo@2026" };
-const ACS_CREDS       = { email: "fase2.acs@vitras.com.br",    password: "Demo@2026" };
-const TECH_CREDS      = { email: "fase2.tech@vitras.com.br",   password: "Demo@2026" };
+const DOCTOR_VID  = "400000001";
+const GESTOR_VID  = "400000002";
+const ACS_VID     = "400000003";
+const TECH_VID    = "400000004";
 
 let doctorToken = "";
 let gestorToken = "";
@@ -70,10 +70,10 @@ describe("Patient Municipal Search — FASE 2", () => {
       // Users
       const pw = hashPassword("Demo@2026");
       for (const u of [
-        { id: DOCTOR_ID, role: "doctor",       email: "fase2.med@vitras.com.br",   teamId: TEAM_A, unitId: UNIT_A, municipalityId: MUNICIPALITY_A },
-        { id: GESTOR_ID, role: "gestor",        email: "fase2.gestor@vitras.com.br", teamId: TEAM_A, unitId: UNIT_A, municipalityId: MUNICIPALITY_A },
-        { id: ACS_ID,    role: "acs",           email: "fase2.acs@vitras.com.br",   teamId: TEAM_A, unitId: UNIT_A, municipalityId: MUNICIPALITY_A },
-        { id: TECH_ID,   role: "nursing_tech",  email: "fase2.tech@vitras.com.br",  teamId: TEAM_A, unitId: UNIT_A, municipalityId: MUNICIPALITY_A },
+        { id: DOCTOR_ID, vitrasId: DOCTOR_VID, role: "doctor",       email: "fase2.med@test.local",    teamId: TEAM_A, unitId: UNIT_A, municipalityId: MUNICIPALITY_A },
+        { id: GESTOR_ID, vitrasId: GESTOR_VID, role: "gestor",        email: "fase2.gestor@test.local",  teamId: TEAM_A, unitId: UNIT_A, municipalityId: MUNICIPALITY_A },
+        { id: ACS_ID,    vitrasId: ACS_VID,    role: "acs",           email: "fase2.acs@test.local",    teamId: TEAM_A, unitId: UNIT_A, municipalityId: MUNICIPALITY_A },
+        { id: TECH_ID,   vitrasId: TECH_VID,   role: "nursing_tech",  email: "fase2.tech@test.local",   teamId: TEAM_A, unitId: UNIT_A, municipalityId: MUNICIPALITY_A },
       ]) {
         if (!db.users.find(x => x.id === u.id)) {
           db.users.push({ ...u, name: u.id, password: pw, teamName: u.teamId, inactive: false, twoFactorEnabled: false, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
@@ -97,10 +97,10 @@ describe("Patient Municipal Search — FASE 2", () => {
     });
 
     const [d, g, a, t] = await Promise.all([
-      post("/auth/login", DOCTOR_CREDS),
-      post("/auth/login", GESTOR_CREDS),
-      post("/auth/login", ACS_CREDS),
-      post("/auth/login", TECH_CREDS),
+      post("/auth/login", { identifier: DOCTOR_VID, password: "Demo@2026" }),
+      post("/auth/login", { identifier: GESTOR_VID, password: "Demo@2026" }),
+      post("/auth/login", { identifier: ACS_VID,    password: "Demo@2026" }),
+      post("/auth/login", { identifier: TECH_VID,   password: "Demo@2026" }),
     ]);
     doctorToken = d.json?.token || d.json?.accessToken || "";
     gestorToken = g.json?.token || g.json?.accessToken || "";

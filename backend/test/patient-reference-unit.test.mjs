@@ -18,7 +18,7 @@ import { ensureDbShape } from "../src/utils/domain.js";
 import { hashPassword } from "../src/services/crypto.js";
 import { buildReceptionistPatientSummary } from "../src/utils/patients.js";
 
-const NURSE_CREDS = { email: "patricia.enf@vitras.com.br", password: "Demo@2026" };
+const NURSE_VITRAS_ID = "300000001";
 let nurseToken = "";
 
 describe("Patient referenceUnitId — FASE 1", () => {
@@ -35,16 +35,17 @@ describe("Patient referenceUnitId — FASE 1", () => {
       }
       if (!db.users.find(u => u.id === "seed-user-enf")) {
         db.users.push({
-          id: "seed-user-enf", name: "Enf. Patrícia Lima", role: "nurse_manager",
-          email: "patricia.enf@vitras.com.br", password: hashPassword("Demo@2026"),
+          id: "seed-user-enf", vitrasId: NURSE_VITRAS_ID, name: "Enf. Patrícia Lima", role: "nurse_manager",
+          email: "patricia.enf.f1@test.local", password: hashPassword("Demo@2026"),
           teamId: "team-rosa", teamName: "Equipe Rosa", unitId: "unit-default",
           councilType: "COREN", councilNumber: "12345", councilUf: "SP",
-          inactive: false, twoFactorEnabled: false, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
+          inactive: false, twoFactorEnabled: false, forcePasswordChange: false,
+          createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
         });
       }
     });
-    const { json } = await post("/auth/login", NURSE_CREDS);
-    nurseToken = json.token || json.accessToken || "";
+    const { json } = await post("/auth/login", { identifier: NURSE_VITRAS_ID, password: "Demo@2026" });
+    nurseToken = json?.token || json?.accessToken || "";
   });
   after(stopTestServer);
 
