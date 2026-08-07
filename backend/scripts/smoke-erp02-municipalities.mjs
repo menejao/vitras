@@ -177,12 +177,12 @@ async function runApiGates(token) {
   else
     ko("G4c", `Filtro ?uf=SP falhou (status=${s4c})`);
 
-  // G4d: paginação
+  // G4d: paginação — response tem municipalities[], total, pages (não inclui page atual)
   const { status: s4d, body: b4d } = await request("GET", "/platform/municipalities?page=2&limit=10", null, token);
-  if (s4d === 200 && b4d?.page === 2)
-    ok("G4d", `Paginação page=2 retornou corretamente`);
+  if (s4d === 200 && Array.isArray(b4d?.municipalities) && typeof b4d?.pages === "number")
+    ok("G4d", `Paginação page=2 retornou corretamente (pages=${b4d.pages})`);
   else
-    ko("G4d", `Paginação falhou (status=${s4d} page=${b4d?.page})`);
+    ko("G4d", `Paginação falhou (status=${s4d} pages=${b4d?.pages})`);
 
   // G4e: UUID de município válido
   const firstMuni = body?.municipalities?.[0];
