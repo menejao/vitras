@@ -2,7 +2,7 @@
 
 ## v1.1.0-rc.3 (2026-08-07) — CLINICAL EVENT ATTRIBUTION COMPLETE
 
-**Commit:** be3bfaa | **Tag:** pendente
+**Commit:** be3bfaa | **Tag:** v1.1.0-rc.3 (candidata de engenharia — FREEZE)
 
 ### VITRAS-CLINICAL-EVENT-ATTRIBUTION-01 — Atribuição Canônica em Eventos Clínicos
 
