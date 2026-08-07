@@ -1806,6 +1806,222 @@ router.get("/platform/deployments-dashboard", async (req, res) => {
 });
 
 // ══════════════════════════════════════════════════════════════════════════
+// ERP-06 — Platform Observability and Diagnostics
+// ══════════════════════════════════════════════════════════════════════════
+
+import {
+  computePlatformHealth, computeMunicipalityHealth, computeUnitHealth,
+  runDiagnostics, createAlert, ackAlert, resolveAlert,
+  ALERT_STATUS, ALERT_CATEGORY,
+} from "../services/platform-health.js";
+
+function ensureObservability(db) {
+  ensureDbShape(db);
+  if (!Array.isArray(db.platformAlerts))       db.platformAlerts = [];
+  if (!Array.isArray(db.diagnosticRuns))       db.diagnosticRuns = [];
+}
+
+function obsOperator(user) {
+  return { id: user.id, name: user.name, role: user.role };
+}
+
+// GET /platform/health — overall platform health
+router.get("/platform/health", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.read")) return res.status(403).json({ error: "Sem permissão" });
+  const db = await readDb();
+  ensureObservability(db);
+  return res.json(computePlatformHealth(db));
+});
+
+// GET /platform/diagnostics — run diagnostics and return results
+router.get("/platform/diagnostics", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.read")) return res.status(403).json({ error: "Sem permissão" });
+  const db = await readDb();
+  ensureObservability(db);
+  const results = runDiagnostics(db);
+  return res.json({ diagnostics: results, total: results.length, ranAt: new Date().toISOString() });
+});
+
+// POST /platform/diagnostics/run — manual run with audit record
+router.post("/platform/diagnostics/run", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.create")) return res.status(403).json({ error: "Sem permissão" });
+  const operator = obsOperator(req.user);
+  const startedAt = Date.now();
+
+  const db = await readDb();
+  ensureObservability(db);
+  const results = runDiagnostics(db);
+  const duration = Date.now() - startedAt;
+
+  const run = {
+    id:          uuidv4(),
+    executedBy:  operator,
+    startedAt:   new Date(startedAt).toISOString(),
+    finishedAt:  new Date().toISOString(),
+    durationMs:  duration,
+    totalChecks: results.length,
+    findings:    results.filter(d => d.status === "OPEN").length,
+    results,
+  };
+
+  await withDb((db2) => {
+    ensureObservability(db2);
+    if (!Array.isArray(db2.diagnosticRuns)) db2.diagnosticRuns = [];
+    db2.diagnosticRuns.unshift(run);
+    if (db2.diagnosticRuns.length > 50) db2.diagnosticRuns = db2.diagnosticRuns.slice(0, 50);
+    addAuditLog(db2, req.user, "diagnostics.run", "platform", "diagnostics", {
+      findings: run.findings, duration,
+    });
+  });
+
+  return res.status(201).json(run);
+});
+
+// GET /platform/alerts — list platform alerts
+router.get("/platform/alerts", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.read")) return res.status(403).json({ error: "Sem permissão" });
+
+  const { status, severity, category, page: pageRaw = "1", limit: limitRaw = "25" } = req.query;
+  const page  = Math.max(1, parseInt(pageRaw, 10) || 1);
+  const limit = Math.min(100, Math.max(1, parseInt(limitRaw, 10) || 25));
+
+  const db = await readDb();
+  ensureObservability(db);
+
+  let list = db.platformAlerts || [];
+  if (status)   list = list.filter(a => a.status === status.toUpperCase());
+  if (severity) list = list.filter(a => a.severity === severity.toUpperCase());
+  if (category) list = list.filter(a => a.category === category.toUpperCase());
+
+  list = list.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  const total = list.length;
+  const pages = Math.ceil(total / limit) || 1;
+  return res.json({ alerts: list.slice((page - 1) * limit, page * limit), total, pages });
+});
+
+// POST /platform/alerts — create manual alert
+router.post("/platform/alerts", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.create")) return res.status(403).json({ error: "Sem permissão" });
+
+  const { code, title, description, severity, category, affectedComponent, recommendation } = req.body || {};
+  if (!title || !category) return res.status(400).json({ error: "title e category obrigatórios" });
+  if (!ALERT_CATEGORY[category?.toUpperCase()]) return res.status(400).json({ error: `category inválida: ${category}` });
+
+  const operator = obsOperator(req.user);
+
+  const result = await withDb((db) => {
+    ensureObservability(db);
+    const alert = createAlert({
+      code: code || "MANUAL", title, description, severity: severity || "MEDIUM",
+      category: category.toUpperCase(), affectedComponent, recommendation, operator,
+      existingAlerts: db.platformAlerts,
+    });
+    db.platformAlerts.push(alert);
+    addAuditLog(db, req.user, "alert.created", "alert", alert.id, { alertCode: alert.alertCode, title });
+    return { alert };
+  });
+
+  return res.status(201).json(result.alert);
+});
+
+// POST /platform/alerts/:alertId/ack — acknowledge alert
+router.post("/platform/alerts/:alertId/ack", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.update")) return res.status(403).json({ error: "Sem permissão" });
+  const operator = obsOperator(req.user);
+
+  const result = await withDb((db) => {
+    ensureObservability(db);
+    const idx = (db.platformAlerts || []).findIndex(a => a.id === req.params.alertId);
+    if (idx < 0) return { error: { status: 404, message: "Alerta não encontrado" } };
+    try {
+      ackAlert(db.platformAlerts[idx], operator);
+    } catch (e) {
+      return { error: { status: e.statusCode || 422, message: e.message } };
+    }
+    addAuditLog(db, req.user, "alert.acknowledged", "alert", db.platformAlerts[idx].id, {});
+    return { alert: db.platformAlerts[idx] };
+  });
+
+  if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
+  return res.json(result.alert);
+});
+
+// POST /platform/alerts/:alertId/resolve
+router.post("/platform/alerts/:alertId/resolve", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.update")) return res.status(403).json({ error: "Sem permissão" });
+  const operator = obsOperator(req.user);
+
+  const result = await withDb((db) => {
+    ensureObservability(db);
+    const idx = (db.platformAlerts || []).findIndex(a => a.id === req.params.alertId);
+    if (idx < 0) return { error: { status: 404, message: "Alerta não encontrado" } };
+    resolveAlert(db.platformAlerts[idx], operator);
+    addAuditLog(db, req.user, "alert.resolved", "alert", db.platformAlerts[idx].id, {});
+    return { alert: db.platformAlerts[idx] };
+  });
+
+  if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
+  return res.json(result.alert);
+});
+
+// GET /platform/dashboard — NOC operational dashboard
+router.get("/platform/dashboard", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.read")) return res.status(403).json({ error: "Sem permissão" });
+
+  const db  = await readDb();
+  ensureObservability(db);
+
+  const health      = computePlatformHealth(db);
+  const diagnostics = runDiagnostics(db);
+  const today       = new Date().toDateString();
+
+  const deployments = db.deployments  || [];
+  const licenses    = db.licenses     || [];
+  const incidents   = db.incidents    || [];
+  const units       = db.units        || [];
+  const alerts      = db.platformAlerts || [];
+  const customers   = db.municipalCustomers || [];
+
+  const activeInc  = incidents.filter(i => !["RESOLVED","CLOSED","CANCELLED"].includes(i.status));
+  const todayResol = incidents.filter(i => i.resolvedAt && new Date(i.resolvedAt).toDateString() === today);
+
+  return res.json({
+    health,
+    diagnostics: { total: diagnostics.length, bySeverity: diagnostics.reduce((acc, d) => { acc[d.severity] = (acc[d.severity] || 0) + 1; return acc; }, {}) },
+    alerts:      { open: alerts.filter(a => a.status === "OPEN").length, critical: alerts.filter(a => a.status === "OPEN" && a.severity === "CRITICAL").length },
+    deployments: {
+      total:       deployments.length,
+      operational: deployments.filter(d => d.status === "OPERATIONAL").length,
+      inProgress:  deployments.filter(d => ["CONFIGURING","MIGRATING","VALIDATING","TRAINING","READY_FOR_GO_LIVE","GO_LIVE"].includes(d.status)).length,
+      cancelled:   deployments.filter(d => d.status === "CANCELLED").length,
+    },
+    licenses:    { active: licenses.filter(l => l.status === "ACTIVE").length, expired: licenses.filter(l => l.status === "EXPIRED").length, total: licenses.length },
+    municipalities: { total: [...new Set(licenses.map(l => l.municipalityId))].length, active: customers.filter(c => c.customerStatus === "ACTIVE").length },
+    units:       { total: units.length, active: units.filter(u => u.status !== "suspended").length },
+    incidents:   { open: activeInc.length, critical: activeInc.filter(i => i.severity === "CRITICAL").length, resolvedToday: todayResol.length },
+    generatedAt: new Date().toISOString(),
+  });
+});
+
+// GET /platform/municipalities/:municipalityId/health
+router.get("/platform/municipalities/:municipalityId/health", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.read")) return res.status(403).json({ error: "Sem permissão" });
+  const db = await readDb();
+  ensureObservability(db);
+  return res.json(computeMunicipalityHealth(db, req.params.municipalityId));
+});
+
+// GET /platform/units/:unitId/health
+router.get("/platform/units/:unitId/health", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.read")) return res.status(403).json({ error: "Sem permissão" });
+  const db = await readDb();
+  ensureObservability(db);
+  const result = computeUnitHealth(db, req.params.unitId);
+  if (!result) return res.status(404).json({ error: "UBS não encontrada" });
+  return res.json(result);
+});
+
+// ══════════════════════════════════════════════════════════════════════════
 // ERP-05 — Support Operations and Incident Management
 // ══════════════════════════════════════════════════════════════════════════
 

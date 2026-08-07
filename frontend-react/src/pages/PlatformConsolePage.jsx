@@ -508,6 +508,14 @@ function MunicipalityDetailView({ token, municipality, onBack, onGoToUnit }) {
 
 // ── Municipality Ico ───────────────────────────────────────────────────────
 
+const IcoNoc = () => (
+  <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden>
+    <rect x="1" y="2" width="14" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.3"/>
+    <path d="M5 14h6M8 11v3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+    <path d="M4 8l2-2 2 2 2-3 2 2" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
 const IcoIncident = () => (
   <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden>
     <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.3"/>
@@ -2671,6 +2679,184 @@ function LicenseForm({ token, onDone, onBack }) {
   );
 }
 
+// ── NOC Console ────────────────────────────────────────────────────────────
+
+const HEALTH_COLOR = {
+  HEALTHY:  "var(--success, #16a34a)",
+  WARNING:  "var(--warning, #d97706)",
+  CRITICAL: "var(--danger,  #dc2626)",
+  OFFLINE:  "#6b7280",
+  UNKNOWN:  "#9ca3af",
+};
+const HEALTH_BADGE = {
+  HEALTHY: "badge badge--success", WARNING: "badge badge--warning",
+  CRITICAL: "badge badge--danger", OFFLINE: "badge", UNKNOWN: "badge",
+};
+
+function HealthDot({ status, size = 10 }) {
+  return <span style={{ display: "inline-block", width: size, height: size, borderRadius: "50%", background: HEALTH_COLOR[status] || "#9ca3af", marginRight: 6, verticalAlign: "middle" }} />;
+}
+
+function NocConsole({ token }) {
+  const [view, setView]     = useState("dashboard");
+  const [health, setHealth] = useState(null);
+  const [dashboard, setDashboard] = useState(null);
+  const [diags, setDiags]   = useState([]);
+  const [alerts, setAlerts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError]   = useState("");
+  const [msg, setMsg]       = useState("");
+  const [running, setRunning] = useState(false);
+
+  const load = useCallback(() => {
+    setLoading(true); setError("");
+    Promise.all([
+      apiFetch("/platform/health", token),
+      apiFetch("/platform/dashboard", token),
+      apiFetch("/platform/diagnostics", token),
+      apiFetch("/platform/alerts?status=OPEN", token),
+    ]).then(([r1, r2, r3, r4]) =>
+      Promise.all([r1.json(), r2.ok ? r2.json() : null, r3.ok ? r3.json() : { diagnostics: [] }, r4.ok ? r4.json() : { alerts: [] }])
+    ).then(([h, d, diag, alt]) => {
+      setHealth(h); setDashboard(d);
+      setDiags(diag.diagnostics || []);
+      setAlerts(alt.alerts || []);
+      setLoading(false);
+    }).catch(e => { setError(e.message); setLoading(false); });
+  }, [token]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const runDiag = async () => {
+    setRunning(true); setMsg(""); setError("");
+    try {
+      const r = await apiFetch("/platform/diagnostics/run", token, { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || "Erro");
+      setDiags(d.results || []);
+      setMsg(`Diagnóstico executado: ${d.findings} ocorrência(s) em ${d.durationMs}ms`);
+    } catch (e) { setError(e.message); }
+    setRunning(false);
+  };
+
+  const ackAlert = async (alertId) => {
+    try {
+      const r = await apiFetch(`/platform/alerts/${alertId}/ack`, token, { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
+      if (r.ok) { setMsg("Alerta confirmado"); load(); }
+    } catch (e) { setError(e.message); }
+  };
+
+  if (loading) return <p>Carregando NOC…</p>;
+
+  return (
+    <>
+      <div className="console-page-header">
+        <div>
+          <h1 className="console-page-header__title">NOC — Centro de Operações</h1>
+          <p className="console-page-header__sub">Observabilidade e diagnóstico operacional da plataforma VITRAS</p>
+        </div>
+        <div style={{ display: "flex", gap: "var(--s-2)" }}>
+          <Button variant="secondary" onClick={load}>↻ Atualizar</Button>
+          <Button onClick={runDiag} disabled={running}>{running ? "Executando…" : "Rodar Diagnóstico"}</Button>
+        </div>
+      </div>
+
+      {error && <Alert variant="danger">{error}</Alert>}
+      {msg   && <Alert variant="success">{msg}</Alert>}
+
+      {/* Overall health bar */}
+      {health && (
+        <div style={{ background: "var(--surface-2)", borderRadius: "var(--radius-md)", padding: "var(--s-3) var(--s-4)", marginBottom: "var(--s-4)", display: "flex", alignItems: "center", gap: "var(--s-3)", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "var(--s-2)", flex: 1 }}>
+            <HealthDot status={health.overall} size={16} />
+            <span style={{ fontSize: "1.1rem", fontWeight: 700 }}>Plataforma {health.overall}</span>
+          </div>
+          <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Verificado: {fmtDate(health.checkedAt)}</span>
+        </div>
+      )}
+
+      {/* Components grid */}
+      {health?.components && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "var(--s-2)", marginBottom: "var(--s-4)" }}>
+          {Object.entries(health.components).map(([key, comp]) => (
+            <div key={key} style={{ background: "var(--surface-2)", borderRadius: "var(--radius-md)", padding: "var(--s-2) var(--s-3)" }}>
+              <div style={{ display: "flex", alignItems: "center", marginBottom: 4 }}>
+                <HealthDot status={comp.status} />
+                <span style={{ fontSize: "0.85rem", fontWeight: 600 }}>{comp.label}</span>
+              </div>
+              <div style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>{comp.detail || "—"}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Dashboard summary cards */}
+      {dashboard && (
+        <div style={{ display: "flex", gap: "var(--s-3)", flexWrap: "wrap", marginBottom: "var(--s-4)" }}>
+          {[
+            { label: "Deployments Operacionais", value: `${dashboard.deployments.operational}/${dashboard.deployments.total}` },
+            { label: "Licenças Ativas",          value: dashboard.licenses.active },
+            { label: "UBS Ativas",               value: dashboard.units.active },
+            { label: "Municípios",               value: dashboard.municipalities.total },
+            { label: "Incidentes Abertos",       value: dashboard.incidents.open },
+            { label: "Críticos",                 value: dashboard.incidents.critical },
+            { label: "Alertas Abertos",          value: dashboard.alerts.open },
+          ].map(({ label, value }) => (
+            <div key={label} style={{ background: "var(--surface-2)", borderRadius: "var(--radius-md)", padding: "var(--s-2) var(--s-3)", minWidth: 110, textAlign: "center" }}>
+              <div style={{ fontSize: "1.3rem", fontWeight: 700 }}>{value}</div>
+              <div style={{ fontSize: "0.68rem", color: "var(--text-muted)" }}>{label}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Open Alerts */}
+      {alerts.length > 0 && (
+        <div className="console-section">
+          <div className="console-section__header">Alertas Abertos ({alerts.length})</div>
+          <div className="console-section__body">
+            <table className="console-table">
+              <thead><tr><th>Código</th><th>Título</th><th>Categoria</th><th>Severidade</th><th>Criado em</th><th></th></tr></thead>
+              <tbody>
+                {alerts.map(a => (
+                  <tr key={a.id}>
+                    <td style={{ fontFamily: "monospace", fontSize: "0.8rem" }}>{a.alertCode}</td>
+                    <td>{a.title}</td>
+                    <td style={{ fontSize: "0.8rem" }}>{a.category}</td>
+                    <td><span className={HEALTH_BADGE[a.severity === "CRITICAL" ? "CRITICAL" : a.severity === "HIGH" ? "WARNING" : "HEALTHY"] || "badge"}>{a.severity}</span></td>
+                    <td style={{ fontSize: "0.8rem" }}>{fmtDate(a.createdAt)}</td>
+                    <td><Button size="sm" variant="secondary" onClick={() => ackAlert(a.id)}>Confirmar</Button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Diagnostics */}
+      <div className="console-section">
+        <div className="console-section__header">Diagnósticos ({diags.length} ocorrência(s))</div>
+        <div className="console-section__body">
+          {diags.length === 0 ? (
+            <p style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>Nenhuma ocorrência encontrada — plataforma saudável</p>
+          ) : diags.map(d => (
+            <div key={d.id} style={{ display: "flex", gap: "var(--s-3)", padding: "8px 0", borderBottom: "1px solid var(--border)", fontSize: "0.85rem", alignItems: "flex-start" }}>
+              <span style={{ fontFamily: "monospace", fontSize: "0.75rem", minWidth: 80, color: "var(--text-muted)" }}>{d.code}</span>
+              <span className={d.severity === "CRITICAL" ? "badge badge--danger" : d.severity === "HIGH" ? "badge badge--warning" : "badge badge--info"} style={{ fontSize: "0.7rem", minWidth: 60, textAlign: "center" }}>{d.severity}</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 600 }}>{d.title}</div>
+                <div style={{ color: "var(--text-muted)", fontSize: "0.78rem" }}>{d.description}</div>
+                {d.recommendation && <div style={{ color: "var(--text-muted)", fontSize: "0.75rem", marginTop: 2 }}>→ {d.recommendation}</div>}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ── Incident Console ───────────────────────────────────────────────────────
 
 const INCIDENT_STATUS_LABEL = {
@@ -3219,6 +3405,13 @@ export default function PlatformConsolePage({ token, user, onLogout }) {
           >
             <IcoIncident /> Incidentes
           </button>
+          <button
+            type="button"
+            className={`console-nav__item${tab === "noc" ? " is-active" : ""}`}
+            onClick={() => switchTab("noc")}
+          >
+            <IcoNoc /> NOC / Observabilidade
+          </button>
 
           <span className="console-nav__section">Portal</span>
           <button
@@ -3309,6 +3502,11 @@ export default function PlatformConsolePage({ token, user, onLogout }) {
           {/* Incidentes */}
           {tab === "incidents" && (
             <IncidentConsole token={token} />
+          )}
+
+          {/* NOC / Observabilidade */}
+          {tab === "noc" && (
+            <NocConsole token={token} />
           )}
 
           {/* Unidades de Saúde */}
