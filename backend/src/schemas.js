@@ -51,7 +51,7 @@ const optionalCnesField = () => z.preprocess(
   ]).optional()
 );
 
-// LoginSchema aceita VitrasId (9 dígitos), CNS (15 dígitos) ou CPF (11 dígitos).
+// LoginSchema aceita apenas VitrasId (9 dígitos exatos).
 // Senha nunca é normalizada — case-sensitive.
 const LoginSchema = z.object({
   identifier: z.string().max(255).optional().transform(v => String(v || "").trim()),
@@ -60,17 +60,8 @@ const LoginSchema = z.object({
   identifier: (data.identifier || "").trim(),
   password: data.password
 })).refine(
-  data => {
-    const id = data.identifier;
-    if (!id || id.length === 0) return false;
-    // Aceita: VitrasId (9 dígitos), CNS (15 dígitos), CPF (11 dígitos só números)
-    if (/^\d{9}$/.test(id)) return true;
-    const digitsOnly = id.replace(/\D/g, "");
-    if (digitsOnly.length === 15) return true; // CNS
-    if (digitsOnly.length === 11) return true; // CPF
-    return false;
-  },
-  { message: "Identificador deve ser o ID VITRAS (9 dígitos), CNS (15 dígitos) ou CPF (11 dígitos)" }
+  data => /^\d{9}$/.test(data.identifier),
+  { message: "Identificador deve ser o ID VITRAS (9 dígitos)" }
 );
 
 const RegisterSchema = z.object({

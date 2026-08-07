@@ -9,7 +9,7 @@ import {
   MUNICIPALITY_ID
 } from "../config.js";
 import { validate, LoginSchema, RegisterSchema, AccessRequestCreateSchema } from "../schemas.js";
-import { normalizeVitrasId, normalizeCns, normalizeCpf } from "../services/identifierNormalizer.js";
+import { normalizeVitrasId } from "../services/identifierNormalizer.js";
 import { authRateLimit } from "../middlewares/rate-limits.js";
 import { requireAuth } from "../middlewares/auth.js";
 import {
@@ -320,21 +320,6 @@ router.post("/auth/login", authRateLimit, validate(LoginSchema), async (req, res
     const normalizedId = normalizeVitrasId(loginIdentifier);
     user = db.users.find(u => String(u.vitrasId || "") === normalizedId) || null;
   }
-  // Tentativa 2 — CNS (15 dígitos após normalização)
-  if (!user) {
-    const normalizedCnsVal = normalizeCns(loginIdentifier);
-    if (normalizedCnsVal.length === 15) {
-      user = db.users.find(u => normalizeCns(String(u.cns || "")) === normalizedCnsVal && normalizeCns(String(u.cns || "")).length === 15) || null;
-    }
-  }
-  // Tentativa 3 — CPF (11 dígitos após normalização)
-  if (!user) {
-    const normalizedCpfVal = normalizeCpf(loginIdentifier);
-    if (normalizedCpfVal.length === 11) {
-      user = db.users.find(u => normalizeCpf(String(u.cpf || "")) === normalizedCpfVal && normalizeCpf(String(u.cpf || "")).length === 11) || null;
-    }
-  }
-
   // Verificar senha somente após encontrar usuário (evita timing attack via comparação em loop)
   if (user && !verifyPassword(inputPassword, user.password)) {
     user = null;
