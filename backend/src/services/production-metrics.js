@@ -7,6 +7,17 @@
  */
 
 import { evaluateGroup, CLASSIFICATION } from "./active-search.js";
+import {
+  collectAllEvents,
+  countTerritorialForUnit,
+  countTerritorialForTeam,
+  countTerritorialForAcs,
+  countOperationalForUnit,
+  countOperationalForTeam,
+  countOperationalForProfessional,
+  territorialBreakdownByType,
+  operationalBreakdownByType,
+} from "./indicator-attribution-engine.js";
 
 // ── Period helpers ────────────────────────────────────────────────────────────
 
@@ -439,4 +450,129 @@ function buildTasksByGroup(db) {
     if (gid && map[gid]) map[gid].push(t);
   }
   return map;
+}
+
+// ── Indicator Attribution Engine wrappers ─────────────────────────────────────
+// All territorial/operational attribution uses the engine as single source of truth.
+// Consumers call these functions — never implement attribution rules inline.
+
+/**
+ * Territorial indicators for a unit: events where the population of reference
+ * belongs to this unit. Uses referenceUnitIdAtEvent (canonical) or unitId (legacy).
+ *
+ * Answers: "quais eventos refletem indicadores desta UBS?"
+ */
+export function getUnitTerritorialMetrics(db, unitId, period) {
+  const { from, to } = typeof period === "string" ? periodBounds(period) : period;
+  const events  = collectAllEvents(db, from, to);
+  const counts  = countTerritorialForUnit(events, unitId);
+  const byType  = territorialBreakdownByType(events, unitId);
+  return {
+    period:   { from, to },
+    unitId,
+    _kind:    "territorial",
+    total:          counts.total,
+    canonical:      counts.canonical,
+    legacyInferred: counts.legacyInferred,
+    ambiguous:      counts.ambiguous,
+    byEventType:    byType,
+  };
+}
+
+/**
+ * Territorial indicators for a team: events attributed to this team territorially.
+ * Uses referenceTeamIdAtEvent (canonical) or teamId (legacy).
+ */
+export function getTeamTerritorialMetrics(db, teamId, period) {
+  const { from, to } = typeof period === "string" ? periodBounds(period) : period;
+  const events = collectAllEvents(db, from, to);
+  const counts = countTerritorialForTeam(events, teamId);
+  return {
+    period:   { from, to },
+    teamId,
+    _kind:    "territorial",
+    total:          counts.total,
+    canonical:      counts.canonical,
+    legacyInferred: counts.legacyInferred,
+    ambiguous:      counts.ambiguous,
+  };
+}
+
+/**
+ * Territorial indicators for an ACS: events attributed to this ACS territorially.
+ * Uses referenceAcsIdAtEvent (canonical) — no legacy fallback for ACS attribution.
+ */
+export function getAcsTerritorialMetrics(db, acsId, period) {
+  const { from, to } = typeof period === "string" ? periodBounds(period) : period;
+  const events = collectAllEvents(db, from, to);
+  const counts = countTerritorialForAcs(events, acsId);
+  return {
+    period:   { from, to },
+    acsId,
+    _kind:    "territorial",
+    total:          counts.total,
+    canonical:      counts.canonical,
+    legacyInferred: counts.legacyInferred,
+    ambiguous:      counts.ambiguous,
+  };
+}
+
+/**
+ * Operational production for a unit: events physically executed here.
+ * Uses executingUnitId (canonical) or unitId (legacy).
+ *
+ * Answers: "quais eventos foram realizados nesta UBS?"
+ */
+export function getUnitOperationalMetrics(db, unitId, period) {
+  const { from, to } = typeof period === "string" ? periodBounds(period) : period;
+  const events  = collectAllEvents(db, from, to);
+  const counts  = countOperationalForUnit(events, unitId);
+  const byType  = operationalBreakdownByType(events, unitId);
+  return {
+    period:   { from, to },
+    unitId,
+    _kind:    "operational",
+    total:          counts.total,
+    canonical:      counts.canonical,
+    legacyInferred: counts.legacyInferred,
+    ambiguous:      counts.ambiguous,
+    byEventType:    byType,
+  };
+}
+
+/**
+ * Operational production for a team: events executed by this team.
+ */
+export function getTeamOperationalMetrics(db, teamId, period) {
+  const { from, to } = typeof period === "string" ? periodBounds(period) : period;
+  const events = collectAllEvents(db, from, to);
+  const counts = countOperationalForTeam(events, teamId);
+  return {
+    period:   { from, to },
+    teamId,
+    _kind:    "operational",
+    total:          counts.total,
+    canonical:      counts.canonical,
+    legacyInferred: counts.legacyInferred,
+    ambiguous:      counts.ambiguous,
+  };
+}
+
+/**
+ * Operational production for a professional: events executed by this individual.
+ * Uses executingProfessionalId (canonical only — no legacy fallback for professionals).
+ */
+export function getProfessionalOperationalMetrics(db, professionalId, period) {
+  const { from, to } = typeof period === "string" ? periodBounds(period) : period;
+  const events = collectAllEvents(db, from, to);
+  const counts = countOperationalForProfessional(events, professionalId);
+  return {
+    period:   { from, to },
+    professionalId,
+    _kind:    "operational",
+    total:          counts.total,
+    canonical:      counts.canonical,
+    legacyInferred: counts.legacyInferred,
+    ambiguous:      counts.ambiguous,
+  };
 }

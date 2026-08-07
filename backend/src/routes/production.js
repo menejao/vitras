@@ -1,22 +1,26 @@
 /**
- * Production routes — APS-01F
+ * Production routes — APS-01F + VITRAS-INDICATORS-AND-OPERATIONAL-PRODUCTION-01
  *
- * GET /production/acs         — ACS own production metrics
- * GET /production/nurse       — team-level metrics (nurse_manager, gestor)
- * GET /production/manager     — territory-level metrics (gestor, nurse_manager)
- * GET /production/microareas  — per-microarea metrics
+ * GET /production/acs          — ACS own production metrics
+ * GET /production/nurse        — team-level metrics (nurse_manager, gestor)
+ * GET /production/manager      — territory-level metrics (gestor, nurse_manager)
+ * GET /production/microareas   — per-microarea metrics
+ * GET /production/territorial  — territorial indicators for active unit (engine)
+ * GET /production/operational  — operational production for active unit (engine)
  */
 
 import express from "express";
 import { readDb } from "../db.js";
 import { ensureDbShape } from "../utils/domain.js";
-import { isAcs, canonicalRole } from "../utils/helpers.js";
+import { isAcs, canonicalRole, resolveActiveUnit } from "../utils/helpers.js";
 import {
   getAcsMetrics,
   getNurseMetrics,
   getManagerMetrics,
   getMicroareaMetrics,
   periodBounds,
+  getUnitTerritorialMetrics,
+  getUnitOperationalMetrics,
 } from "../services/production-metrics.js";
 
 const router = express.Router();
@@ -132,6 +136,56 @@ router.get("/production/microareas", async (req, res) => {
     return res.json(metrics);
   } catch (err) {
     return res.status(500).json({ error: "Erro interno ao calcular métricas por microárea" });
+  }
+});
+
+// ── GET /production/territorial ───────────────────────────────────────────────
+// Territorial indicators for the caller's active unit.
+// Uses IndicatorAttributionEngine — all attribution via referenceUnitIdAtEvent.
+// Gestor sees only their own UBS (resolveActiveUnit enforces scope).
+
+const CLINICAL_ROLES = ["nurse_manager", "gestor", "doctor", "dentist", "break_glass_admin"];
+
+router.get("/production/territorial", async (req, res) => {
+  try {
+    const db = await readDb();
+    ensureDbShape(db);
+
+    if (!CLINICAL_ROLES.includes(canonicalRole(req.user?.role))) {
+      return res.status(403).json({ error: "Sem permissão" });
+    }
+
+    const unitId = resolveActiveUnit(req);
+    if (!unitId) return res.status(400).json({ error: "unitId não resolvido" });
+
+    const period = parsePeriod(req.query);
+    return res.json(getUnitTerritorialMetrics(db, unitId, period));
+  } catch {
+    return res.status(500).json({ error: "Erro interno ao calcular indicadores territoriais" });
+  }
+});
+
+// ── GET /production/operational ───────────────────────────────────────────────
+// Operational production for the caller's active unit.
+// Uses IndicatorAttributionEngine — all attribution via executingUnitId.
+// Gestor sees only their own UBS (resolveActiveUnit enforces scope).
+
+router.get("/production/operational", async (req, res) => {
+  try {
+    const db = await readDb();
+    ensureDbShape(db);
+
+    if (!CLINICAL_ROLES.includes(canonicalRole(req.user?.role))) {
+      return res.status(403).json({ error: "Sem permissão" });
+    }
+
+    const unitId = resolveActiveUnit(req);
+    if (!unitId) return res.status(400).json({ error: "unitId não resolvido" });
+
+    const period = parsePeriod(req.query);
+    return res.json(getUnitOperationalMetrics(db, unitId, period));
+  } catch {
+    return res.status(500).json({ error: "Erro interno ao calcular produção operacional" });
   }
 });
 
