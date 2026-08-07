@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * One-shot bootstrap (Postgres mode): creates first support_admin in app_state + app_users.
- * Usage: DATABASE_URL=<url> node scripts/bootstrap-support-admin-pg.mjs --email <email> --name <name>
+ * Usage: DATABASE_URL=<url> node scripts/bootstrap-support-admin-pg.mjs --vitrasId <9-digit-id> --email <email> --name <name>
  *
  * Security: no hardcoded creds, password shown once, never in audit log.
  */
@@ -24,11 +24,16 @@ function getArg(name) {
   return idx >= 0 ? (args[idx + 1] || null) : null;
 }
 
-const email = (getArg("email") || "").trim().toLowerCase();
-const name  = (getArg("name")  || "").trim();
+const vitrasId = (getArg("vitrasId") || "").trim();
+const email    = (getArg("email") || "").trim().toLowerCase();
+const name     = (getArg("name")  || "").trim();
 
-if (!email || !name) {
-  console.error("Usage: DATABASE_URL=<url> node scripts/bootstrap-support-admin-pg.mjs --email <email> --name <name>");
+if (!vitrasId || !email || !name) {
+  console.error("Usage: DATABASE_URL=<url> node scripts/bootstrap-support-admin-pg.mjs --vitrasId <9-digit-id> --email <email> --name <name>");
+  process.exit(1);
+}
+if (!/^\d{9}$/.test(vitrasId)) {
+  console.error("Invalid vitrasId format — must be exactly 9 digits.");
   process.exit(1);
 }
 if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -66,8 +71,15 @@ try {
   if (existing.length > 0) {
     await client.query("ROLLBACK");
     console.log("✓ support_admin already exists in Postgres — no action taken.");
-    console.log(`  Existing: ${existing.map(u => u.email).join(", ")}`);
+    console.log(`  Existing: ${existing.map(u => u.vitrasId || u.email).join(", ")}`);
     process.exit(0);
+  }
+
+  // Guard: vitrasId collision
+  if (db.users.some(u => String(u.vitrasId || "") === vitrasId)) {
+    await client.query("ROLLBACK");
+    console.error(`Error: vitrasId ${vitrasId} already in use.`);
+    process.exit(1);
   }
 
   // Guard: email collision
@@ -83,6 +95,7 @@ try {
 
   const user = {
     id: userId,
+    vitrasId,
     name,
     email,
     role: "support_admin",
@@ -147,9 +160,10 @@ try {
   console.log("\n========================================");
   console.log("  VITRAS — support_admin bootstrapped (Postgres)");
   console.log("========================================");
-  console.log(`  Email:  ${email}`);
-  console.log(`  Name:   ${name}`);
-  console.log(`  ID:     ${userId}`);
+  console.log(`  VitrasId: ${vitrasId}`);
+  console.log(`  Email:    ${email}`);
+  console.log(`  Name:     ${name}`);
+  console.log(`  ID:       ${userId}`);
   console.log("\n  ⚠ TEMPORARY PASSWORD (shown once):\n");
   console.log(`     ${tempPassword}\n`);
   console.log("  Record this password now.");

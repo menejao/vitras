@@ -7,8 +7,8 @@
  *   falls back to db.json and migrates the user into app_state before resetting.
  *
  * Usage:
- *   node scripts/reset-support-admin-password.mjs --email <email>
- *   DATABASE_URL=<url> node scripts/reset-support-admin-password.mjs --email <email>
+ *   node scripts/reset-support-admin-password.mjs --vitrasId <9-digit-id>
+ *   DATABASE_URL=<url> node scripts/reset-support-admin-password.mjs --vitrasId <9-digit-id>
  *
  * Security: password shown once, never in audit log, never stored in plaintext.
  */
@@ -30,29 +30,29 @@ function getArg(name) {
   return idx >= 0 ? (args[idx + 1] || null) : null;
 }
 
-const email = (getArg("email") || "").trim().toLowerCase();
-if (!email) {
-  console.error("Usage: node scripts/reset-support-admin-password.mjs --email <email>");
+const vitrasId = (getArg("vitrasId") || "").trim();
+if (!vitrasId || !/^\d{9}$/.test(vitrasId)) {
+  console.error("Usage: node scripts/reset-support-admin-password.mjs --vitrasId <9-digit-id>");
   process.exit(1);
 }
 
 const { hashPassword, generateTempPassword } = await import("../src/services/crypto.js");
 
 // ── Core reset logic (mode-agnostic) ──────────────────────────────────────
-function applyReset(db, normalizedEmail) {
+function applyReset(db, targetVitrasId) {
   if (!Array.isArray(db.users))        db.users = [];
   if (!Array.isArray(db.auditLogs))    db.auditLogs = [];
   if (!Array.isArray(db.refreshTokens)) db.refreshTokens = [];
 
   const idx = db.users.findIndex(
-    u => String(u.email || "").toLowerCase() === normalizedEmail
+    u => String(u.vitrasId || "") === targetVitrasId
   );
 
-  if (idx < 0) return { error: `User ${normalizedEmail} not found.` };
+  if (idx < 0) return { error: `User with vitrasId ${targetVitrasId} not found.` };
 
   const user = db.users[idx];
   if (String(user.role || "").toLowerCase() !== "support_admin") {
-    return { error: `User ${normalizedEmail} has role '${user.role}', not support_admin. Refusing.` };
+    return { error: `User ${targetVitrasId} has role '${user.role}', not support_admin. Refusing.` };
   }
 
   const tempPassword  = generateTempPassword();
@@ -91,7 +91,7 @@ function applyReset(db, normalizedEmail) {
     teamId:   "",
     unitId:   "",
     details: {
-      email:           normalizedEmail,
+      vitrasId:        targetVitrasId,
       revokedSessions,
       method:          "reset-cli",
       outcome:         "success"
@@ -104,11 +104,11 @@ function applyReset(db, normalizedEmail) {
 }
 
 // ── Print result ───────────────────────────────────────────────────────────
-function printResult(email, userId, revokedSessions, tempPassword) {
+function printResult(targetVitrasId, userId, revokedSessions, tempPassword) {
   console.log("\n========================================");
   console.log("  VITRAS — support_admin password reset");
   console.log("========================================");
-  console.log(`  Email:            ${email}`);
+  console.log(`  VitrasId:         ${targetVitrasId}`);
   console.log(`  ID:               ${userId}`);
   console.log(`  Sessions revoked: ${revokedSessions}`);
   console.log("\n  ⚠ TEMPORARY PASSWORD (shown once):\n");
@@ -121,11 +121,11 @@ function printResult(email, userId, revokedSessions, tempPassword) {
 // ── FILE MODE ──────────────────────────────────────────────────────────────
 async function runFileMode() {
   const db = JSON.parse(readFileSync(DB_FILE, "utf8"));
-  const result = applyReset(db, email);
+  const result = applyReset(db, vitrasId);
   if (result.error) { console.error("Error:", result.error); process.exit(1); }
 
   writeFileSync(DB_FILE, JSON.stringify(db, null, 2), "utf8");
-  printResult(email, result.userId, result.revokedSessions, result.tempPassword);
+  printResult(vitrasId, result.userId, result.revokedSessions, result.tempPassword);
 }
 
 // ── POSTGRES MODE ──────────────────────────────────────────────────────────
@@ -148,7 +148,7 @@ async function runPostgresMode(databaseUrl) {
     if (!Array.isArray(db.users)) db.users = [];
 
     // If user missing from app_state, migrate from db.json (handles sync gap)
-    const inState = db.users.some(u => String(u.email || "").toLowerCase() === email);
+    const inState = db.users.some(u => String(u.vitrasId || "") === vitrasId);
     if (!inState) {
       console.log(`  User not in app_state — checking db.json for migration...`);
       let fileDb;
@@ -156,16 +156,16 @@ async function runPostgresMode(databaseUrl) {
         fileDb = JSON.parse(readFileSync(DB_FILE, "utf8"));
       } catch {
         await client.query("ROLLBACK");
-        console.error(`Error: user ${email} not found in app_state and db.json is unreadable.`);
+        console.error(`Error: user vitrasId ${vitrasId} not found in app_state and db.json is unreadable.`);
         process.exit(1);
       }
 
       const fileUser = (fileDb.users || []).find(
-        u => String(u.email || "").toLowerCase() === email
+        u => String(u.vitrasId || "") === vitrasId
       );
       if (!fileUser) {
         await client.query("ROLLBACK");
-        console.error(`Error: user ${email} not found in app_state or db.json.`);
+        console.error(`Error: user vitrasId ${vitrasId} not found in app_state or db.json.`);
         process.exit(1);
       }
 
@@ -173,7 +173,7 @@ async function runPostgresMode(databaseUrl) {
       db.users.push(fileUser);
     }
 
-    const result = applyReset(db, email);
+    const result = applyReset(db, vitrasId);
     if (result.error) {
       await client.query("ROLLBACK");
       console.error("Error:", result.error);
@@ -195,14 +195,14 @@ async function runPostgresMode(databaseUrl) {
         updated_at = NOW()
     `, [
       result.userId,
-      email,
+      result.updatedUser.email || "",
       result.updatedUser.name || "",
       result.updatedUser.createdAt || new Date().toISOString(),
       JSON.stringify(result.updatedUser)
     ]);
 
     await client.query("COMMIT");
-    printResult(email, result.userId, result.revokedSessions, result.tempPassword);
+    printResult(vitrasId, result.userId, result.revokedSessions, result.tempPassword);
 
   } catch (err) {
     await client.query("ROLLBACK").catch(() => {});

@@ -66,7 +66,7 @@ function AuthScreen({ onLogin, onVerifyTwoFactor, loginChallenge, onCancelTwoFac
             {loginChallenge ? (
               <form className="auth-form auth-form--stacked" onSubmit={(event) => { event.preventDefault(); onVerifyTwoFactor(twoFactorCode); }}>
                 <Alert tone="info">
-                  Código solicitado para <strong>{loginChallenge?.email || loginChallenge?.name || "seu usuário"}</strong>.
+                  Código solicitado para <strong>{loginChallenge?.name || loginChallenge?.email || "seu usuário"}</strong>.
                 </Alert>
                 <Input
                   label="Código 2FA"

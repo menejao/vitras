@@ -90,13 +90,13 @@ export function useAuth({ onSessionExpired, onLoginSuccess } = {}) {
   // setOnAuthRefreshed is idempotent — safe to call on every render since the function is stable.
   setOnAuthRefreshed(applySessionFromPayload);
 
-  async function handleLogin(email, password) {
+  async function handleLogin(identifier, password) {
     setError(""); setBusy(true);
     try {
-      const payload = await login(email.trim(), password);
+      const payload = await login(identifier.trim(), password);
       if (payload?.twoFactorRequired) {
         setLoginChallenge({
-          email: email.trim().toLowerCase(),
+          email: identifier.trim().toLowerCase(),
           challengeId: payload.challengeId,
           challengeExpiresAt: payload.challengeExpiresAt,
         });

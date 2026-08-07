@@ -9,7 +9,7 @@ import {
   MUNICIPALITY_ID
 } from "../config.js";
 import { validate, LoginSchema, RegisterSchema, AccessRequestCreateSchema } from "../schemas.js";
-import { normalizeEmail, normalizeVitrasId, normalizeCns, normalizeCpf } from "../services/identifierNormalizer.js";
+import { normalizeVitrasId, normalizeCns, normalizeCpf } from "../services/identifierNormalizer.js";
 import { authRateLimit } from "../middlewares/rate-limits.js";
 import { requireAuth } from "../middlewares/auth.js";
 import {
@@ -307,32 +307,27 @@ router.post("/auth/register/confirm", authRateLimit, async (_req, res) => {
 
 router.post("/auth/login", authRateLimit, validate(LoginSchema), async (req, res) => {
   const { identifier, password } = req.body || {};
-  // P0-3: loginIdentifier is already trimmed by LoginSchema transform
+  // loginIdentifier is already trimmed by LoginSchema transform
   const loginIdentifier = String(identifier || "").trim();
   const inputPassword = String(password || "");
   // Senha NUNCA é normalizada — case-sensitive
   let db = await readDb();
   ensureDbShape(db);
 
-  // P0-3: Tentativa 1 — VitrasId (9 dígitos exatos)
+  // Tentativa 1 — VitrasId (9 dígitos exatos)
   let user = null;
   if (/^\d{9}$/.test(loginIdentifier)) {
     const normalizedId = normalizeVitrasId(loginIdentifier);
     user = db.users.find(u => String(u.vitrasId || "") === normalizedId) || null;
   }
-  // P0-3: Tentativa 2 — E-mail (case-insensitive)
-  if (!user && loginIdentifier.includes("@")) {
-    const normalizedEmail = normalizeEmail(loginIdentifier);
-    user = db.users.find(u => normalizeEmail(String(u.email || "")) === normalizedEmail) || null;
-  }
-  // P0-3: Tentativa 3 — CNS (15 dígitos após normalização)
+  // Tentativa 2 — CNS (15 dígitos após normalização)
   if (!user) {
     const normalizedCnsVal = normalizeCns(loginIdentifier);
     if (normalizedCnsVal.length === 15) {
       user = db.users.find(u => normalizeCns(String(u.cns || "")) === normalizedCnsVal && normalizeCns(String(u.cns || "")).length === 15) || null;
     }
   }
-  // P0-3: Tentativa 4 — CPF (11 dígitos após normalização)
+  // Tentativa 3 — CPF (11 dígitos após normalização)
   if (!user) {
     const normalizedCpfVal = normalizeCpf(loginIdentifier);
     if (normalizedCpfVal.length === 11) {
