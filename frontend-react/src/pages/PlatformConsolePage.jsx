@@ -3223,13 +3223,10 @@ function LicenseListView({ token, onSelect, onNew }) {
 
   useEffect(() => {
     Promise.all([
-      apiFetch("/platform/licenses" + (filterStatus ? `?status=${filterStatus}` : ""), token),
-      apiFetch("/platform/licenses-dashboard", token),
-    ]).then(([r1, r2]) => {
-      if (!r1.ok) throw new Error("Erro ao carregar licenças");
-      return Promise.all([r1.json(), r2.ok ? r2.json() : null]);
-    }).then(([d1, d2]) => {
-      setLicenses(d1.licenses || []);
+      apiFetch("/platform/licenses" + (filterStatus ? `?status=${filterStatus}` : ""), token).catch(() => null),
+      apiFetch("/platform/licenses-dashboard", token).catch(() => null),
+    ]).then(([d1, d2]) => {
+      setLicenses(d1?.licenses || []);
       setDashboard(d2);
       setLoading(false);
     }).catch(e => { setError(e.message); setLoading(false); });
@@ -3332,18 +3329,16 @@ function LicenseDetail({ token, license: initialLicense, onBack }) {
 
   const reload = () => {
     apiFetch(`/platform/licenses/${license.id}`, token)
-      .then(r => r.json()).then(setLicense);
+      .then(setLicense).catch(() => {});
   };
 
   const changeStatus = async (toStatus, reason) => {
     setLoading(true); setError(""); setMsg("");
     try {
-      const r = await apiFetch(`/platform/licenses/${license.id}/status`, token, {
+      const d = await apiFetch(`/platform/licenses/${license.id}/status`, token, {
         method: "POST", headers: { "content-type": "application/json" },
         body: JSON.stringify({ toStatus, reason: reason || null }),
       });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error || "Erro");
       setLicense(d); setMsg(`Status alterado para ${LICENSE_STATUS_LABEL[toStatus] || toStatus}`);
     } catch (e) { setError(e.message); }
     setLoading(false);
@@ -3474,7 +3469,7 @@ function LicenseForm({ token, onDone, onBack }) {
   const [templates, setTemplates] = useState({});
 
   useEffect(() => {
-    apiFetch("/platform/plan-templates", token).then(r => r.json()).then(d => setTemplates(d.templates || {}));
+    apiFetch("/platform/plan-templates", token).then(d => setTemplates(d?.templates || {})).catch(() => {});
   }, [token]);
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
@@ -3482,12 +3477,10 @@ function LicenseForm({ token, onDone, onBack }) {
   const handleSubmit = async (e) => {
     e.preventDefault(); setSaving(true); setError("");
     try {
-      const r = await apiFetch("/platform/licenses", token, {
+      const d = await apiFetch("/platform/licenses", token, {
         method: "POST", headers: { "content-type": "application/json" },
         body: JSON.stringify(form),
       });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error || "Erro ao criar licença");
       onDone(d);
     } catch (ex) { setError(ex.message); }
     setSaving(false);
@@ -3597,19 +3590,16 @@ function CmdbConsole({ token }) {
   const [error, setError] = React.useState("");
   const [loading, setLoading] = React.useState(false);
 
-  const authH = { Authorization: `Bearer ${token}` };
-  const apiBase = "/api";
-
   const loadAll = React.useCallback(async () => {
     try {
       const [rItems, rRels, rDash] = await Promise.all([
-        fetch(`${apiBase}/platform/cmdb/items?limit=100`, { headers: authH }),
-        fetch(`${apiBase}/platform/cmdb/relationships`, { headers: authH }),
-        fetch(`${apiBase}/platform/cmdb/dashboard`, { headers: authH }),
+        apiFetch("/platform/cmdb/items?limit=100", token).catch(() => null),
+        apiFetch("/platform/cmdb/relationships", token).catch(() => null),
+        apiFetch("/platform/cmdb/dashboard", token).catch(() => null),
       ]);
-      if (rItems.ok) setItems((await rItems.json()).items || []);
-      if (rRels.ok) setRels((await rRels.json()).relationships || []);
-      if (rDash.ok) setDash(await rDash.json());
+      if (rItems) setItems(rItems.items || []);
+      if (rRels)  setRels(rRels.relationships || []);
+      if (rDash)  setDash(rDash);
     } catch { /* ignore */ }
   }, [token]);
 
@@ -3618,44 +3608,46 @@ function CmdbConsole({ token }) {
   const createCi = async () => {
     setError(""); setLoading(true);
     const tags = newCi.tags ? newCi.tags.split(",").map(t => t.trim()).filter(Boolean) : [];
-    const r = await fetch(`${apiBase}/platform/cmdb/items`, {
-      method: "POST", headers: { ...authH, "Content-Type": "application/json" },
-      body: JSON.stringify({ ...newCi, tags }),
-    });
+    try {
+      await apiFetch("/platform/cmdb/items", token, {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ...newCi, tags }),
+      });
+      setNewCi({ name: "", type: "API", criticality: "MEDIUM", environment: "PRODUCTION", description: "", tags: "" });
+      await loadAll();
+    } catch (ex) { setError(ex.message || "Erro"); }
     setLoading(false);
-    if (!r.ok) { const b = await r.json(); setError(b.error || "Erro"); return; }
-    setNewCi({ name: "", type: "API", criticality: "MEDIUM", environment: "PRODUCTION", description: "", tags: "" });
-    await loadAll();
   };
 
   const createRel = async () => {
     setError(""); setLoading(true);
-    const r = await fetch(`${apiBase}/platform/cmdb/relationships`, {
-      method: "POST", headers: { ...authH, "Content-Type": "application/json" },
-      body: JSON.stringify(newRel),
-    });
+    try {
+      await apiFetch("/platform/cmdb/relationships", token, {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify(newRel),
+      });
+      setNewRel({ sourceId: "", targetId: "", relType: "DEPENDS_ON", description: "" });
+      await loadAll();
+    } catch (ex) { setError(ex.message || "Erro"); }
     setLoading(false);
-    if (!r.ok) { const b = await r.json(); setError(b.error || "Erro"); return; }
-    setNewRel({ sourceId: "", targetId: "", relType: "DEPENDS_ON", description: "" });
-    await loadAll();
   };
 
   const deleteRel = async (relId) => {
     if (!confirm("Remover relacionamento?")) return;
-    await fetch(`${apiBase}/platform/cmdb/relationships/${relId}`, { method: "DELETE", headers: authH });
+    await apiFetch(`/platform/cmdb/relationships/${relId}`, token, { method: "DELETE" }).catch(() => {});
     await loadAll();
   };
 
   const runImpact = async () => {
     if (!impactCiId) return;
-    const r = await fetch(`${apiBase}/platform/cmdb/impact/${impactCiId}`, { headers: authH });
-    if (r.ok) setImpact(await r.json());
+    const d = await apiFetch(`/platform/cmdb/impact/${impactCiId}`, token).catch(() => null);
+    if (d) setImpact(d);
   };
 
   const runSearch = async () => {
     if (!search.trim()) return;
-    const r = await fetch(`${apiBase}/platform/cmdb/search?q=${encodeURIComponent(search)}`, { headers: authH });
-    if (r.ok) setSearchResults((await r.json()).results || []);
+    const d = await apiFetch(`/platform/cmdb/search?q=${encodeURIComponent(search)}`, token).catch(() => null);
+    if (d) setSearchResults(d.results || []);
   };
 
   const CI_TYPES = ["PLATFORM","MUNICIPALITY","UNIT","TEAM","DEPLOYMENT","LICENSE","RELEASE","ROLL_OUT","BACKUP_POLICY","BACKUP_EXECUTION","RESTORE_TEST","INCIDENT","POLICY","BASELINE","ADR","MAINTENANCE_WINDOW","DATABASE","API","AUTH_SERVICE","STORAGE","SCHEDULER","INTEGRATION","CUSTOM"];
@@ -3900,19 +3892,19 @@ function GovernanceConsole({ token }) {
     setLoading(true);
     try {
       const [dashRes, compRes, baseRes, adrRes, polRes, excRes] = await Promise.all([
-        apiFetch("/platform/governance-dashboard", token),
-        apiFetch("/platform/compliance", token),
-        apiFetch("/platform/baselines", token),
-        apiFetch("/platform/adrs", token),
-        apiFetch("/platform/policies", token),
-        apiFetch("/platform/exceptions", token),
+        apiFetch("/platform/governance-dashboard", token).catch(() => null),
+        apiFetch("/platform/compliance", token).catch(() => null),
+        apiFetch("/platform/baselines", token).catch(() => null),
+        apiFetch("/platform/adrs", token).catch(() => null),
+        apiFetch("/platform/policies", token).catch(() => null),
+        apiFetch("/platform/exceptions", token).catch(() => null),
       ]);
-      if (dashRes.ok) setDash(await dashRes.json());
-      if (compRes.ok) setComp(await compRes.json());
-      if (baseRes.ok) { const d = await baseRes.json(); setBase(d.baselines   || []); }
-      if (adrRes.ok)  { const d = await adrRes.json();  setAdrs(d.adrs        || []); }
-      if (polRes.ok)  { const d = await polRes.json();  setPols(d.policies    || []); }
-      if (excRes.ok)  { const d = await excRes.json();  setExcs(d.exceptions  || []); }
+      if (dashRes) setDash(dashRes);
+      if (compRes) setComp(compRes);
+      if (baseRes) setBase(baseRes.baselines   || []);
+      if (adrRes)  setAdrs(adrRes.adrs         || []);
+      if (polRes)  setPols(polRes.policies      || []);
+      if (excRes)  setExcs(excRes.exceptions    || []);
     } finally { setLoading(false); }
   }, [token]);
 
@@ -4155,17 +4147,17 @@ function BackupConsole({ token }) {
     setLoading(true);
     try {
       const [dashRes, bcpRes, polRes, exRes, tstRes] = await Promise.all([
-        apiFetch("/platform/backup-dashboard", token),
-        apiFetch("/platform/business-continuity", token),
-        apiFetch("/platform/backup-policies", token),
-        apiFetch("/platform/backups", token),
-        apiFetch("/platform/restore-tests", token),
+        apiFetch("/platform/backup-dashboard", token).catch(() => null),
+        apiFetch("/platform/business-continuity", token).catch(() => null),
+        apiFetch("/platform/backup-policies", token).catch(() => null),
+        apiFetch("/platform/backups", token).catch(() => null),
+        apiFetch("/platform/restore-tests", token).catch(() => null),
       ]);
-      if (dashRes.ok) setDash(await dashRes.json());
-      if (bcpRes.ok)  setBcp(await bcpRes.json());
-      if (polRes.ok)  { const d = await polRes.json();  setPolicies(d.policies   || []); }
-      if (exRes.ok)   { const d = await exRes.json();   setExecs(d.executions    || []); }
-      if (tstRes.ok)  { const d = await tstRes.json();  setTests(d.restoreTests  || []); }
+      if (dashRes) setDash(dashRes);
+      if (bcpRes)  setBcp(bcpRes);
+      if (polRes)  setPolicies(polRes.policies   || []);
+      if (exRes)   setExecs(exRes.executions    || []);
+      if (tstRes)  setTests(tstRes.restoreTests  || []);
     } finally { setLoading(false); }
   }, [token]);
 
@@ -4426,23 +4418,23 @@ function ReleaseConsole({ token }) {
     setLoading(true);
     try {
       const [dashRes, relRes, rollRes, migRes, mwRes] = await Promise.all([
-        apiFetch("/platform/releases-dashboard", token),
-        apiFetch("/platform/releases", token),
-        apiFetch("/platform/rollouts", token),
-        apiFetch("/platform/migrations", token),
-        apiFetch("/platform/maintenance", token),
+        apiFetch("/platform/releases-dashboard", token).catch(() => null),
+        apiFetch("/platform/releases", token).catch(() => null),
+        apiFetch("/platform/rollouts", token).catch(() => null),
+        apiFetch("/platform/migrations", token).catch(() => null),
+        apiFetch("/platform/maintenance", token).catch(() => null),
       ]);
-      if (dashRes.ok) setDash(await dashRes.json());
-      if (relRes.ok)  { const d = await relRes.json();  setReleases(d.releases || []); }
-      if (rollRes.ok) { const d = await rollRes.json(); setRollouts(d.rollouts || []); }
-      if (migRes.ok)  { const d = await migRes.json();  setMigs(d.migrations || []); }
-      if (mwRes.ok)   { const d = await mwRes.json();   setMaint(d.maintenanceWindows || []); }
+      if (dashRes) setDash(dashRes);
+      if (relRes)  setReleases(relRes.releases || []);
+      if (rollRes) setRollouts(rollRes.rollouts || []);
+      if (migRes)  setMigs(migRes.migrations || []);
+      if (mwRes)   setMaint(mwRes.maintenanceWindows || []);
     } finally { setLoading(false); }
   }, [token]);
 
   const fetchDetail = useCallback(async (id) => {
-    const res = await apiFetch(`/platform/releases/${id}`, token);
-    if (res.ok) setDetail(await res.json());
+    const res = await apiFetch(`/platform/releases/${id}`, token).catch(() => null);
+    if (res) setDetail(res);
   }, [token]);
 
   useEffect(() => { fetchDashboard(); }, [fetchDashboard]);
@@ -4729,16 +4721,14 @@ function NocConsole({ token }) {
   const load = useCallback(() => {
     setLoading(true); setError("");
     Promise.all([
-      apiFetch("/platform/health", token),
-      apiFetch("/platform/dashboard", token),
-      apiFetch("/platform/diagnostics", token),
-      apiFetch("/platform/alerts?status=OPEN", token),
-    ]).then(([r1, r2, r3, r4]) =>
-      Promise.all([r1.json(), r2.ok ? r2.json() : null, r3.ok ? r3.json() : { diagnostics: [] }, r4.ok ? r4.json() : { alerts: [] }])
-    ).then(([h, d, diag, alt]) => {
+      apiFetch("/platform/health", token).catch(() => null),
+      apiFetch("/platform/dashboard", token).catch(() => null),
+      apiFetch("/platform/diagnostics", token).catch(() => null),
+      apiFetch("/platform/alerts?status=OPEN", token).catch(() => null),
+    ]).then(([h, d, diag, alt]) => {
       setHealth(h); setDashboard(d);
-      setDiags(diag.diagnostics || []);
-      setAlerts(alt.alerts || []);
+      setDiags(diag?.diagnostics || []);
+      setAlerts(alt?.alerts || []);
       setLoading(false);
     }).catch(e => { setError(e.message); setLoading(false); });
   }, [token]);
@@ -4748,9 +4738,7 @@ function NocConsole({ token }) {
   const runDiag = async () => {
     setRunning(true); setMsg(""); setError("");
     try {
-      const r = await apiFetch("/platform/diagnostics/run", token, { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error || "Erro");
+      const d = await apiFetch("/platform/diagnostics/run", token, { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
       setDiags(d.results || []);
       setMsg(`Diagnóstico executado: ${d.findings} ocorrência(s) em ${d.durationMs}ms`);
     } catch (e) { setError(e.message); }
@@ -4759,8 +4747,8 @@ function NocConsole({ token }) {
 
   const ackAlert = async (alertId) => {
     try {
-      const r = await apiFetch(`/platform/alerts/${alertId}/ack`, token, { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
-      if (r.ok) { setMsg("Alerta confirmado"); load(); }
+      await apiFetch(`/platform/alerts/${alertId}/ack`, token, { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
+      setMsg("Alerta confirmado"); load();
     } catch (e) { setError(e.message); }
   };
 
@@ -4926,13 +4914,10 @@ function IncidentListView({ token, onSelect, onNew }) {
     if (filterSeverity) params.set("severity",  filterSeverity);
     if (search)         params.set("search",    search);
     Promise.all([
-      apiFetch(`/platform/incidents?${params}`, token),
-      apiFetch("/platform/incidents-dashboard", token),
-    ]).then(([r1, r2]) => {
-      if (!r1.ok) throw new Error("Erro ao carregar incidentes");
-      return Promise.all([r1.json(), r2.ok ? r2.json() : null]);
-    }).then(([d1, d2]) => {
-      setIncidents(d1.incidents || []);
+      apiFetch(`/platform/incidents?${params}`, token).catch(() => null),
+      apiFetch("/platform/incidents-dashboard", token).catch(() => null),
+    ]).then(([d1, d2]) => {
+      setIncidents(d1?.incidents || []);
       setDashboard(d2);
       setLoading(false);
     }).catch(e => { setError(e.message); setLoading(false); });
@@ -5048,7 +5033,7 @@ function IncidentDetail({ token, incidentId, onBack }) {
 
   const reload = useCallback(() => {
     apiFetch(`/platform/incidents/${incidentId}`, token)
-      .then(r => r.json()).then(d => { setIncident(d); setLoading(false); })
+      .then(d => { setIncident(d); setLoading(false); })
       .catch(e => { setError(e.message); setLoading(false); });
   }, [token, incidentId]);
 
@@ -5057,12 +5042,10 @@ function IncidentDetail({ token, incidentId, onBack }) {
   const doAction = async (path, body, method = "PATCH") => {
     setSubmitting(true); setError(""); setMsg("");
     try {
-      const r = await apiFetch(path, token, {
+      const d = await apiFetch(path, token, {
         method, headers: { "content-type": "application/json" },
         body: JSON.stringify(body),
       });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error || "Erro");
       setIncident(d); setMsg("Atualizado com sucesso");
     } catch (e) { setError(e.message); }
     setSubmitting(false);
@@ -5252,7 +5235,7 @@ function IncidentForm({ token, onDone, onBack }) {
   const [categories, setCategories] = useState([]);
 
   useEffect(() => {
-    apiFetch("/platform/incident-categories", token).then(r => r.json()).then(d => setCategories(d.categories || []));
+    apiFetch("/platform/incident-categories", token).then(d => setCategories(d?.categories || [])).catch(() => {});
   }, [token]);
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
@@ -5261,12 +5244,10 @@ function IncidentForm({ token, onDone, onBack }) {
     e.preventDefault(); setSaving(true); setError("");
     try {
       const tags = form.tags.split(",").map(t => t.trim()).filter(Boolean);
-      const r = await apiFetch("/platform/incidents", token, {
+      const d = await apiFetch("/platform/incidents", token, {
         method: "POST", headers: { "content-type": "application/json" },
         body: JSON.stringify({ ...form, tags, unitId: form.unitId || null, deploymentId: form.deploymentId || null, licenseId: form.licenseId || null, breakGlassSessionId: form.breakGlassSessionId || null }),
       });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error || "Erro ao criar incidente");
       onDone(d);
     } catch (ex) { setError(ex.message); }
     setSaving(false);
