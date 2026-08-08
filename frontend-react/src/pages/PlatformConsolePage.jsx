@@ -99,11 +99,120 @@ const IcoCheck = () => (
   </svg>
 );
 
-const IcoWarning = () => (
-  <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
+const IcoWarning = ({ size = 14 }) => (
+  <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden>
     <path d="M8 2L1 14h14L8 2z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/>
     <path d="M8 7v3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
     <circle cx="8" cy="12" r=".7" fill="currentColor"/>
+  </svg>
+);
+
+const IcoCity = ({ size = 22 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
+    <path d="M3 21V9l7-5 7 5v12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M21 21V6l-4-2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M3 21h18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    <rect x="8" y="15" width="4" height="6" rx=".5" stroke="currentColor" strokeWidth="1.3"/>
+    <rect x="5" y="11" width="2" height="2" rx=".5" fill="currentColor" opacity=".6"/>
+    <rect x="13" y="11" width="2" height="2" rx=".5" fill="currentColor" opacity=".6"/>
+  </svg>
+);
+
+const IcoHospital = ({ size = 22 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
+    <path d="M3 21V7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14" stroke="currentColor" strokeWidth="1.5"/>
+    <path d="M1 21h22" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    <path d="M9 21v-5h6v5" stroke="currentColor" strokeWidth="1.3"/>
+    <path d="M12 8v4M10 10h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+  </svg>
+);
+
+const IcoUsers = ({ size = 22 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
+    <circle cx="9" cy="7" r="4" stroke="currentColor" strokeWidth="1.5"/>
+    <path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    <path d="M16 3.13a4 4 0 0 1 0 7.75M21 21v-2a4 4 0 0 0-3-3.87" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+  </svg>
+);
+
+const IcoBell = ({ size = 22 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
+    <path d="M18 8A6 6 0 1 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M13.73 21a2 2 0 0 1-3.46 0" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+  </svg>
+);
+
+const IcoClipboard = ({ size = 22 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
+    <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" stroke="currentColor" strokeWidth="1.5"/>
+    <rect x="9" y="3" width="6" height="4" rx="1" stroke="currentColor" strokeWidth="1.3"/>
+    <path d="M9 12h6M9 16h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+  </svg>
+);
+
+const IcoDatabase = ({ size = 22 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
+    <ellipse cx="12" cy="5" rx="9" ry="3" stroke="currentColor" strokeWidth="1.5"/>
+    <path d="M3 5v5c0 1.66 4.03 3 9 3s9-1.34 9-3V5" stroke="currentColor" strokeWidth="1.5"/>
+    <path d="M3 10v5c0 1.66 4.03 3 9 3s9-1.34 9-3v-5" stroke="currentColor" strokeWidth="1.5"/>
+  </svg>
+);
+
+const IcoScale = ({ size = 22 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
+    <path d="M12 3v18M4 21h16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    <path d="M5 9h4l-2 5H5l2-5zM15 9h4l-2 5h-4l2-5z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/>
+    <path d="M5 9L12 4l7 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
+const IcoMonitor = ({ size = 22 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
+    <rect x="2" y="3" width="20" height="14" rx="2" stroke="currentColor" strokeWidth="1.5"/>
+    <path d="M8 21h8M12 17v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    <path d="M6 9l3 3 3-3 3 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
+const IcoDeploy = ({ size = 22 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
+    <path d="M12 2C8 2 4 6 4 10c0 5 8 12 8 12s8-7 8-12c0-4-4-8-8-8z" stroke="currentColor" strokeWidth="1.5"/>
+    <circle cx="12" cy="10" r="3" stroke="currentColor" strokeWidth="1.3"/>
+  </svg>
+);
+
+const IcoBackup = ({ size = 15 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+    <polyline points="17 8 12 3 7 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+    <line x1="12" y1="3" x2="12" y2="15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+  </svg>
+);
+
+const IcoFlag = ({ size = 22 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
+    <path d="M4 21V4M4 4h12l-3 5 3 5H4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
+const IcoInbox = ({ size = 22 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
+    <path d="M22 12h-6l-2 3h-4l-2-3H2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+  </svg>
+);
+
+const IcoCheckCircle = ({ size = 22 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
+    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.5"/>
+    <path d="M8 12l3 3 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
+const IcoFire = ({ size = 22 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
+    <path d="M12 2c0 4-4 6-4 10a4 4 0 0 0 8 0c0-4-4-6-4-10z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M12 12c0 2-1.5 3-1.5 4.5a1.5 1.5 0 0 0 3 0C13.5 15 12 14 12 12z" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
   </svg>
 );
 
@@ -127,7 +236,7 @@ class ErrorBoundary extends React.Component {
     if (this.state.error) {
       return (
         <div className="console-error-block">
-          <div style={{ fontSize: "2rem" }}>⚠️</div>
+          <div style={{ color: "var(--warning, #f59e0b)", opacity: .7 }}><IcoWarning size={32} /></div>
           <p className="console-error-block__msg">
             Erro ao carregar este módulo. Tente novamente ou contate o suporte.
           </p>
@@ -163,10 +272,12 @@ function KpiSkeleton({ count = 5 }) {
 
 // ── EmptyState ─────────────────────────────────────────────────────────────
 
-function EmptyState({ icon = "📭", title, text, cta, onCta }) {
+function EmptyState({ icon, title, text, cta, onCta }) {
+  const defaultIcon = <IcoInbox size={36} />;
+  const rendered = icon ?? defaultIcon;
   return (
     <div className="console-empty">
-      <div className="console-empty__icon">{icon}</div>
+      <div className="console-empty__icon">{rendered}</div>
       {title && <p className="console-empty__title">{title}</p>}
       {text  && <p className="console-empty__text">{text}</p>}
       {cta   && <Button onClick={onCta}>{cta}</Button>}
@@ -179,7 +290,7 @@ function EmptyState({ icon = "📭", title, text, cta, onCta }) {
 function ErrorBlock({ message = "Erro ao carregar dados.", onRetry }) {
   return (
     <div className="console-error-block">
-      <div style={{ fontSize: "1.8rem", opacity: .5 }}>⚠</div>
+      <div style={{ color: "var(--warning, #f59e0b)", opacity: .7 }}><IcoWarning size={28} /></div>
       <p className="console-error-block__msg">{message}</p>
       {onRetry && <Button variant="secondary" onClick={onRetry}>Tentar novamente</Button>}
     </div>
@@ -247,7 +358,7 @@ function Sparkline({ values = [], color = "var(--accent)", width = 80, height = 
 function ModuleBanner({ icon, title, subtitle, color = "var(--accent)", kpis = [], children }) {
   return (
     <div className="console-module-banner" style={{ "--module-color": color }}>
-      <div className="console-module-banner__icon" style={{ fontSize: "1.4rem" }}>{icon}</div>
+      <div className="console-module-banner__icon">{icon}</div>
       <div className="console-module-banner__body">
         <h1 className="console-module-banner__title">{title}</h1>
         {subtitle && <p className="console-module-banner__sub">{subtitle}</p>}
@@ -417,16 +528,16 @@ function NocDashboard({ token, onGoTo }) {
       {/* KPI strip */}
       <div className="noc-kpi-grid">
         {[
-          { label: "Municípios",      value: summary?.totalMunicipalities ?? "—", icon: "🏙️", color: "#3b82f6", onClick: () => onGoTo("municipalities") },
-          { label: "UBS cadastradas", value: summary?.totalUnits ?? "—",           icon: "🏥", color: "#8b5cf6", onClick: () => onGoTo("municipalities") },
-          { label: "Operacionais",    value: summary?.active ?? "—",               icon: "✅", color: "#10b981" },
-          { label: "Em implantação",  value: inProgressDeps,                       icon: "🚀", color: "#f59e0b", onClick: () => onGoTo("deployments") },
-          { label: "Incidentes abertos", value: openIncidents,                     icon: "🔥", color: critIncidents > 0 ? "#ef4444" : "#f59e0b", onClick: () => onGoTo("incidents") },
-          { label: "Usuários ativos", value: summary?.totalUsers ?? "—",           icon: "👥", color: "#6366f1" },
+          { label: "Municípios",         value: summary?.totalMunicipalities ?? "—", icon: <IcoCity size={16} />,         color: "#3b82f6", onClick: () => onGoTo("municipalities") },
+          { label: "UBS cadastradas",    value: summary?.totalUnits ?? "—",          icon: <IcoHospital size={16} />,     color: "#8b5cf6", onClick: () => onGoTo("municipalities") },
+          { label: "Operacionais",       value: summary?.active ?? "—",              icon: <IcoCheckCircle size={16} />,  color: "#10b981" },
+          { label: "Em implantação",     value: inProgressDeps,                      icon: <IcoDeploy size={16} />,       color: "#f59e0b", onClick: () => onGoTo("deployments") },
+          { label: "Incidentes abertos", value: openIncidents,                       icon: <IcoFire size={16} />,         color: critIncidents > 0 ? "#ef4444" : "#f59e0b", onClick: () => onGoTo("incidents") },
+          { label: "Usuários ativos",    value: summary?.totalUsers ?? "—",          icon: <IcoUsers size={16} />,        color: "#6366f1" },
         ].map((k) => (
           <button key={k.label} type="button" className="noc-kpi" style={{ "--kpi-color": k.color, cursor: k.onClick ? "pointer" : "default", textAlign: "left", border: "1px solid var(--border)", background: "var(--surface)" }} onClick={k.onClick}>
             <div className="noc-kpi__accent" />
-            <div className="noc-kpi__icon" style={{ fontSize: "1rem" }}>{k.icon}</div>
+            <div className="noc-kpi__icon" style={{ color: k.color, display: "flex" }}>{k.icon}</div>
             <div className="noc-kpi__value" style={{ color: k.color }}>{k.value}</div>
             <div className="noc-kpi__label">{k.label}</div>
           </button>
@@ -439,7 +550,7 @@ function NocDashboard({ token, onGoTo }) {
         {/* Health */}
         <div className="console-section">
           <div className="console-section__header">
-            <span>🟢 Saúde da Plataforma</span>
+            <span>Saúde da Plataforma</span>
             <span style={{ fontSize: "var(--t-xs)", color: "var(--success)", fontWeight: 600, textTransform: "none", letterSpacing: 0 }}>OPERACIONAL</span>
           </div>
           <div className="console-section__body">
@@ -457,12 +568,12 @@ function NocDashboard({ token, onGoTo }) {
         {/* Incidentes abertos */}
         <div className="console-section">
           <div className="console-section__header">
-            <span>🔔 Incidentes Abertos</span>
+            <span>Incidentes Abertos</span>
             <button type="button" className="console-breadcrumb-link" style={{ fontSize: "var(--t-xs)" }} onClick={() => onGoTo("incidents")}>Ver todos →</button>
           </div>
           <div className="console-section__body">
             {incidents.length === 0 ? (
-              <EmptyState icon="✅" title="Nenhum incidente aberto" text="Todos os serviços estão operando normalmente." />
+              <EmptyState icon={<IcoCheckCircle size={36} />} title="Nenhum incidente aberto" text="Todos os serviços estão operando normalmente." />
             ) : (
               <div className="console-timeline">
                 {incidents.map(inc => (
@@ -485,12 +596,12 @@ function NocDashboard({ token, onGoTo }) {
         {/* Deployments em andamento */}
         <div className="console-section">
           <div className="console-section__header">
-            <span>🚀 Implantações em Andamento</span>
+            <span>Implantações em Andamento</span>
             <button type="button" className="console-breadcrumb-link" style={{ fontSize: "var(--t-xs)" }} onClick={() => onGoTo("deployments")}>Ver todas →</button>
           </div>
           <div className="console-section__body">
             {deployments.length === 0 ? (
-              <EmptyState icon="🏁" title="Nenhuma implantação ativa" text="Todas as implantações estão concluídas." />
+              <EmptyState icon={<IcoFlag size={36} />} title="Nenhuma implantação ativa" text="Todas as implantações estão concluídas." />
             ) : (
               <div className="console-timeline">
                 {deployments.map(dep => (
@@ -518,12 +629,12 @@ function NocDashboard({ token, onGoTo }) {
         {/* Backup health */}
         <div className="console-section">
           <div className="console-section__header">
-            <span>💾 Backup & Continuidade</span>
+            <span>Backup & Continuidade</span>
             <button type="button" className="console-breadcrumb-link" style={{ fontSize: "var(--t-xs)" }} onClick={() => onGoTo("backup")}>Ver detalhes →</button>
           </div>
           <div className="console-section__body">
             {!backupDash ? (
-              <EmptyState icon="💾" title="Sem dados de backup" text="Configure políticas de backup para monitorar aqui." />
+              <EmptyState icon={<IcoBackup size={36} />} title="Sem dados de backup" text="Configure políticas de backup para monitorar aqui." />
             ) : (
               <div style={{ display: "flex", gap: "var(--s-5)", alignItems: "center", flexWrap: "wrap" }}>
                 <DonutChart size={80} strokeWidth={10} segments={[
@@ -553,12 +664,12 @@ function NocDashboard({ token, onGoTo }) {
         {/* Governance compliance */}
         <div className="console-section">
           <div className="console-section__header">
-            <span>⚖️ Governança & Compliance</span>
+            <span>Governança & Compliance</span>
             <button type="button" className="console-breadcrumb-link" style={{ fontSize: "var(--t-xs)" }} onClick={() => onGoTo("governance")}>Ver detalhes →</button>
           </div>
           <div className="console-section__body">
             {!govDash ? (
-              <EmptyState icon="⚖️" title="Sem dados de governança" text="Crie baselines e políticas para monitorar compliance aqui." />
+              <EmptyState icon={<IcoScale size={36} />} title="Sem dados de governança" text="Crie baselines e políticas para monitorar compliance aqui." />
             ) : (
               <div style={{ display: "flex", gap: "var(--s-5)", alignItems: "center", flexWrap: "wrap" }}>
                 <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -936,7 +1047,7 @@ function MunicipalityListView({ token, onSelect }) {
       )}
 
       <ModuleBanner
-        icon="🏙️"
+        icon={<IcoCity />}
         title="Municípios"
         subtitle="Clientes municipais ativos na plataforma VITRAS"
         color="#3b82f6"
@@ -973,7 +1084,7 @@ function MunicipalityListView({ token, onSelect }) {
       {!loading && items.length === 0 && (
         <div className="console-section">
           <EmptyState
-            icon="🏙️"
+            icon={<IcoCity size={36} />}
             title={search || uf || status ? "Nenhum município encontrado" : "Nenhum município cadastrado"}
             text={search || uf || status ? "Tente ajustar os filtros de busca." : "Cadastre o primeiro município VITRAS para começar."}
             cta={!search && !uf && !status ? "Cadastrar primeiro município" : undefined}
@@ -1345,13 +1456,6 @@ const IcoCmdb = () => (
   </svg>
 );
 
-const IcoBackup = () => (
-  <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden>
-    <path d="M3 4h10v8a1 1 0 01-1 1H4a1 1 0 01-1-1V4z" stroke="currentColor" strokeWidth="1.3"/>
-    <path d="M1 4h14M6 4V2h4v2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
-    <path d="M6 8h4M8 7v2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
-  </svg>
-);
 
 const IcoRelease = () => (
   <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden>
@@ -1460,7 +1564,7 @@ function DeploymentListView({ token, onSelect }) {
   return (
     <>
       <ModuleBanner
-        icon="🚀"
+        icon={<IcoDeploy />}
         title="Implantações"
         subtitle="Ciclo de vida de implantação por município e UBS"
         color="#f59e0b"
@@ -3235,7 +3339,7 @@ function LicenseListView({ token, onSelect, onNew }) {
   return (
     <>
       <ModuleBanner
-        icon="📋"
+        icon={<IcoClipboard />}
         title="Licenças"
         subtitle="Contratos e ciclo de vida de clientes municipais"
         color="#d97706"
@@ -3656,7 +3760,7 @@ function CmdbConsole({ token }) {
   return (
     <div>
       <ModuleBanner
-        icon="🗂️"
+        icon={<IcoDatabase />}
         title="CMDB"
         subtitle="Base de configuração — ativos operacionais e seus relacionamentos"
         color="#6366f1"
@@ -3723,7 +3827,7 @@ function CmdbConsole({ token }) {
             <table className="data-table">
               <thead><tr><th>Código</th><th>Nome</th><th>Tipo</th><th>Status</th><th>Criticidade</th><th>Ambiente</th></tr></thead>
               <tbody>
-                {items.length === 0 && <tr><td colSpan={6}><EmptyState icon="🗂️" title="Nenhum CI registrado" text="Adicione itens de configuração para mapear os ativos da plataforma." /></td></tr>}
+                {items.length === 0 && <tr><td colSpan={6}><EmptyState icon={<IcoDatabase size={36} />} title="Nenhum CI registrado" text="Adicione itens de configuração para mapear os ativos da plataforma." /></td></tr>}
                 {items.map(ci => (
                   <tr key={ci.id}>
                     <td><code style={{ fontSize: ".75rem" }}>{ci.ciCode}</code></td>
@@ -3917,7 +4021,7 @@ function GovernanceConsole({ token }) {
   return (
     <div>
       <ModuleBanner
-        icon="⚖️"
+        icon={<IcoScale />}
         title="Governança & Compliance"
         subtitle="Baselines, ADRs, políticas, exceções e Compliance Engine"
         color="#7c3aed"
@@ -4068,7 +4172,7 @@ function GovernanceConsole({ token }) {
               <th style={{ textAlign: "left", padding: "0.4rem" }}>Vigente até</th>
             </tr></thead>
             <tbody>
-              {!policies.length && <tr><td colSpan={6}><EmptyState icon="⚖️" title="Nenhuma política cadastrada" text="Crie políticas de governança para monitorar compliance." /></td></tr>}
+              {!policies.length && <tr><td colSpan={6}><EmptyState icon={<IcoScale size={36} />} title="Nenhuma política cadastrada" text="Crie políticas de governança para monitorar compliance." /></td></tr>}
               {policies.map(p => (
                 <tr key={p.id} style={{ borderBottom: "1px solid var(--border-color)" }}>
                   <td style={{ padding: "0.4rem", fontFamily: "monospace", fontSize: "0.8rem" }}>{p.policyCode}</td>
@@ -4098,7 +4202,7 @@ function GovernanceConsole({ token }) {
               <th style={{ textAlign: "left", padding: "0.4rem" }}>Aprovado por</th>
             </tr></thead>
             <tbody>
-              {!exceptions.length && <tr><td colSpan={6} style={{ padding: "1rem", opacity: 0.5 }}>Nenhuma exceção.</td></tr>}
+              {!exceptions.length && <tr><td colSpan={6}><EmptyState icon={<IcoScale size={36} />} title="Nenhuma exceção registrada" text="Exceções são criadas quando uma política não pode ser cumprida." /></td></tr>}
               {exceptions.map(e => (
                 <tr key={e.id} style={{ borderBottom: "1px solid var(--border-color)" }}>
                   <td style={{ padding: "0.4rem", fontFamily: "monospace", fontSize: "0.8rem" }}>{e.exceptionCode}</td>
@@ -4166,7 +4270,7 @@ function BackupConsole({ token }) {
   return (
     <div>
       <ModuleBanner
-        icon="💾"
+        icon={<IcoBackup />}
         title="Backup & Continuidade de Negócio"
         subtitle="Políticas, execuções, testes de restore e perfil de continuidade"
         color="#0891b2"
@@ -4289,7 +4393,7 @@ function BackupConsole({ token }) {
               <th style={{ textAlign: "left", padding: "0.4rem" }}>Status</th>
             </tr></thead>
             <tbody>
-              {!policies.length && <tr><td colSpan={8}><EmptyState icon="💾" title="Nenhuma política de backup" text="Configure políticas de backup para proteger os dados da plataforma." /></td></tr>}
+              {!policies.length && <tr><td colSpan={8}><EmptyState icon={<IcoBackup size={36} />} title="Nenhuma política de backup" text="Configure políticas de backup para proteger os dados da plataforma." /></td></tr>}
               {policies.map(p => (
                 <tr key={p.id} style={{ borderBottom: "1px solid var(--border-color)" }}>
                   <td style={{ padding: "0.4rem", fontFamily: "monospace", fontSize: "0.8rem" }}>{p.policyCode}</td>
@@ -4322,7 +4426,7 @@ function BackupConsole({ token }) {
               <th style={{ textAlign: "left", padding: "0.4rem" }}>Verificado</th>
             </tr></thead>
             <tbody>
-              {!executions.length && <tr><td colSpan={7} style={{ padding: "1rem", opacity: 0.5 }}>Nenhuma execução registrada.</td></tr>}
+              {!executions.length && <tr><td colSpan={7}><EmptyState icon={<IcoBackup size={36} />} title="Nenhuma execução registrada" text="Execuções são criadas automaticamente pelas políticas de backup ativas." /></td></tr>}
               {executions.map(e => (
                 <tr key={e.id} style={{ borderBottom: "1px solid var(--border-color)" }}>
                   <td style={{ padding: "0.4rem", fontFamily: "monospace", fontSize: "0.8rem" }}>{e.executionCode}</td>
@@ -4355,7 +4459,7 @@ function BackupConsole({ token }) {
               <th style={{ textAlign: "left", padding: "0.4rem" }}>Evidências</th>
             </tr></thead>
             <tbody>
-              {!tests.length && <tr><td colSpan={8} style={{ padding: "1rem", opacity: 0.5 }}>Nenhum teste registrado.</td></tr>}
+              {!tests.length && <tr><td colSpan={8}><EmptyState icon={<IcoCheckCircle size={36} />} title="Nenhum teste de restore registrado" text="Testes de restore validam a integridade dos backups. Execute o primeiro para garantir a continuidade." /></td></tr>}
               {tests.map(t => (
                 <tr key={t.id} style={{ borderBottom: "1px solid var(--border-color)" }}>
                   <td style={{ padding: "0.4rem", fontFamily: "monospace", fontSize: "0.8rem" }}>{t.restoreCode}</td>
@@ -4526,7 +4630,7 @@ function ReleaseConsole({ token }) {
   return (
     <div>
       <ModuleBanner
-        icon="🚀"
+        icon={<IcoDeploy />}
         title="Release Management"
         subtitle="Controle de versões, rollouts e janelas de manutenção"
         color="#059669"
@@ -4596,7 +4700,7 @@ function ReleaseConsole({ token }) {
               <th style={{ textAlign: "left", padding: "0.4rem" }}>Release</th>
             </tr></thead>
             <tbody>
-              {!releases.length && <tr><td colSpan={6} style={{ padding: "1rem", opacity: 0.5 }}>Nenhuma release.</td></tr>}
+              {!releases.length && <tr><td colSpan={6}><EmptyState icon={<IcoDeploy size={36} />} title="Nenhuma release registrada" text="Releases documentam versões da plataforma entregues aos municípios." /></td></tr>}
               {releases.map(r => (
                 <tr
                   key={r.id}
@@ -4630,7 +4734,7 @@ function ReleaseConsole({ token }) {
               <th style={{ textAlign: "left", padding: "0.4rem" }}>Criado</th>
             </tr></thead>
             <tbody>
-              {!rollouts.length && <tr><td colSpan={6}><EmptyState icon="🚀" title="Nenhum rollout registrado" text="Rollouts são criados a partir de releases aprovados." /></td></tr>}
+              {!rollouts.length && <tr><td colSpan={6}><EmptyState icon={<IcoDeploy size={36} />} title="Nenhum rollout registrado" text="Rollouts são criados a partir de releases aprovados." /></td></tr>}
               {rollouts.map(ro => (
                 <tr key={ro.id} style={{ borderBottom: "1px solid var(--border-color)" }}>
                   <td style={{ padding: "0.4rem" }}>{ro.targetType}</td>
@@ -4659,7 +4763,7 @@ function ReleaseConsole({ token }) {
               <th style={{ textAlign: "left", padding: "0.4rem" }}>Tempo (ms)</th>
             </tr></thead>
             <tbody>
-              {!migrations.length && <tr><td colSpan={5} style={{ padding: "1rem", opacity: 0.5 }}>Nenhuma migration registrada.</td></tr>}
+              {!migrations.length && <tr><td colSpan={5}><EmptyState icon={<IcoDatabase size={36} />} title="Nenhuma migration registrada" text="Migrations são registradas automaticamente quando o sistema aplica atualizações de banco." /></td></tr>}
               {migrations.map(m => (
                 <tr key={m.id} style={{ borderBottom: "1px solid var(--border-color)" }}>
                   <td style={{ padding: "0.4rem", fontFamily: "monospace", fontSize: "0.8rem" }}>{m.migrationCode}</td>
@@ -4686,7 +4790,7 @@ function ReleaseConsole({ token }) {
               <th style={{ textAlign: "left", padding: "0.4rem" }}>Status</th>
             </tr></thead>
             <tbody>
-              {!maintenance.length && <tr><td colSpan={4} style={{ padding: "1rem", opacity: 0.5 }}>Nenhuma janela cadastrada.</td></tr>}
+              {!maintenance.length && <tr><td colSpan={4}><EmptyState icon={<IcoFlag size={36} />} title="Nenhuma janela de manutenção" text="Janelas de manutenção comunicam períodos de indisponibilidade planejados." /></td></tr>}
               {maintenance.map(w => (
                 <tr key={w.id} style={{ borderBottom: "1px solid var(--border-color)" }}>
                   <td style={{ padding: "0.4rem" }}>{w.title}</td>
@@ -4752,12 +4856,12 @@ function NocConsole({ token }) {
     } catch (e) { setError(e.message); }
   };
 
-  if (loading) return <><ModuleBanner icon="🖥️" title="NOC — Centro de Operações" subtitle="Observabilidade e diagnóstico" color="#1d4ed8" /><Skeleton count={5} /></>;
+  if (loading) return <><ModuleBanner icon={<IcoMonitor />} title="NOC — Centro de Operações" subtitle="Observabilidade e diagnóstico" color="#1d4ed8" /><Skeleton count={5} /></>;
 
   return (
     <>
       <ModuleBanner
-        icon="🖥️"
+        icon={<IcoMonitor />}
         title="NOC — Centro de Operações"
         subtitle="Observabilidade e diagnóstico operacional da plataforma VITRAS"
         color="#1d4ed8"
@@ -4925,13 +5029,13 @@ function IncidentListView({ token, onSelect, onNew }) {
 
   useEffect(() => { load(); }, [load]);
 
-  if (loading) return <><ModuleBanner icon="🔔" title="Incidentes" subtitle="Operações de suporte e gerenciamento de incidentes técnicos" color="#ef4444" /><KpiSkeleton count={6} /></>;
-  if (error)   return <><ModuleBanner icon="🔔" title="Incidentes" subtitle="Operações de suporte" color="#ef4444" /><ErrorBlock message={error} onRetry={load} /></>;
+  if (loading) return <><ModuleBanner icon={<IcoBell />} title="Incidentes" subtitle="Operações de suporte e gerenciamento de incidentes técnicos" color="#ef4444" /><KpiSkeleton count={6} /></>;
+  if (error)   return <><ModuleBanner icon={<IcoBell />} title="Incidentes" subtitle="Operações de suporte" color="#ef4444" /><ErrorBlock message={error} onRetry={load} /></>;
 
   return (
     <>
       <ModuleBanner
-        icon="🔔"
+        icon={<IcoBell />}
         title="Incidentes"
         subtitle="Operações de suporte e gerenciamento de incidentes técnicos"
         color="#ef4444"
@@ -5000,7 +5104,7 @@ function IncidentListView({ token, onSelect, onNew }) {
             <tbody>
               {incidents.length === 0 ? (
                 <tr><td colSpan={7}>
-                  <EmptyState icon="✅" title="Nenhum incidente encontrado" text="Nenhum incidente corresponde aos filtros selecionados." />
+                  <EmptyState icon={<IcoCheckCircle size={36} />} title="Nenhum incidente encontrado" text="Nenhum incidente corresponde aos filtros selecionados." />
                 </td></tr>
               ) : incidents.map(inc => (
                 <tr key={inc.id} className="is-clickable" onClick={() => onSelect(inc.id)}>
@@ -5483,7 +5587,7 @@ export default function PlatformConsolePage({ token, user, onLogout }) {
           {tab === "overview" && (
             <>
               <div className="console-module-banner" style={{ "--module-color": "#3b82f6" }}>
-                <div className="console-module-banner__icon" style={{ fontSize: "1.6rem" }}>🖥️</div>
+                <div className="console-module-banner__icon"><IcoMonitor /></div>
                 <div className="console-module-banner__body">
                   <h1 className="console-module-banner__title">Centro Nacional de Operações</h1>
                   <p className="console-module-banner__sub">Plataforma VITRAS APS — visão em tempo real</p>

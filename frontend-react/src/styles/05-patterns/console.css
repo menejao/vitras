@@ -550,9 +550,12 @@
   gap: var(--s-3);
 }
 .console-empty__icon {
-  font-size: 2.4rem;
   line-height: 1;
-  opacity: .55;
+  opacity: .5;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .console-empty__title {
   font: 600 var(--t-base) var(--font-sans);
