@@ -531,6 +531,16 @@ const IcoGovernance = () => (
   </svg>
 );
 
+const IcoCmdb = () => (
+  <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden>
+    <rect x="2" y="2" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.3"/>
+    <rect x="9" y="2" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.3"/>
+    <rect x="5.5" y="9" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.3"/>
+    <path d="M4.5 7v1.5c0 .3.2.5.5.5h6c.3 0 .5-.2.5-.5V7" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+    <line x1="8" y1="7" x2="8" y2="9" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+  </svg>
+);
+
 const IcoBackup = () => (
   <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden>
     <path d="M3 4h10v8a1 1 0 01-1 1H4a1 1 0 01-1-1V4z" stroke="currentColor" strokeWidth="1.3"/>
@@ -2737,6 +2747,316 @@ const EXC_STATUS_BADGE = {
   REJECTED: "badge badge--danger", EXPIRED: "badge badge--warning", REVOKED: "badge",
 };
 
+// ── CMDB constants ────────────────────────────────────────────────────────────
+const CI_STATUS_BADGE = {
+  PLANNED: "badge badge--info", ACTIVE: "badge badge--success",
+  MAINTENANCE: "badge badge--warning", SUSPENDED: "badge badge--warning",
+  RETIRED: "badge", ARCHIVED: "badge",
+};
+const CRITICALITY_BADGE = {
+  LOW: "badge badge--info", MEDIUM: "badge",
+  HIGH: "badge badge--warning", CRITICAL: "badge badge--danger",
+  MISSION_CRITICAL: "badge badge--danger",
+};
+
+function CmdbConsole({ token }) {
+  const [tab, setTab] = React.useState("items");
+  const [items, setItems] = React.useState([]);
+  const [rels, setRels] = React.useState([]);
+  const [dash, setDash] = React.useState(null);
+  const [impact, setImpact] = React.useState(null);
+  const [impactCiId, setImpactCiId] = React.useState("");
+  const [search, setSearch] = React.useState("");
+  const [searchResults, setSearchResults] = React.useState(null);
+  const [newCi, setNewCi] = React.useState({ name: "", type: "API", criticality: "MEDIUM", environment: "PRODUCTION", description: "", tags: "" });
+  const [newRel, setNewRel] = React.useState({ sourceId: "", targetId: "", relType: "DEPENDS_ON", description: "" });
+  const [error, setError] = React.useState("");
+  const [loading, setLoading] = React.useState(false);
+
+  const authH = { Authorization: `Bearer ${token}` };
+  const apiBase = "/api";
+
+  const loadAll = React.useCallback(async () => {
+    try {
+      const [rItems, rRels, rDash] = await Promise.all([
+        fetch(`${apiBase}/platform/cmdb/items?limit=100`, { headers: authH }),
+        fetch(`${apiBase}/platform/cmdb/relationships`, { headers: authH }),
+        fetch(`${apiBase}/platform/cmdb/dashboard`, { headers: authH }),
+      ]);
+      if (rItems.ok) setItems((await rItems.json()).items || []);
+      if (rRels.ok) setRels((await rRels.json()).relationships || []);
+      if (rDash.ok) setDash(await rDash.json());
+    } catch { /* ignore */ }
+  }, [token]);
+
+  React.useEffect(() => { loadAll(); }, [loadAll]);
+
+  const createCi = async () => {
+    setError(""); setLoading(true);
+    const tags = newCi.tags ? newCi.tags.split(",").map(t => t.trim()).filter(Boolean) : [];
+    const r = await fetch(`${apiBase}/platform/cmdb/items`, {
+      method: "POST", headers: { ...authH, "Content-Type": "application/json" },
+      body: JSON.stringify({ ...newCi, tags }),
+    });
+    setLoading(false);
+    if (!r.ok) { const b = await r.json(); setError(b.error || "Erro"); return; }
+    setNewCi({ name: "", type: "API", criticality: "MEDIUM", environment: "PRODUCTION", description: "", tags: "" });
+    await loadAll();
+  };
+
+  const createRel = async () => {
+    setError(""); setLoading(true);
+    const r = await fetch(`${apiBase}/platform/cmdb/relationships`, {
+      method: "POST", headers: { ...authH, "Content-Type": "application/json" },
+      body: JSON.stringify(newRel),
+    });
+    setLoading(false);
+    if (!r.ok) { const b = await r.json(); setError(b.error || "Erro"); return; }
+    setNewRel({ sourceId: "", targetId: "", relType: "DEPENDS_ON", description: "" });
+    await loadAll();
+  };
+
+  const deleteRel = async (relId) => {
+    if (!confirm("Remover relacionamento?")) return;
+    await fetch(`${apiBase}/platform/cmdb/relationships/${relId}`, { method: "DELETE", headers: authH });
+    await loadAll();
+  };
+
+  const runImpact = async () => {
+    if (!impactCiId) return;
+    const r = await fetch(`${apiBase}/platform/cmdb/impact/${impactCiId}`, { headers: authH });
+    if (r.ok) setImpact(await r.json());
+  };
+
+  const runSearch = async () => {
+    if (!search.trim()) return;
+    const r = await fetch(`${apiBase}/platform/cmdb/search?q=${encodeURIComponent(search)}`, { headers: authH });
+    if (r.ok) setSearchResults((await r.json()).results || []);
+  };
+
+  const CI_TYPES = ["PLATFORM","MUNICIPALITY","UNIT","TEAM","DEPLOYMENT","LICENSE","RELEASE","ROLL_OUT","BACKUP_POLICY","BACKUP_EXECUTION","RESTORE_TEST","INCIDENT","POLICY","BASELINE","ADR","MAINTENANCE_WINDOW","DATABASE","API","AUTH_SERVICE","STORAGE","SCHEDULER","INTEGRATION","CUSTOM"];
+  const REL_TYPES = ["DEPENDS_ON","USES","HOSTED_ON","OWNED_BY","IMPLEMENTS","GENERATED_BY","PROTECTED_BY","SUPERSEDES","RELATED_TO"];
+
+  return (
+    <div className="console-section">
+      <div className="console-page-header">
+        <div>
+          <h1 className="console-page-header__title">CMDB</h1>
+          <p className="console-page-header__sub">Base de configuração — ativos operacionais e seus relacionamentos</p>
+        </div>
+      </div>
+
+      {/* Dashboard cards */}
+      {dash && (
+        <div className="metrics-grid" style={{ gridTemplateColumns: "repeat(auto-fill,minmax(150px,1fr))", marginBottom: "1.5rem" }}>
+          {[
+            { label: "Total CIs", value: dash.total },
+            { label: "Ativos", value: dash.active, cls: "badge--success" },
+            { label: "Manutenção", value: dash.maintenance, cls: "badge--warning" },
+            { label: "Mission Critical", value: dash.missionCritical, cls: "badge--danger" },
+            { label: "Critical", value: dash.critical, cls: "badge--danger" },
+            { label: "Relacionamentos", value: dash.totalRelationships },
+          ].map(({ label, value, cls }) => (
+            <div key={label} className="metric-card" style={{ padding: "1rem" }}>
+              <span className="metric-card__value">{value}</span>
+              <span className="metric-card__label">{label}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Sub-tabs */}
+      <div style={{ display: "flex", gap: ".5rem", marginBottom: "1rem", flexWrap: "wrap" }}>
+        {[["items","CIs"],["rels","Relacionamentos"],["impact","Impact Analysis"],["search","Busca"]].map(([k, l]) => (
+          <button key={k} type="button" className={`btn btn--sm${tab === k ? " btn--primary" : " btn--ghost"}`} onClick={() => setTab(k)}>{l}</button>
+        ))}
+      </div>
+
+      {error && <div className="alert alert--danger" style={{ marginBottom: ".75rem" }}>{error}</div>}
+
+      {/* ── CIs ───────────────────────────────────────────────────────────── */}
+      {tab === "items" && (
+        <>
+          <div className="card" style={{ marginBottom: "1rem", padding: "1rem" }}>
+            <h3 style={{ marginBottom: ".75rem", fontSize: ".875rem", fontWeight: 600 }}>Novo Item de Configuração</h3>
+            <div style={{ display: "flex", gap: ".5rem", flexWrap: "wrap", alignItems: "flex-end" }}>
+              <div><label className="form-label">Nome *</label><input className="form-input" value={newCi.name} onChange={e => setNewCi(p => ({ ...p, name: e.target.value }))} style={{ minWidth: 200 }} /></div>
+              <div><label className="form-label">Tipo</label>
+                <select className="form-input" value={newCi.type} onChange={e => setNewCi(p => ({ ...p, type: e.target.value }))}>
+                  {CI_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+              <div><label className="form-label">Criticidade</label>
+                <select className="form-input" value={newCi.criticality} onChange={e => setNewCi(p => ({ ...p, criticality: e.target.value }))}>
+                  {["LOW","MEDIUM","HIGH","CRITICAL","MISSION_CRITICAL"].map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              <div><label className="form-label">Ambiente</label><input className="form-input" value={newCi.environment} onChange={e => setNewCi(p => ({ ...p, environment: e.target.value }))} style={{ width: 130 }} /></div>
+              <div><label className="form-label">Descrição</label><input className="form-input" value={newCi.description} onChange={e => setNewCi(p => ({ ...p, description: e.target.value }))} style={{ minWidth: 180 }} /></div>
+              <div><label className="form-label">Tags (vírgula)</label><input className="form-input" value={newCi.tags} onChange={e => setNewCi(p => ({ ...p, tags: e.target.value }))} style={{ width: 150 }} /></div>
+              <button className="btn btn--primary btn--sm" onClick={createCi} disabled={loading || !newCi.name}>Registrar CI</button>
+            </div>
+          </div>
+
+          <div className="table-wrapper">
+            <table className="data-table">
+              <thead><tr><th>Código</th><th>Nome</th><th>Tipo</th><th>Status</th><th>Criticidade</th><th>Ambiente</th></tr></thead>
+              <tbody>
+                {items.length === 0 && <tr><td colSpan={6} style={{ textAlign: "center", color: "var(--color-text-muted)" }}>Nenhum CI registrado</td></tr>}
+                {items.map(ci => (
+                  <tr key={ci.id}>
+                    <td><code style={{ fontSize: ".75rem" }}>{ci.ciCode}</code></td>
+                    <td>{ci.name}</td>
+                    <td><span className="badge">{ci.type}</span></td>
+                    <td><span className={CI_STATUS_BADGE[ci.status] || "badge"}>{ci.status}</span></td>
+                    <td><span className={CRITICALITY_BADGE[ci.criticality] || "badge"}>{ci.criticality}</span></td>
+                    <td>{ci.environment || "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
+      {/* ── Relationships ──────────────────────────────────────────────────── */}
+      {tab === "rels" && (
+        <>
+          <div className="card" style={{ marginBottom: "1rem", padding: "1rem" }}>
+            <h3 style={{ marginBottom: ".75rem", fontSize: ".875rem", fontWeight: 600 }}>Novo Relacionamento</h3>
+            <div style={{ display: "flex", gap: ".5rem", flexWrap: "wrap", alignItems: "flex-end" }}>
+              <div><label className="form-label">CI Origem *</label>
+                <select className="form-input" value={newRel.sourceId} onChange={e => setNewRel(p => ({ ...p, sourceId: e.target.value }))}>
+                  <option value="">— selecionar —</option>
+                  {items.map(i => <option key={i.id} value={i.id}>{i.ciCode} {i.name}</option>)}
+                </select>
+              </div>
+              <div><label className="form-label">Tipo</label>
+                <select className="form-input" value={newRel.relType} onChange={e => setNewRel(p => ({ ...p, relType: e.target.value }))}>
+                  {REL_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+              <div><label className="form-label">CI Destino *</label>
+                <select className="form-input" value={newRel.targetId} onChange={e => setNewRel(p => ({ ...p, targetId: e.target.value }))}>
+                  <option value="">— selecionar —</option>
+                  {items.map(i => <option key={i.id} value={i.id}>{i.ciCode} {i.name}</option>)}
+                </select>
+              </div>
+              <div><label className="form-label">Descrição</label><input className="form-input" value={newRel.description} onChange={e => setNewRel(p => ({ ...p, description: e.target.value }))} style={{ width: 200 }} /></div>
+              <button className="btn btn--primary btn--sm" onClick={createRel} disabled={loading || !newRel.sourceId || !newRel.targetId}>Criar Relacionamento</button>
+            </div>
+          </div>
+
+          <div className="table-wrapper">
+            <table className="data-table">
+              <thead><tr><th>Código</th><th>Origem</th><th>Tipo</th><th>Destino</th><th>Inverso</th><th>Ação</th></tr></thead>
+              <tbody>
+                {rels.length === 0 && <tr><td colSpan={6} style={{ textAlign: "center", color: "var(--color-text-muted)" }}>Nenhum relacionamento</td></tr>}
+                {rels.map(r => {
+                  const src = items.find(i => i.id === r.sourceId);
+                  const tgt = items.find(i => i.id === r.targetId);
+                  return (
+                    <tr key={r.id}>
+                      <td><code style={{ fontSize: ".75rem" }}>{r.relCode}</code></td>
+                      <td>{src ? `${src.ciCode} ${src.name}` : r.sourceId}</td>
+                      <td><span className="badge">{r.relType}</span></td>
+                      <td>{tgt ? `${tgt.ciCode} ${tgt.name}` : r.targetId}</td>
+                      <td style={{ color: "var(--color-text-muted)", fontSize: ".8rem" }}>{r.inverseType}</td>
+                      <td><button className="btn btn--danger btn--xs" onClick={() => deleteRel(r.id)}>Remover</button></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
+      {/* ── Impact Analysis ────────────────────────────────────────────────── */}
+      {tab === "impact" && (
+        <>
+          <div className="card" style={{ marginBottom: "1rem", padding: "1rem" }}>
+            <h3 style={{ marginBottom: ".75rem", fontSize: ".875rem", fontWeight: 600 }}>Análise de Impacto</h3>
+            <p style={{ fontSize: ".8rem", color: "var(--color-text-muted)", marginBottom: ".75rem" }}>Selecione um CI para ver quais outros CIs seriam afetados se ele falhasse.</p>
+            <div style={{ display: "flex", gap: ".5rem", alignItems: "flex-end", flexWrap: "wrap" }}>
+              <div><label className="form-label">CI</label>
+                <select className="form-input" value={impactCiId} onChange={e => setImpactCiId(e.target.value)} style={{ minWidth: 250 }}>
+                  <option value="">— selecionar CI —</option>
+                  {items.map(i => <option key={i.id} value={i.id}>{i.ciCode} {i.name} ({i.criticality})</option>)}
+                </select>
+              </div>
+              <button className="btn btn--primary btn--sm" onClick={runImpact} disabled={!impactCiId}>Analisar</button>
+            </div>
+          </div>
+
+          {impact && (
+            <div className="card" style={{ padding: "1rem" }}>
+              <div style={{ marginBottom: ".75rem" }}>
+                <strong>{impact.name}</strong> <span className="badge">{impact.type}</span> <span className={CRITICALITY_BADGE[impact.criticality] || "badge"}>{impact.criticality}</span>
+                <span style={{ marginLeft: "1rem", fontSize: ".8rem", color: "var(--color-text-muted)" }}>{impact.totalAffected} CIs afetados (profundidade máx. {impact.maxDepth})</span>
+              </div>
+              {impact.affected.length === 0
+                ? <p style={{ color: "var(--color-text-muted)", fontSize: ".875rem" }}>Nenhum CI depende deste item.</p>
+                : (
+                  <div className="table-wrapper">
+                    <table className="data-table">
+                      <thead><tr><th>Código</th><th>Nome</th><th>Tipo</th><th>Criticidade</th><th>Profundidade</th><th>Via</th></tr></thead>
+                      <tbody>
+                        {impact.affected.map((a, idx) => (
+                          <tr key={idx}>
+                            <td><code style={{ fontSize: ".75rem" }}>{a.ci.ciCode || "—"}</code></td>
+                            <td>{a.ci.name}</td>
+                            <td><span className="badge">{a.ci.type || "—"}</span></td>
+                            <td><span className={CRITICALITY_BADGE[a.ci.criticality] || "badge"}>{a.ci.criticality || "—"}</span></td>
+                            <td>{a.depth}</td>
+                            <td style={{ fontSize: ".75rem", color: "var(--color-text-muted)" }}>{a.relType}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )
+              }
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ── Search ────────────────────────────────────────────────────────── */}
+      {tab === "search" && (
+        <>
+          <div style={{ display: "flex", gap: ".5rem", marginBottom: "1rem", alignItems: "flex-end" }}>
+            <div style={{ flex: 1 }}><label className="form-label">Pesquisar CIs</label>
+              <input className="form-input" placeholder="Nome, código ou tag..." value={search} onChange={e => setSearch(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && runSearch()} />
+            </div>
+            <button className="btn btn--primary btn--sm" onClick={runSearch} disabled={!search.trim()}>Buscar</button>
+          </div>
+          {searchResults !== null && (
+            <div className="table-wrapper">
+              <table className="data-table">
+                <thead><tr><th>Código</th><th>Nome</th><th>Tipo</th><th>Status</th><th>Criticidade</th></tr></thead>
+                <tbody>
+                  {searchResults.length === 0 && <tr><td colSpan={5} style={{ textAlign: "center", color: "var(--color-text-muted)" }}>Sem resultados</td></tr>}
+                  {searchResults.map(ci => (
+                    <tr key={ci.id}>
+                      <td><code style={{ fontSize: ".75rem" }}>{ci.ciCode}</code></td>
+                      <td>{ci.name}</td>
+                      <td><span className="badge">{ci.type}</span></td>
+                      <td><span className={CI_STATUS_BADGE[ci.status] || "badge"}>{ci.status}</span></td>
+                      <td><span className={CRITICALITY_BADGE[ci.criticality] || "badge"}>{ci.criticality}</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 function GovernanceConsole({ token }) {
   const [dash, setDash]         = useState(null);
   const [compliance, setComp]   = useState(null);
@@ -4279,6 +4599,13 @@ export default function PlatformConsolePage({ token, user, onLogout }) {
           >
             <IcoGovernance /> Governança & Compliance
           </button>
+          <button
+            type="button"
+            className={`console-nav__item${tab === "cmdb" ? " is-active" : ""}`}
+            onClick={() => switchTab("cmdb")}
+          >
+            <IcoCmdb /> CMDB
+          </button>
 
           <span className="console-nav__section">Portal</span>
           <button
@@ -4389,6 +4716,11 @@ export default function PlatformConsolePage({ token, user, onLogout }) {
           {/* Governance & Compliance */}
           {tab === "governance" && (
             <GovernanceConsole token={token} />
+          )}
+
+          {/* CMDB */}
+          {tab === "cmdb" && (
+            <CmdbConsole token={token} />
           )}
 
           {/* Unidades de Saúde */}

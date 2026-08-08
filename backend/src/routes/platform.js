@@ -1806,6 +1806,199 @@ router.get("/platform/deployments-dashboard", async (req, res) => {
 });
 
 // ══════════════════════════════════════════════════════════════════════════
+// ERP-10 — CMDB (Configuration Management Database)
+// ══════════════════════════════════════════════════════════════════════════
+
+import {
+  createCi, updateCi, changeCiStatus,
+  createRelationship,
+  analyzeImpact, computeCmdbDashboard,
+  CI_TYPE, CI_STATUS, CRITICALITY, REL_TYPE,
+} from "../services/cmdb.js";
+
+function ensureCmdb(db) {
+  ensureDbShape(db);
+  if (!Array.isArray(db.cmdbItems))         db.cmdbItems         = [];
+  if (!Array.isArray(db.cmdbRelationships)) db.cmdbRelationships = [];
+}
+
+function cmdbOp(user) { return { id: user.id, name: user.name, role: user.role }; }
+
+// ── CI CRUD ────────────────────────────────────────────────────────────────
+
+router.get("/platform/cmdb/items", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.read")) return res.status(403).json({ error: "Sem permissão" });
+  const { type, status, criticality, environment, search,
+          page: pageRaw = "1", limit: limitRaw = "25" } = req.query;
+  const page  = Math.max(1, parseInt(pageRaw, 10) || 1);
+  const limit = Math.min(100, Math.max(1, parseInt(limitRaw, 10) || 25));
+  const db    = await readDb();
+  ensureCmdb(db);
+  let list = db.cmdbItems.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  if (type)        list = list.filter(i => i.type        === type.toUpperCase());
+  if (status)      list = list.filter(i => i.status      === status.toUpperCase());
+  if (criticality) list = list.filter(i => i.criticality === criticality.toUpperCase());
+  if (environment) list = list.filter(i => i.environment === environment);
+  if (search) {
+    const q = search.toLowerCase();
+    list = list.filter(i => i.name.toLowerCase().includes(q) || i.ciCode.toLowerCase().includes(q) || (i.description || "").toLowerCase().includes(q));
+  }
+  const total = list.length;
+  const pages = Math.ceil(total / limit) || 1;
+  return res.json({ items: list.slice((page - 1) * limit, page * limit), total, pages });
+});
+
+router.get("/platform/cmdb/items/:ciId", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.read")) return res.status(403).json({ error: "Sem permissão" });
+  const db = await readDb();
+  ensureCmdb(db);
+  const ci = db.cmdbItems.find(i => i.id === req.params.ciId);
+  if (!ci) return res.status(404).json({ error: "CI não encontrado" });
+  const rels = (db.cmdbRelationships || []).filter(r => r.sourceId === ci.id || r.targetId === ci.id);
+  return res.json({ ...ci, relationships: rels });
+});
+
+router.post("/platform/cmdb/items", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.create")) return res.status(403).json({ error: "Sem permissão" });
+  const op = cmdbOp(req.user);
+  const result = await withDb((db) => {
+    ensureCmdb(db);
+    let ci;
+    try { ci = createCi({ ...req.body, operator: op, existingItems: db.cmdbItems }); }
+    catch (e) { return { error: { status: e.statusCode || 400, message: e.message } }; }
+    db.cmdbItems.push(ci);
+    addAuditLog(db, req.user, "ci.created", "cmdb_item", ci.id, { ciCode: ci.ciCode, type: ci.type });
+    return { item: ci };
+  });
+  if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
+  return res.status(201).json(result.item);
+});
+
+router.patch("/platform/cmdb/items/:ciId", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.update")) return res.status(403).json({ error: "Sem permissão" });
+  const { reason, toStatus, ...patch } = req.body || {};
+  const op = cmdbOp(req.user);
+  const result = await withDb((db) => {
+    ensureCmdb(db);
+    const idx = db.cmdbItems.findIndex(i => i.id === req.params.ciId);
+    if (idx < 0) return { error: { status: 404, message: "CI não encontrado" } };
+    if (toStatus) {
+      try { changeCiStatus(db.cmdbItems[idx], { toStatus, operator: op, reason: reason || null }); }
+      catch (e) { return { error: { status: e.statusCode || 422, message: e.message } }; }
+    }
+    if (Object.keys(patch).length) {
+      updateCi(db.cmdbItems[idx], { patch, operator: op, reason: reason || null });
+    }
+    addAuditLog(db, req.user, "ci.updated", "cmdb_item", db.cmdbItems[idx].id, { patch, toStatus, reason });
+    return { item: db.cmdbItems[idx] };
+  });
+  if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
+  return res.json(result.item);
+});
+
+// ── Relationships ──────────────────────────────────────────────────────────
+
+router.get("/platform/cmdb/relationships", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.read")) return res.status(403).json({ error: "Sem permissão" });
+  const { sourceId, targetId, relType } = req.query;
+  const db = await readDb();
+  ensureCmdb(db);
+  let list = db.cmdbRelationships || [];
+  if (sourceId) list = list.filter(r => r.sourceId === sourceId);
+  if (targetId) list = list.filter(r => r.targetId === targetId);
+  if (relType)  list = list.filter(r => r.relType  === relType.toUpperCase());
+  return res.json({ relationships: list, total: list.length });
+});
+
+router.post("/platform/cmdb/relationships", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.create")) return res.status(403).json({ error: "Sem permissão" });
+  const op = cmdbOp(req.user);
+  const result = await withDb((db) => {
+    ensureCmdb(db);
+    let rel;
+    try {
+      rel = createRelationship({ ...req.body, operator: op, existingRels: db.cmdbRelationships, items: db.cmdbItems });
+    } catch (e) {
+      return { error: { status: e.statusCode || 400, message: e.message } };
+    }
+    db.cmdbRelationships.push(rel);
+    // Audit on both CIs
+    const srcIdx = db.cmdbItems.findIndex(i => i.id === rel.sourceId);
+    const tgtIdx = db.cmdbItems.findIndex(i => i.id === rel.targetId);
+    if (srcIdx >= 0) db.cmdbItems[srcIdx].audit.push({ id: uuidv4(), action: "ci.relationship_added", by: op, at: rel.createdAt, relCode: rel.relCode, relType: rel.relType, targetId: rel.targetId });
+    if (tgtIdx >= 0) db.cmdbItems[tgtIdx].audit.push({ id: uuidv4(), action: "ci.relationship_added", by: op, at: rel.createdAt, relCode: rel.relCode, relType: rel.inverseType, targetId: rel.sourceId });
+    addAuditLog(db, req.user, "relationship.created", "cmdb_rel", rel.id, { relCode: rel.relCode, relType: rel.relType });
+    return { relationship: rel };
+  });
+  if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
+  return res.status(201).json(result.relationship);
+});
+
+router.delete("/platform/cmdb/relationships/:relId", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.update")) return res.status(403).json({ error: "Sem permissão" });
+  const op = cmdbOp(req.user);
+  const result = await withDb((db) => {
+    ensureCmdb(db);
+    const idx = (db.cmdbRelationships || []).findIndex(r => r.id === req.params.relId);
+    if (idx < 0) return { error: { status: 404, message: "Relacionamento não encontrado" } };
+    const [rel] = db.cmdbRelationships.splice(idx, 1);
+    // Audit removal on both CIs
+    const now = new Date().toISOString();
+    const srcIdx = db.cmdbItems.findIndex(i => i.id === rel.sourceId);
+    const tgtIdx = db.cmdbItems.findIndex(i => i.id === rel.targetId);
+    if (srcIdx >= 0) db.cmdbItems[srcIdx].audit.push({ id: uuidv4(), action: "ci.relationship_removed", by: op, at: now, relCode: rel.relCode });
+    if (tgtIdx >= 0) db.cmdbItems[tgtIdx].audit.push({ id: uuidv4(), action: "ci.relationship_removed", by: op, at: now, relCode: rel.relCode });
+    addAuditLog(db, req.user, "relationship.deleted", "cmdb_rel", rel.id, { relCode: rel.relCode });
+    return { deleted: rel.id };
+  });
+  if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
+  return res.json({ deleted: result.deleted });
+});
+
+// ── Impact Analysis ────────────────────────────────────────────────────────
+
+router.get("/platform/cmdb/impact/:ciId", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.read")) return res.status(403).json({ error: "Sem permissão" });
+  const db = await readDb();
+  ensureCmdb(db);
+  const ci = db.cmdbItems.find(i => i.id === req.params.ciId);
+  if (!ci) return res.status(404).json({ error: "CI não encontrado" });
+  const maxDepth = Math.min(20, parseInt(req.query.maxDepth || "10", 10));
+  const result   = analyzeImpact(ci.id, db.cmdbItems, db.cmdbRelationships || [], maxDepth);
+  return res.json(result);
+});
+
+// ── Search ─────────────────────────────────────────────────────────────────
+
+router.get("/platform/cmdb/search", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.read")) return res.status(403).json({ error: "Sem permissão" });
+  const { q, type, criticality } = req.query;
+  if (!q) return res.status(400).json({ error: "Parâmetro q obrigatório" });
+  const db = await readDb();
+  ensureCmdb(db);
+  const query = q.toLowerCase();
+  let items = (db.cmdbItems || []).filter(i =>
+    i.name.toLowerCase().includes(query) ||
+    i.ciCode.toLowerCase().includes(query) ||
+    (i.description || "").toLowerCase().includes(query) ||
+    (i.tags || []).some(t => t.toLowerCase().includes(query))
+  );
+  if (type)        items = items.filter(i => i.type === type.toUpperCase());
+  if (criticality) items = items.filter(i => i.criticality === criticality.toUpperCase());
+  return res.json({ results: items, total: items.length, query: q });
+});
+
+// ── Dashboard ──────────────────────────────────────────────────────────────
+
+router.get("/platform/cmdb/dashboard", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.read")) return res.status(403).json({ error: "Sem permissão" });
+  const db = await readDb();
+  ensureCmdb(db);
+  const dash = computeCmdbDashboard(db.cmdbItems || [], db.cmdbRelationships || []);
+  return res.json(dash);
+});
+
+// ══════════════════════════════════════════════════════════════════════════
 // ERP-09 — Platform Governance and Compliance
 // ══════════════════════════════════════════════════════════════════════════
 
