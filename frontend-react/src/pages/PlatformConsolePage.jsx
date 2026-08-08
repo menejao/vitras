@@ -298,22 +298,192 @@ function MunicipalityPicker({ token, value, onSelect }) {
   );
 }
 
+// ── Municipality Status helpers ────────────────────────────────────────────
+
+const MUN_STATUS_LABEL = {
+  IMPLANTACAO: "Implantação",
+  OPERACIONAL: "Operacional",
+  SUSPENSO:    "Suspenso",
+  ARQUIVADO:   "Arquivado",
+};
+const MUN_STATUS_BADGE = {
+  IMPLANTACAO: "badge badge--warning",
+  OPERACIONAL: "badge badge--success",
+  SUSPENSO:    "badge badge--danger",
+  ARQUIVADO:   "badge",
+};
+
+// ── Novo Município Modal (IBGE search → select → create) ───────────────────
+
+function NovoMunicipioModal({ token, onClose, onCreate }) {
+  const [query,      setQuery]    = useState("");
+  const [results,    setResults]  = useState([]);
+  const [searching,  setSearching]= useState(false);
+  const [selected,   setSelected] = useState(null);
+  const [status,     setStatus]   = useState("IMPLANTACAO");
+  const [licType,    setLicType]  = useState("");
+  const [notes,      setNotes]    = useState("");
+  const [busy,       setBusy]     = useState(false);
+  const [error,      setError]    = useState("");
+  const timerRef = useRef(null);
+
+  function handleInput(e) {
+    const q = e.target.value;
+    setQuery(q);
+    setSelected(null);
+    clearTimeout(timerRef.current);
+    if (q.trim().length < 2) { setResults([]); return; }
+    timerRef.current = setTimeout(() => doSearch(q.trim()), 300);
+  }
+
+  async function doSearch(q) {
+    setSearching(true);
+    try {
+      const data = await apiFetch(`/platform/municipalities?search=${encodeURIComponent(q)}&limit=10`, token);
+      setResults(data?.municipalities || []);
+    } catch { setResults([]); }
+    finally { setSearching(false); }
+  }
+
+  function pick(m) {
+    setSelected(m);
+    setQuery(m.name + " — " + m.uf);
+    setResults([]);
+  }
+
+  async function handleCreate() {
+    if (!selected) { setError("Selecione um município da lista."); return; }
+    setBusy(true); setError("");
+    try {
+      const r = await fetch("/api/platform/municipalities", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          ibgeCode:    selected.ibgeCode,
+          name:        selected.name,
+          uf:          selected.uf,
+          region:      selected.region || null,
+          isCapital:   selected.isCapital || false,
+          status,
+          licenseType: licType || null,
+          notes,
+        }),
+      });
+      const b = await r.json();
+      if (!r.ok) { setError(b.error || "Erro ao cadastrar município."); return; }
+      onCreate(b);
+    } catch { setError("Erro de rede."); }
+    finally { setBusy(false); }
+  }
+
+  return (
+    <div style={{
+      position: "fixed", inset: 0, zIndex: 200,
+      background: "rgba(0,0,0,.45)", display: "flex", alignItems: "center", justifyContent: "center",
+    }} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div style={{
+        background: "var(--surface)", borderRadius: 10, padding: "var(--s-5)",
+        width: "min(520px, 95vw)", boxShadow: "0 8px 40px rgba(0,0,0,.25)",
+      }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "var(--s-4)" }}>
+          <h2 style={{ margin: 0, fontSize: "var(--t-lg)", fontWeight: 600 }}>Cadastrar Município</h2>
+          <button type="button" onClick={onClose} style={{ border: "none", background: "transparent", fontSize: 20, cursor: "pointer", color: "var(--text-dim)" }}>×</button>
+        </div>
+
+        {/* Step 1: Search IBGE */}
+        <div style={{ marginBottom: "var(--s-4)" }}>
+          <label className="field__label">Pesquisar município (IBGE)</label>
+          <div style={{ position: "relative" }}>
+            <div className="input">
+              <input
+                autoFocus
+                value={query}
+                onChange={handleInput}
+                placeholder="Ex: Recife, São Paulo, 3534401..."
+                autoComplete="off"
+              />
+            </div>
+            {(searching || results.length > 0) && (
+              <div style={{
+                position: "absolute", top: "100%", left: 0, right: 0, zIndex: 10,
+                background: "var(--surface)", border: "1px solid var(--border)",
+                borderRadius: 6, boxShadow: "0 4px 16px rgba(0,0,0,.15)",
+                maxHeight: 220, overflowY: "auto",
+              }}>
+                {searching && <div style={{ padding: "var(--s-3)", color: "var(--text-dim)", fontSize: "var(--t-sm)" }}>Buscando...</div>}
+                {!searching && results.map(m => (
+                  <button key={m.ibgeCode} type="button" onMouseDown={() => pick(m)} style={{
+                    display: "block", width: "100%", textAlign: "left",
+                    padding: "var(--s-2) var(--s-3)", background: "transparent",
+                    border: "none", cursor: "pointer", fontSize: "var(--t-sm)", color: "var(--text)",
+                  }}
+                    onMouseEnter={e => { e.currentTarget.style.background = "var(--hover)"; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
+                  >
+                    <strong>{m.name}</strong>
+                    <span style={{ marginLeft: 8, color: "var(--text-dim)" }}>{m.uf} · IBGE {m.ibgeCode}</span>
+                    {m.isCapital && <span style={{ marginLeft: 6, fontSize: "0.75em", color: "var(--accent)" }}>capital</span>}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          {selected && (
+            <div style={{ marginTop: "var(--s-2)", padding: "var(--s-2) var(--s-3)", background: "var(--surface-raised)", borderRadius: 6, fontSize: "var(--t-sm)", color: "var(--text-dim)" }}>
+              ✓ {selected.name} — {selected.uf} · IBGE {selected.ibgeCode}
+            </div>
+          )}
+        </div>
+
+        {/* Step 2: Status */}
+        <div style={{ display: "flex", gap: "var(--s-3)", marginBottom: "var(--s-3)", flexWrap: "wrap" }}>
+          <div style={{ flex: 1 }}>
+            <label className="field__label">Status inicial</label>
+            <select className="input" style={{ width: "100%" }} value={status} onChange={e => setStatus(e.target.value)}>
+              <option value="IMPLANTACAO">Implantação</option>
+              <option value="OPERACIONAL">Operacional</option>
+              <option value="SUSPENSO">Suspenso</option>
+            </select>
+          </div>
+          <div style={{ flex: 1 }}>
+            <label className="field__label">Tipo de licença (opcional)</label>
+            <input className="input" style={{ width: "100%" }} value={licType} onChange={e => setLicType(e.target.value)} placeholder="Starter, Professional, Enterprise..." />
+          </div>
+        </div>
+
+        <div style={{ marginBottom: "var(--s-4)" }}>
+          <label className="field__label">Notas (opcional)</label>
+          <textarea className="input" rows={2} style={{ width: "100%", resize: "vertical" }} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Observações sobre o contrato ou implantação..." />
+        </div>
+
+        {error && <div className="alert alert--danger" style={{ marginBottom: "var(--s-3)" }}>{error}</div>}
+
+        <div style={{ display: "flex", gap: "var(--s-2)", justifyContent: "flex-end" }}>
+          <Button variant="secondary" onClick={onClose}>Cancelar</Button>
+          <Button onClick={handleCreate} disabled={!selected || busy} loading={busy}>
+            Cadastrar Município
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Municipality List View ─────────────────────────────────────────────────
 
 function MunicipalityListView({ token, onSelect }) {
-  const [search,  setSearch]  = useState("");
-  const [uf,      setUf]      = useState("");
-  const [items,   setItems]   = useState([]);
-  const [total,   setTotal]   = useState(0);
-  const [pages,   setPages]   = useState(1);
-  const [page,    setPage]    = useState(1);
-  const [loading, setLoading] = useState(false);
+  const [search,    setSearch]  = useState("");
+  const [uf,        setUf]      = useState("");
+  const [status,    setStatus]  = useState("");
+  const [items,     setItems]   = useState([]);
+  const [total,     setTotal]   = useState(0);
+  const [pages,     setPages]   = useState(1);
+  const [page,      setPage]    = useState(1);
+  const [loading,   setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
   const timerRef = useRef(null);
 
-  useEffect(() => {
-    load(1);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [uf]);
+  useEffect(() => { load(1); }, [uf, status]); // eslint-disable-line
 
   function handleSearchChange(e) {
     const q = e.target.value;
@@ -325,9 +495,10 @@ function MunicipalityListView({ token, onSelect }) {
   async function load(p = 1, q = search) {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ page: p, limit: 25 });
+      const params = new URLSearchParams({ page: p, limit: 25, registered: "true" });
       if (q.trim()) params.set("search", q.trim());
-      if (uf) params.set("uf", uf);
+      if (uf)       params.set("uf", uf);
+      if (status)   params.set("status", status);
       const data = await apiFetch(`/platform/municipalities?${params}`, token);
       setItems(data?.municipalities || []);
       setTotal(data?.total || 0);
@@ -337,73 +508,88 @@ function MunicipalityListView({ token, onSelect }) {
     finally { setLoading(false); }
   }
 
+  function handleCreated(mun) {
+    setShowModal(false);
+    load(1);
+    onSelect(mun);
+  }
+
   return (
     <>
+      {showModal && (
+        <NovoMunicipioModal token={token} onClose={() => setShowModal(false)} onCreate={handleCreated} />
+      )}
+
       <div className="console-page-header">
         <div>
           <h1 className="console-page-header__title">Municípios</h1>
-          <p className="console-page-header__sub">Base IBGE — municípios disponíveis para implantação do VITRAS</p>
+          <p className="console-page-header__sub">Municípios cadastrados no VITRAS — contratos e implantações ativas</p>
         </div>
+        <Button onClick={() => setShowModal(true)}>+ Novo Município</Button>
       </div>
 
       <div style={{ display: "flex", gap: "var(--s-3)", marginBottom: "var(--s-4)", flexWrap: "wrap" }}>
-        <div className="input" style={{ flex: "1 1 240px" }}>
-          <input
-            value={search}
-            onChange={handleSearchChange}
-            placeholder="Buscar por nome ou código IBGE..."
-          />
+        <div className="input" style={{ flex: "1 1 220px" }}>
+          <input value={search} onChange={handleSearchChange} placeholder="Buscar por nome, IBGE..." />
         </div>
-        <select
-          className="console-filter-select"
-          value={uf}
-          onChange={(e) => setUf(e.target.value)}
-          style={{ minWidth: 80 }}
-        >
+        <select className="console-filter-select" value={status} onChange={e => { setStatus(e.target.value); setPage(1); }} style={{ minWidth: 140 }}>
+          <option value="">Todos os status</option>
+          <option value="IMPLANTACAO">Implantação</option>
+          <option value="OPERACIONAL">Operacional</option>
+          <option value="SUSPENSO">Suspenso</option>
+          <option value="ARQUIVADO">Arquivado</option>
+        </select>
+        <select className="console-filter-select" value={uf} onChange={e => { setUf(e.target.value); setPage(1); }} style={{ minWidth: 80 }}>
           <option value="">Todas as UFs</option>
           {UF_OPTIONS.map(u => <option key={u} value={u}>{u}</option>)}
         </select>
       </div>
 
       {loading && (
-        <div style={{ padding: "var(--s-5)", color: "var(--text-dim)", textAlign: "center" }}>Carregando municípios...</div>
+        <div style={{ padding: "var(--s-6)", color: "var(--text-dim)", textAlign: "center" }}>Carregando municípios...</div>
       )}
+
       {!loading && items.length === 0 && (
-        <div style={{ padding: "var(--s-5)", color: "var(--text-dim)", textAlign: "center" }}>
-          {search || uf ? "Nenhum município encontrado para os filtros informados." : "Base de municípios vazia — execute seed-municipalities.mjs em produção."}
+        <div style={{ padding: "var(--s-8)", textAlign: "center" }}>
+          <div style={{ fontSize: "2.5rem", marginBottom: "var(--s-3)" }}>🏙️</div>
+          <p style={{ color: "var(--text-dim)", marginBottom: "var(--s-4)" }}>
+            {search || uf || status ? "Nenhum município encontrado para os filtros informados." : "Nenhum município cadastrado."}
+          </p>
+          {!search && !uf && !status && (
+            <Button onClick={() => setShowModal(true)}>Cadastrar primeiro município</Button>
+          )}
         </div>
       )}
+
       {!loading && items.length > 0 && (
-        <div className="console-table-wrap">
-          <table className="console-table">
-            <thead>
-              <tr>
-                <th>Município</th>
-                <th>UF</th>
-                <th>Código IBGE</th>
-                <th>Região</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((m) => (
-                <tr key={m.id || m.ibgeCode} style={{ cursor: "pointer" }} onClick={() => onSelect(m)}>
-                  <td>
-                    {m.name}
-                    {m.isCapital && <span className="badge badge--info" style={{ marginLeft: 6, fontSize: "0.7em" }}>capital</span>}
-                  </td>
-                  <td>{m.uf}</td>
-                  <td style={{ fontVariantNumeric: "tabular-nums" }}>{m.ibgeCode}</td>
-                  <td style={{ color: "var(--text-dim)" }}>{m.region || "—"}</td>
-                  <td style={{ textAlign: "right" }}>
-                    <button type="button" className="console-table__action">Ver UBS →</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <>
+          <div style={{ display: "grid", gap: "var(--s-3)", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", marginBottom: "var(--s-4)" }}>
+            {items.map(m => (
+              <button key={m.id} type="button" onClick={() => onSelect(m)} style={{
+                textAlign: "left", background: "var(--surface)", border: "1px solid var(--border)",
+                borderRadius: 8, padding: "var(--s-4)", cursor: "pointer",
+                transition: "box-shadow .15s", outline: "none",
+              }}
+                onMouseEnter={e => { e.currentTarget.style.boxShadow = "0 2px 12px rgba(0,0,0,.12)"; }}
+                onMouseLeave={e => { e.currentTarget.style.boxShadow = "none"; }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "var(--s-2)" }}>
+                  <strong style={{ fontSize: "var(--t-base)", color: "var(--text)" }}>{m.name}</strong>
+                  <span className={MUN_STATUS_BADGE[m.status] || "badge"}>{MUN_STATUS_LABEL[m.status] || m.status}</span>
+                </div>
+                <div style={{ fontSize: "var(--t-sm)", color: "var(--text-dim)", marginBottom: "var(--s-2)" }}>
+                  {m.uf} · IBGE {m.ibgeCode}
+                  {m.licenseType && <span style={{ marginLeft: 8 }}>· {m.licenseType}</span>}
+                </div>
+                <div style={{ display: "flex", gap: "var(--s-4)", fontSize: "var(--t-sm)" }}>
+                  <span><strong>{m.unitsCount ?? 0}</strong> <span style={{ color: "var(--text-dim)" }}>UBS</span></span>
+                  <span><strong>{m.activeUnitsCount ?? 0}</strong> <span style={{ color: "var(--text-dim)" }}>operacionais</span></span>
+                </div>
+              </button>
+            ))}
+          </div>
           <div className="table-pagination">
-            <span>{total} municípios{pages > 1 ? ` — página ${page} de ${pages}` : ""}</span>
+            <span>{total} município{total !== 1 ? "s" : ""}{pages > 1 ? ` — página ${page} de ${pages}` : ""}</span>
             {pages > 1 && (
               <div style={{ display: "flex", gap: "var(--s-2)" }}>
                 <Button variant="secondary" size="sm" disabled={page <= 1} onClick={() => load(page - 1)}>← Anterior</Button>
@@ -411,7 +597,7 @@ function MunicipalityListView({ token, onSelect }) {
               </div>
             )}
           </div>
-        </div>
+        </>
       )}
     </>
   );
@@ -419,87 +605,284 @@ function MunicipalityListView({ token, onSelect }) {
 
 // ── Municipality Detail View ───────────────────────────────────────────────
 
-function MunicipalityDetailView({ token, municipality, onBack, onGoToUnit }) {
-  const [detail,  setDetail]  = useState(null);
-  const [units,   setUnits]   = useState([]);
-  const [loading, setLoading] = useState(true);
+function MunicipalityDetailView({ token, municipality, onBack, onGoToUnit, onGoToNewUnit }) {
+  const [munDetail, setMunDetail] = useState(null);
+  const [units,     setUnits]     = useState([]);
+  const [incidents, setIncidents] = useState([]);
+  const [deploys,   setDeploys]   = useState([]);
+  const [licenses,  setLicenses]  = useState([]);
+  const [loading,   setLoading]   = useState(true);
+  const [munTab,    setMunTab]     = useState("overview");
+  const [statusEdit, setStatusEdit] = useState(false);
+  const [newStatus,  setNewStatus]  = useState(municipality?.status || "IMPLANTACAO");
+  const [savingStatus, setSavingStatus] = useState(false);
+
+  const m = municipality;
 
   useEffect(() => {
-    if (!municipality?.id) return;
+    if (!m?.ibgeCode) return;
+    setLoading(true);
     Promise.all([
-      apiFetch(`/platform/municipalities/${municipality.id}`, token),
-      apiFetch(`/platform/units?municipalityId=${municipality.ibgeCode}&limit=100`, token),
-    ])
-      .then(([d, u]) => { setDetail(d); setUnits(u?.units || []); })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, [municipality, token]);
+      apiFetch(`/platform/units?municipalityId=${m.ibgeCode}&limit=100`, token).catch(() => ({})),
+      apiFetch(`/platform/incidents?municipalityId=${m.ibgeCode}&limit=20`, token).catch(() => ({})),
+      apiFetch(`/platform/deployments?municipalityId=${m.ibgeCode}&limit=20`, token).catch(() => ({})),
+      apiFetch(`/platform/licenses?municipalityId=${m.ibgeCode}&limit=10`, token).catch(() => ({})),
+    ]).then(([u, inc, dep, lic]) => {
+      setUnits(u?.units || []);
+      setIncidents(inc?.incidents || []);
+      setDeploys(dep?.deployments || []);
+      setLicenses(lic?.licenses || []);
+      setMunDetail(m);
+    }).finally(() => setLoading(false));
+  }, [m, token]);
+
+  async function saveStatus() {
+    setSavingStatus(true);
+    try {
+      await fetch(`/api/platform/municipalities/${m.id}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      setStatusEdit(false);
+    } catch { /* ignore */ }
+    finally { setSavingStatus(false); }
+  }
+
+  const tabs = [
+    { key: "overview",     label: "Visão Geral" },
+    { key: "units",        label: `UBSs (${units.length})` },
+    { key: "deployments",  label: "Implantação" },
+    { key: "licenses",     label: "Licença" },
+    { key: "incidents",    label: `Incidentes (${incidents.length})` },
+  ];
 
   return (
     <>
       {/* Breadcrumb */}
-      <div style={{ display: "flex", alignItems: "center", gap: "var(--s-2)", marginBottom: "var(--s-4)", fontSize: "var(--t-sm)", color: "var(--text-dim)" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "var(--s-2)", marginBottom: "var(--s-3)", fontSize: "var(--t-sm)", color: "var(--text-dim)" }}>
         <button type="button" className="console-breadcrumb-link" onClick={onBack}>Municípios</button>
         <span>›</span>
-        <span style={{ color: "var(--text)" }}>{municipality?.name}</span>
+        <span style={{ color: "var(--text)" }}>{m?.name}</span>
       </div>
 
-      <div className="console-page-header">
+      <div className="console-page-header" style={{ marginBottom: "var(--s-3)" }}>
         <div>
-          <h1 className="console-page-header__title">{municipality?.name}</h1>
-          <p className="console-page-header__sub">{municipality?.uf} · IBGE {municipality?.ibgeCode}</p>
+          <div style={{ display: "flex", alignItems: "center", gap: "var(--s-3)", flexWrap: "wrap" }}>
+            <h1 className="console-page-header__title" style={{ margin: 0 }}>{m?.name}</h1>
+            {statusEdit ? (
+              <div style={{ display: "flex", gap: "var(--s-2)", alignItems: "center" }}>
+                <select className="input" value={newStatus} onChange={e => setNewStatus(e.target.value)} style={{ fontSize: "var(--t-sm)" }}>
+                  <option value="IMPLANTACAO">Implantação</option>
+                  <option value="OPERACIONAL">Operacional</option>
+                  <option value="SUSPENSO">Suspenso</option>
+                  <option value="ARQUIVADO">Arquivado</option>
+                </select>
+                <Button size="sm" onClick={saveStatus} disabled={savingStatus}>Salvar</Button>
+                <Button size="sm" variant="secondary" onClick={() => setStatusEdit(false)}>Cancelar</Button>
+              </div>
+            ) : (
+              <button type="button" className={MUN_STATUS_BADGE[m?.status] || "badge"} onClick={() => setStatusEdit(true)} title="Clique para alterar status">
+                {MUN_STATUS_LABEL[m?.status] || m?.status}
+              </button>
+            )}
+          </div>
+          <p className="console-page-header__sub" style={{ marginTop: "var(--s-1)" }}>
+            {m?.uf} · IBGE {m?.ibgeCode}
+            {m?.licenseType && <span> · {m.licenseType}</span>}
+            {m?.isCapital && <span className="badge badge--info" style={{ marginLeft: 8, fontSize: "0.75em" }}>capital</span>}
+          </p>
         </div>
         <Button variant="secondary" onClick={onBack}>← Municípios</Button>
       </div>
 
+      {/* KPI strip */}
+      <div className="console-kpi-strip" style={{ marginBottom: "var(--s-4)" }}>
+        {[
+          { label: "UBS cadastradas",  value: units.length,                                              cls: "console-kpi--accent" },
+          { label: "Operacionais",     value: units.filter(u => u.status === "active").length,           cls: "console-kpi--success" },
+          { label: "Implantações",     value: deploys.length,                                            cls: "" },
+          { label: "Licenças",         value: licenses.length,                                           cls: "" },
+          { label: "Incidentes",       value: incidents.filter(i => i.status !== "CLOSED").length,       cls: incidents.some(i => i.severity === "CRITICAL" && i.status !== "CLOSED") ? "console-kpi--danger" : "" },
+        ].map(({ label, value, cls }) => (
+          <div key={label} className={`console-kpi ${cls}`}>
+            <div className="console-kpi__value">{loading ? "—" : value}</div>
+            <div className="console-kpi__label">{label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Tabs */}
+      <div style={{ display: "flex", gap: "var(--s-2)", marginBottom: "var(--s-4)", borderBottom: "1px solid var(--border)", paddingBottom: "var(--s-2)", flexWrap: "wrap" }}>
+        {tabs.map(t => (
+          <button key={t.key} type="button"
+            style={{
+              background: "none", border: "none", cursor: "pointer", padding: "var(--s-2) var(--s-3)",
+              fontSize: "var(--t-sm)", fontWeight: munTab === t.key ? 600 : 400,
+              color: munTab === t.key ? "var(--accent)" : "var(--text-dim)",
+              borderBottom: munTab === t.key ? "2px solid var(--accent)" : "2px solid transparent",
+              marginBottom: -1,
+            }}
+            onClick={() => setMunTab(t.key)}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
       {loading && <div style={{ padding: "var(--s-5)", color: "var(--text-dim)" }}>Carregando...</div>}
 
-      {!loading && detail && (
-        <div className="console-kpi-strip" style={{ marginBottom: "var(--s-5)" }}>
-          <div className="console-kpi console-kpi--accent">
-            <div className="console-kpi__value">{detail.unitsCount ?? 0}</div>
-            <div className="console-kpi__label">UBS cadastradas</div>
+      {/* ── Tab: Visão Geral ───────────────────────────────────────────────── */}
+      {!loading && munTab === "overview" && (
+        <div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--s-3)", marginBottom: "var(--s-4)" }}>
+            <div className="card" style={{ padding: "var(--s-4)" }}>
+              <h3 style={{ margin: "0 0 var(--s-3)", fontSize: "var(--t-sm)", fontWeight: 600, color: "var(--text-dim)", textTransform: "uppercase", letterSpacing: ".05em" }}>Identificação</h3>
+              {[
+                ["Nome",      m?.name],
+                ["UF",        m?.uf],
+                ["IBGE",      m?.ibgeCode],
+                ["Região",    m?.region || "—"],
+                ["Capital",   m?.isCapital ? "Sim" : "Não"],
+              ].map(([k, v]) => (
+                <div key={k} style={{ display: "flex", justifyContent: "space-between", marginBottom: "var(--s-1)", fontSize: "var(--t-sm)" }}>
+                  <span style={{ color: "var(--text-dim)" }}>{k}</span>
+                  <span style={{ fontWeight: 500 }}>{v}</span>
+                </div>
+              ))}
+            </div>
+            <div className="card" style={{ padding: "var(--s-4)" }}>
+              <h3 style={{ margin: "0 0 var(--s-3)", fontSize: "var(--t-sm)", fontWeight: 600, color: "var(--text-dim)", textTransform: "uppercase", letterSpacing: ".05em" }}>Contrato</h3>
+              {[
+                ["Status",    MUN_STATUS_LABEL[m?.status] || m?.status],
+                ["Licença",   m?.licenseType || "—"],
+                ["Cadastrado", m?.createdAt ? new Date(m.createdAt).toLocaleDateString("pt-BR") : "—"],
+              ].map(([k, v]) => (
+                <div key={k} style={{ display: "flex", justifyContent: "space-between", marginBottom: "var(--s-1)", fontSize: "var(--t-sm)" }}>
+                  <span style={{ color: "var(--text-dim)" }}>{k}</span>
+                  <span style={{ fontWeight: 500 }}>{v}</span>
+                </div>
+              ))}
+              {m?.notes && (
+                <div style={{ marginTop: "var(--s-3)", padding: "var(--s-2)", background: "var(--surface-raised)", borderRadius: 4, fontSize: "var(--t-sm)", color: "var(--text-dim)" }}>
+                  {m.notes}
+                </div>
+              )}
+            </div>
           </div>
-          <div className="console-kpi console-kpi--success">
-            <div className="console-kpi__value">{detail.activeUnitsCount ?? 0}</div>
-            <div className="console-kpi__label">Operacionais</div>
-          </div>
-          <div className="console-kpi">
-            <div className="console-kpi__value">{detail.region || "—"}</div>
-            <div className="console-kpi__label">Região</div>
-          </div>
-          {detail.isCapital && (
-            <div className="console-kpi">
-              <div className="console-kpi__value">Capital</div>
-              <div className="console-kpi__label">Tipo</div>
+          {/* Recent incidents summary */}
+          {incidents.filter(i => i.status !== "CLOSED").length > 0 && (
+            <div className="alert alert--warning" style={{ marginBottom: "var(--s-3)" }}>
+              <strong>{incidents.filter(i => i.status !== "CLOSED").length}</strong> incidente(s) aberto(s) neste município.
             </div>
           )}
         </div>
       )}
 
-      {!loading && (
-        <div className="console-section">
-          <div className="console-section__header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span>Unidades de Saúde ({units.length})</span>
+      {/* ── Tab: UBSs ─────────────────────────────────────────────────────── */}
+      {!loading && munTab === "units" && (
+        <div>
+          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "var(--s-3)" }}>
+            <Button onClick={() => onGoToNewUnit && onGoToNewUnit(m)}>+ Nova UBS</Button>
           </div>
-          <div className="console-section__body">
-            {units.length === 0 && (
-              <p style={{ color: "var(--text-dim)", margin: 0 }}>Nenhuma UBS cadastrada neste município.</p>
-            )}
-            {units.map((u) => (
-              <div key={u.id} style={{
-                display: "flex", justifyContent: "space-between", alignItems: "center",
-                padding: "var(--s-3) 0", borderBottom: "1px solid var(--border-subtle)",
-              }}>
-                <div>
-                  <strong>{u.name}</strong>
-                  <span style={{ marginLeft: 8, color: "var(--text-dim)", fontSize: "var(--t-sm)" }}>CNES {u.cnes}</span>
-                  <span className={STATUS_BADGE[u.status] || "badge"} style={{ marginLeft: 8 }}>{STATUS_LABELS[u.status] || u.status}</span>
-                </div>
-                <Button variant="secondary" size="sm" onClick={() => onGoToUnit(u)}>Abrir →</Button>
+          {units.length === 0 ? (
+            <div style={{ padding: "var(--s-6)", textAlign: "center", color: "var(--text-dim)" }}>
+              <p>Nenhuma UBS cadastrada neste município.</p>
+              <Button onClick={() => onGoToNewUnit && onGoToNewUnit(m)}>Cadastrar primeira UBS</Button>
+            </div>
+          ) : (
+            <div className="console-table-wrap">
+              <table className="console-table">
+                <thead>
+                  <tr><th>Nome</th><th>CNES</th><th>Status</th><th>Equipes</th><th></th></tr>
+                </thead>
+                <tbody>
+                  {units.map(u => (
+                    <tr key={u.id}>
+                      <td><strong>{u.name}</strong></td>
+                      <td style={{ color: "var(--text-dim)", fontSize: "var(--t-sm)" }}>{u.cnes || "—"}</td>
+                      <td><span className={STATUS_BADGE[u.status] || "badge"}>{STATUS_LABELS[u.status] || u.status}</span></td>
+                      <td>{u.teamIds?.length ?? 0}</td>
+                      <td style={{ textAlign: "right" }}>
+                        <Button size="sm" variant="secondary" onClick={() => onGoToUnit(u)}>Abrir →</Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Tab: Implantação ──────────────────────────────────────────────── */}
+      {!loading && munTab === "deployments" && (
+        <div>
+          {deploys.length === 0 ? (
+            <div style={{ padding: "var(--s-6)", textAlign: "center", color: "var(--text-dim)" }}>Nenhuma implantação registrada.</div>
+          ) : (
+            <div className="console-table-wrap">
+              <table className="console-table">
+                <thead><tr><th>Código</th><th>Tipo</th><th>Status</th><th>Responsável</th><th>Início</th></tr></thead>
+                <tbody>
+                  {deploys.map(d => (
+                    <tr key={d.id}>
+                      <td><code style={{ fontSize: "var(--t-xs)" }}>{d.code || d.id.slice(0, 8)}</code></td>
+                      <td><span className="badge">{d.type === "MUNICIPAL" ? "Municipal" : "UBS"}</span></td>
+                      <td><span className={DEPLOYMENT_STATUS_CLASS[d.status] || "badge"}>{DEPLOYMENT_STATUS_LABELS[d.status] || d.status}</span></td>
+                      <td style={{ color: "var(--text-dim)", fontSize: "var(--t-sm)" }}>{d.responsibleName || "—"}</td>
+                      <td style={{ color: "var(--text-dim)", fontSize: "var(--t-sm)" }}>{d.startDate ? new Date(d.startDate).toLocaleDateString("pt-BR") : "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Tab: Licença ──────────────────────────────────────────────────── */}
+      {!loading && munTab === "licenses" && (
+        <div>
+          {licenses.length === 0 ? (
+            <div style={{ padding: "var(--s-6)", textAlign: "center", color: "var(--text-dim)" }}>Nenhuma licença registrada.</div>
+          ) : licenses.map(l => (
+            <div key={l.id} className="card" style={{ padding: "var(--s-4)", marginBottom: "var(--s-3)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "var(--s-2)" }}>
+                <strong>{l.planId || l.planName || "—"}</strong>
+                <span className={l.licenseStatus === "ACTIVE" ? "badge badge--success" : "badge"}>{l.licenseStatus || "—"}</span>
               </div>
-            ))}
-          </div>
+              <div style={{ fontSize: "var(--t-sm)", color: "var(--text-dim)" }}>
+                Código: {l.licenseCode || "—"} · Validade: {l.expiresAt ? new Date(l.expiresAt).toLocaleDateString("pt-BR") : "—"}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ── Tab: Incidentes ───────────────────────────────────────────────── */}
+      {!loading && munTab === "incidents" && (
+        <div>
+          {incidents.length === 0 ? (
+            <div style={{ padding: "var(--s-6)", textAlign: "center", color: "var(--text-dim)" }}>Nenhum incidente registrado.</div>
+          ) : (
+            <div className="console-table-wrap">
+              <table className="console-table">
+                <thead><tr><th>Código</th><th>Título</th><th>Severidade</th><th>Status</th><th>Abertura</th></tr></thead>
+                <tbody>
+                  {incidents.map(i => (
+                    <tr key={i.id}>
+                      <td><code style={{ fontSize: "var(--t-xs)" }}>{i.code || i.id.slice(0, 8)}</code></td>
+                      <td>{i.title}</td>
+                      <td><span className={`badge${i.severity === "CRITICAL" ? " badge--danger" : i.severity === "HIGH" ? " badge--warning" : ""}`}>{i.severity || "—"}</span></td>
+                      <td><span className={`badge${i.status === "OPEN" ? " badge--danger" : i.status === "RESOLVED" ? " badge--success" : ""}`}>{i.status || "—"}</span></td>
+                      <td style={{ color: "var(--text-dim)", fontSize: "var(--t-sm)" }}>{i.createdAt ? new Date(i.createdAt).toLocaleDateString("pt-BR") : "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
     </>
@@ -1152,7 +1535,7 @@ function CepField({ value, onChange, onAutoFill }) {
 
 // ── Shared unit form fields ─────────────────────────────────────────────────
 
-function UnitFormFields({ token, form, setField, autoFilledFields, showStatus }) {
+function UnitFormFields({ token, form, setField, autoFilledFields, showStatus, hideMunicipality }) {
   function set(key) { return (e) => setField(key, e.target.value); }
 
   function handleAutoFill(addr) {
@@ -1194,13 +1577,15 @@ function UnitFormFields({ token, form, setField, autoFilledFields, showStatus })
           <div style={hl("neighborhood")}>
             <Input label="Bairro *" value={form.neighborhood} onChange={set("neighborhood")} placeholder="Centro" />
           </div>
-          <div style={{ gridColumn: "1 / -1", ...hl("municipalityName") }}>
-            <MunicipalityPicker
-              token={token}
-              value={form.municipalityId ? { ibgeCode: form.municipalityId, name: form.municipalityName, uf: form.uf } : null}
-              onSelect={handleMunicipalitySelect}
-            />
-          </div>
+          {!hideMunicipality && (
+            <div style={{ gridColumn: "1 / -1", ...hl("municipalityName") }}>
+              <MunicipalityPicker
+                token={token}
+                value={form.municipalityId ? { ibgeCode: form.municipalityId, name: form.municipalityName, uf: form.uf } : null}
+                onSelect={handleMunicipalitySelect}
+              />
+            </div>
+          )}
           <Input label="Complemento" value={form.complement || ""} onChange={set("complement")} placeholder="Ap. 10, Bloco B" />
           <Input label="Referência" value={form.reference || ""} onChange={set("reference")} placeholder="Próximo à Praça Central" />
         </div>
@@ -1258,8 +1643,10 @@ const EMPTY_UNIT_FORM = {
   complement: "", reference: "", lat: "", lng: "",
 };
 
-function UnitForm({ token, onDone, onBack }) {
-  const [form, setForm] = useState({ ...EMPTY_UNIT_FORM });
+function UnitForm({ token, onDone, onBack, prefillMunicipality }) {
+  const [form, setForm] = useState(() => prefillMunicipality
+    ? { ...EMPTY_UNIT_FORM, municipalityId: prefillMunicipality.ibgeCode, municipalityName: prefillMunicipality.name, uf: prefillMunicipality.uf }
+    : { ...EMPTY_UNIT_FORM });
   const [busy, setBusy]   = useState(false);
   const [error, setError] = useState("");
 
@@ -1294,8 +1681,13 @@ function UnitForm({ token, onDone, onBack }) {
         <span className="console-breadcrumb__sep">/</span>
         <span className="console-breadcrumb__current">Nova UBS</span>
       </div>
+      {prefillMunicipality && (
+        <div style={{ marginBottom: "var(--s-3)", padding: "var(--s-2) var(--s-3)", background: "var(--surface-raised)", borderRadius: 4, fontSize: "var(--t-sm)", color: "var(--text-dim)" }}>
+          Município: <strong>{prefillMunicipality.name} — {prefillMunicipality.uf}</strong>
+        </div>
+      )}
       {error && <Alert type="error" style={{ marginBottom: "var(--s-4)" }}>{error}</Alert>}
-      <UnitFormFields token={token} form={form} setField={setField} showStatus />
+      <UnitFormFields token={token} form={form} setField={setField} showStatus hideMunicipality={!!prefillMunicipality} />
       <div style={{ display: "flex", gap: "var(--s-3)" }}>
         <Button type="submit" loading={busy}>Criar UBS</Button>
         <Button type="button" variant="ghost" onClick={onBack}>Cancelar</Button>
@@ -4452,6 +4844,7 @@ export default function PlatformConsolePage({ token, user, onLogout }) {
   const [view, setView]                             = useState("list");
   const [selectedUnitId, setSelectedUnitId]         = useState(null);
   const [selectedMunicipality, setSelectedMunicipality] = useState(null);
+  const [newUnitMunicipality, setNewUnitMunicipality]   = useState(null);
   const [selectedDeployment, setSelectedDeployment] = useState(null);
   const [listKey, setListKey]                       = useState(0);
 
@@ -4499,6 +4892,11 @@ export default function PlatformConsolePage({ token, user, onLogout }) {
     setView("list");
   }
 
+  function goToNewUnitFromMunicipality(mun) {
+    setNewUnitMunicipality(mun);
+    setView("new-unit-from-mun");
+  }
+
   function goToUnitFromMunicipality(unit) {
     setSelectedUnitId(unit.id);
     setTab("units");
@@ -4540,14 +4938,6 @@ export default function PlatformConsolePage({ token, user, onLogout }) {
           >
             <IcoMunicipality /> Municípios
           </button>
-          <button
-            type="button"
-            className={`console-nav__item${tab === "units" ? " is-active" : ""}`}
-            onClick={() => switchTab("units")}
-          >
-            <IcoBuilding /> Unidades de Saúde
-          </button>
-
           <button
             type="button"
             className={`console-nav__item${tab === "deployments" ? " is-active" : ""}`}
@@ -4641,11 +5031,8 @@ export default function PlatformConsolePage({ token, user, onLogout }) {
               <div className="console-section">
                 <div className="console-section__header">Ações rápidas</div>
                 <div className="console-section__body" style={{ display: "flex", gap: "var(--s-3)", flexWrap: "wrap" }}>
-                  <Button variant="secondary" onClick={() => switchTab("units")}>
-                    <IcoBuilding /> Ver Unidades de Saúde
-                  </Button>
-                  <Button variant="secondary" onClick={() => { switchTab("units"); setView("new-unit"); }}>
-                    + Nova UBS
+                  <Button variant="secondary" onClick={() => switchTab("municipalities")}>
+                    <IcoMunicipality /> Ver Municípios
                   </Button>
                   <Button variant="secondary" onClick={() => switchTab("migrations")}>
                     <IcoImport /> Ir para Migrações
@@ -4667,6 +5054,19 @@ export default function PlatformConsolePage({ token, user, onLogout }) {
                   municipality={selectedMunicipality}
                   onBack={backToMunicipalityList}
                   onGoToUnit={goToUnitFromMunicipality}
+                  onGoToNewUnit={goToNewUnitFromMunicipality}
+                />
+              )}
+              {view === "new-unit-from-mun" && newUnitMunicipality && (
+                <UnitForm
+                  token={token}
+                  prefillMunicipality={newUnitMunicipality}
+                  onDone={() => {
+                    setNewUnitMunicipality(null);
+                    setView("municipality-detail");
+                    setListKey(k => k + 1);
+                  }}
+                  onBack={() => setView("municipality-detail")}
                 />
               )}
             </>

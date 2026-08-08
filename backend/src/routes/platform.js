@@ -242,15 +242,57 @@ async function findMunicipalityByIbge(ibgeCode) {
   return rows[0] ? rowToMunicipality(rows[0]) : null;
 }
 
+// ── Registered Municipalities (VITRAS clients) ────────────────────────────────
+// Separate from the IBGE catalog. Only municipalities explicitly registered in VITRAS.
+
+const VITRAS_MUN_STATUS = ["IMPLANTACAO", "OPERACIONAL", "SUSPENSO", "ARQUIVADO"];
+
+function ensureRegisteredMunicipalities(db) {
+  ensureDbShape(db);
+  if (!Array.isArray(db.registeredMunicipalities)) db.registeredMunicipalities = [];
+}
+
 // ── GET /platform/municipalities ─────────────────────────────────────────────
-// List municipalities from the IBGE reference dataset with search/filter.
-// Support admin searches here to select a municipality when creating a UBS.
+// ?registered=true  → list only VITRAS-registered municipalities (app_state)
+// ?registered=false (default) → IBGE catalog search (Postgres)
 
 router.get("/platform/municipalities", async (req, res) => {
   if (!hasCapability(req.user, "platform.unit.read")) {
     return res.status(403).json({ error: "Sem permissão" });
   }
 
+  // ── VITRAS registered municipalities ──
+  if (req.query.registered === "true") {
+    const db     = await readDb();
+    ensureRegisteredMunicipalities(db);
+    const search = String(req.query.search || "").trim().toLowerCase();
+    const uf     = String(req.query.uf     || "").trim().toUpperCase();
+    const status = String(req.query.status || "").trim().toUpperCase();
+    const page   = Math.max(1, parseInt(req.query.page  || "1",  10) || 1);
+    const limit  = Math.min(100, Math.max(1, parseInt(req.query.limit || "25", 10) || 25));
+
+    let list = db.registeredMunicipalities.slice().sort((a, b) => a.name.localeCompare(b.name));
+    if (search) list = list.filter(m =>
+      m.name.toLowerCase().includes(search) ||
+      (m.ibgeCode || "").includes(search)   ||
+      (m.internalCode || "").toLowerCase().includes(search)
+    );
+    if (uf)     list = list.filter(m => m.uf === uf);
+    if (status) list = list.filter(m => m.status === status);
+
+    const total = list.length;
+    const pages = Math.ceil(total / limit) || 1;
+    // Enrich each with live UBS count from db.units
+    const units = db.units || [];
+    const enriched = list.slice((page - 1) * limit, page * limit).map(m => ({
+      ...m,
+      unitsCount:       units.filter(u => u.municipalityId === m.ibgeCode).length,
+      activeUnitsCount: units.filter(u => u.municipalityId === m.ibgeCode && u.status === "active").length,
+    }));
+    return res.json({ municipalities: enriched, total, pages });
+  }
+
+  // ── IBGE catalog (existing behaviour) ──
   const search = String(req.query.search || "").trim();
   const uf     = String(req.query.uf || "").trim();
   const page   = Math.max(1, parseInt(req.query.page  || "1",  10) || 1);
@@ -262,6 +304,67 @@ router.get("/platform/municipalities", async (req, res) => {
   } catch (err) {
     return res.status(500).json({ error: "Erro ao buscar municípios" });
   }
+});
+
+// ── POST /platform/municipalities ─────────────────────────────────────────────
+// Register a new VITRAS municipality (selected from IBGE catalog).
+
+router.post("/platform/municipalities", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.create")) return res.status(403).json({ error: "Sem permissão" });
+  const { ibgeCode, name, uf, region, isCapital, status = "IMPLANTACAO", licenseType, notes } = req.body || {};
+  if (!ibgeCode || !name || !uf) return res.status(400).json({ error: "ibgeCode, name e uf são obrigatórios" });
+  if (status && !VITRAS_MUN_STATUS.includes(status)) return res.status(400).json({ error: `status inválido: ${status}` });
+
+  const result = await withDb((db) => {
+    ensureRegisteredMunicipalities(db);
+    if (db.registeredMunicipalities.some(m => m.ibgeCode === String(ibgeCode).trim())) {
+      return { error: { status: 409, message: "Município já registrado" } };
+    }
+    const now = new Date().toISOString();
+    const mun = {
+      id: uuidv4(),
+      ibgeCode: String(ibgeCode).trim(),
+      name: String(name).trim(),
+      uf: String(uf).trim().toUpperCase(),
+      region: region || null,
+      isCapital: !!isCapital,
+      status: status || "IMPLANTACAO",
+      licenseType: licenseType || null,
+      notes: notes || "",
+      internalCode: null,
+      createdBy: { id: req.user.id, name: req.user.name },
+      createdAt: now,
+      updatedAt: now,
+    };
+    db.registeredMunicipalities.push(mun);
+    addAuditLog(db, req.user, "municipality.registered", "registered_municipality", mun.id, { ibgeCode: mun.ibgeCode, name: mun.name, status: mun.status });
+    return { municipality: mun };
+  });
+  if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
+  return res.status(201).json(result.municipality);
+});
+
+// ── PATCH /platform/municipalities/:municipalityId/status ─────────────────────
+// Update status of a registered municipality.
+
+router.patch("/platform/municipalities/:municipalityId/status", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.update")) return res.status(403).json({ error: "Sem permissão" });
+  const { status, notes } = req.body || {};
+  if (!VITRAS_MUN_STATUS.includes(status)) return res.status(400).json({ error: `status inválido: ${status}` });
+
+  const result = await withDb((db) => {
+    ensureRegisteredMunicipalities(db);
+    const idx = db.registeredMunicipalities.findIndex(m => m.id === req.params.municipalityId);
+    if (idx < 0) return { error: { status: 404, message: "Município registrado não encontrado" } };
+    const prev = db.registeredMunicipalities[idx].status;
+    db.registeredMunicipalities[idx].status = status;
+    db.registeredMunicipalities[idx].updatedAt = new Date().toISOString();
+    if (notes !== undefined) db.registeredMunicipalities[idx].notes = notes;
+    addAuditLog(db, req.user, "municipality.status_changed", "registered_municipality", req.params.municipalityId, { from: prev, to: status });
+    return { municipality: db.registeredMunicipalities[idx] };
+  });
+  if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
+  return res.json(result.municipality);
 });
 
 // ── GET /platform/municipalities/:municipalityId ──────────────────────────────
