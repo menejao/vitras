@@ -492,6 +492,7 @@ function NocDashboard({ token, onGoTo }) {
   const [deployments,setDeployments]= useState([]);
   const [backupDash, setBackupDash] = useState(null);
   const [health,     setHealth]     = useState(null);
+  const [govDash,    setGovDash]    = useState(null);
   // loading por seção — não bloqueia a página inteira
   const [kpiLoading,     setKpiLoading]     = useState(true);
   const [incLoading,     setIncLoading]     = useState(true);
@@ -519,13 +520,15 @@ function NocDashboard({ token, onGoTo }) {
       .catch(() => {})
       .finally(() => setDepLoading(false));
 
-    // Bloco 4: health + backup (diagnósticos)
+    // Bloco 4: health + backup + governance
     Promise.all([
       apiFetch("/readyz", token).catch(() => null),
       cachedFetch("/platform/backup-dashboard", token).catch(() => null),
-    ]).then(([hlth, bkp]) => {
+      cachedFetch("/platform/governance-dashboard", token).catch(() => null),
+    ]).then(([hlth, bkp, gov]) => {
       setHealth(hlth);
       setBackupDash(bkp);
+      setGovDash(gov);
     }).finally(() => setHealthLoading(false));
   }, [token]);
 
@@ -724,6 +727,47 @@ function NocDashboard({ token, onGoTo }) {
           </div>
         </div>
       </div>
+
+      {/* Próximas ações */}
+      {(() => {
+        const actions = [];
+        if (deployments.length > 0)
+          actions.push({ priority: 1, icon: "🚀", label: `Finalizar implantação`, detail: `${deployments.length} em andamento`, onClick: () => onGoTo("deployments") });
+        if (govDash?.compliance?.counts?.FAIL > 0)
+          actions.push({ priority: 1, icon: "⚠️", label: "Resolver falhas de compliance", detail: `${govDash.compliance.counts.FAIL} FAIL(s) no Compliance Engine`, onClick: () => onGoTo("governance") });
+        if (!backupDash || (backupDash?.restoreTests?.success === 0 && (backupDash?.policies?.total ?? 0) > 0))
+          actions.push({ priority: 2, icon: "🔄", label: "Executar teste de restore", detail: "GOV-C08 em WARNING — nenhum restore nos últimos 30 dias", onClick: () => onGoTo("backup") });
+        if ((govDash?.baselines?.review ?? 0) > 0)
+          actions.push({ priority: 2, icon: "✅", label: "Aprovar baseline pendente", detail: `${govDash.baselines.review} baseline(s) em revisão`, onClick: () => onGoTo("governance") });
+        if ((backupDash?.policies?.total ?? 0) === 0)
+          actions.push({ priority: 2, icon: "🗄️", label: "Configurar política de backup", detail: "Nenhuma política de backup ativa", onClick: () => onGoTo("backup") });
+        if (incidents.filter(i => i.severity === "CRITICAL" && i.status !== "RESOLVED").length > 0)
+          actions.push({ priority: 1, icon: "🔴", label: "Responder incidente crítico", detail: `${incidents.filter(i => i.severity === "CRITICAL" && i.status !== "RESOLVED").length} incidente(s) crítico(s) aberto(s)`, onClick: () => onGoTo("incidents") });
+        if (actions.length === 0) return null;
+        actions.sort((a, b) => a.priority - b.priority);
+        return (
+          <div className="console-section" style={{ marginBottom: "var(--s-4)" }}>
+            <div className="console-section__header">Próximas ações</div>
+            <div className="console-section__body" style={{ padding: 0 }}>
+              {actions.map((act, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={act.onClick}
+                  style={{ display: "flex", gap: "var(--s-3)", alignItems: "center", padding: "var(--s-3) var(--s-4)", borderBottom: i < actions.length - 1 ? "1px solid var(--border-subtle)" : "none", background: "none", border: "none", cursor: "pointer", width: "100%", textAlign: "left" }}
+                >
+                  <span style={{ fontSize: "1.2rem", width: 28, textAlign: "center", flexShrink: 0 }}>{act.icon}</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 600, fontSize: "var(--t-base)", color: "var(--text)" }}>{act.label}</div>
+                    <div style={{ fontSize: "var(--t-sm)", color: "var(--text-muted)" }}>{act.detail}</div>
+                  </div>
+                  <span style={{ color: "var(--text-muted)", fontSize: "var(--t-sm)" }}>→</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* UBS Status distribution */}
       {summary && (
@@ -1618,9 +1662,7 @@ function DeploymentListView({ token, onSelect }) {
         <p style={{ color: "var(--text-muted)", fontSize: "var(--t-sm)" }}>Carregando...</p>
       ) : deployments.length === 0 ? (
         <div className="console-section">
-          <div className="console-section__body" style={{ color: "var(--text-muted)", fontSize: "var(--t-sm)", padding: "var(--s-6) 0" }}>
-            Nenhuma implantação encontrada. Crie a primeira implantação a partir de um município.
-          </div>
+          <p className="console-section-empty">Nenhuma implantação encontrada. Crie a primeira implantação a partir de um município.</p>
         </div>
       ) : (
         <div className="console-section">
@@ -3380,17 +3422,18 @@ function LicenseListView({ token, onSelect, onNew }) {
       </ModuleBanner>
 
       {dashboard && (
-        <div style={{ display: "flex", gap: "var(--s-3)", flexWrap: "wrap", marginBottom: "var(--s-4)" }}>
+        <div className="console-kpi-strip" style={{ marginBottom: "var(--s-4)" }}>
           {[
-            { label: "Ativas",       value: dashboard.licenses.active,     cls: "badge--success" },
-            { label: "Rascunho",     value: dashboard.licenses.draft,      cls: "" },
-            { label: "Suspensas",    value: dashboard.licenses.suspended,  cls: "badge--warning" },
-            { label: "Expiradas",    value: dashboard.licenses.expired,    cls: "badge--danger" },
-            { label: "Vcto ≤30d",    value: dashboard.licenses.expiringIn30Days, cls: "badge--warning" },
-          ].map(({ label, value, cls }) => (
-            <div key={label} style={{ background: "var(--surface-2)", borderRadius: "var(--radius-md)", padding: "var(--s-2) var(--s-3)", minWidth: 90, textAlign: "center" }}>
-              <div style={{ fontSize: "1.4rem", fontWeight: 700 }}>{value ?? 0}</div>
-              <div style={{ fontSize: "0.7rem", color: "var(--text-muted)" }}>{label}</div>
+            { label: "Ativas",    value: dashboard.licenses?.active ?? 0,             accent: "var(--success)" },
+            { label: "Rascunho",  value: dashboard.licenses?.draft ?? 0,              accent: "var(--text-dim)" },
+            { label: "Suspensas", value: dashboard.licenses?.suspended ?? 0,          accent: "var(--warning)" },
+            { label: "Expiradas", value: dashboard.licenses?.expired ?? 0,            accent: "var(--danger)" },
+            { label: "Vcto ≤30d", value: dashboard.licenses?.expiringIn30Days ?? 0,   accent: "var(--warning)" },
+          ].map(({ label, value, accent }) => (
+            <div key={label} className="console-kpi" style={{ "--kpi-color": accent }}>
+              <div className="console-kpi__accent" />
+              <div className="console-kpi__value" style={{ color: accent }}>{value}</div>
+              <div className="console-kpi__label">{label}</div>
             </div>
           ))}
         </div>
@@ -3591,11 +3634,74 @@ function LicenseDetail({ token, license: initialLicense, onBack }) {
   );
 }
 
+// ── MunicipalityAutocomplete ─────────────────────────────────────────────────
+function MunicipalityAutocomplete({ token, value, onSelect, required }) {
+  const [query, setQuery]   = useState(value?.name || "");
+  const [results, setRes]   = useState([]);
+  const [open, setOpen]     = useState(false);
+  const [loading, setLoad]  = useState(false);
+  const timer = useRef(null);
+
+  const search = (q) => {
+    setQuery(q);
+    if (!q.trim()) { setRes([]); setOpen(false); return; }
+    clearTimeout(timer.current);
+    timer.current = setTimeout(async () => {
+      setLoad(true);
+      try {
+        const d = await apiFetch(`/platform/municipalities?search=${encodeURIComponent(q)}&limit=12`, token);
+        setRes(d?.municipalities || []);
+        setOpen(true);
+      } catch { setRes([]); }
+      setLoad(false);
+    }, 250);
+  };
+
+  const pick = (mun) => {
+    setQuery(`${mun.name} — ${mun.uf}`);
+    setOpen(false);
+    setRes([]);
+    onSelect(mun);
+  };
+
+  return (
+    <div className="mun-autocomplete">
+      <label className="form-label">Município *</label>
+      <Input
+        value={query}
+        onChange={e => { search(e.target.value); if (onSelect) onSelect(null); }}
+        placeholder="Digite o nome do município…"
+        required={required && !value}
+        autoComplete="off"
+      />
+      {loading && <div style={{ fontSize: "var(--t-xs)", color: "var(--text-muted)", padding: "2px 0" }}>Buscando…</div>}
+      {open && results.length > 0 && (
+        <div className="mun-autocomplete__dropdown">
+          {results.map(m => (
+            <div key={m.id} className="mun-autocomplete__item" onClick={() => pick(m)}>
+              <span>{m.name}</span>
+              <span className="mun-autocomplete__uf">{m.uf}</span>
+              <span style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginLeft: "auto" }}>IBGE {m.ibgeCode}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {open && results.length === 0 && !loading && (
+        <div className="mun-autocomplete__dropdown">
+          <div className="mun-autocomplete__item" style={{ color: "var(--text-muted)", cursor: "default" }}>Nenhum município encontrado</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function LicenseForm({ token, onDone, onBack }) {
   const [form, setForm] = useState({ municipalityId: "", plan: "STARTER", contractNumber: "", contractStart: "", contractEnd: "", renewalDate: "", notes: "" });
-  const [saving, setSaving] = useState(false);
-  const [error, setError]   = useState("");
+  const [munInfo, setMunInfo]   = useState(null);
+  const [saving, setSaving]     = useState(false);
+  const [error, setError]       = useState("");
   const [templates, setTemplates] = useState({});
+  const [planInfo, setPlanInfo] = useState(null);
 
   useEffect(() => {
     apiFetch("/platform/plan-templates", token).then(d => setTemplates(d?.templates || {})).catch(() => {});
@@ -3603,8 +3709,23 @@ function LicenseForm({ token, onDone, onBack }) {
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
+  const handleMunSelect = (mun) => {
+    if (!mun) { setMunInfo(null); set("municipalityId", ""); return; }
+    setMunInfo(mun);
+    set("municipalityId", mun.ibgeCode || mun.id);
+  };
+
+  const handlePlanChange = (plan) => {
+    set("plan", plan);
+    const tpl = templates[plan];
+    if (tpl) setPlanInfo(tpl);
+    else setPlanInfo(null);
+  };
+
   const handleSubmit = async (e) => {
-    e.preventDefault(); setSaving(true); setError("");
+    e.preventDefault();
+    if (!form.municipalityId) { setError("Selecione um município."); return; }
+    setSaving(true); setError("");
     try {
       const d = await apiFetch("/platform/licenses", token, {
         method: "POST", headers: { "content-type": "application/json" },
@@ -3626,12 +3747,32 @@ function LicenseForm({ token, onDone, onBack }) {
         </div>
       </div>
       {error && <Alert variant="danger">{error}</Alert>}
-      <form onSubmit={handleSubmit} style={{ maxWidth: 520, display: "flex", flexDirection: "column", gap: "var(--s-3)" }}>
-        <Input label="IBGE do Município *" value={form.municipalityId} onChange={e => set("municipalityId", e.target.value)} required />
+      <form onSubmit={handleSubmit} style={{ maxWidth: 560, display: "flex", flexDirection: "column", gap: "var(--s-3)" }}>
+        {/* Municipality autocomplete */}
+        <MunicipalityAutocomplete token={token} value={munInfo} onSelect={handleMunSelect} required />
+
+        {/* Auto-filled municipality info */}
+        {munInfo && (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(130px,1fr))", gap: "var(--s-2)", background: "var(--surface-2)", borderRadius: "var(--radius-sm)", padding: "var(--s-3)" }}>
+            {[
+              ["IBGE", munInfo.ibgeCode || "—"],
+              ["UF", munInfo.uf || "—"],
+              ["Região", munInfo.region || "—"],
+              ["Status", munInfo.status || "—"],
+            ].map(([k, v]) => (
+              <div key={k}>
+                <div style={{ fontSize: "0.68rem", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: ".04em" }}>{k}</div>
+                <div style={{ fontWeight: 600, fontSize: "var(--t-sm)" }}>{v}</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Plan selector */}
         <div>
-          <label style={{ fontSize: "0.8rem", color: "var(--text-muted)", display: "block", marginBottom: 4 }}>Plano *</label>
-          <select value={form.plan} onChange={e => set("plan", e.target.value)} required
-            style={{ width: "100%", padding: "8px 10px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)" }}>
+          <label className="form-label">Plano *</label>
+          <select value={form.plan} onChange={e => handlePlanChange(e.target.value)} required
+            style={{ width: "100%", padding: "8px 10px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)", fontSize: "var(--t-base)" }}>
             {Object.keys(templates).length === 0
               ? <option value="STARTER">STARTER</option>
               : Object.entries(templates).map(([k, t]) => (
@@ -3639,14 +3780,33 @@ function LicenseForm({ token, onDone, onBack }) {
                 ))}
           </select>
         </div>
+
+        {/* Plan auto-fill info */}
+        {planInfo && (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(130px,1fr))", gap: "var(--s-2)", background: "var(--surface-2)", borderRadius: "var(--radius-sm)", padding: "var(--s-3)" }}>
+            {[
+              ["UBS (máx.)", planInfo.limits?.maxUnits ?? "Ilimitado"],
+              ["Usuários (máx.)", planInfo.limits?.maxUsers ?? "Ilimitado"],
+              ["Módulos", (planInfo.features || []).join(", ") || "Padrão"],
+            ].map(([k, v]) => (
+              <div key={k}>
+                <div style={{ fontSize: "0.68rem", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: ".04em" }}>{k}</div>
+                <div style={{ fontWeight: 600, fontSize: "var(--t-sm)" }}>{v}</div>
+              </div>
+            ))}
+          </div>
+        )}
+
         <Input label="Número do contrato" value={form.contractNumber} onChange={e => set("contractNumber", e.target.value)} />
-        <Input label="Início do contrato" type="date" value={form.contractStart} onChange={e => set("contractStart", e.target.value)} />
-        <Input label="Vencimento" type="date" value={form.contractEnd} onChange={e => set("contractEnd", e.target.value)} />
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--s-3)" }}>
+          <Input label="Início do contrato" type="date" value={form.contractStart} onChange={e => set("contractStart", e.target.value)} />
+          <Input label="Vencimento" type="date" value={form.contractEnd} onChange={e => set("contractEnd", e.target.value)} />
+        </div>
         <Input label="Data de renovação" type="date" value={form.renewalDate} onChange={e => set("renewalDate", e.target.value)} />
         <div>
-          <label style={{ fontSize: "0.8rem", color: "var(--text-muted)", display: "block", marginBottom: 4 }}>Notas</label>
+          <label className="form-label">Notas</label>
           <textarea value={form.notes} onChange={e => set("notes", e.target.value)} rows={3}
-            style={{ width: "100%", padding: "8px 10px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)", resize: "vertical" }} />
+            style={{ width: "100%", padding: "8px 10px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)", resize: "vertical", fontFamily: "var(--font-sans)", fontSize: "var(--t-base)" }} />
         </div>
         <div style={{ display: "flex", gap: "var(--s-2)" }}>
           <Button type="submit" disabled={saving}>{saving ? "Salvando…" : "Criar Licença"}</Button>
@@ -4103,7 +4263,7 @@ function CmdbConsole({ token }) {
               </div>
               <div style={{ overflowX: "auto" }}>
                 {impact.affected.length === 0 ? (
-                  <EmptyState icon={<IcoCheckCircle size={36} />} title="Sem dependentes" text="Nenhum CI depende deste item." />
+                  <p className="console-section-empty">Nenhum CI dependente encontrado.</p>
                 ) : (
                   <table className="data-table">
                     <thead><tr><th>Código</th><th>Nome</th><th>Tipo</th><th>Criticidade</th><th>Profundidade</th><th>Via</th></tr></thead>
@@ -4147,7 +4307,7 @@ function CmdbConsole({ token }) {
               <div className="console-section__header"><span>Resultados ({searchResults.length})</span></div>
               <div style={{ overflowX: "auto" }}>
                 {searchResults.length === 0 ? (
-                  <EmptyState icon={<IcoInbox size={36} />} title="Sem resultados" text={`Nenhum CI encontrado para "${search}".`} />
+                  <p className="console-section-empty">Nenhum CI encontrado para "{search}".</p>
                 ) : (
                   <table className="data-table">
                     <thead><tr><th>Código</th><th>Nome</th><th>Tipo</th><th>Status</th><th>Criticidade</th></tr></thead>
@@ -4299,7 +4459,7 @@ function GovernanceConsole({ token }) {
         <div className="console-section__header"><span>Baselines ({baselines.length})</span></div>
         <div style={{ overflowX: "auto" }}>
           {baselines.length === 0 ? (
-            <EmptyState icon={<IcoScale size={36} />} title="Nenhuma baseline aprovada" text="Baselines documentam o estado esperado da plataforma em cada release." />
+            <p className="console-section-empty">Nenhuma baseline registrada.</p>
           ) : (
             <table className="data-table">
               <thead><tr><th>Código</th><th>Nome</th><th>Versão</th><th>Escopo</th><th>Status</th><th>Aprovado em</th></tr></thead>
@@ -4335,9 +4495,9 @@ function GovernanceConsole({ token }) {
         </div>
         <div style={{ overflowX: "auto" }}>
           {adrs.length === 0 ? (
-            <EmptyState icon={<IcoClipboard size={36} />} title="Nenhum ADR registrado" text="Architecture Decision Records documentam decisões técnicas relevantes." />
+            <p className="console-section-empty">Nenhum ADR registrado.</p>
           ) : filteredAdrs.length === 0 ? (
-            <EmptyState icon={<IcoInbox size={36} />} title="Nenhum ADR encontrado" text={`Nenhum resultado para "${compSearch}".`} />
+            <p className="console-section-empty">Nenhum ADR encontrado para "{compSearch}".</p>
           ) : (
             <table className="data-table">
               <thead><tr><th>Código</th><th>Título</th><th>Status</th><th>Autor</th><th>Criado</th></tr></thead>
@@ -4362,7 +4522,7 @@ function GovernanceConsole({ token }) {
         <div className="console-section__header"><span>Políticas ({policies.length})</span></div>
         <div style={{ overflowX: "auto" }}>
           {policies.length === 0 ? (
-            <EmptyState icon={<IcoScale size={36} />} title="Nenhuma política cadastrada" text="Crie políticas de governança para monitorar compliance contínuo." />
+            <p className="console-section-empty">Nenhuma política cadastrada.</p>
           ) : (
             <table className="data-table">
               <thead><tr><th>Código</th><th>Nome</th><th>Categoria</th><th>Versão</th><th>Status</th><th>Vigente até</th></tr></thead>
@@ -4388,7 +4548,7 @@ function GovernanceConsole({ token }) {
         <div className="console-section__header"><span>Exceções ({exceptions.length})</span></div>
         <div style={{ overflowX: "auto" }}>
           {exceptions.length === 0 ? (
-            <EmptyState icon={<IcoScale size={36} />} title="Nenhuma exceção registrada" text="Exceções documentam casos onde uma política não pode ser completamente cumprida." />
+            <p className="console-section-empty">Nenhuma exceção registrada.</p>
           ) : (
             <table className="data-table">
               <thead><tr><th>Código</th><th>Motivo</th><th>Risco</th><th>Status</th><th>Expira</th><th>Aprovado por</th></tr></thead>
@@ -4478,41 +4638,23 @@ function BackupConsole({ token }) {
 
       {loading && <Skeleton count={4} />}
 
-      {/* Risk & RPO banner */}
+      {/* KPIs — console-kpi-strip padronizado */}
       {dash && (
-        <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", marginBottom: "1.5rem" }}>
-          <div className="card" style={{ padding: "1rem", flex: "1 1 140px", textAlign: "center" }}>
-            <p style={{ fontSize: "0.75rem", opacity: 0.6, marginBottom: "0.25rem" }}>Nível de risco</p>
-            <span className={RISK_BADGE[dash.riskLevel] || "badge"}>{dash.riskLevel}</span>
-          </div>
-          <div className="card" style={{ padding: "1rem", flex: "1 1 140px", textAlign: "center" }}>
-            <p style={{ fontSize: "0.75rem", opacity: 0.6, marginBottom: "0.25rem" }}>RPO Status</p>
-            <span className={RPO_BADGE[dash.rpoStatus] || "badge"}>{dash.rpoStatus}</span>
-          </div>
-          <div className="card" style={{ padding: "1rem", flex: "1 1 140px", textAlign: "center" }}>
-            <p style={{ fontSize: "0.75rem", opacity: 0.6, marginBottom: "0.25rem" }}>RPO alvo</p>
-            <strong>{dash.rpoTargetMinutes != null ? `${dash.rpoTargetMinutes} min` : "—"}</strong>
-          </div>
-          <div className="card" style={{ padding: "1rem", flex: "1 1 140px", textAlign: "center" }}>
-            <p style={{ fontSize: "0.75rem", opacity: 0.6, marginBottom: "0.25rem" }}>RPO atual</p>
-            <strong>{dash.rpoActualMinutes != null ? `${dash.rpoActualMinutes} min` : "—"}</strong>
-          </div>
-          <div className="card" style={{ padding: "1rem", flex: "1 1 140px", textAlign: "center" }}>
-            <p style={{ fontSize: "0.75rem", opacity: 0.6, marginBottom: "0.25rem" }}>RTO alvo</p>
-            <strong>{dash.rtoTargetMinutes != null ? `${dash.rtoTargetMinutes} min` : "—"}</strong>
-          </div>
-          <div className="card" style={{ padding: "1rem", flex: "1 1 140px", textAlign: "center" }}>
-            <p style={{ fontSize: "0.75rem", opacity: 0.6, marginBottom: "0.25rem" }}>Políticas ativas</p>
-            <strong>{dash.policies?.enabled ?? "—"}/{dash.policies?.total ?? "—"}</strong>
-          </div>
-          <div className="card" style={{ padding: "1rem", flex: "1 1 140px", textAlign: "center" }}>
-            <p style={{ fontSize: "0.75rem", opacity: 0.6, marginBottom: "0.25rem" }}>Backups OK</p>
-            <strong>{dash.executions?.success ?? "—"}</strong>
-          </div>
-          <div className="card" style={{ padding: "1rem", flex: "1 1 140px", textAlign: "center" }}>
-            <p style={{ fontSize: "0.75rem", opacity: 0.6, marginBottom: "0.25rem" }}>Restores OK</p>
-            <strong>{dash.restoreTests?.success ?? "—"}</strong>
-          </div>
+        <div className="console-kpi-strip" style={{ marginBottom: "var(--s-4)" }}>
+          {[
+            { label: "Políticas ativas", value: `${dash.policies?.enabled ?? "—"}/${dash.policies?.total ?? "—"}`, accent: "var(--accent)" },
+            { label: "RPO alvo",         value: dash.rpoTargetMinutes != null ? `${dash.rpoTargetMinutes} min` : "—", accent: "var(--text-muted)" },
+            { label: "RPO atual",        value: dash.rpoActualMinutes != null ? `${dash.rpoActualMinutes} min` : "—", accent: dash.rpoStatus === "OK" ? "var(--success)" : "var(--warning)" },
+            { label: "RTO alvo",         value: dash.rtoTargetMinutes != null ? `${dash.rtoTargetMinutes} min` : "—", accent: "var(--text-muted)" },
+            { label: "Backups OK",       value: dash.executions?.success ?? "—",    accent: "var(--success)" },
+            { label: "Restores OK",      value: dash.restoreTests?.success ?? "—",  accent: "var(--success)" },
+          ].map(({ label, value, accent }) => (
+            <div key={label} className="console-kpi" style={{ "--kpi-color": accent }}>
+              <div className="console-kpi__accent" />
+              <div className="console-kpi__value" style={{ color: accent }}>{value}</div>
+              <div className="console-kpi__label">{label}</div>
+            </div>
+          ))}
         </div>
       )}
 
@@ -4605,7 +4747,7 @@ function BackupConsole({ token }) {
         <div className="console-section__header"><span>Políticas de Backup ({policies.length})</span></div>
         <div style={{ overflowX: "auto" }}>
           {policies.length === 0 ? (
-            <EmptyState icon={<IcoBackup size={36} />} title="Nenhuma política de backup" text="Configure políticas para proteger os dados da plataforma e habilitar o monitoramento de continuidade." />
+            <p className="console-section-empty">Nenhuma política de backup configurada.</p>
           ) : (
             <table className="data-table">
               <thead><tr><th>Código</th><th>Nome</th><th>Escopo</th><th>Tipo</th><th>Frequência</th><th>Retenção</th><th>RPO alvo</th><th>Status</th></tr></thead>
@@ -4633,7 +4775,7 @@ function BackupConsole({ token }) {
         <div className="console-section__header"><span>Execuções de Backup ({executions.length})</span></div>
         <div style={{ overflowX: "auto" }}>
           {executions.length === 0 ? (
-            <EmptyState icon={<IcoBackup size={36} />} title="Nenhuma execução registrada" text="Execuções são geradas automaticamente pelas políticas de backup ativas." />
+            <p className="console-section-empty">Nenhuma execução registrada.</p>
           ) : (
             <table className="data-table">
               <thead><tr><th>Código</th><th>Iniciado</th><th>Duração</th><th>Status</th><th>Provedor</th><th>Ambiente</th><th>Verificado</th></tr></thead>
@@ -4660,7 +4802,7 @@ function BackupConsole({ token }) {
         <div className="console-section__header"><span>Testes de Restore ({tests.length})</span></div>
         <div style={{ overflowX: "auto" }}>
           {tests.length === 0 ? (
-            <EmptyState icon={<IcoCheckCircle size={36} />} title="Nenhum teste de restore registrado" text="Testes de restore validam a integridade dos backups e a capacidade de recuperação em caso de falha." />
+            <p className="console-section-empty">Nenhum teste de restore registrado.</p>
           ) : (
             <table className="data-table">
               <thead><tr><th>Código</th><th>Ambiente</th><th>Status</th><th>RPO</th><th>RTO</th><th>Verificado por</th><th>Data</th><th>Evidências</th></tr></thead>
@@ -4906,7 +5048,7 @@ function ReleaseConsole({ token }) {
               <th style={{ textAlign: "left", padding: "0.4rem" }}>Release</th>
             </tr></thead>
             <tbody>
-              {!releases.length && <tr><td colSpan={6}><EmptyState icon={<IcoDeploy size={36} />} title="Nenhuma release registrada" text="Releases documentam versões da plataforma entregues aos municípios." /></td></tr>}
+              {!releases.length && <tr><td colSpan={6} className="console-section-empty">Nenhuma release registrada.</td></tr>}
               {releases.map(r => (
                 <tr
                   key={r.id}
@@ -4940,7 +5082,7 @@ function ReleaseConsole({ token }) {
               <th style={{ textAlign: "left", padding: "0.4rem" }}>Criado</th>
             </tr></thead>
             <tbody>
-              {!rollouts.length && <tr><td colSpan={6}><EmptyState icon={<IcoDeploy size={36} />} title="Nenhum rollout registrado" text="Rollouts são criados a partir de releases aprovados." /></td></tr>}
+              {!rollouts.length && <tr><td colSpan={6} className="console-section-empty">Nenhum rollout registrado.</td></tr>}
               {rollouts.map(ro => (
                 <tr key={ro.id} style={{ borderBottom: "1px solid var(--border-color)" }}>
                   <td style={{ padding: "0.4rem" }}>{ro.targetType}</td>
@@ -4969,7 +5111,7 @@ function ReleaseConsole({ token }) {
               <th style={{ textAlign: "left", padding: "0.4rem" }}>Tempo (ms)</th>
             </tr></thead>
             <tbody>
-              {!migrations.length && <tr><td colSpan={5}><EmptyState icon={<IcoDatabase size={36} />} title="Nenhuma migration registrada" text="Migrations são registradas automaticamente quando o sistema aplica atualizações de banco." /></td></tr>}
+              {!migrations.length && <tr><td colSpan={5} className="console-section-empty">Nenhuma migration registrada.</td></tr>}
               {migrations.map(m => (
                 <tr key={m.id} style={{ borderBottom: "1px solid var(--border-color)" }}>
                   <td style={{ padding: "0.4rem", fontFamily: "monospace", fontSize: "0.8rem" }}>{m.migrationCode}</td>
@@ -4996,7 +5138,7 @@ function ReleaseConsole({ token }) {
               <th style={{ textAlign: "left", padding: "0.4rem" }}>Status</th>
             </tr></thead>
             <tbody>
-              {!maintenance.length && <tr><td colSpan={4}><EmptyState icon={<IcoFlag size={36} />} title="Nenhuma janela de manutenção" text="Janelas de manutenção comunicam períodos de indisponibilidade planejados." /></td></tr>}
+              {!maintenance.length && <tr><td colSpan={4} className="console-section-empty">Nenhuma janela de manutenção registrada.</td></tr>}
               {maintenance.map(w => (
                 <tr key={w.id} style={{ borderBottom: "1px solid var(--border-color)" }}>
                   <td style={{ padding: "0.4rem" }}>{w.title}</td>
@@ -5097,36 +5239,68 @@ function NocConsole({ token }) {
         </div>
       )}
 
-      {/* Components grid */}
+      {/* Service cards — Datadog/Azure Monitor style */}
       {health?.components && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "var(--s-2)", marginBottom: "var(--s-4)" }}>
-          {Object.entries(health.components).map(([key, comp]) => (
-            <div key={key} style={{ background: "var(--surface-2)", borderRadius: "var(--radius-md)", padding: "var(--s-2) var(--s-3)" }}>
-              <div style={{ display: "flex", alignItems: "center", marginBottom: 4 }}>
-                <HealthDot status={comp.status} />
-                <span style={{ fontSize: "0.85rem", fontWeight: 600 }}>{comp.label}</span>
+        <div className="noc-service-grid">
+          {Object.entries(health.components).map(([key, comp]) => {
+            const iconMap = {
+              database:   { icon: "🗄️", bg: "#dbeafe", color: "#1d4ed8", desc: "Banco de dados principal (Neon PostgreSQL)" },
+              filesystem: { icon: "📁", bg: "#dcfce7", color: "#15803d", desc: "Armazenamento de arquivos e db.json" },
+              auth:       { icon: "🔐", bg: "#fef3c7", color: "#b45309", desc: "Autenticação JWT e sessões CSRF" },
+              api:        { icon: "⚡", bg: "#f3e8ff", color: "#7e22ce", desc: "API REST — endpoints clínicos e ERP" },
+              cache:      { icon: "⚙️", bg: "#fce7f3", color: "#be185d", desc: "Cache em memória e invalidação TTL" },
+            };
+            const meta = iconMap[key] || { icon: "🔧", bg: "var(--surface-3)", color: "var(--text-muted)", desc: comp.detail || "Componente da plataforma" };
+            const dotClass = comp.status === "HEALTHY" || comp.status === "OK" ? ""
+              : comp.status === "DEGRADED" ? " noc-service-card__status-dot--warn"
+              : comp.status === "UNHEALTHY" || comp.status === "ERROR" ? " noc-service-card__status-dot--error"
+              : " noc-service-card__status-dot--unknown";
+            const statusLabel = comp.status === "HEALTHY" ? "Operacional" : comp.status === "DEGRADED" ? "Degradado" : comp.status === "UNHEALTHY" ? "Falha" : comp.status || "—";
+            return (
+              <div key={key} className="noc-service-card">
+                <div className="noc-service-card__header">
+                  <div className="noc-service-card__icon" style={{ background: meta.bg, color: meta.color }}>{meta.icon}</div>
+                  <div className="noc-service-card__name">{comp.label}</div>
+                  <div className={`noc-service-card__status-dot${dotClass}`} title={statusLabel} />
+                </div>
+                <div className="noc-service-card__desc">{meta.desc}</div>
+                <div className="noc-service-card__meta">
+                  <div className="noc-service-card__meta-item">
+                    <span className="noc-service-card__meta-label">Status</span>
+                    <span className="noc-service-card__meta-value" style={{ color: comp.status === "HEALTHY" || comp.status === "OK" ? "var(--success)" : comp.status === "DEGRADED" ? "var(--warning)" : comp.status === "UNHEALTHY" ? "var(--danger)" : "var(--text-muted)" }}>{statusLabel}</span>
+                  </div>
+                  {comp.detail && (
+                    <div className="noc-service-card__meta-item">
+                      <span className="noc-service-card__meta-label">Detalhe</span>
+                      <span className="noc-service-card__meta-value" style={{ fontWeight: 400, fontSize: "0.75rem", color: "var(--text-muted)" }}>{comp.detail}</span>
+                    </div>
+                  )}
+                  <div className="noc-service-card__meta-item">
+                    <span className="noc-service-card__meta-label">Verificado</span>
+                    <span className="noc-service-card__meta-value" style={{ fontWeight: 400, fontSize: "0.75rem", color: "var(--text-muted)" }}>{fmtDate(health.checkedAt)}</span>
+                  </div>
+                </div>
               </div>
-              <div style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>{comp.detail || "—"}</div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
-      {/* Dashboard summary cards */}
+      {/* KPIs NOC — console-kpi-strip padronizado */}
       {dashboard && (
-        <div style={{ display: "flex", gap: "var(--s-3)", flexWrap: "wrap", marginBottom: "var(--s-4)" }}>
+        <div className="console-kpi-strip" style={{ marginBottom: "var(--s-4)" }}>
           {[
-            { label: "Deployments Operacionais", value: `${dashboard.deployments.operational}/${dashboard.deployments.total}` },
-            { label: "Licenças Ativas",          value: dashboard.licenses.active },
-            { label: "UBS Ativas",               value: dashboard.units.active },
-            { label: "Municípios",               value: dashboard.municipalities.total },
-            { label: "Incidentes Abertos",       value: dashboard.incidents.open },
-            { label: "Críticos",                 value: dashboard.incidents.critical },
-            { label: "Alertas Abertos",          value: dashboard.alerts.open },
-          ].map(({ label, value }) => (
-            <div key={label} style={{ background: "var(--surface-2)", borderRadius: "var(--radius-md)", padding: "var(--s-2) var(--s-3)", minWidth: 110, textAlign: "center" }}>
-              <div style={{ fontSize: "1.3rem", fontWeight: 700 }}>{value}</div>
-              <div style={{ fontSize: "0.68rem", color: "var(--text-muted)" }}>{label}</div>
+            { label: "Implantações",        value: `${dashboard.deployments?.operational ?? "—"}/${dashboard.deployments?.total ?? "—"}`, accent: "var(--accent)" },
+            { label: "Licenças Ativas",     value: dashboard.licenses?.active ?? "—", accent: "var(--success)" },
+            { label: "UBS Ativas",          value: dashboard.units?.active ?? "—",    accent: "var(--success)" },
+            { label: "Municípios",          value: dashboard.municipalities?.total ?? "—", accent: "#3b82f6" },
+            { label: "Incidentes Abertos",  value: dashboard.incidents?.open ?? 0,    accent: dashboard.incidents?.critical > 0 ? "var(--danger)" : "var(--warning)" },
+            { label: "Alertas Abertos",     value: dashboard.alerts?.open ?? 0,       accent: "var(--warning)" },
+          ].map(({ label, value, accent }) => (
+            <div key={label} className="console-kpi" style={{ "--kpi-color": accent }}>
+              <div className="console-kpi__accent" />
+              <div className="console-kpi__value" style={{ color: accent }}>{value}</div>
+              <div className="console-kpi__label">{label}</div>
             </div>
           ))}
         </div>
@@ -5612,6 +5786,7 @@ function IncidentForm({ token, onDone, onBack }) {
 
 export default function PlatformConsolePage({ token, user, onLogout }) {
   const [tab, setTab]                               = useState("overview");
+  const [visitedTabs, setVisitedTabs]               = useState(new Set(["overview"]));
   const [view, setView]                             = useState("list");
   const [selectedUnitId, setSelectedUnitId]         = useState(null);
   const [selectedMunicipality, setSelectedMunicipality] = useState(null);
@@ -5637,6 +5812,7 @@ export default function PlatformConsolePage({ token, user, onLogout }) {
 
   function switchTab(t) {
     setTab(t);
+    setVisitedTabs(prev => new Set([...prev, t]));
     setView("list");
     setSelectedUnitId(null);
     setSelectedMunicipality(null);
@@ -5870,25 +6046,25 @@ export default function PlatformConsolePage({ token, user, onLogout }) {
             <ErrorBoundary><NocConsole token={token} /></ErrorBoundary>
           )}
 
-          {/* Releases */}
-          {tab === "releases" && (
-            <ErrorBoundary><ReleaseConsole token={token} /></ErrorBoundary>
-          )}
+          {/* Releases — lazy mount */}
+          <div style={{ display: tab === "releases" ? "block" : "none" }}>
+            {visitedTabs.has("releases") && <ErrorBoundary><ReleaseConsole token={token} /></ErrorBoundary>}
+          </div>
 
-          {/* Backup & Business Continuity */}
-          {tab === "backup" && (
-            <ErrorBoundary><BackupConsole token={token} /></ErrorBoundary>
-          )}
+          {/* Backup & Business Continuity — lazy mount */}
+          <div style={{ display: tab === "backup" ? "block" : "none" }}>
+            {visitedTabs.has("backup") && <ErrorBoundary><BackupConsole token={token} /></ErrorBoundary>}
+          </div>
 
-          {/* Governance & Compliance */}
-          {tab === "governance" && (
-            <ErrorBoundary><GovernanceConsole token={token} /></ErrorBoundary>
-          )}
+          {/* Governance & Compliance — lazy mount */}
+          <div style={{ display: tab === "governance" ? "block" : "none" }}>
+            {visitedTabs.has("governance") && <ErrorBoundary><GovernanceConsole token={token} /></ErrorBoundary>}
+          </div>
 
-          {/* CMDB */}
-          {tab === "cmdb" && (
-            <ErrorBoundary><CmdbConsole token={token} /></ErrorBoundary>
-          )}
+          {/* CMDB — lazy mount */}
+          <div style={{ display: tab === "cmdb" ? "block" : "none" }}>
+            {visitedTabs.has("cmdb") && <ErrorBoundary><CmdbConsole token={token} /></ErrorBoundary>}
+          </div>
 
           {/* Unidades de Saúde */}
           {tab === "units" && (

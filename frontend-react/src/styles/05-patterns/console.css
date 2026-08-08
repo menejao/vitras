@@ -907,3 +907,138 @@
   .console-content { padding: var(--s-4) var(--s-3); }
   .console-kpi-strip { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* ── Section empty — simples, sem ilustração ───────────────── */
+.console-section-empty {
+  padding: 32px 24px;
+  color: var(--text-muted);
+  font-size: var(--t-sm);
+  line-height: 1.6;
+  text-align: center;
+}
+
+/* ── NOC Service Cards ──────────────────────────────────────── */
+.noc-service-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--s-3);
+  margin-bottom: var(--s-4);
+}
+
+.noc-service-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--s-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  transition: box-shadow 0.15s;
+}
+
+.noc-service-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+
+.noc-service-card__header {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.noc-service-card__icon {
+  width: 36px; height: 36px;
+  border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.noc-service-card__name {
+  font-weight: 600;
+  font-size: var(--t-base);
+  flex: 1;
+}
+
+.noc-service-card__status-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--success);
+  flex-shrink: 0;
+}
+.noc-service-card__status-dot--warn  { background: var(--warning); }
+.noc-service-card__status-dot--error { background: var(--danger); }
+.noc-service-card__status-dot--unknown { background: var(--text-dim); }
+
+.noc-service-card__desc {
+  font-size: var(--t-sm);
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.noc-service-card__meta {
+  display: flex;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+  margin-top: var(--s-1);
+}
+
+.noc-service-card__meta-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.noc-service-card__meta-label {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.noc-service-card__meta-value {
+  font-size: var(--t-sm);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Municipality autocomplete ──────────────────────────────── */
+.mun-autocomplete {
+  position: relative;
+}
+
+.mun-autocomplete__dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  max-height: 240px;
+  overflow-y: auto;
+  z-index: 100;
+  box-shadow: 0 4px 12px rgba(0,0,0,.1);
+}
+
+.mun-autocomplete__item {
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: var(--t-sm);
+  display: flex;
+  gap: var(--s-2);
+  align-items: baseline;
+}
+
+.mun-autocomplete__item:hover,
+.mun-autocomplete__item[aria-selected="true"] {
+  background: var(--surface-2);
+}
+
+.mun-autocomplete__uf {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  background: var(--surface-3);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-weight: 600;
+  flex-shrink: 0;
+}

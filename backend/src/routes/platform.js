@@ -2466,11 +2466,31 @@ import {
   BACKUP_TYPE, BACKUP_SCOPE, BACKUP_FREQUENCY, EXECUTION_STATUS, RESTORE_STATUS,
 } from "../services/backup.js";
 
+const _SYSTEM_OPERATOR = { id: "system", name: "Sistema VITRAS", role: "support_admin" };
+
 function ensureBackup(db) {
   ensureDbShape(db);
   if (!Array.isArray(db.backupPolicies))   db.backupPolicies   = [];
   if (!Array.isArray(db.backupExecutions)) db.backupExecutions = [];
   if (!Array.isArray(db.restoreTests))     db.restoreTests     = [];
+  // Auto-seed política padrão se nenhuma existir
+  if (db.backupPolicies.length === 0 && process.env.VITRAS_DEMO_SEED !== "false") {
+    const defaultPolicy = createBackupPolicy({
+      name:              "Backup Diário Produção",
+      description:       "Política padrão da plataforma — backup diário automático do banco de dados em produção.",
+      scope:             "DATABASE",
+      backupType:        "FULL",
+      frequency:         "DAILY",
+      retentionDays:     30,
+      rpoTargetMinutes:  60 * 24,   // 24h
+      rtoTargetMinutes:  60 * 4,    // 4h
+      environment:       "PRODUCTION",
+      providerHint:      "neon-postgresql-sa-east-1",
+      operator:          _SYSTEM_OPERATOR,
+      existingPolicies:  [],
+    });
+    db.backupPolicies.push(defaultPolicy);
+  }
 }
 
 function bkpOperator(user) { return { id: user.id, name: user.name, role: user.role }; }
