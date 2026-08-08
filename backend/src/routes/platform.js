@@ -1806,6 +1806,237 @@ router.get("/platform/deployments-dashboard", async (req, res) => {
 });
 
 // ══════════════════════════════════════════════════════════════════════════
+// ERP-08 — Backup, Restore and Business Continuity
+// ══════════════════════════════════════════════════════════════════════════
+
+import {
+  createBackupPolicy, updateBackupPolicy,
+  createBackupExecution,
+  createRestoreTest, updateRestoreTest,
+  computeBusinessContinuity, runBackupDiagnostics,
+  BACKUP_TYPE, BACKUP_SCOPE, BACKUP_FREQUENCY, EXECUTION_STATUS, RESTORE_STATUS,
+} from "../services/backup.js";
+
+function ensureBackup(db) {
+  ensureDbShape(db);
+  if (!Array.isArray(db.backupPolicies))   db.backupPolicies   = [];
+  if (!Array.isArray(db.backupExecutions)) db.backupExecutions = [];
+  if (!Array.isArray(db.restoreTests))     db.restoreTests     = [];
+}
+
+function bkpOperator(user) { return { id: user.id, name: user.name, role: user.role }; }
+
+// ── Backup Policies ────────────────────────────────────────────────────────
+
+router.get("/platform/backup-policies", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.read")) return res.status(403).json({ error: "Sem permissão" });
+  const { enabled, scope, environment } = req.query;
+  const db = await readDb();
+  ensureBackup(db);
+  let list = db.backupPolicies.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  if (enabled !== undefined) list = list.filter(p => String(p.enabled) === enabled);
+  if (scope)       list = list.filter(p => p.scope === scope.toUpperCase());
+  if (environment) list = list.filter(p => p.environment === environment.toUpperCase());
+  return res.json({ policies: list, total: list.length });
+});
+
+router.get("/platform/backup-policies/:policyId", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.read")) return res.status(403).json({ error: "Sem permissão" });
+  const db = await readDb();
+  ensureBackup(db);
+  const pol = db.backupPolicies.find(p => p.id === req.params.policyId);
+  if (!pol) return res.status(404).json({ error: "Política não encontrada" });
+  const executions = (db.backupExecutions || []).filter(e => e.policyId === pol.id).slice(-10);
+  return res.json({ ...pol, recentExecutions: executions });
+});
+
+router.post("/platform/backup-policies", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.create")) return res.status(403).json({ error: "Sem permissão" });
+  const op = bkpOperator(req.user);
+  const result = await withDb((db) => {
+    ensureBackup(db);
+    let pol;
+    try { pol = createBackupPolicy({ ...req.body, operator: op, existingPolicies: db.backupPolicies }); }
+    catch (e) { return { error: { status: e.statusCode || 400, message: e.message } }; }
+    db.backupPolicies.push(pol);
+    addAuditLog(db, req.user, "backup_policy.created", "backup_policy", pol.id, { policyCode: pol.policyCode, scope: pol.scope });
+    return { policy: pol };
+  });
+  if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
+  return res.status(201).json(result.policy);
+});
+
+router.patch("/platform/backup-policies/:policyId", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.update")) return res.status(403).json({ error: "Sem permissão" });
+  const { reason, ...patch } = req.body || {};
+  const op = bkpOperator(req.user);
+  const result = await withDb((db) => {
+    ensureBackup(db);
+    const idx = db.backupPolicies.findIndex(p => p.id === req.params.policyId);
+    if (idx < 0) return { error: { status: 404, message: "Política não encontrada" } };
+    updateBackupPolicy(db.backupPolicies[idx], { patch, operator: op, reason: reason || null });
+    addAuditLog(db, req.user, "backup_policy.updated", "backup_policy", db.backupPolicies[idx].id, { patch, reason });
+    return { policy: db.backupPolicies[idx] };
+  });
+  if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
+  return res.json(result.policy);
+});
+
+// ── Backup Executions ──────────────────────────────────────────────────────
+
+router.get("/platform/backups", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.read")) return res.status(403).json({ error: "Sem permissão" });
+  const { status, policyId, environment, page: pageRaw = "1", limit: limitRaw = "25" } = req.query;
+  const page  = Math.max(1, parseInt(pageRaw, 10) || 1);
+  const limit = Math.min(100, Math.max(1, parseInt(limitRaw, 10) || 25));
+  const db    = await readDb();
+  ensureBackup(db);
+  let list = db.backupExecutions.slice().sort((a, b) => b.startedAt.localeCompare(a.startedAt));
+  if (status)      list = list.filter(e => e.status === status.toUpperCase());
+  if (policyId)    list = list.filter(e => e.policyId === policyId);
+  if (environment) list = list.filter(e => e.environment === environment.toUpperCase());
+  const total = list.length;
+  const pages = Math.ceil(total / limit) || 1;
+  return res.json({ executions: list.slice((page - 1) * limit, page * limit), total, pages });
+});
+
+router.post("/platform/backups", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.create")) return res.status(403).json({ error: "Sem permissão" });
+  const op = bkpOperator(req.user);
+  const result = await withDb((db) => {
+    ensureBackup(db);
+    const { policyId } = req.body || {};
+    if (policyId && !db.backupPolicies.some(p => p.id === policyId)) {
+      return { error: { status: 404, message: "Política não encontrada" } };
+    }
+    let exec;
+    try { exec = createBackupExecution({ ...req.body, operator: op, existingExecutions: db.backupExecutions }); }
+    catch (e) { return { error: { status: e.statusCode || 400, message: e.message } }; }
+    db.backupExecutions.push(exec);
+    addAuditLog(db, req.user, "backup.recorded", "backup_execution", exec.id, { executionCode: exec.executionCode, status: exec.status });
+    return { execution: exec };
+  });
+  if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
+  return res.status(201).json(result.execution);
+});
+
+// ── Restore Tests ──────────────────────────────────────────────────────────
+
+router.get("/platform/restore-tests", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.read")) return res.status(403).json({ error: "Sem permissão" });
+  const { status, environment } = req.query;
+  const db = await readDb();
+  ensureBackup(db);
+  let list = db.restoreTests.slice().sort((a, b) => b.startedAt.localeCompare(a.startedAt));
+  if (status)      list = list.filter(t => t.status === status.toUpperCase());
+  if (environment) list = list.filter(t => t.environment === environment);
+  return res.json({ restoreTests: list, total: list.length });
+});
+
+router.post("/platform/restore-tests", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.create")) return res.status(403).json({ error: "Sem permissão" });
+  const op = bkpOperator(req.user);
+  const result = await withDb((db) => {
+    ensureBackup(db);
+    const { backupExecutionId } = req.body || {};
+    if (backupExecutionId && !db.backupExecutions.some(e => e.id === backupExecutionId)) {
+      return { error: { status: 404, message: "Execução de backup não encontrada" } };
+    }
+    let test;
+    try { test = createRestoreTest({ ...req.body, operator: op, existingTests: db.restoreTests }); }
+    catch (e) { return { error: { status: e.statusCode || 400, message: e.message } }; }
+    db.restoreTests.push(test);
+    addAuditLog(db, req.user, "restore.recorded", "restore_test", test.id, { restoreCode: test.restoreCode, status: test.status });
+    return { restoreTest: test };
+  });
+  if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
+  return res.status(201).json(result.restoreTest);
+});
+
+router.patch("/platform/restore-tests/:testId", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.update")) return res.status(403).json({ error: "Sem permissão" });
+  const op = bkpOperator(req.user);
+  const result = await withDb((db) => {
+    ensureBackup(db);
+    const idx = db.restoreTests.findIndex(t => t.id === req.params.testId);
+    if (idx < 0) return { error: { status: 404, message: "Teste de restore não encontrado" } };
+    updateRestoreTest(db.restoreTests[idx], { patch: req.body || {}, operator: op });
+    addAuditLog(db, req.user, "restore.updated", "restore_test", db.restoreTests[idx].id, req.body);
+    return { restoreTest: db.restoreTests[idx] };
+  });
+  if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
+  return res.json(result.restoreTest);
+});
+
+// ── Business Continuity ────────────────────────────────────────────────────
+
+router.get("/platform/business-continuity", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.read")) return res.status(403).json({ error: "Sem permissão" });
+  const db = await readDb();
+  ensureBackup(db);
+  const bcp       = computeBusinessContinuity(db);
+  const alerts    = runBackupDiagnostics(db);
+  return res.json({ ...bcp, alerts });
+});
+
+// GET /platform/backup-dashboard
+router.get("/platform/backup-dashboard", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.read")) return res.status(403).json({ error: "Sem permissão" });
+  const db = await readDb();
+  ensureBackup(db);
+  const policies   = db.backupPolicies   || [];
+  const executions = db.backupExecutions || [];
+  const tests      = db.restoreTests     || [];
+  const bcp        = computeBusinessContinuity(db);
+  const alerts     = runBackupDiagnostics(db);
+
+  const successExecs  = executions.filter(e => e.status === "SUCCESS").sort((a, b) => b.startedAt.localeCompare(a.startedAt));
+  const failedExecs   = executions.filter(e => e.status === "FAILED");
+  const successTests  = tests.filter(t => t.status === "SUCCESS").sort((a, b) => b.startedAt.localeCompare(a.startedAt));
+
+  // Executions by environment
+  const envSet = [...new Set(executions.map(e => e.environment))];
+  const byEnvironment = envSet.map(env => ({
+    environment: env,
+    total:   executions.filter(e => e.environment === env).length,
+    success: executions.filter(e => e.environment === env && e.status === "SUCCESS").length,
+    failed:  executions.filter(e => e.environment === env && e.status === "FAILED").length,
+  }));
+
+  return res.json({
+    riskLevel:        bcp.riskLevel,
+    rpoStatus:        bcp.rpoStatus,
+    rpoTargetMinutes: bcp.rpoTargetMinutes,
+    rpoActualMinutes: bcp.rpoActualMinutes,
+    rtoTargetMinutes: bcp.rtoTargetMinutes,
+    lastBackup:       bcp.lastBackup,
+    lastRestoreTest:  bcp.lastRestoreTest,
+    nextRestoreTestDue: bcp.nextRestoreTestDue,
+    backupOverdue:    bcp.backupOverdue,
+    restoreTestOverdue: bcp.restoreTestOverdue,
+    policies: {
+      total:   policies.length,
+      enabled: policies.filter(p => p.enabled).length,
+    },
+    executions: {
+      total:   executions.length,
+      success: successExecs.length,
+      failed:  failedExecs.length,
+      byEnvironment,
+    },
+    restoreTests: {
+      total:   tests.length,
+      success: successTests.length,
+      failed:  tests.filter(t => t.status === "FAILED").length,
+    },
+    recentExecutions: successExecs.slice(0, 5),
+    recentTests:      successTests.slice(0, 5),
+    alerts:           alerts,
+    generatedAt:      new Date().toISOString(),
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════════════
 // ERP-07 — Release Management and Change Control
 // ══════════════════════════════════════════════════════════════════════════
 

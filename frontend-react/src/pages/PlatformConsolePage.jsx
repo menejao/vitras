@@ -524,6 +524,14 @@ const IcoIncident = () => (
   </svg>
 );
 
+const IcoBackup = () => (
+  <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden>
+    <path d="M3 4h10v8a1 1 0 01-1 1H4a1 1 0 01-1-1V4z" stroke="currentColor" strokeWidth="1.3"/>
+    <path d="M1 4h14M6 4V2h4v2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+    <path d="M6 8h4M8 7v2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+  </svg>
+);
+
 const IcoRelease = () => (
   <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden>
     <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.3"/>
@@ -2701,6 +2709,257 @@ const HEALTH_BADGE = {
 };
 
 // ══════════════════════════════════════════════════════════════════════════════
+// ERP-08 — Backup, Restore and Business Continuity
+// ══════════════════════════════════════════════════════════════════════════════
+
+const RISK_COLOR = { LOW: "#22c55e", MEDIUM: "#f59e0b", HIGH: "#ef4444", CRITICAL: "#7c2d12" };
+const RISK_BADGE = { LOW: "badge badge--success", MEDIUM: "badge badge--warning", HIGH: "badge badge--danger", CRITICAL: "badge badge--danger" };
+const RPO_BADGE  = { OK: "badge badge--success", BREACHED: "badge badge--danger", UNKNOWN: "badge" };
+const EXEC_STATUS_BADGE = {
+  SUCCESS: "badge badge--success", FAILED: "badge badge--danger",
+  RUNNING: "badge badge--warning", PARTIAL: "badge badge--warning",
+  CANCELLED: "badge", PENDING: "badge badge--info",
+};
+const RESTORE_STATUS_BADGE = {
+  SUCCESS: "badge badge--success", FAILED: "badge badge--danger",
+  RUNNING: "badge badge--warning", PLANNED: "badge badge--info", CANCELLED: "badge",
+};
+
+function BackupConsole({ token }) {
+  const [view, setView]         = useState("dashboard");
+  const [dash, setDash]         = useState(null);
+  const [bcp, setBcp]           = useState(null);
+  const [policies, setPolicies] = useState([]);
+  const [executions, setExecs]  = useState([]);
+  const [tests, setTests]       = useState([]);
+  const [loading, setLoading]   = useState(false);
+
+  const fetchAll = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [dashRes, bcpRes, polRes, exRes, tstRes] = await Promise.all([
+        apiFetch("/platform/backup-dashboard", token),
+        apiFetch("/platform/business-continuity", token),
+        apiFetch("/platform/backup-policies", token),
+        apiFetch("/platform/backups", token),
+        apiFetch("/platform/restore-tests", token),
+      ]);
+      if (dashRes.ok) setDash(await dashRes.json());
+      if (bcpRes.ok)  setBcp(await bcpRes.json());
+      if (polRes.ok)  { const d = await polRes.json();  setPolicies(d.policies   || []); }
+      if (exRes.ok)   { const d = await exRes.json();   setExecs(d.executions    || []); }
+      if (tstRes.ok)  { const d = await tstRes.json();  setTests(d.restoreTests  || []); }
+    } finally { setLoading(false); }
+  }, [token]);
+
+  useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  return (
+    <div>
+      <div className="console-page-header">
+        <div>
+          <h1 className="console-page-header__title">Backup & Continuidade de Negócio</h1>
+          <p className="console-page-header__sub">Políticas, execuções, testes de restore e perfil de continuidade</p>
+        </div>
+        <Button onClick={fetchAll} variant="ghost">↺ Atualizar</Button>
+      </div>
+
+      {loading && <p style={{ opacity: 0.5 }}>Carregando...</p>}
+
+      {/* Risk & RPO banner */}
+      {dash && (
+        <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", marginBottom: "1.5rem" }}>
+          <div className="card" style={{ padding: "1rem", flex: "1 1 140px", textAlign: "center" }}>
+            <p style={{ fontSize: "0.75rem", opacity: 0.6, marginBottom: "0.25rem" }}>Nível de risco</p>
+            <span className={RISK_BADGE[dash.riskLevel] || "badge"}>{dash.riskLevel}</span>
+          </div>
+          <div className="card" style={{ padding: "1rem", flex: "1 1 140px", textAlign: "center" }}>
+            <p style={{ fontSize: "0.75rem", opacity: 0.6, marginBottom: "0.25rem" }}>RPO Status</p>
+            <span className={RPO_BADGE[dash.rpoStatus] || "badge"}>{dash.rpoStatus}</span>
+          </div>
+          <div className="card" style={{ padding: "1rem", flex: "1 1 140px", textAlign: "center" }}>
+            <p style={{ fontSize: "0.75rem", opacity: 0.6, marginBottom: "0.25rem" }}>RPO alvo</p>
+            <strong>{dash.rpoTargetMinutes != null ? `${dash.rpoTargetMinutes} min` : "—"}</strong>
+          </div>
+          <div className="card" style={{ padding: "1rem", flex: "1 1 140px", textAlign: "center" }}>
+            <p style={{ fontSize: "0.75rem", opacity: 0.6, marginBottom: "0.25rem" }}>RPO atual</p>
+            <strong>{dash.rpoActualMinutes != null ? `${dash.rpoActualMinutes} min` : "—"}</strong>
+          </div>
+          <div className="card" style={{ padding: "1rem", flex: "1 1 140px", textAlign: "center" }}>
+            <p style={{ fontSize: "0.75rem", opacity: 0.6, marginBottom: "0.25rem" }}>RTO alvo</p>
+            <strong>{dash.rtoTargetMinutes != null ? `${dash.rtoTargetMinutes} min` : "—"}</strong>
+          </div>
+          <div className="card" style={{ padding: "1rem", flex: "1 1 140px", textAlign: "center" }}>
+            <p style={{ fontSize: "0.75rem", opacity: 0.6, marginBottom: "0.25rem" }}>Políticas ativas</p>
+            <strong>{dash.policies?.enabled ?? "—"}/{dash.policies?.total ?? "—"}</strong>
+          </div>
+          <div className="card" style={{ padding: "1rem", flex: "1 1 140px", textAlign: "center" }}>
+            <p style={{ fontSize: "0.75rem", opacity: 0.6, marginBottom: "0.25rem" }}>Backups OK</p>
+            <strong>{dash.executions?.success ?? "—"}</strong>
+          </div>
+          <div className="card" style={{ padding: "1rem", flex: "1 1 140px", textAlign: "center" }}>
+            <p style={{ fontSize: "0.75rem", opacity: 0.6, marginBottom: "0.25rem" }}>Restores OK</p>
+            <strong>{dash.restoreTests?.success ?? "—"}</strong>
+          </div>
+        </div>
+      )}
+
+      {/* Alerts */}
+      {dash?.alerts?.length > 0 && (
+        <div className="card" style={{ padding: "1rem", marginBottom: "1.5rem", borderLeft: "3px solid #ef4444" }}>
+          <h3 style={{ fontWeight: 600, marginBottom: "0.5rem" }}>Alertas de continuidade ({dash.alerts.length})</h3>
+          {dash.alerts.map(al => (
+            <div key={al.code} style={{ padding: "0.4rem 0", borderBottom: "1px solid var(--border-color)", fontSize: "0.875rem" }}>
+              <span className={al.severity === "CRITICAL" ? "badge badge--danger" : al.severity === "HIGH" ? "badge badge--danger" : "badge badge--warning"} style={{ marginRight: 8 }}>{al.code}</span>
+              <strong>{al.title}</strong>
+              {al.recommendation && <span style={{ opacity: 0.7, marginLeft: 8 }}>— {al.recommendation}</span>}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Last backup + restore */}
+      {dash && (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1.5rem" }}>
+          <div className="card" style={{ padding: "1rem" }}>
+            <p style={{ fontWeight: 600, marginBottom: "0.5rem" }}>Último backup válido</p>
+            {dash.lastBackup ? (
+              <><span style={{ fontFamily: "monospace", fontSize: "0.8rem" }}>{dash.lastBackup.executionCode}</span><br />
+              <span style={{ opacity: 0.7, fontSize: "0.85rem" }}>{fmtDate(dash.lastBackup.startedAt)}</span><br />
+              <span style={{ opacity: 0.5, fontSize: "0.8rem" }}>{dash.lastBackup.provider || "—"}</span></>
+            ) : <span style={{ opacity: 0.5 }}>Nenhum backup registrado</span>}
+          </div>
+          <div className="card" style={{ padding: "1rem" }}>
+            <p style={{ fontWeight: 600, marginBottom: "0.5rem" }}>Último restore validado</p>
+            {dash.lastRestoreTest ? (
+              <><span style={{ fontFamily: "monospace", fontSize: "0.8rem" }}>{dash.lastRestoreTest.restoreCode}</span><br />
+              <span style={{ opacity: 0.7, fontSize: "0.85rem" }}>{fmtDate(dash.lastRestoreTest.startedAt)}</span><br />
+              <span style={{ opacity: 0.5, fontSize: "0.8rem" }}>{dash.lastRestoreTest.environment}</span></>
+            ) : <span style={{ opacity: 0.5 }}>Nenhum restore registrado</span>}
+          </div>
+        </div>
+      )}
+
+      {/* Backup by environment */}
+      {dash?.executions?.byEnvironment?.length > 0 && (
+        <div className="card" style={{ padding: "1rem", marginBottom: "1.5rem" }}>
+          <h3 style={{ fontWeight: 600, marginBottom: "0.75rem" }}>Backups por ambiente</h3>
+          <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
+            {dash.executions.byEnvironment.map(env => (
+              <div key={env.environment} style={{ flex: "1 1 120px", textAlign: "center", padding: "0.75rem", background: "var(--bg-secondary, rgba(0,0,0,.04))", borderRadius: 8 }}>
+                <p style={{ fontWeight: 600, fontSize: "0.85rem" }}>{env.environment}</p>
+                <p style={{ fontSize: "1.2rem", fontWeight: 700 }}>{env.success}<span style={{ fontSize: "0.7rem", fontWeight: 400, opacity: 0.6 }}>/{env.total}</span></p>
+                {env.failed > 0 && <span className="badge badge--danger">{env.failed} falha(s)</span>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Policies table */}
+      <div className="card" style={{ padding: "1rem", marginBottom: "1.5rem" }}>
+        <h3 style={{ fontWeight: 600, marginBottom: "0.75rem" }}>Políticas de Backup ({policies.length})</h3>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", fontSize: "0.875rem", borderCollapse: "collapse" }}>
+            <thead><tr style={{ borderBottom: "2px solid var(--border-color)" }}>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Código</th>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Nome</th>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Escopo</th>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Tipo</th>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Frequência</th>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Retenção</th>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>RPO alvo</th>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Status</th>
+            </tr></thead>
+            <tbody>
+              {!policies.length && <tr><td colSpan={8} style={{ padding: "1rem", opacity: 0.5 }}>Nenhuma política cadastrada.</td></tr>}
+              {policies.map(p => (
+                <tr key={p.id} style={{ borderBottom: "1px solid var(--border-color)" }}>
+                  <td style={{ padding: "0.4rem", fontFamily: "monospace", fontSize: "0.8rem" }}>{p.policyCode}</td>
+                  <td style={{ padding: "0.4rem" }}>{p.name}</td>
+                  <td style={{ padding: "0.4rem" }}><span className="badge badge--info">{p.scope}</span></td>
+                  <td style={{ padding: "0.4rem" }}>{p.backupType}</td>
+                  <td style={{ padding: "0.4rem" }}>{p.frequency}</td>
+                  <td style={{ padding: "0.4rem" }}>{p.retentionDays}d</td>
+                  <td style={{ padding: "0.4rem" }}>{p.rpoTargetMinutes != null ? `${p.rpoTargetMinutes}min` : "—"}</td>
+                  <td style={{ padding: "0.4rem" }}><span className={p.enabled ? "badge badge--success" : "badge badge--danger"}>{p.enabled ? "Ativa" : "Desabilitada"}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Executions table */}
+      <div className="card" style={{ padding: "1rem", marginBottom: "1.5rem" }}>
+        <h3 style={{ fontWeight: 600, marginBottom: "0.75rem" }}>Execuções de Backup ({executions.length})</h3>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", fontSize: "0.875rem", borderCollapse: "collapse" }}>
+            <thead><tr style={{ borderBottom: "2px solid var(--border-color)" }}>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Código</th>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Iniciado</th>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Duração</th>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Status</th>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Provedor</th>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Ambiente</th>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Verificado</th>
+            </tr></thead>
+            <tbody>
+              {!executions.length && <tr><td colSpan={7} style={{ padding: "1rem", opacity: 0.5 }}>Nenhuma execução registrada.</td></tr>}
+              {executions.map(e => (
+                <tr key={e.id} style={{ borderBottom: "1px solid var(--border-color)" }}>
+                  <td style={{ padding: "0.4rem", fontFamily: "monospace", fontSize: "0.8rem" }}>{e.executionCode}</td>
+                  <td style={{ padding: "0.4rem" }}>{fmtDate(e.startedAt)}</td>
+                  <td style={{ padding: "0.4rem" }}>{e.durationSeconds != null ? `${e.durationSeconds}s` : "—"}</td>
+                  <td style={{ padding: "0.4rem" }}><span className={EXEC_STATUS_BADGE[e.status] || "badge"}>{e.status}</span></td>
+                  <td style={{ padding: "0.4rem" }}>{e.backupProvider || "—"}</td>
+                  <td style={{ padding: "0.4rem" }}>{e.environment}</td>
+                  <td style={{ padding: "0.4rem" }}>{e.verified ? "✓" : "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Restore tests table */}
+      <div className="card" style={{ padding: "1rem" }}>
+        <h3 style={{ fontWeight: 600, marginBottom: "0.75rem" }}>Testes de Restore ({tests.length})</h3>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", fontSize: "0.875rem", borderCollapse: "collapse" }}>
+            <thead><tr style={{ borderBottom: "2px solid var(--border-color)" }}>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Código</th>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Ambiente</th>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Status</th>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>RPO alcançado</th>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>RTO alcançado</th>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Verificado por</th>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Data</th>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Evidências</th>
+            </tr></thead>
+            <tbody>
+              {!tests.length && <tr><td colSpan={8} style={{ padding: "1rem", opacity: 0.5 }}>Nenhum teste registrado.</td></tr>}
+              {tests.map(t => (
+                <tr key={t.id} style={{ borderBottom: "1px solid var(--border-color)" }}>
+                  <td style={{ padding: "0.4rem", fontFamily: "monospace", fontSize: "0.8rem" }}>{t.restoreCode}</td>
+                  <td style={{ padding: "0.4rem" }}>{t.environment}</td>
+                  <td style={{ padding: "0.4rem" }}><span className={RESTORE_STATUS_BADGE[t.status] || "badge"}>{t.status}</span></td>
+                  <td style={{ padding: "0.4rem" }}>{t.rpoAchievedMinutes != null ? `${t.rpoAchievedMinutes}min` : "—"}</td>
+                  <td style={{ padding: "0.4rem" }}>{t.rtoAchievedMinutes != null ? `${t.rtoAchievedMinutes}min` : "—"}</td>
+                  <td style={{ padding: "0.4rem" }}>{t.verifiedBy || "—"}</td>
+                  <td style={{ padding: "0.4rem" }}>{fmtDate(t.startedAt)}</td>
+                  <td style={{ padding: "0.4rem" }}>{t.evidence?.length || 0}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
 // ERP-07 — Release Management and Change Control
 // ══════════════════════════════════════════════════════════════════════════════
 
@@ -3746,6 +4005,13 @@ export default function PlatformConsolePage({ token, user, onLogout }) {
           >
             <IcoRelease /> Releases
           </button>
+          <button
+            type="button"
+            className={`console-nav__item${tab === "backup" ? " is-active" : ""}`}
+            onClick={() => switchTab("backup")}
+          >
+            <IcoBackup /> Backup & Continuidade
+          </button>
 
           <span className="console-nav__section">Portal</span>
           <button
@@ -3846,6 +4112,11 @@ export default function PlatformConsolePage({ token, user, onLogout }) {
           {/* Releases */}
           {tab === "releases" && (
             <ReleaseConsole token={token} />
+          )}
+
+          {/* Backup & Business Continuity */}
+          {tab === "backup" && (
+            <BackupConsole token={token} />
           )}
 
           {/* Unidades de Saúde */}
