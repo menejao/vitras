@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { api } from "../api";
 import UnitDetailTabbed from "./platform/UnitDetail";
 import { lookupCep, formatCep } from "../services/cepService";
@@ -117,6 +117,156 @@ function StatusBadge({ status }) {
   );
 }
 
+// ── ErrorBoundary ──────────────────────────────────────────────────────────
+
+class ErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { error: null }; }
+  static getDerivedStateFromError(e) { return { error: e }; }
+  componentDidCatch(e, info) { console.error("[Console]", e, info); }
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="console-error-block">
+          <div style={{ fontSize: "2rem" }}>⚠️</div>
+          <p className="console-error-block__msg">
+            Erro ao carregar este módulo. Tente novamente ou contate o suporte.
+          </p>
+          <Button onClick={() => this.setState({ error: null })}>Tentar novamente</Button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+// ── Skeleton ───────────────────────────────────────────────────────────────
+
+function Skeleton({ type = "row", count = 3 }) {
+  return (
+    <div style={{ padding: "var(--s-2) 0" }}>
+      {[...Array(count)].map((_, i) => (
+        <div key={i} className={`console-skeleton console-skeleton--${type}`} style={{ marginBottom: "var(--s-2)", opacity: 1 - i * 0.2 }} />
+      ))}
+    </div>
+  );
+}
+
+function KpiSkeleton({ count = 5 }) {
+  return (
+    <div className="noc-kpi-grid" style={{ marginBottom: "var(--s-4)" }}>
+      {[...Array(count)].map((_, i) => (
+        <div key={i} className="console-skeleton console-skeleton--kpi" />
+      ))}
+    </div>
+  );
+}
+
+// ── EmptyState ─────────────────────────────────────────────────────────────
+
+function EmptyState({ icon = "📭", title, text, cta, onCta }) {
+  return (
+    <div className="console-empty">
+      <div className="console-empty__icon">{icon}</div>
+      {title && <p className="console-empty__title">{title}</p>}
+      {text  && <p className="console-empty__text">{text}</p>}
+      {cta   && <Button onClick={onCta}>{cta}</Button>}
+    </div>
+  );
+}
+
+// ── ErrorBlock ─────────────────────────────────────────────────────────────
+
+function ErrorBlock({ message = "Erro ao carregar dados.", onRetry }) {
+  return (
+    <div className="console-error-block">
+      <div style={{ fontSize: "1.8rem", opacity: .5 }}>⚠</div>
+      <p className="console-error-block__msg">{message}</p>
+      {onRetry && <Button variant="secondary" onClick={onRetry}>Tentar novamente</Button>}
+    </div>
+  );
+}
+
+// ── SVG Charts ─────────────────────────────────────────────────────────────
+
+function DonutChart({ segments = [], size = 80, strokeWidth = 10 }) {
+  const r = (size - strokeWidth) / 2;
+  const circ = 2 * Math.PI * r;
+  const total = segments.reduce((s, seg) => s + (seg.value || 0), 0) || 1;
+  let offset = 0;
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="console-donut">
+      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="var(--surface-3)" strokeWidth={strokeWidth} />
+      {segments.map((seg, i) => {
+        const dash = (seg.value / total) * circ;
+        const gap  = circ - dash;
+        const rotation = (offset / total) * 360 - 90;
+        offset += seg.value;
+        if (!seg.value) return null;
+        return (
+          <circle key={i} cx={size/2} cy={size/2} r={r} fill="none"
+            stroke={seg.color || "var(--accent)"}
+            strokeWidth={strokeWidth}
+            strokeDasharray={`${dash} ${gap}`}
+            strokeDashoffset={0}
+            transform={`rotate(${rotation} ${size/2} ${size/2})`}
+          />
+        );
+      })}
+    </svg>
+  );
+}
+
+function MiniBar({ value = 0, max = 100, color = "var(--accent)", height = 6 }) {
+  const pct = Math.min(100, Math.max(0, (value / (max || 1)) * 100));
+  return (
+    <div style={{ background: "var(--surface-3)", borderRadius: 3, height, overflow: "hidden" }}>
+      <div style={{ width: `${pct}%`, height: "100%", background: color, borderRadius: 3, transition: "width .5s ease" }} />
+    </div>
+  );
+}
+
+function Sparkline({ values = [], color = "var(--accent)", width = 80, height = 30 }) {
+  if (values.length < 2) return null;
+  const max = Math.max(...values) || 1;
+  const min = Math.min(...values);
+  const range = max - min || 1;
+  const pts = values.map((v, i) => {
+    const x = (i / (values.length - 1)) * width;
+    const y = height - ((v - min) / range) * height;
+    return `${x},${y}`;
+  }).join(" ");
+  return (
+    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} style={{ overflow: "visible" }}>
+      <polyline points={pts} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+// ── ModuleBanner ───────────────────────────────────────────────────────────
+
+function ModuleBanner({ icon, title, subtitle, color = "var(--accent)", kpis = [], children }) {
+  return (
+    <div className="console-module-banner" style={{ "--module-color": color }}>
+      <div className="console-module-banner__icon" style={{ fontSize: "1.4rem" }}>{icon}</div>
+      <div className="console-module-banner__body">
+        <h1 className="console-module-banner__title">{title}</h1>
+        {subtitle && <p className="console-module-banner__sub">{subtitle}</p>}
+        {children}
+      </div>
+      {kpis.length > 0 && (
+        <div className="console-module-banner__kpis">
+          {kpis.map((k, i) => (
+            <div key={i} className="console-module-banner__kpi">
+              <div className="console-module-banner__kpi-value">{k.value ?? "—"}</div>
+              <div className="console-module-banner__kpi-label">{k.label}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── TempPasswordModal ──────────────────────────────────────────────────────
 
 function TempPasswordModal({ password, onClose }) {
@@ -200,6 +350,271 @@ function NationalSummary({ token }) {
         <div className="console-kpi__label">Usuários ativos</div>
       </div>
     </div>
+  );
+}
+
+// ── NocDashboard ───────────────────────────────────────────────────────────
+
+function NocDashboard({ token, onGoTo }) {
+  const [summary,    setSummary]    = useState(null);
+  const [incidents,  setIncidents]  = useState([]);
+  const [deployments,setDeployments]= useState([]);
+  const [backupDash, setBackupDash] = useState(null);
+  const [govDash,    setGovDash]    = useState(null);
+  const [health,     setHealth]     = useState(null);
+  const [loading,    setLoading]    = useState(true);
+  const [error,      setError]      = useState(false);
+
+  const loadAll = useCallback(() => {
+    setLoading(true);
+    setError(false);
+    Promise.all([
+      apiFetch("/platform/summary",                               token).catch(() => null),
+      apiFetch("/platform/incidents?status=OPEN&limit=5",         token).catch(() => null),
+      apiFetch("/platform/deployments?status=IN_PROGRESS&limit=5",token).catch(() => null),
+      apiFetch("/platform/backup/dashboard",                      token).catch(() => null),
+      apiFetch("/platform/governance/dashboard",                  token).catch(() => null),
+      apiFetch("/readyz",                                         token).catch(() => null),
+    ]).then(([sum, inc, dep, bkp, gov, hlth]) => {
+      setSummary(sum);
+      setIncidents(inc?.incidents || []);
+      setDeployments(dep?.deployments || []);
+      setBackupDash(bkp);
+      setGovDash(gov);
+      setHealth(hlth);
+    }).catch(() => setError(true))
+      .finally(() => setLoading(false));
+  }, [token]);
+
+  useEffect(() => { loadAll(); }, [loadAll]);
+
+  const openIncidents   = incidents.filter(i => i.status !== "CLOSED").length;
+  const critIncidents   = incidents.filter(i => i.severity === "CRITICAL").length;
+  const inProgressDeps  = deployments.length;
+
+  const services = [
+    { name: "API Backend",       ok: health !== null },
+    { name: "Auth / JWT",        ok: health !== null },
+    { name: "CDS Export",        ok: true },
+    { name: "Indicator Engine",  ok: true },
+    { name: "Break Glass",       ok: true },
+    { name: "Backup",            ok: !!backupDash },
+  ];
+
+  if (loading) return (
+    <>
+      <KpiSkeleton count={6} />
+      <div className="noc-grid" style={{ marginBottom: "var(--s-4)" }}>
+        {[0,1,2].map(i => <div key={i} className="console-section" style={{ height: 160 }}><div className="console-skeleton" style={{ height: "100%", borderRadius: "var(--r-lg)" }} /></div>)}
+      </div>
+    </>
+  );
+
+  if (error) return <ErrorBlock message="Não foi possível carregar o dashboard. Verifique a conexão." onRetry={loadAll} />;
+
+  return (
+    <>
+      {/* KPI strip */}
+      <div className="noc-kpi-grid">
+        {[
+          { label: "Municípios",      value: summary?.totalMunicipalities ?? "—", icon: "🏙️", color: "#3b82f6", onClick: () => onGoTo("municipalities") },
+          { label: "UBS cadastradas", value: summary?.totalUnits ?? "—",           icon: "🏥", color: "#8b5cf6", onClick: () => onGoTo("municipalities") },
+          { label: "Operacionais",    value: summary?.active ?? "—",               icon: "✅", color: "#10b981" },
+          { label: "Em implantação",  value: inProgressDeps,                       icon: "🚀", color: "#f59e0b", onClick: () => onGoTo("deployments") },
+          { label: "Incidentes abertos", value: openIncidents,                     icon: "🔥", color: critIncidents > 0 ? "#ef4444" : "#f59e0b", onClick: () => onGoTo("incidents") },
+          { label: "Usuários ativos", value: summary?.totalUsers ?? "—",           icon: "👥", color: "#6366f1" },
+        ].map((k) => (
+          <button key={k.label} type="button" className="noc-kpi" style={{ "--kpi-color": k.color, cursor: k.onClick ? "pointer" : "default", textAlign: "left", border: "1px solid var(--border)", background: "var(--surface)" }} onClick={k.onClick}>
+            <div className="noc-kpi__accent" />
+            <div className="noc-kpi__icon" style={{ fontSize: "1rem" }}>{k.icon}</div>
+            <div className="noc-kpi__value" style={{ color: k.color }}>{k.value}</div>
+            <div className="noc-kpi__label">{k.label}</div>
+          </button>
+        ))}
+      </div>
+
+      {/* Main grid: Health + Incidents + Deployments */}
+      <div className="noc-grid" style={{ marginBottom: "var(--s-4)" }}>
+
+        {/* Health */}
+        <div className="console-section">
+          <div className="console-section__header">
+            <span>🟢 Saúde da Plataforma</span>
+            <span style={{ fontSize: "var(--t-xs)", color: "var(--success)", fontWeight: 600, textTransform: "none", letterSpacing: 0 }}>OPERACIONAL</span>
+          </div>
+          <div className="console-section__body">
+            <div className="noc-health-grid">
+              {services.map(svc => (
+                <div key={svc.name} className="noc-health-item">
+                  <div className={`noc-health-dot${!svc.ok ? " noc-health-dot--err" : ""}`} />
+                  <span className="noc-health-label">{svc.name}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Incidentes abertos */}
+        <div className="console-section">
+          <div className="console-section__header">
+            <span>🔔 Incidentes Abertos</span>
+            <button type="button" className="console-breadcrumb-link" style={{ fontSize: "var(--t-xs)" }} onClick={() => onGoTo("incidents")}>Ver todos →</button>
+          </div>
+          <div className="console-section__body">
+            {incidents.length === 0 ? (
+              <EmptyState icon="✅" title="Nenhum incidente aberto" text="Todos os serviços estão operando normalmente." />
+            ) : (
+              <div className="console-timeline">
+                {incidents.map(inc => (
+                  <div key={inc.id} className="console-timeline__item">
+                    <div className={`console-timeline__dot${inc.severity === "CRITICAL" ? " console-timeline__dot--err" : inc.severity === "HIGH" ? " console-timeline__dot--warn" : ""}`} />
+                    <div className="console-timeline__body">
+                      <div className="console-timeline__title">{inc.title}</div>
+                      <div className="console-timeline__meta">
+                        <span className={`badge${inc.severity === "CRITICAL" ? " badge--danger" : inc.severity === "HIGH" ? " badge--warning" : ""}`} style={{ fontSize: "0.7em" }}>{inc.severity}</span>
+                        {" · "}{fmtDate(inc.createdAt)}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Deployments em andamento */}
+        <div className="console-section">
+          <div className="console-section__header">
+            <span>🚀 Implantações em Andamento</span>
+            <button type="button" className="console-breadcrumb-link" style={{ fontSize: "var(--t-xs)" }} onClick={() => onGoTo("deployments")}>Ver todas →</button>
+          </div>
+          <div className="console-section__body">
+            {deployments.length === 0 ? (
+              <EmptyState icon="🏁" title="Nenhuma implantação ativa" text="Todas as implantações estão concluídas." />
+            ) : (
+              <div className="console-timeline">
+                {deployments.map(dep => (
+                  <div key={dep.id} className="console-timeline__item">
+                    <div className="console-timeline__dot console-timeline__dot--warn" />
+                    <div className="console-timeline__body">
+                      <div className="console-timeline__title">{dep.municipalityName || dep.unitName || "—"}</div>
+                      <div className="console-timeline__meta">
+                        {dep.type === "MUNICIPAL" ? "Municipal" : "UBS"}
+                        {dep.progress != null && ` · ${dep.progress}%`}
+                      </div>
+                      {dep.progress != null && <MiniBar value={dep.progress} max={100} color="var(--warning)" height={3} />}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Second row: Backup + Governance + UBS Distribution */}
+      <div className="noc-grid--wide noc-grid" style={{ marginBottom: "var(--s-4)" }}>
+
+        {/* Backup health */}
+        <div className="console-section">
+          <div className="console-section__header">
+            <span>💾 Backup & Continuidade</span>
+            <button type="button" className="console-breadcrumb-link" style={{ fontSize: "var(--t-xs)" }} onClick={() => onGoTo("backup")}>Ver detalhes →</button>
+          </div>
+          <div className="console-section__body">
+            {!backupDash ? (
+              <EmptyState icon="💾" title="Sem dados de backup" text="Configure políticas de backup para monitorar aqui." />
+            ) : (
+              <div style={{ display: "flex", gap: "var(--s-5)", alignItems: "center", flexWrap: "wrap" }}>
+                <DonutChart size={80} strokeWidth={10} segments={[
+                  { value: backupDash.completed || 0,  color: "var(--success)" },
+                  { value: backupDash.failed    || 0,  color: "var(--danger)"  },
+                  { value: backupDash.scheduled || 0,  color: "var(--surface-3)" },
+                ]} />
+                <div style={{ display: "flex", flexDirection: "column", gap: "var(--s-2)" }}>
+                  {[
+                    { label: "Completos",  value: backupDash.completed || 0,     color: "var(--success)" },
+                    { label: "Falharam",   value: backupDash.failed    || 0,     color: "var(--danger)"  },
+                    { label: "Agendados",  value: backupDash.scheduled || 0,     color: "var(--text-dim)" },
+                    { label: "Políticas",  value: backupDash.totalPolicies || 0, color: "var(--accent)" },
+                  ].map(r => (
+                    <div key={r.label} style={{ display: "flex", gap: "var(--s-2)", alignItems: "center", fontSize: "var(--t-sm)" }}>
+                      <span style={{ width: 8, height: 8, borderRadius: "50%", background: r.color, flexShrink: 0, display: "inline-block" }} />
+                      <span style={{ color: "var(--text-muted)" }}>{r.label}</span>
+                      <span style={{ fontWeight: 600, marginLeft: "auto" }}>{r.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Governance compliance */}
+        <div className="console-section">
+          <div className="console-section__header">
+            <span>⚖️ Governança & Compliance</span>
+            <button type="button" className="console-breadcrumb-link" style={{ fontSize: "var(--t-xs)" }} onClick={() => onGoTo("governance")}>Ver detalhes →</button>
+          </div>
+          <div className="console-section__body">
+            {!govDash ? (
+              <EmptyState icon="⚖️" title="Sem dados de governança" text="Crie baselines e políticas para monitorar compliance aqui." />
+            ) : (
+              <div style={{ display: "flex", gap: "var(--s-5)", alignItems: "center", flexWrap: "wrap" }}>
+                <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <DonutChart size={80} strokeWidth={10} segments={[
+                    { value: govDash.complianceScore || 0,            color: govDash.complianceScore >= 80 ? "var(--success)" : govDash.complianceScore >= 60 ? "var(--warning)" : "var(--danger)" },
+                    { value: 100 - (govDash.complianceScore || 0),    color: "var(--surface-3)" },
+                  ]} />
+                  <div style={{ position: "absolute", fontWeight: 800, fontSize: "1rem", color: "var(--text)" }}>
+                    {govDash.complianceScore ?? "—"}%
+                  </div>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: "var(--s-2)" }}>
+                  {[
+                    { label: "Baselines",   value: govDash.totalBaselines   || 0 },
+                    { label: "Políticas",   value: govDash.totalPolicies     || 0 },
+                    { label: "ADRs",        value: govDash.totalAdrs         || 0 },
+                    { label: "Exceções",    value: govDash.pendingExceptions || 0, warn: true },
+                  ].map(r => (
+                    <div key={r.label} style={{ display: "flex", gap: "var(--s-2)", alignItems: "center", fontSize: "var(--t-sm)" }}>
+                      <span style={{ color: "var(--text-muted)" }}>{r.label}</span>
+                      <span style={{ fontWeight: 600, marginLeft: "auto", color: r.warn && r.value > 0 ? "var(--warning)" : "var(--text)" }}>{r.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* UBS Status distribution */}
+      {summary && (
+        <div className="console-section" style={{ marginBottom: "var(--s-4)" }}>
+          <div className="console-section__header">Distribuição de Status — UBS</div>
+          <div className="console-section__body">
+            <div style={{ display: "flex", flexDirection: "column", gap: "var(--s-2)" }}>
+              {[
+                { label: STATUS_LABELS.active,       value: summary.active       || 0, color: "var(--success)", total: summary.totalUnits || 1 },
+                { label: STATUS_LABELS.onboarding,   value: summary.onboarding   || 0, color: "var(--warning)", total: summary.totalUnits || 1 },
+                { label: STATUS_LABELS.homologation, value: summary.homologation || 0, color: "var(--accent)",  total: summary.totalUnits || 1 },
+                { label: STATUS_LABELS.suspended,    value: summary.suspended    || 0, color: "var(--danger)",  total: summary.totalUnits || 1 },
+                { label: STATUS_LABELS.draft,        value: summary.draft        || 0, color: "var(--text-dim)",total: summary.totalUnits || 1 },
+              ].map(s => (
+                <div key={s.label} style={{ display: "flex", alignItems: "center", gap: "var(--s-3)", fontSize: "var(--t-sm)" }}>
+                  <span style={{ width: 110, color: "var(--text-muted)", flexShrink: 0 }}>{s.label}</span>
+                  <div style={{ flex: 1 }}>
+                    <MiniBar value={s.value} max={s.total} color={s.color} height={8} />
+                  </div>
+                  <span style={{ fontWeight: 700, width: 32, textAlign: "right", color: s.color }}>{s.value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -520,13 +935,19 @@ function MunicipalityListView({ token, onSelect }) {
         <NovoMunicipioModal token={token} onClose={() => setShowModal(false)} onCreate={handleCreated} />
       )}
 
-      <div className="console-page-header">
-        <div>
-          <h1 className="console-page-header__title">Municípios</h1>
-          <p className="console-page-header__sub">Municípios cadastrados no VITRAS — contratos e implantações ativas</p>
+      <ModuleBanner
+        icon="🏙️"
+        title="Municípios"
+        subtitle="Clientes municipais ativos na plataforma VITRAS"
+        color="#3b82f6"
+        kpis={[{ label: "Cadastrados", value: total }]}
+      >
+        <div style={{ marginTop: "var(--s-2)" }}>
+          <Button onClick={() => setShowModal(true)}>+ Novo Município</Button>
         </div>
-        <Button onClick={() => setShowModal(true)}>+ Novo Município</Button>
-      </div>
+      </ModuleBanner>
+
+      {/* Filters */}
 
       <div style={{ display: "flex", gap: "var(--s-3)", marginBottom: "var(--s-4)", flexWrap: "wrap" }}>
         <div className="input" style={{ flex: "1 1 220px" }}>
@@ -550,14 +971,14 @@ function MunicipalityListView({ token, onSelect }) {
       )}
 
       {!loading && items.length === 0 && (
-        <div style={{ padding: "var(--s-8)", textAlign: "center" }}>
-          <div style={{ fontSize: "2.5rem", marginBottom: "var(--s-3)" }}>🏙️</div>
-          <p style={{ color: "var(--text-dim)", marginBottom: "var(--s-4)" }}>
-            {search || uf || status ? "Nenhum município encontrado para os filtros informados." : "Nenhum município cadastrado."}
-          </p>
-          {!search && !uf && !status && (
-            <Button onClick={() => setShowModal(true)}>Cadastrar primeiro município</Button>
-          )}
+        <div className="console-section">
+          <EmptyState
+            icon="🏙️"
+            title={search || uf || status ? "Nenhum município encontrado" : "Nenhum município cadastrado"}
+            text={search || uf || status ? "Tente ajustar os filtros de busca." : "Cadastre o primeiro município VITRAS para começar."}
+            cta={!search && !uf && !status ? "Cadastrar primeiro município" : undefined}
+            onCta={() => setShowModal(true)}
+          />
         </div>
       )}
 
@@ -1038,12 +1459,15 @@ function DeploymentListView({ token, onSelect }) {
 
   return (
     <>
-      <div className="console-page-header">
-        <div>
-          <h1 className="console-page-header__title">Implantações</h1>
-          <p className="console-page-header__sub">Ciclo de vida de implantação por município e UBS</p>
-        </div>
-      </div>
+      <ModuleBanner
+        icon="🚀"
+        title="Implantações"
+        subtitle="Ciclo de vida de implantação por município e UBS"
+        color="#f59e0b"
+        kpis={[
+          { label: "Total", value: total },
+        ]}
+      />
 
       <div style={{ display: "flex", gap: "var(--s-3)", marginBottom: "var(--s-4)", flexWrap: "wrap" }}>
         <select value={typeFilter} onChange={e => { setTypeFilter(e.target.value); setPage(1); }}
@@ -2813,13 +3237,21 @@ function LicenseListView({ token, onSelect, onNew }) {
 
   return (
     <>
-      <div className="console-page-header">
-        <div>
-          <h1 className="console-page-header__title">Licenças</h1>
-          <p className="console-page-header__sub">Contratos e ciclo de vida de clientes municipais</p>
+      <ModuleBanner
+        icon="📋"
+        title="Licenças"
+        subtitle="Contratos e ciclo de vida de clientes municipais"
+        color="#d97706"
+        kpis={dashboard ? [
+          { label: "Ativas",    value: dashboard.byStatus?.ACTIVE    ?? 0 },
+          { label: "Trial",     value: dashboard.byStatus?.TRIAL     ?? 0 },
+          { label: "Suspensas", value: dashboard.byStatus?.SUSPENDED ?? 0 },
+        ] : []}
+      >
+        <div style={{ marginTop: "var(--s-2)" }}>
+          <Button onClick={onNew}>+ Nova Licença</Button>
         </div>
-        <Button onClick={onNew}>+ Nova Licença</Button>
-      </div>
+      </ModuleBanner>
 
       {dashboard && (
         <div style={{ display: "flex", gap: "var(--s-3)", flexWrap: "wrap", marginBottom: "var(--s-4)" }}>
@@ -3230,13 +3662,18 @@ function CmdbConsole({ token }) {
   const REL_TYPES = ["DEPENDS_ON","USES","HOSTED_ON","OWNED_BY","IMPLEMENTS","GENERATED_BY","PROTECTED_BY","SUPERSEDES","RELATED_TO"];
 
   return (
-    <div className="console-section">
-      <div className="console-page-header">
-        <div>
-          <h1 className="console-page-header__title">CMDB</h1>
-          <p className="console-page-header__sub">Base de configuração — ativos operacionais e seus relacionamentos</p>
-        </div>
-      </div>
+    <div>
+      <ModuleBanner
+        icon="🗂️"
+        title="CMDB"
+        subtitle="Base de configuração — ativos operacionais e seus relacionamentos"
+        color="#6366f1"
+        kpis={dash ? [
+          { label: "CIs ativos",     value: dash.active ?? 0 },
+          { label: "Relacionamentos",value: dash.totalRelationships ?? 0 },
+          { label: "Mission Critical",value: dash.missionCritical ?? 0 },
+        ] : []}
+      />
 
       {/* Dashboard cards */}
       {dash && (
@@ -3294,7 +3731,7 @@ function CmdbConsole({ token }) {
             <table className="data-table">
               <thead><tr><th>Código</th><th>Nome</th><th>Tipo</th><th>Status</th><th>Criticidade</th><th>Ambiente</th></tr></thead>
               <tbody>
-                {items.length === 0 && <tr><td colSpan={6} style={{ textAlign: "center", color: "var(--color-text-muted)" }}>Nenhum CI registrado</td></tr>}
+                {items.length === 0 && <tr><td colSpan={6}><EmptyState icon="🗂️" title="Nenhum CI registrado" text="Adicione itens de configuração para mapear os ativos da plataforma." /></td></tr>}
                 {items.map(ci => (
                   <tr key={ci.id}>
                     <td><code style={{ fontSize: ".75rem" }}>{ci.ciCode}</code></td>
@@ -3487,15 +3924,23 @@ function GovernanceConsole({ token }) {
 
   return (
     <div>
-      <div className="console-page-header">
-        <div>
-          <h1 className="console-page-header__title">Governança & Compliance</h1>
-          <p className="console-page-header__sub">Baselines, ADRs, políticas, exceções e Compliance Engine</p>
+      <ModuleBanner
+        icon="⚖️"
+        title="Governança & Compliance"
+        subtitle="Baselines, ADRs, políticas, exceções e Compliance Engine"
+        color="#7c3aed"
+        kpis={dash ? [
+          { label: "Score", value: `${dash.complianceScore ?? "—"}%` },
+          { label: "Baselines", value: dash.totalBaselines ?? 0 },
+          { label: "Exceções pendentes", value: dash.pendingExceptions ?? 0 },
+        ] : []}
+      >
+        <div style={{ marginTop: "var(--s-2)" }}>
+          <Button onClick={fetchAll} variant="secondary" size="sm">↺ Atualizar</Button>
         </div>
-        <Button onClick={fetchAll} variant="ghost">↺ Atualizar</Button>
-      </div>
+      </ModuleBanner>
 
-      {loading && <p style={{ opacity: 0.5 }}>Carregando...</p>}
+      {loading && <Skeleton count={4} />}
 
       {/* Compliance banner */}
       {compliance && (
@@ -3631,7 +4076,7 @@ function GovernanceConsole({ token }) {
               <th style={{ textAlign: "left", padding: "0.4rem" }}>Vigente até</th>
             </tr></thead>
             <tbody>
-              {!policies.length && <tr><td colSpan={6} style={{ padding: "1rem", opacity: 0.5 }}>Nenhuma política.</td></tr>}
+              {!policies.length && <tr><td colSpan={6}><EmptyState icon="⚖️" title="Nenhuma política cadastrada" text="Crie políticas de governança para monitorar compliance." /></td></tr>}
               {policies.map(p => (
                 <tr key={p.id} style={{ borderBottom: "1px solid var(--border-color)" }}>
                   <td style={{ padding: "0.4rem", fontFamily: "monospace", fontSize: "0.8rem" }}>{p.policyCode}</td>
@@ -3728,15 +4173,23 @@ function BackupConsole({ token }) {
 
   return (
     <div>
-      <div className="console-page-header">
-        <div>
-          <h1 className="console-page-header__title">Backup & Continuidade de Negócio</h1>
-          <p className="console-page-header__sub">Políticas, execuções, testes de restore e perfil de continuidade</p>
+      <ModuleBanner
+        icon="💾"
+        title="Backup & Continuidade de Negócio"
+        subtitle="Políticas, execuções, testes de restore e perfil de continuidade"
+        color="#0891b2"
+        kpis={dash ? [
+          { label: "Políticas", value: dash.totalPolicies ?? 0 },
+          { label: "Completos", value: dash.completed ?? 0 },
+          { label: "Falharam",  value: dash.failed ?? 0 },
+        ] : []}
+      >
+        <div style={{ marginTop: "var(--s-2)" }}>
+          <Button onClick={fetchAll} variant="secondary" size="sm">↺ Atualizar</Button>
         </div>
-        <Button onClick={fetchAll} variant="ghost">↺ Atualizar</Button>
-      </div>
+      </ModuleBanner>
 
-      {loading && <p style={{ opacity: 0.5 }}>Carregando...</p>}
+      {loading && <Skeleton count={4} />}
 
       {/* Risk & RPO banner */}
       {dash && (
@@ -3844,7 +4297,7 @@ function BackupConsole({ token }) {
               <th style={{ textAlign: "left", padding: "0.4rem" }}>Status</th>
             </tr></thead>
             <tbody>
-              {!policies.length && <tr><td colSpan={8} style={{ padding: "1rem", opacity: 0.5 }}>Nenhuma política cadastrada.</td></tr>}
+              {!policies.length && <tr><td colSpan={8}><EmptyState icon="💾" title="Nenhuma política de backup" text="Configure políticas de backup para proteger os dados da plataforma." /></td></tr>}
               {policies.map(p => (
                 <tr key={p.id} style={{ borderBottom: "1px solid var(--border-color)" }}>
                   <td style={{ padding: "0.4rem", fontFamily: "monospace", fontSize: "0.8rem" }}>{p.policyCode}</td>
@@ -4080,16 +4533,24 @@ function ReleaseConsole({ token }) {
 
   return (
     <div>
-      <div className="console-page-header">
-        <div>
-          <h1 className="console-page-header__title">Release Management</h1>
-          <p className="console-page-header__sub">Controle de versões, rollouts e janelas de manutenção</p>
+      <ModuleBanner
+        icon="🚀"
+        title="Release Management"
+        subtitle="Controle de versões, rollouts e janelas de manutenção"
+        color="#059669"
+        kpis={dashboard ? [
+          { label: "Releases",  value: dashboard.totalReleases  ?? releases.length },
+          { label: "Rollouts",  value: dashboard.totalRollouts  ?? rollouts.length },
+          { label: "Ativos",    value: dashboard.activeReleases ?? 0 },
+        ] : []}
+      >
+        <div style={{ marginTop: "var(--s-2)" }}>
+          <Button onClick={fetchDashboard} variant="secondary" size="sm">↺ Atualizar</Button>
         </div>
-        <Button onClick={fetchDashboard} variant="ghost">↺ Atualizar</Button>
-      </div>
+      </ModuleBanner>
 
-      {err && <Alert type="error" message={err} onClose={() => setErr(null)} />}
-      {loading && <p style={{ opacity: 0.5 }}>Carregando...</p>}
+      {err && <Alert type="error">{err}</Alert>}
+      {loading && <Skeleton count={4} />}
 
       {/* Dashboard cards */}
       {dashboard && (
@@ -4177,7 +4638,7 @@ function ReleaseConsole({ token }) {
               <th style={{ textAlign: "left", padding: "0.4rem" }}>Criado</th>
             </tr></thead>
             <tbody>
-              {!rollouts.length && <tr><td colSpan={6} style={{ padding: "1rem", opacity: 0.5 }}>Nenhum rollout.</td></tr>}
+              {!rollouts.length && <tr><td colSpan={6}><EmptyState icon="🚀" title="Nenhum rollout registrado" text="Rollouts são criados a partir de releases aprovados." /></td></tr>}
               {rollouts.map(ro => (
                 <tr key={ro.id} style={{ borderBottom: "1px solid var(--border-color)" }}>
                   <td style={{ padding: "0.4rem" }}>{ro.targetType}</td>
@@ -4303,20 +4764,26 @@ function NocConsole({ token }) {
     } catch (e) { setError(e.message); }
   };
 
-  if (loading) return <p>Carregando NOC…</p>;
+  if (loading) return <><ModuleBanner icon="🖥️" title="NOC — Centro de Operações" subtitle="Observabilidade e diagnóstico" color="#1d4ed8" /><Skeleton count={5} /></>;
 
   return (
     <>
-      <div className="console-page-header">
-        <div>
-          <h1 className="console-page-header__title">NOC — Centro de Operações</h1>
-          <p className="console-page-header__sub">Observabilidade e diagnóstico operacional da plataforma VITRAS</p>
+      <ModuleBanner
+        icon="🖥️"
+        title="NOC — Centro de Operações"
+        subtitle="Observabilidade e diagnóstico operacional da plataforma VITRAS"
+        color="#1d4ed8"
+        kpis={dashboard ? [
+          { label: "UBS Ativas",       value: dashboard.units?.active ?? "—" },
+          { label: "Alertas abertos",  value: dashboard.alerts?.open ?? 0 },
+          { label: "Incidentes abertos", value: dashboard.incidents?.open ?? 0 },
+        ] : []}
+      >
+        <div style={{ marginTop: "var(--s-2)", display: "flex", gap: "var(--s-2)" }}>
+          <Button variant="secondary" size="sm" onClick={load}>↻ Atualizar</Button>
+          <Button size="sm" onClick={runDiag} disabled={running}>{running ? "Executando…" : "Rodar Diagnóstico"}</Button>
         </div>
-        <div style={{ display: "flex", gap: "var(--s-2)" }}>
-          <Button variant="secondary" onClick={load}>↻ Atualizar</Button>
-          <Button onClick={runDiag} disabled={running}>{running ? "Executando…" : "Rodar Diagnóstico"}</Button>
-        </div>
-      </div>
+      </ModuleBanner>
 
       {error && <Alert variant="danger">{error}</Alert>}
       {msg   && <Alert variant="success">{msg}</Alert>}
@@ -4473,29 +4940,41 @@ function IncidentListView({ token, onSelect, onNew }) {
 
   useEffect(() => { load(); }, [load]);
 
+  if (loading) return <><ModuleBanner icon="🔔" title="Incidentes" subtitle="Operações de suporte e gerenciamento de incidentes técnicos" color="#ef4444" /><KpiSkeleton count={6} /></>;
+  if (error)   return <><ModuleBanner icon="🔔" title="Incidentes" subtitle="Operações de suporte" color="#ef4444" /><ErrorBlock message={error} onRetry={load} /></>;
+
   return (
     <>
-      <div className="console-page-header">
-        <div>
-          <h1 className="console-page-header__title">Incidentes</h1>
-          <p className="console-page-header__sub">Operações de suporte e gerenciamento de incidentes técnicos</p>
+      <ModuleBanner
+        icon="🔔"
+        title="Incidentes"
+        subtitle="Operações de suporte e gerenciamento de incidentes técnicos"
+        color="#ef4444"
+        kpis={dashboard ? [
+          { label: "Abertos",   value: (dashboard.summary.new || 0) + (dashboard.summary.inProgress || 0) },
+          { label: "Críticos",  value: dashboard.summary.critical || 0 },
+          { label: "Municípios afetados", value: dashboard.affectedMunicipalities || 0 },
+        ] : []}
+      >
+        <div style={{ marginTop: "var(--s-2)" }}>
+          <Button onClick={onNew}>+ Novo Incidente</Button>
         </div>
-        <Button onClick={onNew}>+ Novo Incidente</Button>
-      </div>
+      </ModuleBanner>
 
       {dashboard && (
-        <div style={{ display: "flex", gap: "var(--s-3)", flexWrap: "wrap", marginBottom: "var(--s-4)" }}>
+        <div className="noc-kpi-grid" style={{ marginBottom: "var(--s-4)" }}>
           {[
-            { label: "Novos",        value: dashboard.summary.new,         cls: "badge--warning" },
-            { label: "Em andamento", value: dashboard.summary.inProgress,  cls: "badge--warning" },
-            { label: "Críticos",     value: dashboard.summary.critical,    cls: "badge--danger"  },
-            { label: "Aguardando",   value: dashboard.summary.waiting,     cls: ""               },
-            { label: "Resolvidos hoje", value: dashboard.summary.resolvedToday, cls: "badge--success" },
-            { label: "Municípios afetados", value: dashboard.affectedMunicipalities, cls: "" },
-          ].map(({ label, value }) => (
-            <div key={label} style={{ background: "var(--surface-2)", borderRadius: "var(--radius-md)", padding: "var(--s-2) var(--s-3)", minWidth: 90, textAlign: "center" }}>
-              <div style={{ fontSize: "1.4rem", fontWeight: 700 }}>{value ?? 0}</div>
-              <div style={{ fontSize: "0.7rem", color: "var(--text-muted)" }}>{label}</div>
+            { label: "Novos",        value: dashboard.summary.new         || 0, color: "#f59e0b" },
+            { label: "Em andamento", value: dashboard.summary.inProgress   || 0, color: "#f59e0b" },
+            { label: "Críticos",     value: dashboard.summary.critical     || 0, color: "#ef4444" },
+            { label: "Aguardando",   value: dashboard.summary.waiting      || 0, color: "#6b7280" },
+            { label: "Resolvidos",   value: dashboard.summary.resolvedToday|| 0, color: "#10b981" },
+            { label: "Municípios",   value: dashboard.affectedMunicipalities|| 0, color: "#3b82f6" },
+          ].map(k => (
+            <div key={k.label} className="noc-kpi" style={{ "--kpi-color": k.color, border: "1px solid var(--border)", background: "var(--surface)", textAlign: "left" }}>
+              <div className="noc-kpi__accent" />
+              <div className="noc-kpi__value" style={{ color: k.color }}>{k.value}</div>
+              <div className="noc-kpi__label">{k.label}</div>
             </div>
           ))}
         </div>
@@ -4519,15 +4998,13 @@ function IncidentListView({ token, onSelect, onNew }) {
         </select>
       </div>
 
-      {error && <Alert variant="danger">{error}</Alert>}
-      {loading ? <p>Carregando…</p> : (
-        <div className="console-table-wrapper">
+      <div className="console-section">
+        <div className="console-table-wrap">
           <table className="console-table">
             <thead>
               <tr>
                 <th>Código</th>
                 <th>Título</th>
-                <th>Categoria</th>
                 <th>Severidade</th>
                 <th>Status</th>
                 <th>Responsável</th>
@@ -4537,23 +5014,26 @@ function IncidentListView({ token, onSelect, onNew }) {
             </thead>
             <tbody>
               {incidents.length === 0 ? (
-                <tr><td colSpan={8} style={{ textAlign: "center", color: "var(--text-muted)" }}>Nenhum incidente encontrado</td></tr>
+                <tr><td colSpan={7}>
+                  <EmptyState icon="✅" title="Nenhum incidente encontrado" text="Nenhum incidente corresponde aos filtros selecionados." />
+                </td></tr>
               ) : incidents.map(inc => (
-                <tr key={inc.id}>
-                  <td><span style={{ fontFamily: "monospace", fontSize: "0.82rem" }}>{inc.incidentCode}</span></td>
-                  <td style={{ maxWidth: 240, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{inc.title}</td>
-                  <td style={{ fontSize: "0.8rem" }}>{inc.category}</td>
+                <tr key={inc.id} className="is-clickable" onClick={() => onSelect(inc.id)}>
+                  <td><code style={{ fontSize: "var(--t-xs)" }}>{inc.incidentCode}</code></td>
+                  <td style={{ maxWidth: 280, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: 500 }}>{inc.title}</td>
                   <td><span className={SEVERITY_CLASS[inc.severity] || "badge"}>{inc.severity}</span></td>
                   <td><span className={INCIDENT_STATUS_CLASS[inc.status] || "badge"}>{INCIDENT_STATUS_LABEL[inc.status] || inc.status}</span></td>
-                  <td style={{ fontSize: "0.82rem" }}>{inc.assignedTo?.name || "—"}</td>
-                  <td style={{ fontSize: "0.82rem" }}>{fmtDate(inc.createdAt)}</td>
-                  <td><Button size="sm" variant="secondary" onClick={() => onSelect(inc.id)}>Ver</Button></td>
+                  <td style={{ color: "var(--text-muted)" }}>{inc.assignedTo?.name || "—"}</td>
+                  <td style={{ color: "var(--text-muted)" }}>{fmtDate(inc.createdAt)}</td>
+                  <td style={{ textAlign: "right" }}>
+                    <Button size="sm" variant="secondary" onClick={e => { e.stopPropagation(); onSelect(inc.id); }}>Ver →</Button>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-      )}
+      </div>
     </>
   );
 }
@@ -5018,27 +5498,23 @@ export default function PlatformConsolePage({ token, user, onLogout }) {
 
         {/* Content */}
         <main className="console-content">
-          {/* Visão Geral */}
+          {/* NOC Dashboard */}
           {tab === "overview" && (
             <>
-              <div className="console-page-header">
-                <div>
-                  <h1 className="console-page-header__title">Visão Geral</h1>
-                  <p className="console-page-header__sub">Indicadores da plataforma VITRAS APS em tempo real</p>
+              <div className="console-module-banner" style={{ "--module-color": "#3b82f6" }}>
+                <div className="console-module-banner__icon" style={{ fontSize: "1.6rem" }}>🖥️</div>
+                <div className="console-module-banner__body">
+                  <h1 className="console-module-banner__title">Centro Nacional de Operações</h1>
+                  <p className="console-module-banner__sub">Plataforma VITRAS APS — visão em tempo real</p>
+                </div>
+                <div style={{ fontSize: "var(--t-xs)", color: "var(--text-muted)", textAlign: "right" }}>
+                  <div style={{ fontWeight: 600, color: "var(--success)" }}>● OPERACIONAL</div>
+                  <div style={{ marginTop: 2 }}>Atualizado agora</div>
                 </div>
               </div>
-              <NationalSummary token={token} key={listKey} />
-              <div className="console-section">
-                <div className="console-section__header">Ações rápidas</div>
-                <div className="console-section__body" style={{ display: "flex", gap: "var(--s-3)", flexWrap: "wrap" }}>
-                  <Button variant="secondary" onClick={() => switchTab("municipalities")}>
-                    <IcoMunicipality /> Ver Municípios
-                  </Button>
-                  <Button variant="secondary" onClick={() => switchTab("migrations")}>
-                    <IcoImport /> Ir para Migrações
-                  </Button>
-                </div>
-              </div>
+              <ErrorBoundary>
+                <NocDashboard token={token} key={listKey} onGoTo={switchTab} />
+              </ErrorBoundary>
             </>
           )}
 
@@ -5090,37 +5566,37 @@ export default function PlatformConsolePage({ token, user, onLogout }) {
 
           {/* Licenças */}
           {tab === "licenses" && (
-            <LicenseConsole token={token} />
+            <ErrorBoundary><LicenseConsole token={token} /></ErrorBoundary>
           )}
 
           {/* Incidentes */}
           {tab === "incidents" && (
-            <IncidentConsole token={token} />
+            <ErrorBoundary><IncidentConsole token={token} /></ErrorBoundary>
           )}
 
           {/* NOC / Observabilidade */}
           {tab === "noc" && (
-            <NocConsole token={token} />
+            <ErrorBoundary><NocConsole token={token} /></ErrorBoundary>
           )}
 
           {/* Releases */}
           {tab === "releases" && (
-            <ReleaseConsole token={token} />
+            <ErrorBoundary><ReleaseConsole token={token} /></ErrorBoundary>
           )}
 
           {/* Backup & Business Continuity */}
           {tab === "backup" && (
-            <BackupConsole token={token} />
+            <ErrorBoundary><BackupConsole token={token} /></ErrorBoundary>
           )}
 
           {/* Governance & Compliance */}
           {tab === "governance" && (
-            <GovernanceConsole token={token} />
+            <ErrorBoundary><GovernanceConsole token={token} /></ErrorBoundary>
           )}
 
           {/* CMDB */}
           {tab === "cmdb" && (
-            <CmdbConsole token={token} />
+            <ErrorBoundary><CmdbConsole token={token} /></ErrorBoundary>
           )}
 
           {/* Unidades de Saúde */}
