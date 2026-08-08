@@ -250,6 +250,27 @@ const VITRAS_MUN_STATUS = ["IMPLANTACAO", "OPERACIONAL", "SUSPENSO", "ARQUIVADO"
 function ensureRegisteredMunicipalities(db) {
   ensureDbShape(db);
   if (!Array.isArray(db.registeredMunicipalities)) db.registeredMunicipalities = [];
+  if (db.registeredMunicipalities.length === 0 && process.env.VITRAS_DEMO_SEED !== "false") {
+    db.registeredMunicipalities = [
+      {
+        id: "mun-santa-aurora-demo",
+        ibgeCode: "4299999",
+        name: "Santa Aurora",
+        uf: "SC",
+        region: "Sul",
+        population: 12000,
+        status: "OPERACIONAL",
+        licenseType: "MUNICIPAL",
+        licenseSeats: 60,
+        licenseExpiry: "2027-12-31",
+        contactName: "Secretária Municipal de Saúde",
+        contactEmail: "saude@santaaurora.sc.gov.br",
+        notes: "Município piloto — Fase 1",
+        createdAt: "2026-01-15T08:00:00.000Z",
+        updatedAt: "2026-06-10T08:00:00.000Z",
+      },
+    ];
+  }
 }
 
 // ── GET /platform/municipalities ─────────────────────────────────────────────
