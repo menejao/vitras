@@ -1806,6 +1806,338 @@ router.get("/platform/deployments-dashboard", async (req, res) => {
 });
 
 // ══════════════════════════════════════════════════════════════════════════
+// ERP-09 — Platform Governance and Compliance
+// ══════════════════════════════════════════════════════════════════════════
+
+import {
+  createBaseline, changeBaselineStatus,
+  createAdr, changeAdrStatus,
+  createPolicy, activatePolicy, updatePolicy,
+  createException, changeExceptionStatus,
+  runComplianceEngine,
+  BASELINE_STATUS, ADR_STATUS, POLICY_STATUS, POLICY_CATEGORY, EXCEPTION_STATUS,
+} from "../services/governance.js";
+
+function ensureGov(db) {
+  ensureDbShape(db);
+  if (!Array.isArray(db.govBaselines))  db.govBaselines  = [];
+  if (!Array.isArray(db.govAdrs))       db.govAdrs       = [];
+  if (!Array.isArray(db.govPolicies))   db.govPolicies   = [];
+  if (!Array.isArray(db.govExceptions)) db.govExceptions = [];
+}
+
+function govOp(user) { return { id: user.id, name: user.name, role: user.role }; }
+
+// ── Baselines ─────────────────────────────────────────────────────────────
+
+router.get("/platform/baselines", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.read")) return res.status(403).json({ error: "Sem permissão" });
+  const { status } = req.query;
+  const db = await readDb();
+  ensureGov(db);
+  let list = db.govBaselines.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  if (status) list = list.filter(b => b.status === status.toUpperCase());
+  return res.json({ baselines: list, total: list.length });
+});
+
+router.get("/platform/baselines/:id", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.read")) return res.status(403).json({ error: "Sem permissão" });
+  const db = await readDb();
+  ensureGov(db);
+  const b = db.govBaselines.find(b => b.id === req.params.id);
+  if (!b) return res.status(404).json({ error: "Baseline não encontrada" });
+  return res.json(b);
+});
+
+router.post("/platform/baselines", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.create")) return res.status(403).json({ error: "Sem permissão" });
+  const op = govOp(req.user);
+  const result = await withDb((db) => {
+    ensureGov(db);
+    let b;
+    try { b = createBaseline({ ...req.body, operator: op, existingBaselines: db.govBaselines }); }
+    catch (e) { return { error: { status: e.statusCode || 400, message: e.message } }; }
+    db.govBaselines.push(b);
+    addAuditLog(db, req.user, "baseline.created", "baseline", b.id, { baselineCode: b.baselineCode });
+    return { baseline: b };
+  });
+  if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
+  return res.status(201).json(result.baseline);
+});
+
+router.patch("/platform/baselines/:id/status", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.update")) return res.status(403).json({ error: "Sem permissão" });
+  const { toStatus, reason } = req.body || {};
+  if (!toStatus) return res.status(400).json({ error: "toStatus obrigatório" });
+  const op = govOp(req.user);
+  const result = await withDb((db) => {
+    ensureGov(db);
+    const idx = db.govBaselines.findIndex(b => b.id === req.params.id);
+    if (idx < 0) return { error: { status: 404, message: "Baseline não encontrada" } };
+    try { changeBaselineStatus(db.govBaselines[idx], { toStatus, operator: op, reason: reason || null }); }
+    catch (e) { return { error: { status: e.statusCode || 422, message: e.message } }; }
+    addAuditLog(db, req.user, "baseline.status_changed", "baseline", db.govBaselines[idx].id, { toStatus });
+    return { baseline: db.govBaselines[idx] };
+  });
+  if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
+  return res.json(result.baseline);
+});
+
+// ── ADRs ──────────────────────────────────────────────────────────────────
+
+router.get("/platform/adrs", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.read")) return res.status(403).json({ error: "Sem permissão" });
+  const { status, search } = req.query;
+  const db = await readDb();
+  ensureGov(db);
+  let list = db.govAdrs.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  if (status) list = list.filter(a => a.status === status.toUpperCase());
+  if (search) {
+    const q = search.toLowerCase();
+    list = list.filter(a => a.title.toLowerCase().includes(q) || a.adrCode.toLowerCase().includes(q));
+  }
+  return res.json({ adrs: list, total: list.length });
+});
+
+router.get("/platform/adrs/:id", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.read")) return res.status(403).json({ error: "Sem permissão" });
+  const db = await readDb();
+  ensureGov(db);
+  const a = db.govAdrs.find(a => a.id === req.params.id);
+  if (!a) return res.status(404).json({ error: "ADR não encontrada" });
+  return res.json(a);
+});
+
+router.post("/platform/adrs", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.create")) return res.status(403).json({ error: "Sem permissão" });
+  const op = govOp(req.user);
+  const result = await withDb((db) => {
+    ensureGov(db);
+    let a;
+    try { a = createAdr({ ...req.body, operator: op, existingAdrs: db.govAdrs }); }
+    catch (e) { return { error: { status: e.statusCode || 400, message: e.message } }; }
+    db.govAdrs.push(a);
+    addAuditLog(db, req.user, "adr.created", "adr", a.id, { adrCode: a.adrCode });
+    return { adr: a };
+  });
+  if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
+  return res.status(201).json(result.adr);
+});
+
+router.patch("/platform/adrs/:id/status", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.update")) return res.status(403).json({ error: "Sem permissão" });
+  const { toStatus, reason, supersededByCode } = req.body || {};
+  if (!toStatus) return res.status(400).json({ error: "toStatus obrigatório" });
+  const op = govOp(req.user);
+  const result = await withDb((db) => {
+    ensureGov(db);
+    const idx = db.govAdrs.findIndex(a => a.id === req.params.id);
+    if (idx < 0) return { error: { status: 404, message: "ADR não encontrada" } };
+    try { changeAdrStatus(db.govAdrs[idx], { toStatus, operator: op, reason: reason || null, supersededByCode: supersededByCode || null }); }
+    catch (e) { return { error: { status: e.statusCode || 422, message: e.message } }; }
+    addAuditLog(db, req.user, "adr.status_changed", "adr", db.govAdrs[idx].id, { toStatus });
+    return { adr: db.govAdrs[idx] };
+  });
+  if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
+  return res.json(result.adr);
+});
+
+// ── Policies ──────────────────────────────────────────────────────────────
+
+router.get("/platform/policies", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.read")) return res.status(403).json({ error: "Sem permissão" });
+  const { status, category } = req.query;
+  const db = await readDb();
+  ensureGov(db);
+  let list = db.govPolicies.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  if (status)   list = list.filter(p => p.status === status.toUpperCase());
+  if (category) list = list.filter(p => p.category === category.toUpperCase());
+  return res.json({ policies: list, total: list.length });
+});
+
+router.get("/platform/policies/:id", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.read")) return res.status(403).json({ error: "Sem permissão" });
+  const db = await readDb();
+  ensureGov(db);
+  const p = db.govPolicies.find(p => p.id === req.params.id);
+  if (!p) return res.status(404).json({ error: "Política não encontrada" });
+  return res.json(p);
+});
+
+router.post("/platform/policies", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.create")) return res.status(403).json({ error: "Sem permissão" });
+  const op = govOp(req.user);
+  const result = await withDb((db) => {
+    ensureGov(db);
+    let p;
+    try { p = createPolicy({ ...req.body, operator: op, existingPolicies: db.govPolicies }); }
+    catch (e) { return { error: { status: e.statusCode || 400, message: e.message } }; }
+    db.govPolicies.push(p);
+    addAuditLog(db, req.user, "policy.created", "policy", p.id, { policyCode: p.policyCode, category: p.category });
+    return { policy: p };
+  });
+  if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
+  return res.status(201).json(result.policy);
+});
+
+router.patch("/platform/policies/:id", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.update")) return res.status(403).json({ error: "Sem permissão" });
+  const { reason, ...patch } = req.body || {};
+  const op = govOp(req.user);
+  const result = await withDb((db) => {
+    ensureGov(db);
+    const idx = db.govPolicies.findIndex(p => p.id === req.params.id);
+    if (idx < 0) return { error: { status: 404, message: "Política não encontrada" } };
+    updatePolicy(db.govPolicies[idx], { patch, operator: op, reason: reason || null });
+    addAuditLog(db, req.user, "policy.updated", "policy", db.govPolicies[idx].id, { patch, reason });
+    return { policy: db.govPolicies[idx] };
+  });
+  if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
+  return res.json(result.policy);
+});
+
+router.patch("/platform/policies/:id/activate", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.update")) return res.status(403).json({ error: "Sem permissão" });
+  const { reason } = req.body || {};
+  const op = govOp(req.user);
+  const result = await withDb((db) => {
+    ensureGov(db);
+    const idx = db.govPolicies.findIndex(p => p.id === req.params.id);
+    if (idx < 0) return { error: { status: 404, message: "Política não encontrada" } };
+    try { activatePolicy(db.govPolicies[idx], { operator: op, reason: reason || null }); }
+    catch (e) { return { error: { status: e.statusCode || 422, message: e.message } }; }
+    addAuditLog(db, req.user, "policy.activated", "policy", db.govPolicies[idx].id, {});
+    return { policy: db.govPolicies[idx] };
+  });
+  if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
+  return res.json(result.policy);
+});
+
+// ── Exceptions ────────────────────────────────────────────────────────────
+
+router.get("/platform/exceptions", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.read")) return res.status(403).json({ error: "Sem permissão" });
+  const { status, policyId } = req.query;
+  const db = await readDb();
+  ensureGov(db);
+  let list = db.govExceptions.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  if (status)   list = list.filter(e => e.status === status.toUpperCase());
+  if (policyId) list = list.filter(e => e.policyId === policyId);
+  return res.json({ exceptions: list, total: list.length });
+});
+
+router.post("/platform/exceptions", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.create")) return res.status(403).json({ error: "Sem permissão" });
+  const op = govOp(req.user);
+  const result = await withDb((db) => {
+    ensureGov(db);
+    const { policyId } = req.body || {};
+    if (policyId && !db.govPolicies.some(p => p.id === policyId)) {
+      return { error: { status: 404, message: "Política não encontrada" } };
+    }
+    let exc;
+    try { exc = createException({ ...req.body, operator: op, existingExceptions: db.govExceptions }); }
+    catch (e) { return { error: { status: e.statusCode || 400, message: e.message } }; }
+    db.govExceptions.push(exc);
+    addAuditLog(db, req.user, "exception.created", "exception", exc.id, { exceptionCode: exc.exceptionCode, policyId: exc.policyId });
+    return { exception: exc };
+  });
+  if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
+  return res.status(201).json(result.exception);
+});
+
+router.patch("/platform/exceptions/:id/status", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.update")) return res.status(403).json({ error: "Sem permissão" });
+  const { toStatus, reason } = req.body || {};
+  if (!toStatus) return res.status(400).json({ error: "toStatus obrigatório" });
+  const op = govOp(req.user);
+  const result = await withDb((db) => {
+    ensureGov(db);
+    const idx = db.govExceptions.findIndex(e => e.id === req.params.id);
+    if (idx < 0) return { error: { status: 404, message: "Exceção não encontrada" } };
+    try { changeExceptionStatus(db.govExceptions[idx], { toStatus, operator: op, reason: reason || null }); }
+    catch (e) { return { error: { status: e.statusCode || 422, message: e.message } }; }
+    addAuditLog(db, req.user, "exception.status_changed", "exception", db.govExceptions[idx].id, { toStatus });
+    return { exception: db.govExceptions[idx] };
+  });
+  if (result?.error) return res.status(result.error.status).json({ error: result.error.message });
+  return res.json(result.exception);
+});
+
+// ── Compliance Engine ──────────────────────────────────────────────────────
+
+router.get("/platform/compliance", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.read")) return res.status(403).json({ error: "Sem permissão" });
+  const db = await readDb();
+  ensureGov(db);
+  if (!Array.isArray(db.backupPolicies))   db.backupPolicies   = [];
+  if (!Array.isArray(db.backupExecutions)) db.backupExecutions = [];
+  if (!Array.isArray(db.restoreTests))     db.restoreTests     = [];
+  if (!Array.isArray(db.releases))         db.releases         = [];
+  if (!Array.isArray(db.releaseRollouts))  db.releaseRollouts  = [];
+  if (!Array.isArray(db.incidents))        db.incidents        = [];
+  if (!Array.isArray(db.deployments))      db.deployments      = [];
+  const compliance = runComplianceEngine(db);
+  return res.json(compliance);
+});
+
+// GET /platform/governance-dashboard
+router.get("/platform/governance-dashboard", async (req, res) => {
+  if (!hasCapability(req.user, "platform.unit.read")) return res.status(403).json({ error: "Sem permissão" });
+  const db = await readDb();
+  ensureGov(db);
+  if (!Array.isArray(db.backupPolicies))   db.backupPolicies   = [];
+  if (!Array.isArray(db.backupExecutions)) db.backupExecutions = [];
+  if (!Array.isArray(db.restoreTests))     db.restoreTests     = [];
+  if (!Array.isArray(db.releases))         db.releases         = [];
+  if (!Array.isArray(db.releaseRollouts))  db.releaseRollouts  = [];
+  if (!Array.isArray(db.incidents))        db.incidents        = [];
+  if (!Array.isArray(db.deployments))      db.deployments      = [];
+
+  const baselines  = db.govBaselines  || [];
+  const adrs       = db.govAdrs       || [];
+  const policies   = db.govPolicies   || [];
+  const exceptions = db.govExceptions || [];
+  const compliance = runComplianceEngine(db);
+
+  const now = new Date();
+  const expiringPols = policies.filter(p => p.status === "EXPIRING");
+  const expiredExcs  = exceptions.filter(e => e.status === "APPROVED" && new Date(e.expiresAt) < now);
+
+  return res.json({
+    compliance: { overall: compliance.overallStatus, counts: compliance.counts },
+    baselines: {
+      total:    baselines.length,
+      approved: baselines.filter(b => b.status === "APPROVED").length,
+      draft:    baselines.filter(b => b.status === "DRAFT").length,
+      review:   baselines.filter(b => b.status === "REVIEW").length,
+    },
+    adrs: {
+      total:    adrs.length,
+      proposed: adrs.filter(a => a.status === "PROPOSED").length,
+      accepted: adrs.filter(a => a.status === "ACCEPTED").length,
+      rejected: adrs.filter(a => a.status === "REJECTED").length,
+    },
+    policies: {
+      total:    policies.length,
+      active:   policies.filter(p => p.status === "ACTIVE").length,
+      expiring: expiringPols.length,
+      expired:  policies.filter(p => p.status === "EXPIRED").length,
+      draft:    policies.filter(p => p.status === "DRAFT").length,
+    },
+    exceptions: {
+      total:    exceptions.length,
+      pending:  exceptions.filter(e => e.status === "PENDING").length,
+      approved: exceptions.filter(e => e.status === "APPROVED").length,
+      expired:  expiredExcs.length,
+    },
+    recentAdrs:       adrs.slice(0, 5),
+    expiringPolicies: expiringPols.slice(0, 5),
+    generatedAt:      now.toISOString(),
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════════════
 // ERP-08 — Backup, Restore and Business Continuity
 // ══════════════════════════════════════════════════════════════════════════
 

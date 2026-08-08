@@ -524,6 +524,13 @@ const IcoIncident = () => (
   </svg>
 );
 
+const IcoGovernance = () => (
+  <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden>
+    <path d="M8 1L2 4v3c0 3.3 2.5 6.4 6 7 3.5-.6 6-3.7 6-7V4L8 1z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/>
+    <path d="M5.5 8l2 2 3-3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
 const IcoBackup = () => (
   <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden>
     <path d="M3 4h10v8a1 1 0 01-1 1H4a1 1 0 01-1-1V4z" stroke="currentColor" strokeWidth="1.3"/>
@@ -2709,6 +2716,259 @@ const HEALTH_BADGE = {
 };
 
 // ══════════════════════════════════════════════════════════════════════════════
+// ERP-09 — Platform Governance and Compliance
+// ══════════════════════════════════════════════════════════════════════════════
+
+const COMP_STATUS_BADGE = { PASS: "badge badge--success", WARNING: "badge badge--warning", FAIL: "badge badge--danger" };
+const BASELINE_STATUS_BADGE = {
+  DRAFT: "badge", REVIEW: "badge badge--info", APPROVED: "badge badge--success",
+  SUPERSEDED: "badge badge--warning", ARCHIVED: "badge",
+};
+const ADR_STATUS_BADGE = {
+  PROPOSED: "badge badge--info", ACCEPTED: "badge badge--success",
+  SUPERSEDED: "badge badge--warning", REJECTED: "badge badge--danger", ARCHIVED: "badge",
+};
+const POLICY_STATUS_BADGE = {
+  DRAFT: "badge", ACTIVE: "badge badge--success", EXPIRING: "badge badge--warning",
+  EXPIRED: "badge badge--danger", ARCHIVED: "badge",
+};
+const EXC_STATUS_BADGE = {
+  PENDING: "badge badge--info", APPROVED: "badge badge--success",
+  REJECTED: "badge badge--danger", EXPIRED: "badge badge--warning", REVOKED: "badge",
+};
+
+function GovernanceConsole({ token }) {
+  const [dash, setDash]         = useState(null);
+  const [compliance, setComp]   = useState(null);
+  const [baselines, setBase]    = useState([]);
+  const [adrs, setAdrs]         = useState([]);
+  const [policies, setPols]     = useState([]);
+  const [exceptions, setExcs]   = useState([]);
+  const [loading, setLoading]   = useState(false);
+  const [compSearch, setCompSearch] = useState("");
+
+  const fetchAll = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [dashRes, compRes, baseRes, adrRes, polRes, excRes] = await Promise.all([
+        apiFetch("/platform/governance-dashboard", token),
+        apiFetch("/platform/compliance", token),
+        apiFetch("/platform/baselines", token),
+        apiFetch("/platform/adrs", token),
+        apiFetch("/platform/policies", token),
+        apiFetch("/platform/exceptions", token),
+      ]);
+      if (dashRes.ok) setDash(await dashRes.json());
+      if (compRes.ok) setComp(await compRes.json());
+      if (baseRes.ok) { const d = await baseRes.json(); setBase(d.baselines   || []); }
+      if (adrRes.ok)  { const d = await adrRes.json();  setAdrs(d.adrs        || []); }
+      if (polRes.ok)  { const d = await polRes.json();  setPols(d.policies    || []); }
+      if (excRes.ok)  { const d = await excRes.json();  setExcs(d.exceptions  || []); }
+    } finally { setLoading(false); }
+  }, [token]);
+
+  useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  const filteredAdrs = compSearch
+    ? adrs.filter(a => a.title.toLowerCase().includes(compSearch.toLowerCase()) || a.adrCode.toLowerCase().includes(compSearch.toLowerCase()))
+    : adrs;
+
+  return (
+    <div>
+      <div className="console-page-header">
+        <div>
+          <h1 className="console-page-header__title">Governança & Compliance</h1>
+          <p className="console-page-header__sub">Baselines, ADRs, políticas, exceções e Compliance Engine</p>
+        </div>
+        <Button onClick={fetchAll} variant="ghost">↺ Atualizar</Button>
+      </div>
+
+      {loading && <p style={{ opacity: 0.5 }}>Carregando...</p>}
+
+      {/* Compliance banner */}
+      {compliance && (
+        <div className="card" style={{ padding: "1rem", marginBottom: "1.5rem", borderLeft: `3px solid ${compliance.overallStatus === "PASS" ? "#22c55e" : compliance.overallStatus === "FAIL" ? "#ef4444" : "#f59e0b"}` }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "0.75rem" }}>
+            <h3 style={{ fontWeight: 600 }}>Compliance Engine</h3>
+            <span className={COMP_STATUS_BADGE[compliance.overallStatus] || "badge"}>{compliance.overallStatus}</span>
+            <span style={{ opacity: 0.6, fontSize: "0.8rem" }}>{compliance.counts?.PASS} PASS · {compliance.counts?.WARNING} WARNING · {compliance.counts?.FAIL} FAIL</span>
+          </div>
+          {compliance.results?.map(r => (
+            <div key={r.code} style={{ display: "flex", gap: "0.75rem", padding: "0.3rem 0", borderBottom: "1px solid var(--border-color)", fontSize: "0.85rem", alignItems: "flex-start" }}>
+              <span className={COMP_STATUS_BADGE[r.status] || "badge"} style={{ flexShrink: 0 }}>{r.code}</span>
+              <div>
+                <strong>{r.title}</strong>
+                <span style={{ opacity: 0.6, marginLeft: 8 }}>{r.detail}</span>
+                {r.status !== "PASS" && r.recommendation && (
+                  <div style={{ opacity: 0.5, fontSize: "0.8rem", marginTop: 2 }}>→ {r.recommendation}</div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Dashboard cards */}
+      {dash && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: "1rem", marginBottom: "1.5rem" }}>
+          <div className="card" style={{ padding: "0.75rem", textAlign: "center" }}>
+            <p style={{ fontSize: "1.5rem", fontWeight: 700 }}>{dash.baselines?.approved || 0}</p>
+            <p className="card__label">Baselines aprovadas</p>
+          </div>
+          <div className="card" style={{ padding: "0.75rem", textAlign: "center" }}>
+            <p style={{ fontSize: "1.5rem", fontWeight: 700 }}>{dash.adrs?.accepted || 0}</p>
+            <p className="card__label">ADRs aceitas</p>
+          </div>
+          <div className="card" style={{ padding: "0.75rem", textAlign: "center" }}>
+            <p style={{ fontSize: "1.5rem", fontWeight: 700 }}>{dash.adrs?.proposed || 0}</p>
+            <p className="card__label">ADRs em revisão</p>
+          </div>
+          <div className="card" style={{ padding: "0.75rem", textAlign: "center" }}>
+            <p style={{ fontSize: "1.5rem", fontWeight: 700 }}>{dash.policies?.active || 0}</p>
+            <p className="card__label">Políticas ativas</p>
+          </div>
+          <div className="card" style={{ padding: "0.75rem", textAlign: "center" }}>
+            <p style={{ fontSize: "1.5rem", fontWeight: 700 }}>{dash.policies?.expiring || 0}</p>
+            <p className="card__label">Políticas expirando</p>
+          </div>
+          <div className="card" style={{ padding: "0.75rem", textAlign: "center" }}>
+            <p style={{ fontSize: "1.5rem", fontWeight: 700 }}>{dash.exceptions?.approved || 0}</p>
+            <p className="card__label">Exceções abertas</p>
+          </div>
+        </div>
+      )}
+
+      {/* Baselines */}
+      <div className="card" style={{ padding: "1rem", marginBottom: "1.5rem" }}>
+        <h3 style={{ fontWeight: 600, marginBottom: "0.75rem" }}>Baselines ({baselines.length})</h3>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", fontSize: "0.875rem", borderCollapse: "collapse" }}>
+            <thead><tr style={{ borderBottom: "2px solid var(--border-color)" }}>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Código</th>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Nome</th>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Versão</th>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Escopo</th>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Status</th>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Aprovado em</th>
+            </tr></thead>
+            <tbody>
+              {!baselines.length && <tr><td colSpan={6} style={{ padding: "1rem", opacity: 0.5 }}>Nenhuma baseline.</td></tr>}
+              {baselines.map(b => (
+                <tr key={b.id} style={{ borderBottom: "1px solid var(--border-color)" }}>
+                  <td style={{ padding: "0.4rem", fontFamily: "monospace", fontSize: "0.8rem" }}>{b.baselineCode}</td>
+                  <td style={{ padding: "0.4rem", fontWeight: 600 }}>{b.name}</td>
+                  <td style={{ padding: "0.4rem" }}>{b.version}</td>
+                  <td style={{ padding: "0.4rem" }}>{b.scope}</td>
+                  <td style={{ padding: "0.4rem" }}><span className={BASELINE_STATUS_BADGE[b.status] || "badge"}>{b.status}</span></td>
+                  <td style={{ padding: "0.4rem" }}>{fmtDate(b.approvedAt)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* ADRs */}
+      <div className="card" style={{ padding: "1rem", marginBottom: "1.5rem" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "0.75rem" }}>
+          <h3 style={{ fontWeight: 600 }}>ADRs ({adrs.length})</h3>
+          <input
+            type="text"
+            placeholder="Buscar ADR..."
+            value={compSearch}
+            onChange={e => setCompSearch(e.target.value)}
+            style={{ padding: "0.3rem 0.6rem", border: "1px solid var(--border-color)", borderRadius: 4, fontSize: "0.85rem", background: "transparent" }}
+          />
+        </div>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", fontSize: "0.875rem", borderCollapse: "collapse" }}>
+            <thead><tr style={{ borderBottom: "2px solid var(--border-color)" }}>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Código</th>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Título</th>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Status</th>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Autor</th>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Criado</th>
+            </tr></thead>
+            <tbody>
+              {!filteredAdrs.length && <tr><td colSpan={5} style={{ padding: "1rem", opacity: 0.5 }}>Nenhuma ADR.</td></tr>}
+              {filteredAdrs.map(a => (
+                <tr key={a.id} style={{ borderBottom: "1px solid var(--border-color)" }}>
+                  <td style={{ padding: "0.4rem", fontFamily: "monospace", fontSize: "0.8rem" }}>{a.adrCode}</td>
+                  <td style={{ padding: "0.4rem" }}>{a.title}</td>
+                  <td style={{ padding: "0.4rem" }}><span className={ADR_STATUS_BADGE[a.status] || "badge"}>{a.status}</span></td>
+                  <td style={{ padding: "0.4rem" }}>{a.author || "—"}</td>
+                  <td style={{ padding: "0.4rem" }}>{fmtDate(a.createdAt)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Policies */}
+      <div className="card" style={{ padding: "1rem", marginBottom: "1.5rem" }}>
+        <h3 style={{ fontWeight: 600, marginBottom: "0.75rem" }}>Políticas ({policies.length})</h3>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", fontSize: "0.875rem", borderCollapse: "collapse" }}>
+            <thead><tr style={{ borderBottom: "2px solid var(--border-color)" }}>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Código</th>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Nome</th>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Categoria</th>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Versão</th>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Status</th>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Vigente até</th>
+            </tr></thead>
+            <tbody>
+              {!policies.length && <tr><td colSpan={6} style={{ padding: "1rem", opacity: 0.5 }}>Nenhuma política.</td></tr>}
+              {policies.map(p => (
+                <tr key={p.id} style={{ borderBottom: "1px solid var(--border-color)" }}>
+                  <td style={{ padding: "0.4rem", fontFamily: "monospace", fontSize: "0.8rem" }}>{p.policyCode}</td>
+                  <td style={{ padding: "0.4rem", fontWeight: 600 }}>{p.name}</td>
+                  <td style={{ padding: "0.4rem" }}><span className="badge badge--info">{p.category}</span></td>
+                  <td style={{ padding: "0.4rem" }}>{p.version}</td>
+                  <td style={{ padding: "0.4rem" }}><span className={POLICY_STATUS_BADGE[p.status] || "badge"}>{p.status}</span></td>
+                  <td style={{ padding: "0.4rem" }}>{fmtDate(p.effectiveUntil)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Exceptions */}
+      <div className="card" style={{ padding: "1rem" }}>
+        <h3 style={{ fontWeight: 600, marginBottom: "0.75rem" }}>Exceções ({exceptions.length})</h3>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", fontSize: "0.875rem", borderCollapse: "collapse" }}>
+            <thead><tr style={{ borderBottom: "2px solid var(--border-color)" }}>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Código</th>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Motivo</th>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Risco</th>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Status</th>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Expira</th>
+              <th style={{ textAlign: "left", padding: "0.4rem" }}>Aprovado por</th>
+            </tr></thead>
+            <tbody>
+              {!exceptions.length && <tr><td colSpan={6} style={{ padding: "1rem", opacity: 0.5 }}>Nenhuma exceção.</td></tr>}
+              {exceptions.map(e => (
+                <tr key={e.id} style={{ borderBottom: "1px solid var(--border-color)" }}>
+                  <td style={{ padding: "0.4rem", fontFamily: "monospace", fontSize: "0.8rem" }}>{e.exceptionCode}</td>
+                  <td style={{ padding: "0.4rem" }}>{e.reason}</td>
+                  <td style={{ padding: "0.4rem" }}><span className={e.riskLevel === "CRITICAL" ? "badge badge--danger" : e.riskLevel === "HIGH" ? "badge badge--danger" : "badge badge--warning"}>{e.riskLevel}</span></td>
+                  <td style={{ padding: "0.4rem" }}><span className={EXC_STATUS_BADGE[e.status] || "badge"}>{e.status}</span></td>
+                  <td style={{ padding: "0.4rem" }}>{fmtDate(e.expiresAt)}</td>
+                  <td style={{ padding: "0.4rem" }}>{e.approvedBy?.name || "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
 // ERP-08 — Backup, Restore and Business Continuity
 // ══════════════════════════════════════════════════════════════════════════════
 
@@ -4012,6 +4272,13 @@ export default function PlatformConsolePage({ token, user, onLogout }) {
           >
             <IcoBackup /> Backup & Continuidade
           </button>
+          <button
+            type="button"
+            className={`console-nav__item${tab === "governance" ? " is-active" : ""}`}
+            onClick={() => switchTab("governance")}
+          >
+            <IcoGovernance /> Governança & Compliance
+          </button>
 
           <span className="console-nav__section">Portal</span>
           <button
@@ -4117,6 +4384,11 @@ export default function PlatformConsolePage({ token, user, onLogout }) {
           {/* Backup & Business Continuity */}
           {tab === "backup" && (
             <BackupConsole token={token} />
+          )}
+
+          {/* Governance & Compliance */}
+          {tab === "governance" && (
+            <GovernanceConsole token={token} />
           )}
 
           {/* Unidades de Saúde */}
