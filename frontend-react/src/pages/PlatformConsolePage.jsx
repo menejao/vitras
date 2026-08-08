@@ -51,6 +51,26 @@ function apiFetch(path, token, options = {}) {
   return api(path, { ...rest, body, credentials: "include" }, token);
 }
 
+// ── Cache administrativo leve (TTL 45s, invalidação por prefixo) ──────────
+const _cache = new Map();
+function cacheGet(key) {
+  const entry = _cache.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.ts > 45_000) { _cache.delete(key); return null; }
+  return entry.data;
+}
+function cacheSet(key, data) { _cache.set(key, { data, ts: Date.now() }); }
+function cacheInvalidate(prefix) {
+  for (const k of _cache.keys()) { if (k.startsWith(prefix)) _cache.delete(k); }
+}
+async function cachedFetch(path, token) {
+  const hit = cacheGet(path);
+  if (hit !== null) return hit;
+  const data = await apiFetch(path, token);
+  cacheSet(path, data);
+  return data;
+}
+
 function fmtDate(iso) {
   if (!iso) return "—";
   try {
@@ -471,108 +491,113 @@ function NocDashboard({ token, onGoTo }) {
   const [incidents,  setIncidents]  = useState([]);
   const [deployments,setDeployments]= useState([]);
   const [backupDash, setBackupDash] = useState(null);
-  const [govDash,    setGovDash]    = useState(null);
   const [health,     setHealth]     = useState(null);
-  const [loading,    setLoading]    = useState(true);
-  const [error,      setError]      = useState(false);
+  // loading por seção — não bloqueia a página inteira
+  const [kpiLoading,     setKpiLoading]     = useState(true);
+  const [incLoading,     setIncLoading]     = useState(true);
+  const [depLoading,     setDepLoading]     = useState(true);
+  const [healthLoading,  setHealthLoading]  = useState(true);
 
   const loadAll = useCallback(() => {
-    setLoading(true);
-    setError(false);
+    setKpiLoading(true); setIncLoading(true); setDepLoading(true); setHealthLoading(true);
+
+    // Bloco 1: summary (KPIs)
+    cachedFetch("/platform/summary", token)
+      .then(d => setSummary(d))
+      .catch(() => {})
+      .finally(() => setKpiLoading(false));
+
+    // Bloco 2: incidentes abertos
+    cachedFetch("/platform/incidents?status=OPEN&limit=5", token)
+      .then(d => setIncidents(d?.incidents || []))
+      .catch(() => {})
+      .finally(() => setIncLoading(false));
+
+    // Bloco 3: deployments em andamento
+    cachedFetch("/platform/deployments?status=IN_PROGRESS&limit=5", token)
+      .then(d => setDeployments(d?.deployments || []))
+      .catch(() => {})
+      .finally(() => setDepLoading(false));
+
+    // Bloco 4: health + backup (diagnósticos)
     Promise.all([
-      apiFetch("/platform/summary",                               token).catch(() => null),
-      apiFetch("/platform/incidents?status=OPEN&limit=5",         token).catch(() => null),
-      apiFetch("/platform/deployments?status=IN_PROGRESS&limit=5",token).catch(() => null),
-      apiFetch("/platform/backup/dashboard",                      token).catch(() => null),
-      apiFetch("/platform/governance/dashboard",                  token).catch(() => null),
-      apiFetch("/readyz",                                         token).catch(() => null),
-    ]).then(([sum, inc, dep, bkp, gov, hlth]) => {
-      setSummary(sum);
-      setIncidents(inc?.incidents || []);
-      setDeployments(dep?.deployments || []);
-      setBackupDash(bkp);
-      setGovDash(gov);
+      apiFetch("/readyz", token).catch(() => null),
+      cachedFetch("/platform/backup-dashboard", token).catch(() => null),
+    ]).then(([hlth, bkp]) => {
       setHealth(hlth);
-    }).catch(() => setError(true))
-      .finally(() => setLoading(false));
+      setBackupDash(bkp);
+    }).finally(() => setHealthLoading(false));
   }, [token]);
 
   useEffect(() => { loadAll(); }, [loadAll]);
 
-  const openIncidents   = incidents.filter(i => i.status !== "CLOSED").length;
-  const critIncidents   = incidents.filter(i => i.severity === "CRITICAL").length;
-  const inProgressDeps  = deployments.length;
+  const openIncidents  = incidents.filter(i => i.status !== "CLOSED").length;
+  const critIncidents  = incidents.filter(i => i.severity === "CRITICAL").length;
+  const inProgressDeps = deployments.length;
 
   const services = [
-    { name: "API Backend",       ok: health !== null },
-    { name: "Auth / JWT",        ok: health !== null },
-    { name: "CDS Export",        ok: true },
-    { name: "Indicator Engine",  ok: true },
-    { name: "Break Glass",       ok: true },
-    { name: "Backup",            ok: !!backupDash },
+    { name: "API Backend",      ok: health !== null },
+    { name: "Auth / JWT",       ok: health !== null },
+    { name: "CDS Export",       ok: true },
+    { name: "Indicator Engine", ok: true },
+    { name: "Break Glass",      ok: true },
+    { name: "Backup",           ok: !!backupDash },
   ];
-
-  if (loading) return (
-    <>
-      <KpiSkeleton count={6} />
-      <div className="noc-grid" style={{ marginBottom: "var(--s-4)" }}>
-        {[0,1,2].map(i => <div key={i} className="console-section" style={{ height: 160 }}><div className="console-skeleton" style={{ height: "100%", borderRadius: "var(--r-lg)" }} /></div>)}
-      </div>
-    </>
-  );
-
-  if (error) return <ErrorBlock message="Não foi possível carregar o dashboard. Verifique a conexão." onRetry={loadAll} />;
 
   return (
     <>
-      {/* KPI strip */}
-      <div className="noc-kpi-grid">
-        {[
-          { label: "Municípios",         value: summary?.totalMunicipalities ?? "—", icon: <IcoCity size={16} />,         color: "#3b82f6", onClick: () => onGoTo("municipalities") },
-          { label: "UBS cadastradas",    value: summary?.totalUnits ?? "—",          icon: <IcoHospital size={16} />,     color: "#8b5cf6", onClick: () => onGoTo("municipalities") },
-          { label: "Operacionais",       value: summary?.active ?? "—",              icon: <IcoCheckCircle size={16} />,  color: "#10b981" },
-          { label: "Em implantação",     value: inProgressDeps,                      icon: <IcoDeploy size={16} />,       color: "#f59e0b", onClick: () => onGoTo("deployments") },
-          { label: "Incidentes abertos", value: openIncidents,                       icon: <IcoFire size={16} />,         color: critIncidents > 0 ? "#ef4444" : "#f59e0b", onClick: () => onGoTo("incidents") },
-          { label: "Usuários ativos",    value: summary?.totalUsers ?? "—",          icon: <IcoUsers size={16} />,        color: "#6366f1" },
-        ].map((k) => (
-          <button key={k.label} type="button" className="noc-kpi" style={{ "--kpi-color": k.color, cursor: k.onClick ? "pointer" : "default", textAlign: "left", border: "1px solid var(--border)", background: "var(--surface)" }} onClick={k.onClick}>
-            <div className="noc-kpi__accent" />
-            <div className="noc-kpi__icon" style={{ color: k.color, display: "flex" }}>{k.icon}</div>
-            <div className="noc-kpi__value" style={{ color: k.color }}>{k.value}</div>
-            <div className="noc-kpi__label">{k.label}</div>
-          </button>
-        ))}
-      </div>
+      {/* KPI strip — carrega independente das seções abaixo */}
+      {kpiLoading ? <KpiSkeleton count={6} /> : (
+        <div className="noc-kpi-grid">
+          {[
+            { label: "Municípios",         value: summary?.totalMunicipalities ?? "—", icon: <IcoCity size={16} />,        color: "#3b82f6", onClick: () => onGoTo("municipalities") },
+            { label: "UBS cadastradas",    value: summary?.totalUnits ?? "—",          icon: <IcoHospital size={16} />,    color: "#8b5cf6", onClick: () => onGoTo("municipalities") },
+            { label: "Operacionais",       value: summary?.active ?? "—",              icon: <IcoCheckCircle size={16} />, color: "#10b981" },
+            { label: "Em implantação",     value: inProgressDeps,                      icon: <IcoDeploy size={16} />,      color: "#f59e0b", onClick: () => onGoTo("deployments") },
+            { label: "Incidentes abertos", value: openIncidents,                       icon: <IcoFire size={16} />,        color: critIncidents > 0 ? "#ef4444" : "#f59e0b", onClick: () => onGoTo("incidents") },
+            { label: "Usuários ativos",    value: summary?.totalUsers ?? "—",          icon: <IcoUsers size={16} />,       color: "#6366f1" },
+          ].map((k) => (
+            <button key={k.label} type="button" className="noc-kpi" style={{ "--kpi-color": k.color, cursor: k.onClick ? "pointer" : "default", textAlign: "left", border: "1px solid var(--border)", background: "var(--surface)" }} onClick={k.onClick}>
+              <div className="noc-kpi__accent" />
+              <div className="noc-kpi__icon" style={{ color: k.color, display: "flex" }}>{k.icon}</div>
+              <div className="noc-kpi__value" style={{ color: k.color }}>{k.value}</div>
+              <div className="noc-kpi__label">{k.label}</div>
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Main grid: Health + Incidents + Deployments */}
       <div className="noc-grid" style={{ marginBottom: "var(--s-4)" }}>
 
-        {/* Health */}
+        {/* Health — loading independente */}
         <div className="console-section">
           <div className="console-section__header">
             <span>Saúde da Plataforma</span>
-            <span style={{ fontSize: "var(--t-xs)", color: "var(--success)", fontWeight: 600, textTransform: "none", letterSpacing: 0 }}>OPERACIONAL</span>
+            {!healthLoading && <span style={{ fontSize: "var(--t-xs)", color: "var(--success)", fontWeight: 600, textTransform: "none", letterSpacing: 0 }}>OPERACIONAL</span>}
           </div>
           <div className="console-section__body">
-            <div className="noc-health-grid">
-              {services.map(svc => (
-                <div key={svc.name} className="noc-health-item">
-                  <div className={`noc-health-dot${!svc.ok ? " noc-health-dot--err" : ""}`} />
-                  <span className="noc-health-label">{svc.name}</span>
-                </div>
-              ))}
-            </div>
+            {healthLoading ? <Skeleton count={3} /> : (
+              <div className="noc-health-grid">
+                {services.map(svc => (
+                  <div key={svc.name} className="noc-health-item">
+                    <div className={`noc-health-dot${!svc.ok ? " noc-health-dot--err" : ""}`} />
+                    <span className="noc-health-label">{svc.name}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Incidentes abertos */}
+        {/* Incidentes abertos — loading independente */}
         <div className="console-section">
           <div className="console-section__header">
             <span>Incidentes Abertos</span>
             <button type="button" className="console-breadcrumb-link" style={{ fontSize: "var(--t-xs)" }} onClick={() => onGoTo("incidents")}>Ver todos →</button>
           </div>
           <div className="console-section__body">
-            {incidents.length === 0 ? (
+            {incLoading ? <Skeleton count={2} /> : incidents.length === 0 ? (
               <EmptyState icon={<IcoCheckCircle size={36} />} title="Nenhum incidente aberto" text="Todos os serviços estão operando normalmente." />
             ) : (
               <div className="console-timeline">
@@ -600,7 +625,7 @@ function NocDashboard({ token, onGoTo }) {
             <button type="button" className="console-breadcrumb-link" style={{ fontSize: "var(--t-xs)" }} onClick={() => onGoTo("deployments")}>Ver todas →</button>
           </div>
           <div className="console-section__body">
-            {deployments.length === 0 ? (
+            {depLoading ? <Skeleton count={2} /> : deployments.length === 0 ? (
               <EmptyState icon={<IcoFlag size={36} />} title="Nenhuma implantação ativa" text="Todas as implantações estão concluídas." />
             ) : (
               <div className="console-timeline">
@@ -633,7 +658,7 @@ function NocDashboard({ token, onGoTo }) {
             <button type="button" className="console-breadcrumb-link" style={{ fontSize: "var(--t-xs)" }} onClick={() => onGoTo("backup")}>Ver detalhes →</button>
           </div>
           <div className="console-section__body">
-            {!backupDash ? (
+            {healthLoading ? <Skeleton count={2} /> : !backupDash ? (
               <EmptyState icon={<IcoBackup size={36} />} title="Sem dados de backup" text="Configure políticas de backup para monitorar aqui." />
             ) : (
               <div style={{ display: "flex", gap: "var(--s-5)", alignItems: "center", flexWrap: "wrap" }}>
@@ -3674,11 +3699,34 @@ const CI_STATUS_BADGE = {
   MAINTENANCE: "badge badge--warning", SUSPENDED: "badge badge--warning",
   RETIRED: "badge", ARCHIVED: "badge",
 };
+const CI_STATUS_LABEL = {
+  PLANNED: "Planejado", ACTIVE: "Ativo", MAINTENANCE: "Manutenção",
+  SUSPENDED: "Suspenso", RETIRED: "Descontinuado", ARCHIVED: "Arquivado",
+};
 const CRITICALITY_BADGE = {
   LOW: "badge badge--info", MEDIUM: "badge",
   HIGH: "badge badge--warning", CRITICAL: "badge badge--danger",
   MISSION_CRITICAL: "badge badge--danger",
 };
+const CRITICALITY_LABEL = {
+  LOW: "Baixa", MEDIUM: "Média", HIGH: "Alta",
+  CRITICAL: "Crítica", MISSION_CRITICAL: "Missão crítica",
+};
+const CI_TYPE_LABEL = {
+  PLATFORM: "Plataforma", MUNICIPALITY: "Município", UNIT: "Unidade", TEAM: "Equipe",
+  DEPLOYMENT: "Implantação", LICENSE: "Licença", RELEASE: "Release", ROLL_OUT: "Rollout",
+  BACKUP_POLICY: "Política Backup", BACKUP_EXECUTION: "Execução Backup",
+  RESTORE_TEST: "Teste Restore", INCIDENT: "Incidente", POLICY: "Política",
+  BASELINE: "Baseline", ADR: "ADR", MAINTENANCE_WINDOW: "Janela Manutenção",
+  DATABASE: "Banco de Dados", API: "API", AUTH_SERVICE: "Auth", STORAGE: "Armazenamento",
+  SCHEDULER: "Agendador", INTEGRATION: "Integração", CUSTOM: "Personalizado",
+};
+const REL_TYPE_LABEL = {
+  DEPENDS_ON: "Depende de", USES: "Usa", HOSTED_ON: "Hospedado em",
+  OWNED_BY: "Pertence a", IMPLEMENTS: "Implementa", GENERATED_BY: "Gerado por",
+  PROTECTED_BY: "Protegido por", SUPERSEDES: "Substitui", RELATED_TO: "Relacionado a",
+};
+const COMP_STATUS_LABEL = { PASS: "Aprovado", WARNING: "Atenção", FAIL: "Falhou" };
 
 function CmdbConsole({ token }) {
   const [tab, setTab] = React.useState("items");
@@ -3690,9 +3738,12 @@ function CmdbConsole({ token }) {
   const [search, setSearch] = React.useState("");
   const [searchResults, setSearchResults] = React.useState(null);
   const [newCi, setNewCi] = React.useState({ name: "", type: "API", criticality: "MEDIUM", environment: "PRODUCTION", description: "", tags: "" });
+  const [showCiForm, setShowCiForm] = React.useState(false);
   const [newRel, setNewRel] = React.useState({ sourceId: "", targetId: "", relType: "DEPENDS_ON", description: "" });
+  const [showRelForm, setShowRelForm] = React.useState(false);
   const [error, setError] = React.useState("");
   const [loading, setLoading] = React.useState(false);
+  const [initLoading, setInitLoading] = React.useState(true);
 
   const loadAll = React.useCallback(async () => {
     try {
@@ -3705,6 +3756,7 @@ function CmdbConsole({ token }) {
       if (rRels)  setRels(rRels.relationships || []);
       if (rDash)  setDash(rDash);
     } catch { /* ignore */ }
+    setInitLoading(false);
   }, [token]);
 
   React.useEffect(() => { loadAll(); }, [loadAll]);
@@ -3718,8 +3770,10 @@ function CmdbConsole({ token }) {
         body: JSON.stringify({ ...newCi, tags }),
       });
       setNewCi({ name: "", type: "API", criticality: "MEDIUM", environment: "PRODUCTION", description: "", tags: "" });
+      setShowCiForm(false);
+      cacheInvalidate("/platform/cmdb");
       await loadAll();
-    } catch (ex) { setError(ex.message || "Erro"); }
+    } catch (ex) { setError(ex.message || "Erro ao registrar CI"); }
     setLoading(false);
   };
 
@@ -3731,14 +3785,17 @@ function CmdbConsole({ token }) {
         body: JSON.stringify(newRel),
       });
       setNewRel({ sourceId: "", targetId: "", relType: "DEPENDS_ON", description: "" });
+      setShowRelForm(false);
+      cacheInvalidate("/platform/cmdb");
       await loadAll();
-    } catch (ex) { setError(ex.message || "Erro"); }
+    } catch (ex) { setError(ex.message || "Erro ao criar relacionamento"); }
     setLoading(false);
   };
 
   const deleteRel = async (relId) => {
     if (!confirm("Remover relacionamento?")) return;
     await apiFetch(`/platform/cmdb/relationships/${relId}`, token, { method: "DELETE" }).catch(() => {});
+    cacheInvalidate("/platform/cmdb");
     await loadAll();
   };
 
@@ -3757,6 +3814,13 @@ function CmdbConsole({ token }) {
   const CI_TYPES = ["PLATFORM","MUNICIPALITY","UNIT","TEAM","DEPLOYMENT","LICENSE","RELEASE","ROLL_OUT","BACKUP_POLICY","BACKUP_EXECUTION","RESTORE_TEST","INCIDENT","POLICY","BASELINE","ADR","MAINTENANCE_WINDOW","DATABASE","API","AUTH_SERVICE","STORAGE","SCHEDULER","INTEGRATION","CUSTOM"];
   const REL_TYPES = ["DEPENDS_ON","USES","HOSTED_ON","OWNED_BY","IMPLEMENTS","GENERATED_BY","PROTECTED_BY","SUPERSEDES","RELATED_TO"];
 
+  const TABS = [
+    ["items",  "Itens de Configuração"],
+    ["rels",   "Relacionamentos"],
+    ["impact", "Análise de Impacto"],
+    ["search", "Busca"],
+  ];
+
   return (
     <div>
       <ModuleBanner
@@ -3764,82 +3828,156 @@ function CmdbConsole({ token }) {
         title="CMDB"
         subtitle="Base de configuração — ativos operacionais e seus relacionamentos"
         color="#6366f1"
-        kpis={dash ? [
-          { label: "CIs ativos",     value: dash.active ?? 0 },
-          { label: "Relacionamentos",value: dash.totalRelationships ?? 0 },
-          { label: "Mission Critical",value: dash.missionCritical ?? 0 },
-        ] : []}
-      />
-
-      {/* Dashboard cards */}
-      {dash && (
-        <div className="metrics-grid" style={{ gridTemplateColumns: "repeat(auto-fill,minmax(150px,1fr))", marginBottom: "1.5rem" }}>
-          {[
-            { label: "Total CIs", value: dash.total },
-            { label: "Ativos", value: dash.active, cls: "badge--success" },
-            { label: "Manutenção", value: dash.maintenance, cls: "badge--warning" },
-            { label: "Mission Critical", value: dash.missionCritical, cls: "badge--danger" },
-            { label: "Critical", value: dash.critical, cls: "badge--danger" },
-            { label: "Relacionamentos", value: dash.totalRelationships },
-          ].map(({ label, value, cls }) => (
-            <div key={label} className="metric-card" style={{ padding: "1rem" }}>
-              <span className="metric-card__value">{value}</span>
-              <span className="metric-card__label">{label}</span>
-            </div>
-          ))}
+      >
+        <div style={{ marginTop: "var(--s-2)" }}>
+          <Button onClick={loadAll} variant="secondary" size="sm">↺ Atualizar</Button>
         </div>
-      )}
+      </ModuleBanner>
 
-      {/* Sub-tabs */}
-      <div style={{ display: "flex", gap: ".5rem", marginBottom: "1rem", flexWrap: "wrap" }}>
-        {[["items","CIs"],["rels","Relacionamentos"],["impact","Impact Analysis"],["search","Busca"]].map(([k, l]) => (
-          <button key={k} type="button" className={`btn btn--sm${tab === k ? " btn--primary" : " btn--ghost"}`} onClick={() => setTab(k)}>{l}</button>
+      {/* KPI Cards DS */}
+      <div className="console-kpi-strip" style={{ gridTemplateColumns: "repeat(auto-fill,minmax(160px,1fr))", marginBottom: "var(--s-5)" }}>
+        {[
+          { label: "Total de CIs",    value: dash?.total           ?? "—" },
+          { label: "Ativos",          value: dash?.active          ?? "—", cls: "console-kpi--success" },
+          { label: "Em manutenção",   value: dash?.maintenance     ?? "—", cls: "console-kpi--warning" },
+          { label: "Críticos",        value: dash?.critical        ?? "—", cls: "console-kpi--danger" },
+          { label: "Missão crítica",  value: dash?.missionCritical ?? "—", cls: "console-kpi--danger" },
+          { label: "Relacionamentos", value: dash?.totalRelationships ?? "—" },
+        ].map(({ label, value, cls = "" }) => (
+          <div key={label} className={`console-kpi ${cls}`}>
+            <div className="console-kpi__value">{initLoading ? "—" : value}</div>
+            <div className="console-kpi__label">{label}</div>
+          </div>
         ))}
       </div>
 
-      {error && <div className="alert alert--danger" style={{ marginBottom: ".75rem" }}>{error}</div>}
+      {/* Tabs DS */}
+      <div className="console-tabs" style={{ display: "flex", gap: "var(--s-1)", marginBottom: "var(--s-4)", borderBottom: "1px solid var(--border)", paddingBottom: 0 }}>
+        {TABS.map(([k, l]) => (
+          <button
+            key={k}
+            type="button"
+            onClick={() => setTab(k)}
+            style={{
+              padding: "var(--s-2) var(--s-4)",
+              border: "none",
+              background: "transparent",
+              color: tab === k ? "var(--accent)" : "var(--text-muted)",
+              fontWeight: tab === k ? 600 : 400,
+              fontSize: "var(--t-base)",
+              borderBottom: tab === k ? "2px solid var(--accent)" : "2px solid transparent",
+              cursor: "pointer",
+              transition: "color var(--d-fast), border-color var(--d-fast)",
+              marginBottom: "-1px",
+              whiteSpace: "nowrap",
+            }}
+          >{l}</button>
+        ))}
+      </div>
+
+      {error && <Alert variant="danger" style={{ marginBottom: "var(--s-3)" }}>{error}</Alert>}
 
       {/* ── CIs ───────────────────────────────────────────────────────────── */}
       {tab === "items" && (
         <>
-          <div className="card" style={{ marginBottom: "1rem", padding: "1rem" }}>
-            <h3 style={{ marginBottom: ".75rem", fontSize: ".875rem", fontWeight: 600 }}>Novo Item de Configuração</h3>
-            <div style={{ display: "flex", gap: ".5rem", flexWrap: "wrap", alignItems: "flex-end" }}>
-              <div><label className="form-label">Nome *</label><input className="form-input" value={newCi.name} onChange={e => setNewCi(p => ({ ...p, name: e.target.value }))} style={{ minWidth: 200 }} /></div>
-              <div><label className="form-label">Tipo</label>
-                <select className="form-input" value={newCi.type} onChange={e => setNewCi(p => ({ ...p, type: e.target.value }))}>
-                  {CI_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
+          {/* Formulário CI em card responsivo */}
+          {showCiForm ? (
+            <div className="console-section" style={{ marginBottom: "var(--s-4)" }}>
+              <div className="console-section__header">
+                <span>Novo Item de Configuração</span>
+                <button type="button" onClick={() => setShowCiForm(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", fontSize: "var(--t-sm)" }}>Cancelar</button>
               </div>
-              <div><label className="form-label">Criticidade</label>
-                <select className="form-input" value={newCi.criticality} onChange={e => setNewCi(p => ({ ...p, criticality: e.target.value }))}>
-                  {["LOW","MEDIUM","HIGH","CRITICAL","MISSION_CRITICAL"].map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
+              <div className="console-section__body">
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(220px,1fr))", gap: "var(--s-3)", marginBottom: "var(--s-3)" }}>
+                  <div>
+                    <label className="form-label">Nome *</label>
+                    <Input value={newCi.name} onChange={e => setNewCi(p => ({ ...p, name: e.target.value }))} placeholder="Nome do ativo..." />
+                  </div>
+                  <div>
+                    <label className="form-label">Tipo</label>
+                    <select className="console-filter-select" style={{ width: "100%", height: 36 }} value={newCi.type} onChange={e => setNewCi(p => ({ ...p, type: e.target.value }))}>
+                      {CI_TYPES.map(t => <option key={t} value={t}>{CI_TYPE_LABEL[t] || t}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="form-label">Criticidade</label>
+                    <select className="console-filter-select" style={{ width: "100%", height: 36 }} value={newCi.criticality} onChange={e => setNewCi(p => ({ ...p, criticality: e.target.value }))}>
+                      {["LOW","MEDIUM","HIGH","CRITICAL","MISSION_CRITICAL"].map(c => <option key={c} value={c}>{CRITICALITY_LABEL[c] || c}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="form-label">Ambiente</label>
+                    <Input value={newCi.environment} onChange={e => setNewCi(p => ({ ...p, environment: e.target.value }))} placeholder="Produção, Staging..." />
+                  </div>
+                  <div>
+                    <label className="form-label">Tags (vírgula)</label>
+                    <Input value={newCi.tags} onChange={e => setNewCi(p => ({ ...p, tags: e.target.value }))} placeholder="api, core, auth..." />
+                  </div>
+                </div>
+                <div style={{ marginBottom: "var(--s-3)" }}>
+                  <label className="form-label">Descrição</label>
+                  <textarea
+                    className="form-input"
+                    rows={2}
+                    value={newCi.description}
+                    onChange={e => setNewCi(p => ({ ...p, description: e.target.value }))}
+                    placeholder="Descrição do ativo..."
+                    style={{ width: "100%", resize: "vertical", fontFamily: "var(--font-sans)", fontSize: "var(--t-base)" }}
+                  />
+                </div>
+                <div style={{ display: "flex", gap: "var(--s-2)", justifyContent: "flex-end" }}>
+                  <Button variant="secondary" onClick={() => setShowCiForm(false)}>Cancelar</Button>
+                  <Button onClick={createCi} disabled={loading || !newCi.name}>Registrar CI</Button>
+                </div>
               </div>
-              <div><label className="form-label">Ambiente</label><input className="form-input" value={newCi.environment} onChange={e => setNewCi(p => ({ ...p, environment: e.target.value }))} style={{ width: 130 }} /></div>
-              <div><label className="form-label">Descrição</label><input className="form-input" value={newCi.description} onChange={e => setNewCi(p => ({ ...p, description: e.target.value }))} style={{ minWidth: 180 }} /></div>
-              <div><label className="form-label">Tags (vírgula)</label><input className="form-input" value={newCi.tags} onChange={e => setNewCi(p => ({ ...p, tags: e.target.value }))} style={{ width: 150 }} /></div>
-              <button className="btn btn--primary btn--sm" onClick={createCi} disabled={loading || !newCi.name}>Registrar CI</button>
             </div>
-          </div>
+          ) : (
+            items.length > 0 && (
+              <div style={{ marginBottom: "var(--s-3)", display: "flex", justifyContent: "flex-end" }}>
+                <Button onClick={() => setShowCiForm(true)}>+ Novo CI</Button>
+              </div>
+            )
+          )}
 
-          <div className="table-wrapper">
-            <table className="data-table">
-              <thead><tr><th>Código</th><th>Nome</th><th>Tipo</th><th>Status</th><th>Criticidade</th><th>Ambiente</th></tr></thead>
-              <tbody>
-                {items.length === 0 && <tr><td colSpan={6}><EmptyState icon={<IcoDatabase size={36} />} title="Nenhum CI registrado" text="Adicione itens de configuração para mapear os ativos da plataforma." /></td></tr>}
-                {items.map(ci => (
-                  <tr key={ci.id}>
-                    <td><code style={{ fontSize: ".75rem" }}>{ci.ciCode}</code></td>
-                    <td>{ci.name}</td>
-                    <td><span className="badge">{ci.type}</span></td>
-                    <td><span className={CI_STATUS_BADGE[ci.status] || "badge"}>{ci.status}</span></td>
-                    <td><span className={CRITICALITY_BADGE[ci.criticality] || "badge"}>{ci.criticality}</span></td>
-                    <td>{ci.environment || "—"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="console-section">
+            <div className="console-section__header">
+              <span>Itens de Configuração ({items.length})</span>
+            </div>
+            <div style={{ overflowX: "auto" }}>
+              {initLoading ? (
+                <div className="console-section__body"><Skeleton count={3} /></div>
+              ) : items.length === 0 ? (
+                <EmptyState
+                  icon={<IcoDatabase size={36} />}
+                  title="Nenhum item de configuração registrado"
+                  text="Cadastre ativos da plataforma para construir o mapa de dependências da CMDB."
+                  cta="Registrar primeiro CI"
+                  onCta={() => setShowCiForm(true)}
+                />
+              ) : (
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Código</th><th>Nome</th><th>Tipo</th><th>Status</th>
+                      <th>Criticidade</th><th>Ambiente</th><th>Relacionamentos</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {items.map(ci => (
+                      <tr key={ci.id}>
+                        <td><code style={{ fontSize: "var(--t-xs)", fontFamily: "var(--font-mono)" }}>{ci.ciCode}</code></td>
+                        <td style={{ fontWeight: 500 }}>{ci.name}</td>
+                        <td><span className="badge">{CI_TYPE_LABEL[ci.type] || ci.type}</span></td>
+                        <td><span className={CI_STATUS_BADGE[ci.status] || "badge"}>{CI_STATUS_LABEL[ci.status] || ci.status}</span></td>
+                        <td><span className={CRITICALITY_BADGE[ci.criticality] || "badge"}>{CRITICALITY_LABEL[ci.criticality] || ci.criticality}</span></td>
+                        <td>{ci.environment || "—"}</td>
+                        <td style={{ textAlign: "center" }}>{rels.filter(r => r.sourceId === ci.id || r.targetId === ci.id).length}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
           </div>
         </>
       )}
@@ -3847,133 +3985,186 @@ function CmdbConsole({ token }) {
       {/* ── Relationships ──────────────────────────────────────────────────── */}
       {tab === "rels" && (
         <>
-          <div className="card" style={{ marginBottom: "1rem", padding: "1rem" }}>
-            <h3 style={{ marginBottom: ".75rem", fontSize: ".875rem", fontWeight: 600 }}>Novo Relacionamento</h3>
-            <div style={{ display: "flex", gap: ".5rem", flexWrap: "wrap", alignItems: "flex-end" }}>
-              <div><label className="form-label">CI Origem *</label>
-                <select className="form-input" value={newRel.sourceId} onChange={e => setNewRel(p => ({ ...p, sourceId: e.target.value }))}>
-                  <option value="">— selecionar —</option>
-                  {items.map(i => <option key={i.id} value={i.id}>{i.ciCode} {i.name}</option>)}
-                </select>
+          {showRelForm ? (
+            <div className="console-section" style={{ marginBottom: "var(--s-4)" }}>
+              <div className="console-section__header">
+                <span>Novo Relacionamento</span>
+                <button type="button" onClick={() => setShowRelForm(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", fontSize: "var(--t-sm)" }}>Cancelar</button>
               </div>
-              <div><label className="form-label">Tipo</label>
-                <select className="form-input" value={newRel.relType} onChange={e => setNewRel(p => ({ ...p, relType: e.target.value }))}>
-                  {REL_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
+              <div className="console-section__body">
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(220px,1fr))", gap: "var(--s-3)", marginBottom: "var(--s-3)" }}>
+                  <div>
+                    <label className="form-label">CI Origem *</label>
+                    <select className="console-filter-select" style={{ width: "100%", height: 36 }} value={newRel.sourceId} onChange={e => setNewRel(p => ({ ...p, sourceId: e.target.value }))}>
+                      <option value="">— selecionar —</option>
+                      {items.map(i => <option key={i.id} value={i.id}>{i.ciCode} {i.name}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="form-label">Tipo de relação</label>
+                    <select className="console-filter-select" style={{ width: "100%", height: 36 }} value={newRel.relType} onChange={e => setNewRel(p => ({ ...p, relType: e.target.value }))}>
+                      {REL_TYPES.map(t => <option key={t} value={t}>{REL_TYPE_LABEL[t] || t}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="form-label">CI Destino *</label>
+                    <select className="console-filter-select" style={{ width: "100%", height: 36 }} value={newRel.targetId} onChange={e => setNewRel(p => ({ ...p, targetId: e.target.value }))}>
+                      <option value="">— selecionar —</option>
+                      {items.map(i => <option key={i.id} value={i.id}>{i.ciCode} {i.name}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="form-label">Descrição</label>
+                    <Input value={newRel.description} onChange={e => setNewRel(p => ({ ...p, description: e.target.value }))} placeholder="Opcional..." />
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: "var(--s-2)", justifyContent: "flex-end" }}>
+                  <Button variant="secondary" onClick={() => setShowRelForm(false)}>Cancelar</Button>
+                  <Button onClick={createRel} disabled={loading || !newRel.sourceId || !newRel.targetId}>Criar Relacionamento</Button>
+                </div>
               </div>
-              <div><label className="form-label">CI Destino *</label>
-                <select className="form-input" value={newRel.targetId} onChange={e => setNewRel(p => ({ ...p, targetId: e.target.value }))}>
-                  <option value="">— selecionar —</option>
-                  {items.map(i => <option key={i.id} value={i.id}>{i.ciCode} {i.name}</option>)}
-                </select>
-              </div>
-              <div><label className="form-label">Descrição</label><input className="form-input" value={newRel.description} onChange={e => setNewRel(p => ({ ...p, description: e.target.value }))} style={{ width: 200 }} /></div>
-              <button className="btn btn--primary btn--sm" onClick={createRel} disabled={loading || !newRel.sourceId || !newRel.targetId}>Criar Relacionamento</button>
             </div>
-          </div>
+          ) : (
+            <div style={{ marginBottom: "var(--s-3)", display: "flex", justifyContent: "flex-end" }}>
+              <Button onClick={() => setShowRelForm(true)} disabled={items.length < 2}>+ Novo Relacionamento</Button>
+            </div>
+          )}
 
-          <div className="table-wrapper">
-            <table className="data-table">
-              <thead><tr><th>Código</th><th>Origem</th><th>Tipo</th><th>Destino</th><th>Inverso</th><th>Ação</th></tr></thead>
-              <tbody>
-                {rels.length === 0 && <tr><td colSpan={6} style={{ textAlign: "center", color: "var(--color-text-muted)" }}>Nenhum relacionamento</td></tr>}
-                {rels.map(r => {
-                  const src = items.find(i => i.id === r.sourceId);
-                  const tgt = items.find(i => i.id === r.targetId);
-                  return (
-                    <tr key={r.id}>
-                      <td><code style={{ fontSize: ".75rem" }}>{r.relCode}</code></td>
-                      <td>{src ? `${src.ciCode} ${src.name}` : r.sourceId}</td>
-                      <td><span className="badge">{r.relType}</span></td>
-                      <td>{tgt ? `${tgt.ciCode} ${tgt.name}` : r.targetId}</td>
-                      <td style={{ color: "var(--color-text-muted)", fontSize: ".8rem" }}>{r.inverseType}</td>
-                      <td><button className="btn btn--danger btn--xs" onClick={() => deleteRel(r.id)}>Remover</button></td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          <div className="console-section">
+            <div className="console-section__header">
+              <span>Relacionamentos ({rels.length})</span>
+            </div>
+            <div style={{ overflowX: "auto" }}>
+              {rels.length === 0 ? (
+                <EmptyState
+                  icon={<IcoDatabase size={36} />}
+                  title="Nenhum relacionamento cadastrado"
+                  text="Mapeie dependências entre CIs para habilitar a análise de impacto."
+                />
+              ) : (
+                <table className="data-table">
+                  <thead><tr><th>Código</th><th>Origem</th><th>Relação</th><th>Destino</th><th>Inverso</th><th>Ação</th></tr></thead>
+                  <tbody>
+                    {rels.map(r => {
+                      const src = items.find(i => i.id === r.sourceId);
+                      const tgt = items.find(i => i.id === r.targetId);
+                      return (
+                        <tr key={r.id}>
+                          <td><code style={{ fontSize: "var(--t-xs)", fontFamily: "var(--font-mono)" }}>{r.relCode}</code></td>
+                          <td>{src ? `${src.ciCode} ${src.name}` : r.sourceId}</td>
+                          <td><span className="badge">{REL_TYPE_LABEL[r.relType] || r.relType}</span></td>
+                          <td>{tgt ? `${tgt.ciCode} ${tgt.name}` : r.targetId}</td>
+                          <td style={{ color: "var(--text-muted)", fontSize: "var(--t-sm)" }}>{REL_TYPE_LABEL[r.inverseType] || r.inverseType}</td>
+                          <td><Button variant="danger" size="xs" onClick={() => deleteRel(r.id)}>Remover</Button></td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
           </div>
         </>
       )}
 
-      {/* ── Impact Analysis ────────────────────────────────────────────────── */}
+      {/* ── Análise de Impacto ─────────────────────────────────────────────── */}
       {tab === "impact" && (
         <>
-          <div className="card" style={{ marginBottom: "1rem", padding: "1rem" }}>
-            <h3 style={{ marginBottom: ".75rem", fontSize: ".875rem", fontWeight: 600 }}>Análise de Impacto</h3>
-            <p style={{ fontSize: ".8rem", color: "var(--color-text-muted)", marginBottom: ".75rem" }}>Selecione um CI para ver quais outros CIs seriam afetados se ele falhasse.</p>
-            <div style={{ display: "flex", gap: ".5rem", alignItems: "flex-end", flexWrap: "wrap" }}>
-              <div><label className="form-label">CI</label>
-                <select className="form-input" value={impactCiId} onChange={e => setImpactCiId(e.target.value)} style={{ minWidth: 250 }}>
-                  <option value="">— selecionar CI —</option>
-                  {items.map(i => <option key={i.id} value={i.id}>{i.ciCode} {i.name} ({i.criticality})</option>)}
-                </select>
+          <div className="console-section" style={{ marginBottom: "var(--s-4)" }}>
+            <div className="console-section__header"><span>Análise de Impacto</span></div>
+            <div className="console-section__body">
+              <p style={{ fontSize: "var(--t-sm)", color: "var(--text-muted)", marginBottom: "var(--s-3)" }}>
+                Selecione um CI para ver quais outros CIs seriam afetados em caso de falha.
+              </p>
+              <div style={{ display: "flex", gap: "var(--s-3)", alignItems: "flex-end", flexWrap: "wrap" }}>
+                <div style={{ flex: "1 1 280px" }}>
+                  <label className="form-label">Item de Configuração</label>
+                  <select className="console-filter-select" style={{ width: "100%", height: 36 }} value={impactCiId} onChange={e => setImpactCiId(e.target.value)}>
+                    <option value="">— selecionar CI —</option>
+                    {items.map(i => <option key={i.id} value={i.id}>{i.ciCode} {i.name} ({CRITICALITY_LABEL[i.criticality] || i.criticality})</option>)}
+                  </select>
+                </div>
+                <Button onClick={runImpact} disabled={!impactCiId}>Analisar</Button>
               </div>
-              <button className="btn btn--primary btn--sm" onClick={runImpact} disabled={!impactCiId}>Analisar</button>
             </div>
           </div>
 
           {impact && (
-            <div className="card" style={{ padding: "1rem" }}>
-              <div style={{ marginBottom: ".75rem" }}>
-                <strong>{impact.name}</strong> <span className="badge">{impact.type}</span> <span className={CRITICALITY_BADGE[impact.criticality] || "badge"}>{impact.criticality}</span>
-                <span style={{ marginLeft: "1rem", fontSize: ".8rem", color: "var(--color-text-muted)" }}>{impact.totalAffected} CIs afetados (profundidade máx. {impact.maxDepth})</span>
+            <div className="console-section">
+              <div className="console-section__header">
+                <div style={{ display: "flex", alignItems: "center", gap: "var(--s-2)" }}>
+                  <span>{impact.name}</span>
+                  <span className="badge">{CI_TYPE_LABEL[impact.type] || impact.type}</span>
+                  <span className={CRITICALITY_BADGE[impact.criticality] || "badge"}>{CRITICALITY_LABEL[impact.criticality] || impact.criticality}</span>
+                </div>
+                <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0, fontSize: "var(--t-sm)", color: "var(--text-muted)" }}>
+                  {impact.totalAffected} CIs afetados
+                </span>
               </div>
-              {impact.affected.length === 0
-                ? <p style={{ color: "var(--color-text-muted)", fontSize: ".875rem" }}>Nenhum CI depende deste item.</p>
-                : (
-                  <div className="table-wrapper">
-                    <table className="data-table">
-                      <thead><tr><th>Código</th><th>Nome</th><th>Tipo</th><th>Criticidade</th><th>Profundidade</th><th>Via</th></tr></thead>
-                      <tbody>
-                        {impact.affected.map((a, idx) => (
-                          <tr key={idx}>
-                            <td><code style={{ fontSize: ".75rem" }}>{a.ci.ciCode || "—"}</code></td>
-                            <td>{a.ci.name}</td>
-                            <td><span className="badge">{a.ci.type || "—"}</span></td>
-                            <td><span className={CRITICALITY_BADGE[a.ci.criticality] || "badge"}>{a.ci.criticality || "—"}</span></td>
-                            <td>{a.depth}</td>
-                            <td style={{ fontSize: ".75rem", color: "var(--color-text-muted)" }}>{a.relType}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )
-              }
+              <div style={{ overflowX: "auto" }}>
+                {impact.affected.length === 0 ? (
+                  <EmptyState icon={<IcoCheckCircle size={36} />} title="Sem dependentes" text="Nenhum CI depende deste item." />
+                ) : (
+                  <table className="data-table">
+                    <thead><tr><th>Código</th><th>Nome</th><th>Tipo</th><th>Criticidade</th><th>Profundidade</th><th>Via</th></tr></thead>
+                    <tbody>
+                      {impact.affected.map((a, idx) => (
+                        <tr key={idx}>
+                          <td><code style={{ fontSize: "var(--t-xs)", fontFamily: "var(--font-mono)" }}>{a.ci.ciCode || "—"}</code></td>
+                          <td>{a.ci.name}</td>
+                          <td><span className="badge">{CI_TYPE_LABEL[a.ci.type] || a.ci.type || "—"}</span></td>
+                          <td><span className={CRITICALITY_BADGE[a.ci.criticality] || "badge"}>{CRITICALITY_LABEL[a.ci.criticality] || a.ci.criticality || "—"}</span></td>
+                          <td style={{ textAlign: "center" }}>{a.depth}</td>
+                          <td style={{ fontSize: "var(--t-sm)", color: "var(--text-muted)" }}>{REL_TYPE_LABEL[a.relType] || a.relType}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
             </div>
           )}
         </>
       )}
 
-      {/* ── Search ────────────────────────────────────────────────────────── */}
+      {/* ── Busca ─────────────────────────────────────────────────────────── */}
       {tab === "search" && (
         <>
-          <div style={{ display: "flex", gap: ".5rem", marginBottom: "1rem", alignItems: "flex-end" }}>
-            <div style={{ flex: 1 }}><label className="form-label">Pesquisar CIs</label>
-              <input className="form-input" placeholder="Nome, código ou tag..." value={search} onChange={e => setSearch(e.target.value)}
-                onKeyDown={e => e.key === "Enter" && runSearch()} />
+          <div style={{ display: "flex", gap: "var(--s-3)", marginBottom: "var(--s-4)", alignItems: "flex-end" }}>
+            <div style={{ flex: 1 }}>
+              <label className="form-label">Pesquisar CIs</label>
+              <Input
+                placeholder="Nome, código ou tag..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && runSearch()}
+              />
             </div>
-            <button className="btn btn--primary btn--sm" onClick={runSearch} disabled={!search.trim()}>Buscar</button>
+            <Button onClick={runSearch} disabled={!search.trim()}>Buscar</Button>
           </div>
           {searchResults !== null && (
-            <div className="table-wrapper">
-              <table className="data-table">
-                <thead><tr><th>Código</th><th>Nome</th><th>Tipo</th><th>Status</th><th>Criticidade</th></tr></thead>
-                <tbody>
-                  {searchResults.length === 0 && <tr><td colSpan={5} style={{ textAlign: "center", color: "var(--color-text-muted)" }}>Sem resultados</td></tr>}
-                  {searchResults.map(ci => (
-                    <tr key={ci.id}>
-                      <td><code style={{ fontSize: ".75rem" }}>{ci.ciCode}</code></td>
-                      <td>{ci.name}</td>
-                      <td><span className="badge">{ci.type}</span></td>
-                      <td><span className={CI_STATUS_BADGE[ci.status] || "badge"}>{ci.status}</span></td>
-                      <td><span className={CRITICALITY_BADGE[ci.criticality] || "badge"}>{ci.criticality}</span></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="console-section">
+              <div className="console-section__header"><span>Resultados ({searchResults.length})</span></div>
+              <div style={{ overflowX: "auto" }}>
+                {searchResults.length === 0 ? (
+                  <EmptyState icon={<IcoInbox size={36} />} title="Sem resultados" text={`Nenhum CI encontrado para "${search}".`} />
+                ) : (
+                  <table className="data-table">
+                    <thead><tr><th>Código</th><th>Nome</th><th>Tipo</th><th>Status</th><th>Criticidade</th></tr></thead>
+                    <tbody>
+                      {searchResults.map(ci => (
+                        <tr key={ci.id}>
+                          <td><code style={{ fontSize: "var(--t-xs)", fontFamily: "var(--font-mono)" }}>{ci.ciCode}</code></td>
+                          <td>{ci.name}</td>
+                          <td><span className="badge">{CI_TYPE_LABEL[ci.type] || ci.type}</span></td>
+                          <td><span className={CI_STATUS_BADGE[ci.status] || "badge"}>{CI_STATUS_LABEL[ci.status] || ci.status}</span></td>
+                          <td><span className={CRITICALITY_BADGE[ci.criticality] || "badge"}>{CRITICALITY_LABEL[ci.criticality] || ci.criticality}</span></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
             </div>
           )}
         </>
@@ -4026,7 +4217,7 @@ function GovernanceConsole({ token }) {
         subtitle="Baselines, ADRs, políticas, exceções e Compliance Engine"
         color="#7c3aed"
         kpis={dash ? [
-          { label: "Score", value: `${dash.complianceScore ?? "—"}%` },
+          { label: "Score", value: dash.complianceScore != null ? `${dash.complianceScore}%` : "N/D" },
           { label: "Baselines", value: dash.totalBaselines ?? 0 },
           { label: "Exceções pendentes", value: dash.pendingExceptions ?? 0 },
         ] : []}
@@ -4038,183 +4229,183 @@ function GovernanceConsole({ token }) {
 
       {loading && <Skeleton count={4} />}
 
-      {/* Compliance banner */}
-      {compliance && (
-        <div className="card" style={{ padding: "1rem", marginBottom: "1.5rem", borderLeft: `3px solid ${compliance.overallStatus === "PASS" ? "#22c55e" : compliance.overallStatus === "FAIL" ? "#ef4444" : "#f59e0b"}` }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "0.75rem" }}>
-            <h3 style={{ fontWeight: 600 }}>Compliance Engine</h3>
-            <span className={COMP_STATUS_BADGE[compliance.overallStatus] || "badge"}>{compliance.overallStatus}</span>
-            <span style={{ opacity: 0.6, fontSize: "0.8rem" }}>{compliance.counts?.PASS} PASS · {compliance.counts?.WARNING} WARNING · {compliance.counts?.FAIL} FAIL</span>
-          </div>
-          {compliance.results?.map(r => (
-            <div key={r.code} style={{ display: "flex", gap: "0.75rem", padding: "0.3rem 0", borderBottom: "1px solid var(--border-color)", fontSize: "0.85rem", alignItems: "flex-start" }}>
-              <span className={COMP_STATUS_BADGE[r.status] || "badge"} style={{ flexShrink: 0 }}>{r.code}</span>
-              <div>
-                <strong>{r.title}</strong>
-                <span style={{ opacity: 0.6, marginLeft: 8 }}>{r.detail}</span>
-                {r.status !== "PASS" && r.recommendation && (
-                  <div style={{ opacity: 0.5, fontSize: "0.8rem", marginTop: 2 }}>→ {r.recommendation}</div>
-                )}
+      {/* Compliance Engine — hierarquia melhorada */}
+      {compliance && (() => {
+        const statusColor = compliance.overallStatus === "PASS" ? "var(--success)" : compliance.overallStatus === "FAIL" ? "var(--danger)" : "var(--warning)";
+        const passCount = compliance.counts?.PASS ?? 0;
+        const warnCount = compliance.counts?.WARNING ?? 0;
+        const failCount = compliance.counts?.FAIL ?? 0;
+        return (
+          <div className="console-section" style={{ marginBottom: "var(--s-5)", borderLeft: `3px solid ${statusColor}` }}>
+            <div className="console-section__header">
+              <div style={{ display: "flex", alignItems: "center", gap: "var(--s-3)" }}>
+                <span>Compliance Engine</span>
+                <span className={COMP_STATUS_BADGE[compliance.overallStatus] || "badge"}>{COMP_STATUS_LABEL[compliance.overallStatus] || compliance.overallStatus}</span>
               </div>
+              <div style={{ display: "flex", gap: "var(--s-3)", fontWeight: 400, textTransform: "none", letterSpacing: 0, fontSize: "var(--t-sm)" }}>
+                <span style={{ color: "var(--success)" }}>{passCount} aprovados</span>
+                {warnCount > 0 && <span style={{ color: "var(--warning)" }}>{warnCount} atenção</span>}
+                {failCount > 0 && <span style={{ color: "var(--danger)" }}>{failCount} falharam</span>}
+              </div>
+            </div>
+            <div className="console-section__body" style={{ padding: 0 }}>
+              {compliance.results?.map((r, idx) => (
+                <div
+                  key={r.code}
+                  style={{
+                    display: "flex", gap: "var(--s-3)", padding: "var(--s-3) var(--s-4)",
+                    borderBottom: idx < compliance.results.length - 1 ? "1px solid var(--border-subtle)" : "none",
+                    alignItems: "flex-start",
+                  }}
+                >
+                  <span className={COMP_STATUS_BADGE[r.status] || "badge"} style={{ flexShrink: 0, minWidth: 70, textAlign: "center" }}>{r.code}</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 600, fontSize: "var(--t-base)", color: "var(--text)" }}>{r.title}</div>
+                    {r.detail && <div style={{ fontSize: "var(--t-sm)", color: "var(--text-muted)", marginTop: 2 }}>{r.detail}</div>}
+                    {r.status !== "PASS" && r.recommendation && (
+                      <div style={{ fontSize: "var(--t-sm)", color: "var(--text-dim)", marginTop: 4, paddingLeft: "var(--s-3)", borderLeft: `2px solid ${r.status === "FAIL" ? "var(--danger)" : "var(--warning)"}` }}>
+                        {r.recommendation}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* KPI Cards */}
+      {dash && (
+        <div className="console-kpi-strip" style={{ gridTemplateColumns: "repeat(auto-fill,minmax(160px,1fr))", marginBottom: "var(--s-5)" }}>
+          {[
+            { label: "Baselines aprovadas", value: dash.baselines?.approved ?? 0 },
+            { label: "ADRs aceitas",        value: dash.adrs?.accepted   ?? 0, cls: "console-kpi--success" },
+            { label: "ADRs em revisão",     value: dash.adrs?.proposed   ?? 0 },
+            { label: "Políticas ativas",    value: dash.policies?.active ?? 0, cls: "console-kpi--success" },
+            { label: "Políticas expirando", value: dash.policies?.expiring ?? 0, cls: "console-kpi--warning" },
+            { label: "Exceções abertas",    value: dash.exceptions?.approved ?? 0, cls: (dash.exceptions?.approved ?? 0) > 0 ? "console-kpi--warning" : "" },
+          ].map(({ label, value, cls = "" }) => (
+            <div key={label} className={`console-kpi ${cls}`}>
+              <div className="console-kpi__value">{value}</div>
+              <div className="console-kpi__label">{label}</div>
             </div>
           ))}
         </div>
       )}
 
-      {/* Dashboard cards */}
-      {dash && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: "1rem", marginBottom: "1.5rem" }}>
-          <div className="card" style={{ padding: "0.75rem", textAlign: "center" }}>
-            <p style={{ fontSize: "1.5rem", fontWeight: 700 }}>{dash.baselines?.approved || 0}</p>
-            <p className="card__label">Baselines aprovadas</p>
-          </div>
-          <div className="card" style={{ padding: "0.75rem", textAlign: "center" }}>
-            <p style={{ fontSize: "1.5rem", fontWeight: 700 }}>{dash.adrs?.accepted || 0}</p>
-            <p className="card__label">ADRs aceitas</p>
-          </div>
-          <div className="card" style={{ padding: "0.75rem", textAlign: "center" }}>
-            <p style={{ fontSize: "1.5rem", fontWeight: 700 }}>{dash.adrs?.proposed || 0}</p>
-            <p className="card__label">ADRs em revisão</p>
-          </div>
-          <div className="card" style={{ padding: "0.75rem", textAlign: "center" }}>
-            <p style={{ fontSize: "1.5rem", fontWeight: 700 }}>{dash.policies?.active || 0}</p>
-            <p className="card__label">Políticas ativas</p>
-          </div>
-          <div className="card" style={{ padding: "0.75rem", textAlign: "center" }}>
-            <p style={{ fontSize: "1.5rem", fontWeight: 700 }}>{dash.policies?.expiring || 0}</p>
-            <p className="card__label">Políticas expirando</p>
-          </div>
-          <div className="card" style={{ padding: "0.75rem", textAlign: "center" }}>
-            <p style={{ fontSize: "1.5rem", fontWeight: 700 }}>{dash.exceptions?.approved || 0}</p>
-            <p className="card__label">Exceções abertas</p>
-          </div>
-        </div>
-      )}
-
       {/* Baselines */}
-      <div className="card" style={{ padding: "1rem", marginBottom: "1.5rem" }}>
-        <h3 style={{ fontWeight: 600, marginBottom: "0.75rem" }}>Baselines ({baselines.length})</h3>
+      <div className="console-section" style={{ marginBottom: "var(--s-4)" }}>
+        <div className="console-section__header"><span>Baselines ({baselines.length})</span></div>
         <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", fontSize: "0.875rem", borderCollapse: "collapse" }}>
-            <thead><tr style={{ borderBottom: "2px solid var(--border-color)" }}>
-              <th style={{ textAlign: "left", padding: "0.4rem" }}>Código</th>
-              <th style={{ textAlign: "left", padding: "0.4rem" }}>Nome</th>
-              <th style={{ textAlign: "left", padding: "0.4rem" }}>Versão</th>
-              <th style={{ textAlign: "left", padding: "0.4rem" }}>Escopo</th>
-              <th style={{ textAlign: "left", padding: "0.4rem" }}>Status</th>
-              <th style={{ textAlign: "left", padding: "0.4rem" }}>Aprovado em</th>
-            </tr></thead>
-            <tbody>
-              {!baselines.length && <tr><td colSpan={6} style={{ padding: "1rem", opacity: 0.5 }}>Nenhuma baseline.</td></tr>}
-              {baselines.map(b => (
-                <tr key={b.id} style={{ borderBottom: "1px solid var(--border-color)" }}>
-                  <td style={{ padding: "0.4rem", fontFamily: "monospace", fontSize: "0.8rem" }}>{b.baselineCode}</td>
-                  <td style={{ padding: "0.4rem", fontWeight: 600 }}>{b.name}</td>
-                  <td style={{ padding: "0.4rem" }}>{b.version}</td>
-                  <td style={{ padding: "0.4rem" }}>{b.scope}</td>
-                  <td style={{ padding: "0.4rem" }}><span className={BASELINE_STATUS_BADGE[b.status] || "badge"}>{b.status}</span></td>
-                  <td style={{ padding: "0.4rem" }}>{fmtDate(b.approvedAt)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          {baselines.length === 0 ? (
+            <EmptyState icon={<IcoScale size={36} />} title="Nenhuma baseline aprovada" text="Baselines documentam o estado esperado da plataforma em cada release." />
+          ) : (
+            <table className="data-table">
+              <thead><tr><th>Código</th><th>Nome</th><th>Versão</th><th>Escopo</th><th>Status</th><th>Aprovado em</th></tr></thead>
+              <tbody>
+                {baselines.map(b => (
+                  <tr key={b.id}>
+                    <td><code style={{ fontSize: "var(--t-xs)", fontFamily: "var(--font-mono)" }}>{b.baselineCode}</code></td>
+                    <td style={{ fontWeight: 600 }}>{b.name}</td>
+                    <td>{b.version}</td>
+                    <td>{b.scope}</td>
+                    <td><span className={BASELINE_STATUS_BADGE[b.status] || "badge"}>{b.status}</span></td>
+                    <td>{fmtDate(b.approvedAt)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
 
       {/* ADRs */}
-      <div className="card" style={{ padding: "1rem", marginBottom: "1.5rem" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "0.75rem" }}>
-          <h3 style={{ fontWeight: 600 }}>ADRs ({adrs.length})</h3>
-          <input
-            type="text"
-            placeholder="Buscar ADR..."
-            value={compSearch}
-            onChange={e => setCompSearch(e.target.value)}
-            style={{ padding: "0.3rem 0.6rem", border: "1px solid var(--border-color)", borderRadius: 4, fontSize: "0.85rem", background: "transparent" }}
-          />
+      <div className="console-section" style={{ marginBottom: "var(--s-4)" }}>
+        <div className="console-section__header">
+          <span>ADRs ({adrs.length})</span>
+          <div style={{ display: "flex", alignItems: "center" }}>
+            <Input
+              placeholder="Buscar ADR..."
+              value={compSearch}
+              onChange={e => setCompSearch(e.target.value)}
+              style={{ height: 28, fontSize: "var(--t-sm)" }}
+            />
+          </div>
         </div>
         <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", fontSize: "0.875rem", borderCollapse: "collapse" }}>
-            <thead><tr style={{ borderBottom: "2px solid var(--border-color)" }}>
-              <th style={{ textAlign: "left", padding: "0.4rem" }}>Código</th>
-              <th style={{ textAlign: "left", padding: "0.4rem" }}>Título</th>
-              <th style={{ textAlign: "left", padding: "0.4rem" }}>Status</th>
-              <th style={{ textAlign: "left", padding: "0.4rem" }}>Autor</th>
-              <th style={{ textAlign: "left", padding: "0.4rem" }}>Criado</th>
-            </tr></thead>
-            <tbody>
-              {!filteredAdrs.length && <tr><td colSpan={5} style={{ padding: "1rem", opacity: 0.5 }}>Nenhuma ADR.</td></tr>}
-              {filteredAdrs.map(a => (
-                <tr key={a.id} style={{ borderBottom: "1px solid var(--border-color)" }}>
-                  <td style={{ padding: "0.4rem", fontFamily: "monospace", fontSize: "0.8rem" }}>{a.adrCode}</td>
-                  <td style={{ padding: "0.4rem" }}>{a.title}</td>
-                  <td style={{ padding: "0.4rem" }}><span className={ADR_STATUS_BADGE[a.status] || "badge"}>{a.status}</span></td>
-                  <td style={{ padding: "0.4rem" }}>{a.author || "—"}</td>
-                  <td style={{ padding: "0.4rem" }}>{fmtDate(a.createdAt)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Policies */}
-      <div className="card" style={{ padding: "1rem", marginBottom: "1.5rem" }}>
-        <h3 style={{ fontWeight: 600, marginBottom: "0.75rem" }}>Políticas ({policies.length})</h3>
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", fontSize: "0.875rem", borderCollapse: "collapse" }}>
-            <thead><tr style={{ borderBottom: "2px solid var(--border-color)" }}>
-              <th style={{ textAlign: "left", padding: "0.4rem" }}>Código</th>
-              <th style={{ textAlign: "left", padding: "0.4rem" }}>Nome</th>
-              <th style={{ textAlign: "left", padding: "0.4rem" }}>Categoria</th>
-              <th style={{ textAlign: "left", padding: "0.4rem" }}>Versão</th>
-              <th style={{ textAlign: "left", padding: "0.4rem" }}>Status</th>
-              <th style={{ textAlign: "left", padding: "0.4rem" }}>Vigente até</th>
-            </tr></thead>
-            <tbody>
-              {!policies.length && <tr><td colSpan={6}><EmptyState icon={<IcoScale size={36} />} title="Nenhuma política cadastrada" text="Crie políticas de governança para monitorar compliance." /></td></tr>}
-              {policies.map(p => (
-                <tr key={p.id} style={{ borderBottom: "1px solid var(--border-color)" }}>
-                  <td style={{ padding: "0.4rem", fontFamily: "monospace", fontSize: "0.8rem" }}>{p.policyCode}</td>
-                  <td style={{ padding: "0.4rem", fontWeight: 600 }}>{p.name}</td>
-                  <td style={{ padding: "0.4rem" }}><span className="badge badge--info">{p.category}</span></td>
-                  <td style={{ padding: "0.4rem" }}>{p.version}</td>
-                  <td style={{ padding: "0.4rem" }}><span className={POLICY_STATUS_BADGE[p.status] || "badge"}>{p.status}</span></td>
-                  <td style={{ padding: "0.4rem" }}>{fmtDate(p.effectiveUntil)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          {adrs.length === 0 ? (
+            <EmptyState icon={<IcoClipboard size={36} />} title="Nenhum ADR registrado" text="Architecture Decision Records documentam decisões técnicas relevantes." />
+          ) : filteredAdrs.length === 0 ? (
+            <EmptyState icon={<IcoInbox size={36} />} title="Nenhum ADR encontrado" text={`Nenhum resultado para "${compSearch}".`} />
+          ) : (
+            <table className="data-table">
+              <thead><tr><th>Código</th><th>Título</th><th>Status</th><th>Autor</th><th>Criado</th></tr></thead>
+              <tbody>
+                {filteredAdrs.map(a => (
+                  <tr key={a.id}>
+                    <td><code style={{ fontSize: "var(--t-xs)", fontFamily: "var(--font-mono)" }}>{a.adrCode}</code></td>
+                    <td>{a.title}</td>
+                    <td><span className={ADR_STATUS_BADGE[a.status] || "badge"}>{a.status}</span></td>
+                    <td>{a.author || "—"}</td>
+                    <td>{fmtDate(a.createdAt)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
 
-      {/* Exceptions */}
-      <div className="card" style={{ padding: "1rem" }}>
-        <h3 style={{ fontWeight: 600, marginBottom: "0.75rem" }}>Exceções ({exceptions.length})</h3>
+      {/* Políticas */}
+      <div className="console-section" style={{ marginBottom: "var(--s-4)" }}>
+        <div className="console-section__header"><span>Políticas ({policies.length})</span></div>
         <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", fontSize: "0.875rem", borderCollapse: "collapse" }}>
-            <thead><tr style={{ borderBottom: "2px solid var(--border-color)" }}>
-              <th style={{ textAlign: "left", padding: "0.4rem" }}>Código</th>
-              <th style={{ textAlign: "left", padding: "0.4rem" }}>Motivo</th>
-              <th style={{ textAlign: "left", padding: "0.4rem" }}>Risco</th>
-              <th style={{ textAlign: "left", padding: "0.4rem" }}>Status</th>
-              <th style={{ textAlign: "left", padding: "0.4rem" }}>Expira</th>
-              <th style={{ textAlign: "left", padding: "0.4rem" }}>Aprovado por</th>
-            </tr></thead>
-            <tbody>
-              {!exceptions.length && <tr><td colSpan={6}><EmptyState icon={<IcoScale size={36} />} title="Nenhuma exceção registrada" text="Exceções são criadas quando uma política não pode ser cumprida." /></td></tr>}
-              {exceptions.map(e => (
-                <tr key={e.id} style={{ borderBottom: "1px solid var(--border-color)" }}>
-                  <td style={{ padding: "0.4rem", fontFamily: "monospace", fontSize: "0.8rem" }}>{e.exceptionCode}</td>
-                  <td style={{ padding: "0.4rem" }}>{e.reason}</td>
-                  <td style={{ padding: "0.4rem" }}><span className={e.riskLevel === "CRITICAL" ? "badge badge--danger" : e.riskLevel === "HIGH" ? "badge badge--danger" : "badge badge--warning"}>{e.riskLevel}</span></td>
-                  <td style={{ padding: "0.4rem" }}><span className={EXC_STATUS_BADGE[e.status] || "badge"}>{e.status}</span></td>
-                  <td style={{ padding: "0.4rem" }}>{fmtDate(e.expiresAt)}</td>
-                  <td style={{ padding: "0.4rem" }}>{e.approvedBy?.name || "—"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          {policies.length === 0 ? (
+            <EmptyState icon={<IcoScale size={36} />} title="Nenhuma política cadastrada" text="Crie políticas de governança para monitorar compliance contínuo." />
+          ) : (
+            <table className="data-table">
+              <thead><tr><th>Código</th><th>Nome</th><th>Categoria</th><th>Versão</th><th>Status</th><th>Vigente até</th></tr></thead>
+              <tbody>
+                {policies.map(p => (
+                  <tr key={p.id}>
+                    <td><code style={{ fontSize: "var(--t-xs)", fontFamily: "var(--font-mono)" }}>{p.policyCode}</code></td>
+                    <td style={{ fontWeight: 600 }}>{p.name}</td>
+                    <td><span className="badge badge--info">{p.category}</span></td>
+                    <td>{p.version}</td>
+                    <td><span className={POLICY_STATUS_BADGE[p.status] || "badge"}>{p.status}</span></td>
+                    <td>{fmtDate(p.effectiveUntil)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+
+      {/* Exceções */}
+      <div className="console-section">
+        <div className="console-section__header"><span>Exceções ({exceptions.length})</span></div>
+        <div style={{ overflowX: "auto" }}>
+          {exceptions.length === 0 ? (
+            <EmptyState icon={<IcoScale size={36} />} title="Nenhuma exceção registrada" text="Exceções documentam casos onde uma política não pode ser completamente cumprida." />
+          ) : (
+            <table className="data-table">
+              <thead><tr><th>Código</th><th>Motivo</th><th>Risco</th><th>Status</th><th>Expira</th><th>Aprovado por</th></tr></thead>
+              <tbody>
+                {exceptions.map(e => (
+                  <tr key={e.id}>
+                    <td><code style={{ fontSize: "var(--t-xs)", fontFamily: "var(--font-mono)" }}>{e.exceptionCode}</code></td>
+                    <td>{e.reason}</td>
+                    <td><span className={e.riskLevel === "CRITICAL" || e.riskLevel === "HIGH" ? "badge badge--danger" : "badge badge--warning"}>{CRITICALITY_LABEL[e.riskLevel] || e.riskLevel}</span></td>
+                    <td><span className={EXC_STATUS_BADGE[e.status] || "badge"}>{e.status}</span></td>
+                    <td>{fmtDate(e.expiresAt)}</td>
+                    <td>{e.approvedBy?.name || "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
     </div>
@@ -4325,19 +4516,51 @@ function BackupConsole({ token }) {
         </div>
       )}
 
-      {/* Alerts */}
-      {dash?.alerts?.length > 0 && (
-        <div className="card" style={{ padding: "1rem", marginBottom: "1.5rem", borderLeft: "3px solid #ef4444" }}>
-          <h3 style={{ fontWeight: 600, marginBottom: "0.5rem" }}>Alertas de continuidade ({dash.alerts.length})</h3>
-          {dash.alerts.map(al => (
-            <div key={al.code} style={{ padding: "0.4rem 0", borderBottom: "1px solid var(--border-color)", fontSize: "0.875rem" }}>
-              <span className={al.severity === "CRITICAL" ? "badge badge--danger" : al.severity === "HIGH" ? "badge badge--danger" : "badge badge--warning"} style={{ marginRight: 8 }}>{al.code}</span>
-              <strong>{al.title}</strong>
-              {al.recommendation && <span style={{ opacity: 0.7, marginLeft: 8 }}>— {al.recommendation}</span>}
+      {/* Alertas — semântica: não alertar sobre restore se nem política existe */}
+      {(() => {
+        if (!dash) return null;
+        const hasPolicies = (dash.policies?.total ?? 0) > 0;
+        const hasBackups  = (dash.executions?.total ?? 0) > 0;
+        // Prioridade: sem política > sem backup > alertas temporais
+        if (!hasPolicies) return (
+          <div className="console-section" style={{ marginBottom: "var(--s-4)", borderLeft: "3px solid var(--warning)" }}>
+            <div className="console-section__header" style={{ color: "var(--warning)" }}><span>Continuidade de negócio — configuração necessária</span></div>
+            <div className="console-section__body">
+              <p style={{ fontSize: "var(--t-sm)", color: "var(--text-muted)" }}>
+                Nenhuma política de backup configurada. Configure ao menos uma política antes de monitorar execuções e testes de restore.
+              </p>
             </div>
-          ))}
-        </div>
-      )}
+          </div>
+        );
+        if (!hasBackups) return (
+          <div className="console-section" style={{ marginBottom: "var(--s-4)", borderLeft: "3px solid var(--warning)" }}>
+            <div className="console-section__header" style={{ color: "var(--warning)" }}><span>Nenhum backup executado</span></div>
+            <div className="console-section__body">
+              <p style={{ fontSize: "var(--t-sm)", color: "var(--text-muted)" }}>
+                Política configurada, mas nenhuma execução registrada. Execute o primeiro backup para validar a política.
+              </p>
+            </div>
+          </div>
+        );
+        const alerts = dash.alerts || [];
+        if (alerts.length === 0) return null;
+        return (
+          <div className="console-section" style={{ marginBottom: "var(--s-4)", borderLeft: "3px solid var(--danger)" }}>
+            <div className="console-section__header"><span>Alertas de continuidade ({alerts.length})</span></div>
+            <div className="console-section__body" style={{ padding: 0 }}>
+              {alerts.map((al, idx) => (
+                <div key={al.code} style={{ display: "flex", gap: "var(--s-3)", padding: "var(--s-3) var(--s-4)", alignItems: "flex-start", borderBottom: idx < alerts.length - 1 ? "1px solid var(--border-subtle)" : "none" }}>
+                  <span className={al.severity === "CRITICAL" || al.severity === "HIGH" ? "badge badge--danger" : "badge badge--warning"} style={{ flexShrink: 0 }}>{al.code}</span>
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: "var(--t-base)" }}>{al.title}</div>
+                    {al.recommendation && <div style={{ fontSize: "var(--t-sm)", color: "var(--text-muted)", marginTop: 2 }}>{al.recommendation}</div>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Last backup + restore */}
       {dash && (
@@ -4377,103 +4600,86 @@ function BackupConsole({ token }) {
         </div>
       )}
 
-      {/* Policies table */}
-      <div className="card" style={{ padding: "1rem", marginBottom: "1.5rem" }}>
-        <h3 style={{ fontWeight: 600, marginBottom: "0.75rem" }}>Políticas de Backup ({policies.length})</h3>
+      {/* Políticas de Backup */}
+      <div className="console-section" style={{ marginBottom: "var(--s-4)" }}>
+        <div className="console-section__header"><span>Políticas de Backup ({policies.length})</span></div>
         <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", fontSize: "0.875rem", borderCollapse: "collapse" }}>
-            <thead><tr style={{ borderBottom: "2px solid var(--border-color)" }}>
-              <th style={{ textAlign: "left", padding: "0.4rem" }}>Código</th>
-              <th style={{ textAlign: "left", padding: "0.4rem" }}>Nome</th>
-              <th style={{ textAlign: "left", padding: "0.4rem" }}>Escopo</th>
-              <th style={{ textAlign: "left", padding: "0.4rem" }}>Tipo</th>
-              <th style={{ textAlign: "left", padding: "0.4rem" }}>Frequência</th>
-              <th style={{ textAlign: "left", padding: "0.4rem" }}>Retenção</th>
-              <th style={{ textAlign: "left", padding: "0.4rem" }}>RPO alvo</th>
-              <th style={{ textAlign: "left", padding: "0.4rem" }}>Status</th>
-            </tr></thead>
-            <tbody>
-              {!policies.length && <tr><td colSpan={8}><EmptyState icon={<IcoBackup size={36} />} title="Nenhuma política de backup" text="Configure políticas de backup para proteger os dados da plataforma." /></td></tr>}
-              {policies.map(p => (
-                <tr key={p.id} style={{ borderBottom: "1px solid var(--border-color)" }}>
-                  <td style={{ padding: "0.4rem", fontFamily: "monospace", fontSize: "0.8rem" }}>{p.policyCode}</td>
-                  <td style={{ padding: "0.4rem" }}>{p.name}</td>
-                  <td style={{ padding: "0.4rem" }}><span className="badge badge--info">{p.scope}</span></td>
-                  <td style={{ padding: "0.4rem" }}>{p.backupType}</td>
-                  <td style={{ padding: "0.4rem" }}>{p.frequency}</td>
-                  <td style={{ padding: "0.4rem" }}>{p.retentionDays}d</td>
-                  <td style={{ padding: "0.4rem" }}>{p.rpoTargetMinutes != null ? `${p.rpoTargetMinutes}min` : "—"}</td>
-                  <td style={{ padding: "0.4rem" }}><span className={p.enabled ? "badge badge--success" : "badge badge--danger"}>{p.enabled ? "Ativa" : "Desabilitada"}</span></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          {policies.length === 0 ? (
+            <EmptyState icon={<IcoBackup size={36} />} title="Nenhuma política de backup" text="Configure políticas para proteger os dados da plataforma e habilitar o monitoramento de continuidade." />
+          ) : (
+            <table className="data-table">
+              <thead><tr><th>Código</th><th>Nome</th><th>Escopo</th><th>Tipo</th><th>Frequência</th><th>Retenção</th><th>RPO alvo</th><th>Status</th></tr></thead>
+              <tbody>
+                {policies.map(p => (
+                  <tr key={p.id}>
+                    <td><code style={{ fontSize: "var(--t-xs)", fontFamily: "var(--font-mono)" }}>{p.policyCode}</code></td>
+                    <td style={{ fontWeight: 500 }}>{p.name}</td>
+                    <td><span className="badge badge--info">{p.scope}</span></td>
+                    <td>{p.backupType}</td>
+                    <td>{p.frequency}</td>
+                    <td>{p.retentionDays}d</td>
+                    <td>{p.rpoTargetMinutes != null ? `${p.rpoTargetMinutes} min` : "—"}</td>
+                    <td><span className={p.enabled ? "badge badge--success" : "badge badge--danger"}>{p.enabled ? "Ativa" : "Desabilitada"}</span></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
 
-      {/* Executions table */}
-      <div className="card" style={{ padding: "1rem", marginBottom: "1.5rem" }}>
-        <h3 style={{ fontWeight: 600, marginBottom: "0.75rem" }}>Execuções de Backup ({executions.length})</h3>
+      {/* Execuções de Backup */}
+      <div className="console-section" style={{ marginBottom: "var(--s-4)" }}>
+        <div className="console-section__header"><span>Execuções de Backup ({executions.length})</span></div>
         <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", fontSize: "0.875rem", borderCollapse: "collapse" }}>
-            <thead><tr style={{ borderBottom: "2px solid var(--border-color)" }}>
-              <th style={{ textAlign: "left", padding: "0.4rem" }}>Código</th>
-              <th style={{ textAlign: "left", padding: "0.4rem" }}>Iniciado</th>
-              <th style={{ textAlign: "left", padding: "0.4rem" }}>Duração</th>
-              <th style={{ textAlign: "left", padding: "0.4rem" }}>Status</th>
-              <th style={{ textAlign: "left", padding: "0.4rem" }}>Provedor</th>
-              <th style={{ textAlign: "left", padding: "0.4rem" }}>Ambiente</th>
-              <th style={{ textAlign: "left", padding: "0.4rem" }}>Verificado</th>
-            </tr></thead>
-            <tbody>
-              {!executions.length && <tr><td colSpan={7}><EmptyState icon={<IcoBackup size={36} />} title="Nenhuma execução registrada" text="Execuções são criadas automaticamente pelas políticas de backup ativas." /></td></tr>}
-              {executions.map(e => (
-                <tr key={e.id} style={{ borderBottom: "1px solid var(--border-color)" }}>
-                  <td style={{ padding: "0.4rem", fontFamily: "monospace", fontSize: "0.8rem" }}>{e.executionCode}</td>
-                  <td style={{ padding: "0.4rem" }}>{fmtDate(e.startedAt)}</td>
-                  <td style={{ padding: "0.4rem" }}>{e.durationSeconds != null ? `${e.durationSeconds}s` : "—"}</td>
-                  <td style={{ padding: "0.4rem" }}><span className={EXEC_STATUS_BADGE[e.status] || "badge"}>{e.status}</span></td>
-                  <td style={{ padding: "0.4rem" }}>{e.backupProvider || "—"}</td>
-                  <td style={{ padding: "0.4rem" }}>{e.environment}</td>
-                  <td style={{ padding: "0.4rem" }}>{e.verified ? "✓" : "—"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          {executions.length === 0 ? (
+            <EmptyState icon={<IcoBackup size={36} />} title="Nenhuma execução registrada" text="Execuções são geradas automaticamente pelas políticas de backup ativas." />
+          ) : (
+            <table className="data-table">
+              <thead><tr><th>Código</th><th>Iniciado</th><th>Duração</th><th>Status</th><th>Provedor</th><th>Ambiente</th><th>Verificado</th></tr></thead>
+              <tbody>
+                {executions.map(e => (
+                  <tr key={e.id}>
+                    <td><code style={{ fontSize: "var(--t-xs)", fontFamily: "var(--font-mono)" }}>{e.executionCode}</code></td>
+                    <td>{fmtDate(e.startedAt)}</td>
+                    <td>{e.durationSeconds != null ? `${e.durationSeconds}s` : "—"}</td>
+                    <td><span className={EXEC_STATUS_BADGE[e.status] || "badge"}>{e.status}</span></td>
+                    <td>{e.backupProvider || "—"}</td>
+                    <td>{e.environment}</td>
+                    <td style={{ textAlign: "center" }}>{e.verified ? <span className="badge badge--success">Sim</span> : "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
 
-      {/* Restore tests table */}
-      <div className="card" style={{ padding: "1rem" }}>
-        <h3 style={{ fontWeight: 600, marginBottom: "0.75rem" }}>Testes de Restore ({tests.length})</h3>
+      {/* Testes de Restore */}
+      <div className="console-section">
+        <div className="console-section__header"><span>Testes de Restore ({tests.length})</span></div>
         <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", fontSize: "0.875rem", borderCollapse: "collapse" }}>
-            <thead><tr style={{ borderBottom: "2px solid var(--border-color)" }}>
-              <th style={{ textAlign: "left", padding: "0.4rem" }}>Código</th>
-              <th style={{ textAlign: "left", padding: "0.4rem" }}>Ambiente</th>
-              <th style={{ textAlign: "left", padding: "0.4rem" }}>Status</th>
-              <th style={{ textAlign: "left", padding: "0.4rem" }}>RPO alcançado</th>
-              <th style={{ textAlign: "left", padding: "0.4rem" }}>RTO alcançado</th>
-              <th style={{ textAlign: "left", padding: "0.4rem" }}>Verificado por</th>
-              <th style={{ textAlign: "left", padding: "0.4rem" }}>Data</th>
-              <th style={{ textAlign: "left", padding: "0.4rem" }}>Evidências</th>
-            </tr></thead>
-            <tbody>
-              {!tests.length && <tr><td colSpan={8}><EmptyState icon={<IcoCheckCircle size={36} />} title="Nenhum teste de restore registrado" text="Testes de restore validam a integridade dos backups. Execute o primeiro para garantir a continuidade." /></td></tr>}
-              {tests.map(t => (
-                <tr key={t.id} style={{ borderBottom: "1px solid var(--border-color)" }}>
-                  <td style={{ padding: "0.4rem", fontFamily: "monospace", fontSize: "0.8rem" }}>{t.restoreCode}</td>
-                  <td style={{ padding: "0.4rem" }}>{t.environment}</td>
-                  <td style={{ padding: "0.4rem" }}><span className={RESTORE_STATUS_BADGE[t.status] || "badge"}>{t.status}</span></td>
-                  <td style={{ padding: "0.4rem" }}>{t.rpoAchievedMinutes != null ? `${t.rpoAchievedMinutes}min` : "—"}</td>
-                  <td style={{ padding: "0.4rem" }}>{t.rtoAchievedMinutes != null ? `${t.rtoAchievedMinutes}min` : "—"}</td>
-                  <td style={{ padding: "0.4rem" }}>{t.verifiedBy || "—"}</td>
-                  <td style={{ padding: "0.4rem" }}>{fmtDate(t.startedAt)}</td>
-                  <td style={{ padding: "0.4rem" }}>{t.evidence?.length || 0}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          {tests.length === 0 ? (
+            <EmptyState icon={<IcoCheckCircle size={36} />} title="Nenhum teste de restore registrado" text="Testes de restore validam a integridade dos backups e a capacidade de recuperação em caso de falha." />
+          ) : (
+            <table className="data-table">
+              <thead><tr><th>Código</th><th>Ambiente</th><th>Status</th><th>RPO</th><th>RTO</th><th>Verificado por</th><th>Data</th><th>Evidências</th></tr></thead>
+              <tbody>
+                {tests.map(t => (
+                  <tr key={t.id}>
+                    <td><code style={{ fontSize: "var(--t-xs)", fontFamily: "var(--font-mono)" }}>{t.restoreCode}</code></td>
+                    <td>{t.environment}</td>
+                    <td><span className={RESTORE_STATUS_BADGE[t.status] || "badge"}>{t.status}</span></td>
+                    <td>{t.rpoAchievedMinutes != null ? `${t.rpoAchievedMinutes} min` : "—"}</td>
+                    <td>{t.rtoAchievedMinutes != null ? `${t.rtoAchievedMinutes} min` : "—"}</td>
+                    <td>{t.verifiedBy || "—"}</td>
+                    <td>{fmtDate(t.startedAt)}</td>
+                    <td style={{ textAlign: "center" }}>{t.evidence?.length || 0}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
     </div>
